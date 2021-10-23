@@ -1,10 +1,10 @@
 package config
 
 type Settings struct {
-	port       string
-	logLevel   string
-	dbUser     string
-	dbPassword string
-	dbPort     string
-	dbHost     string
+	Port       string
+	LogLevel   string
+	DbUser     string
+	DbPassword string
+	DbPort     string
+	DbHost     string
 }
