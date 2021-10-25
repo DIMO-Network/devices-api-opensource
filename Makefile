@@ -1,66 +1,71 @@
-.PHONY: all build buildstatic buildstatic-in-docker build-dockerfile deps deps-in-docker build-docker-image test help
+.PHONY: all deps docker docker-cgo clean docs test test-race fmt lint install deploy-docs
 
-IMAGE_NAME=CHANGE_ME # docker image name for output
-SRC_PATH=CHANGE_ME # path of project relative to $GOPATH/src
+TAGS =
 
-THIS_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-VENDOR_DIR=$(THIS_DIR)/vendor
+INSTALL_DIR        = $(GOPATH)/bin
+DEST_DIR           = ./target
+PATHINSTBIN        = $(DEST_DIR)/bin
+PATHINSTDOCKER     = $(DEST_DIR)/docker
 
-IMAGE_VERSION = $(shell echo $${CI_BUILD_REF_NAME:=master}|sed 's/\//./') # get image tag from gitlab's CI_BUILD_REF_NAME env
-UID = $(shell id -u)
-GID = $(shell id -g)
-USER = $(shell echo $${USER:=someuser})
-SSH_PATH= $(shell if [ ! -z $$CI ]; then echo $$PWD/ssh; else echo $$HOME/.ssh; fi)
-GO_FILES=$(shell find . -iname '*.go' -type f | grep -v /vendor/ |grep -v ".gen.go"| grep -v ".pb.go") # All the .go files, excluding vendor/
-BUILDER_IMAGE_NAME=goprotobuild # Whatever docker image you want to use as builder
-GO_PACKAGES=$(shell go list ./... | grep -v /vendor/)
+VERSION   := $(shell git describe --tags || echo "v0.0.0")
+VER_CUT   := $(shell echo $(VERSION) | cut -c2-)
+VER_MAJOR := $(shell echo $(VER_CUT) | cut -f1 -d.)
+VER_MINOR := $(shell echo $(VER_CUT) | cut -f2 -d.)
+VER_PATCH := $(shell echo $(VER_CUT) | cut -f3 -d.)
+VER_RC    := $(shell echo $(VER_PATCH) | cut -f2 -d-)
+DATE      := $(shell date +"%Y-%m-%dT%H:%M:%SZ")
 
-define docker-run =
-	make build-dockerfile
-	docker run --rm -i \
-		-v $$PWD:/go/src/$(SRC_PATH) \
-		-v $(SSH_PATH):$$HOME/.ssh \
-		-u $(UID):$(GID) \
-		-v /etc/passwd:/etc/passwd:ro \
-		-v /etc/group:/etc/group:ro $(BUILDER_IMAGE_NAME) make -C /go/src/$(SRC_PATH) $(1) $(2) $(3)
-endef
+LD_FLAGS   =
+GO_FLAGS   =
+DOCS_FLAGS =
 
-default: help
+APPS = devices-api
+all: $(APPS)
 
-build: ## Builds a dynamic linked binary
-	go version
-	go build
+install: $(APPS)
+	@mkdir -p bin
+	@cp $(PATHINSTBIN)/devices-api ./bin/
 
-buildstatic: ## Builds a static binary
-	@GO15VENDOREXPERIMENT=1 CGO_ENABLED=0 GOOS=linux go build -ldflags "-s" -a -installsuffix cgo -o main ./main.go
-	
-buildstatic-in-docker: ## Builds a static binary using a docker build environment
-	$(call docker-run,"buildstatic")
+deps:
+	@go mod tidy
+	@go mod vendor
 
-build-dockerfile:				## Create dockerfile which acts as build environment
-	@docker build --pull -f Dockerfile -t $(BUILDER_IMAGE_NAME) .
+SOURCE_FILES = $(shell find lib internal -type f -name "*.go")
 
-deps:					## Installs dependencies using glide
-	@glide --home /tmp/ install
+$(PATHINSTBIN)/%: $(SOURCE_FILES) 
+	@go build $(GO_FLAGS) -tags "$(TAGS)" -ldflags "$(LD_FLAGS) " -o $@ ./cmd/$*
 
-deps-in-docker:			## does deps in docker
-	@$(call docker-run,"deps","proto")
+$(APPS): %: $(PATHINSTBIN)/%
 
-build-docker-image: buildstatic-in-docker	## Builds the deployment docker image
-	@docker build --pull -t $(IMAGE_NAME):$(IMAGE_VERSION) .
+docker-tags:
+	@echo "latest,$(VER_CUT),$(VER_MAJOR).$(VER_MINOR),$(VER_MAJOR)" > .tags
 
-test:							## Run all tests
-	@go test $(GO_PACKAGES)
+docker-rc-tags:
+	@echo "latest,$(VER_CUT),$(VER_MAJOR)-$(VER_RC)" > .tags
 
-vet:
-	@go vet $(GO_PACKAGES)
+docker-cgo-tags:
+	@echo "latest-cgo,$(VER_CUT)-cgo,$(VER_MAJOR).$(VER_MINOR)-cgo,$(VER_MAJOR)-cgo" > .tags
+
+docker: deps
+	@docker build -f ./resources/docker/Dockerfile . -t dimozone/devices-api:$(VER_CUT)
+	@docker tag dimozone/devices-api:$(VER_CUT) dimozone/devices-api:latest
+
+docker-cgo: deps
+	@docker build -f ./resources/docker/Dockerfile.cgo . -t dimozone/devices-api:$(VER_CUT)-cgo
+	@docker tag dimozone/devices-api:$(VER_CUT)-cgo dimozone/devices-api:latest-cgo
 
 fmt:
-	@go fmt $(GO_PACKAGES)
+	@go list -f {{.Dir}} ./... | xargs -I{} gofmt -w -s {}
+	@go mod tidy
 
-push: ## Push the images to local and remote registry
-	@docker push $(IMAGE_NAME):$(IMAGE_VERSION)
+lint:
+	@go vet $(GO_FLAGS) ./...
 
+test: $(APPS)
+	@go test $(GO_FLAGS) -timeout 3m -race ./...
+	@$(PATHINSTBIN)/devices-api test ./config/test/...
 
-help:							## Show this help.
-	@grep -e "^[a-zA-Z_-]*:" Makefile|awk -F'##' '{gsub(/[ \t]+$$/, "", $$1);printf "%-30s\t%s\n", $$1, $$2}'
+clean:
+	rm -rf $(PATHINSTBIN)
+	rm -rf $(DEST_DIR)/dist
+	rm -rf $(PATHINSTDOCKER)

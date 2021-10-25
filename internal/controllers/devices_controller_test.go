@@ -11,7 +11,7 @@ import (
 )
 
 func TestDevicesController_GetUsersDevices(t *testing.T) {
-	c :=NewDevicesController(&config.Settings{Port: "3000"})
+	c := NewDevicesController(&config.Settings{Port: "3000"})
 
 	app := fiber.New()
 	app.Get("/devices", c.GetUsersDevices)

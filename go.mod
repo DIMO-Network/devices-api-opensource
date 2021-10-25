@@ -3,7 +3,6 @@ module github.com/DIMO-INC/devices-api
 go 1.17
 
 require (
-	github.com/buger/jsonparser v1.1.1
 	github.com/gofiber/fiber/v2 v2.20.2
 	github.com/rs/zerolog v1.25.0
 	github.com/stretchr/testify v1.7.0
