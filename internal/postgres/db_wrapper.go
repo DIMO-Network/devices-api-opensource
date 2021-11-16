@@ -8,6 +8,8 @@ import (
 	"github.com/pkg/errors"
 	"sync"
 	"time"
+
+	_ "github.com/lib/pq" // concrete implementation of postgres
 )
 
 // Options config options for database

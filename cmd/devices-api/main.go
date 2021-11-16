@@ -12,6 +12,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -25,11 +26,14 @@ func main() {
 
 	settings := config.Settings{
 		Port:       "3000",
-		LogLevel:   "",
-		DbUser:     "",
-		DbPassword: "",
-		DbPort:     "",
-		DbHost:     "",
+		LogLevel:   "info",
+		DbUser:     "dimo",
+		DbPassword: "dimo",
+		DbPort:     "5432",
+		DbHost:     "localhost",
+		DbMaxIdleConnections: 5,
+		DbMaxOpenConnections: 5,
+		DbName: "devices_api",
 	}
 
 	pdb := postgres.NewDbStore(ctx, settings)
