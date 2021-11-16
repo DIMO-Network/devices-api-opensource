@@ -20,7 +20,7 @@ func NewDevicesController(settings *config.Settings) DevicesController {
 func (d *DevicesController) GetUsersDevices(c *fiber.Ctx) error {
 	ds := make([]DeviceRp, 0)
 	ds = append(ds, DeviceRp{
-		DeviceId: "123123",
+		DeviceID: "123123",
 		Name:     "Johnny's Tesla",
 	})
 
@@ -30,6 +30,6 @@ func (d *DevicesController) GetUsersDevices(c *fiber.Ctx) error {
 }
 
 type DeviceRp struct {
-	DeviceId string `json:"device_id"`
+	DeviceID string `json:"device_id"`
 	Name     string `json:"name"`
 }
