@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"github.com/DIMO-INC/devices-api/internal/postgres"
 	"os"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
@@ -14,6 +16,7 @@ import (
 
 func main() {
 	gitSha1 := os.Getenv("GIT_SHA1")
+	ctx := context.Background()
 	logger := zerolog.New(os.Stdout).With().
 		Timestamp().
 		Str("app", "devices-api").
@@ -29,6 +32,8 @@ func main() {
 		DbHost:     "",
 	}
 
+	pdb := postgres.NewDbStore(ctx, settings)
+
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return ErrorHandler(c, err, logger)
@@ -36,8 +41,12 @@ func main() {
 		DisableStartupMessage: true,
 	})
 
-	deviceControllers := controllers.NewDevicesController(&settings)
-	app.Use(recover.New())
+	deviceControllers := controllers.NewDevicesController(&settings, pdb.DBS)
+	app.Use(recover.New(recover.Config{
+		Next:              nil,
+		EnableStackTrace:  true,
+		StackTraceHandler: nil,
+	}))
 	app.Use(cors.New())
 	app.Get("/", HealthCheck)
 	v1 := app.Group("/v1")
