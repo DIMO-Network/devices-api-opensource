@@ -2,17 +2,17 @@ package main
 
 import (
 	"context"
-	"github.com/DIMO-INC/devices-api/internal/postgres"
 	"os"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/controllers"
-	"github.com/rs/zerolog"
+	"github.com/DIMO-INC/devices-api/internal/postgres"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	_ "github.com/lib/pq"
+	"github.com/rs/zerolog"
 )
 
 func main() {

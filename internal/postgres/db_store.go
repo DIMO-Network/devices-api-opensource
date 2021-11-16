@@ -3,9 +3,10 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"github.com/DIMO-INC/devices-api/internal/config"
 	"sync"
 	"time"
+
+	"github.com/DIMO-INC/devices-api/internal/config"
 )
 
 // instance holds a single instance of the database

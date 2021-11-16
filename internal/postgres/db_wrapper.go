@@ -4,12 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-
-	"github.com/pkg/errors"
 	"sync"
 	"time"
 
 	_ "github.com/lib/pq" // concrete implementation of postgres
+	"github.com/pkg/errors"
 )
 
 // Options config options for database
@@ -41,8 +40,8 @@ type DBS struct {
 
 var dbs *DBS
 
-// NewDBS constructs new DBS object with error handling, datadog monitoring, retry
-func NewDBS(ctx context.Context, ready *bool, ro Options, wo Options, serviceName string) *DBS {
+// NewDBS constructs new DBS object with error handling, retry
+func NewDBS(ctx context.Context, ready *bool, ro Options, wo Options) *DBS {
 	dbs = &DBS{Reader: &DB{}, Writer: &DB{}}
 
 	go func(ctx context.Context, ready *bool, dbs *DBS) {
