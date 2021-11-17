@@ -10,5 +10,6 @@ services:
     environment:
       - POSTGRES_USER=dimo
       - POSTGRES_PASSWORD=dimo
+      - POSTGRES_DB=devices_api
     volumes:
       - ./resources/data:/var/lib/postgresql/data:delegated

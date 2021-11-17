@@ -1,4 +1,4 @@
-package postgres
+package database
 
 import (
 	"context"
@@ -9,8 +9,10 @@ import (
 	"github.com/DIMO-INC/devices-api/internal/config"
 )
 
+const driverName = "postgres"
+
 // instance holds a single instance of the database
-var instance *DBS
+var instance *DBReaderWriter
 
 var ready bool
 
@@ -20,33 +22,35 @@ var once sync.Once
 // DbStore holds the database connection and other stuff.
 type DbStore struct {
 	db    func() *sql.DB
-	dbs   *DBS
+	dbs   *DBReaderWriter
 	ready *bool
 }
 
-// NewDbStore either generates or returns the connection to the database.
-func NewDbStore(ctx context.Context, settings config.Settings) DbStore {
+// NewDbConnectionFromSettings sets up a db connection from the settings, only once
+func NewDbConnectionFromSettings(ctx context.Context, settings config.Settings) DbStore {
 	once.Do(func() {
-		instance = NewDBS(
+		instance = NewDbConnection(
 			ctx,
 			&ready,
-			Options{
+			ConnectOptions{
 				Retries:            5,
-				Delay:              time.Second * 15,
-				Timeout:            time.Minute * 5,
-				DSN:                settings.WriterConnectionString(),
+				RetryDelay:         time.Second * 15,
+				ConnectTimeout:     time.Minute * 5,
+				DSN:                settings.GetWriterDSN(),
 				MaxOpenConnections: settings.DbMaxOpenConnections,
 				MaxIdleConnections: settings.DbMaxIdleConnections,
 				ConnMaxLifetime:    time.Minute * 5,
+				DriverName: driverName,
 			},
-			Options{
+			ConnectOptions{
 				Retries:            5,
-				Delay:              time.Second * 15,
-				Timeout:            time.Minute * 5,
-				DSN:                settings.WriterConnectionString(),
+				RetryDelay:         time.Second * 15,
+				ConnectTimeout:     time.Minute * 5,
+				DSN:                settings.GetWriterDSN(),
 				MaxOpenConnections: settings.DbMaxOpenConnections,
 				MaxIdleConnections: settings.DbMaxIdleConnections,
 				ConnMaxLifetime:    time.Minute * 5,
+				DriverName: driverName,
 			},
 		)
 	})
@@ -54,12 +58,12 @@ func NewDbStore(ctx context.Context, settings config.Settings) DbStore {
 	return DbStore{db: instance.GetWriterConn, dbs: instance, ready: &ready}
 }
 
-//Ready returns if db is ready to connect to
-func (store *DbStore) Ready() bool {
+// IsReady returns if db is ready to connect to
+func (store *DbStore) IsReady() bool {
 	return *store.ready
 }
 
-//DBS returns the dbs to connect to
-func (store *DbStore) DBS() *DBS {
+// DBS returns the reader and writer databases to connect to
+func (store *DbStore) DBS() *DBReaderWriter {
 	return store.dbs
 }

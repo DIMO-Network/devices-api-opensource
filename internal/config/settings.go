@@ -16,8 +16,8 @@ type Settings struct {
 	ServiceName          string
 }
 
-// WriterConnectionString builds the connection string to the db writer - for now same as reader
-func (app *Settings) WriterConnectionString() string {
+// GetWriterDSN builds the connection string to the db writer - for now same as reader
+func (app *Settings) GetWriterDSN() string {
 	return fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s sslmode=disable search_path=devices",
 		app.DbUser,
 		app.DbPassword,

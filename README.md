@@ -12,3 +12,12 @@ You can connect to db eg: psql -h localhost -p 5432 -U dimo
 
 2. Run application
 `$ go run ./cmd/devices-api` 
+
+## Migrations
+
+To add a migrations:
+`$ goose -dir migrations create <migration_name> sql`
+
+env vars to export:
+GOOSE_DRIVER=postgres
+GOOSE_DBSTRING=DBSTRING

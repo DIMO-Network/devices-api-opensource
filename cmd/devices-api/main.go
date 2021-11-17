@@ -6,7 +6,7 @@ import (
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/controllers"
-	"github.com/DIMO-INC/devices-api/internal/postgres"
+	"github.com/DIMO-INC/devices-api/internal/database"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -36,7 +36,7 @@ func main() {
 		DbName: "devices_api",
 	}
 
-	pdb := postgres.NewDbStore(ctx, settings)
+	pdb := database.NewDbConnectionFromSettings(ctx, settings)
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
