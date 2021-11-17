@@ -48,7 +48,6 @@ func NewDbStore(ctx context.Context, settings config.Settings) DbStore {
 				MaxIdleConnections: settings.DbMaxIdleConnections,
 				ConnMaxLifetime:    time.Minute * 5,
 			},
-			settings.ServiceName,
 		)
 	})
 
