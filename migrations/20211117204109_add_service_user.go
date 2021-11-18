@@ -3,9 +3,10 @@ package migrations
 import (
 	"database/sql"
 	"fmt"
+	"os"
+
 	"github.com/pkg/errors"
 	"github.com/pressly/goose/v3"
-	"os"
 )
 
 func init() {

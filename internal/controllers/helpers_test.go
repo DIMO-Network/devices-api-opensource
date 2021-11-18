@@ -29,7 +29,7 @@ func setupDatabase(ctx context.Context, t *testing.T) (database.DbStore, *embedd
 		DbMaxIdleConnections: 2,
 		ServiceName:          "devices-api",
 	}
-	pdb := database.NewDbConnectionFromSettings(ctx, settings)
+	pdb := database.NewDbConnectionFromSettings(ctx, &settings)
 	time.Sleep(3 * time.Second) // get panic if don't have this here
 
 	// can run migrations at this point
