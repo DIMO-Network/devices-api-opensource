@@ -18,19 +18,16 @@ func upAddServiceUser(tx *sql.Tx) error {
 		svcAccountPwd = "service" // default eg. for local testing
 	}
 	sql := fmt.Sprintf(`CREATE USER service with password '%s';
-		GRANT usage ON SCHEMA devices_api to service;
+		GRANT USAGE ON SCHEMA devices_api TO service;
+		GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES ON ALL tables IN SCHEMA devices_api TO service;
+		GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA devices_api TO service;
+		GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA devices_api TO service;
 	`, svcAccountPwd)
 
 	_, err := tx.Exec(sql)
 	if err != nil {
 		return errors.Wrap(err, "sql error creating user service.")
 	}
-	//future := `
-	//	GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES ON TABLES TO service;
-	//	GRANT USAGE, SELECT ON SEQUENCES TO service;
-	//	GRANT EXECUTE ON FUNCTIONS TO service;
-	//	GRANT USAGE ON TYPES TO service;
-	//`)
 
 	return nil
 }

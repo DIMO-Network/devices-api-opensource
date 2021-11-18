@@ -3,7 +3,7 @@ Api for managing devices on the DIMO platform.
 
 ## Developing locally
 
-1. Make sure a data folder exists under: `mkdir ./resources/data`
+1. Make sure a data folder exists under: `$ mkdir ./resources/data`
 Start Database: `$ docker compose up -d`
 This will start the db on port 5432, if you have conflicting port issue can check with: `$ lsof -i :5432`. 
 Data will be persisted across sessions b/c we have the volume set. 
