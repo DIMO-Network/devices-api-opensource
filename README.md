@@ -33,7 +33,7 @@ Clear DB to start over:
 ```bash
 $ docker ps
 $ docker stop <container_id>
-$ rm -R ./resources/data/
+$ rm -R ./resources/data/ && mkdir ./resources/data/ && docker compose up -d
 ```
 
 When running migrations from CD, we will want to set the following env vars:
