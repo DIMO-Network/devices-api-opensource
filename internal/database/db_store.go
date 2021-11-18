@@ -27,7 +27,7 @@ type DbStore struct {
 }
 
 // NewDbConnectionFromSettings sets up a db connection from the settings, only once
-func NewDbConnectionFromSettings(ctx context.Context, settings config.Settings) DbStore {
+func NewDbConnectionFromSettings(ctx context.Context, settings *config.Settings) DbStore {
 	once.Do(func() {
 		instance = NewDbConnection(
 			ctx,
@@ -36,7 +36,7 @@ func NewDbConnectionFromSettings(ctx context.Context, settings config.Settings) 
 				Retries:            5,
 				RetryDelay:         time.Second * 15,
 				ConnectTimeout:     time.Minute * 5,
-				DSN:                settings.GetWriterDSN(),
+				DSN:                settings.GetWriterDSN(true),
 				MaxOpenConnections: settings.DbMaxOpenConnections,
 				MaxIdleConnections: settings.DbMaxIdleConnections,
 				ConnMaxLifetime:    time.Minute * 5,
@@ -46,7 +46,7 @@ func NewDbConnectionFromSettings(ctx context.Context, settings config.Settings) 
 				Retries:            5,
 				RetryDelay:         time.Second * 15,
 				ConnectTimeout:     time.Minute * 5,
-				DSN:                settings.GetWriterDSN(),
+				DSN:                settings.GetWriterDSN(true),
 				MaxOpenConnections: settings.DbMaxOpenConnections,
 				MaxIdleConnections: settings.DbMaxIdleConnections,
 				ConnMaxLifetime:    time.Minute * 5,

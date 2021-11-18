@@ -15,6 +15,9 @@ You can connect to db eg: psql -h localhost -p 5432 -U dimo
 
 ## Migrations
 
+To install goose CLI:
+`$ go get -u github.com/pressly/goose/v3/cmd/goose`
+
 To add a migrations:
 `$ goose -dir migrations create <migration_name> sql`
 

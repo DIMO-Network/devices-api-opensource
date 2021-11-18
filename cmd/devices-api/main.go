@@ -24,17 +24,7 @@ func main() {
 		Str("git-sha1", gitSha1).
 		Logger()
 
-	settings := config.Settings{
-		Port:       "3000",
-		LogLevel:   "info",
-		DbUser:     "dimo",
-		DbPassword: "dimo",
-		DbPort:     "5432",
-		DbHost:     "localhost",
-		DbMaxIdleConnections: 5,
-		DbMaxOpenConnections: 5,
-		DbName: "devices_api",
-	}
+	settings := config.LoadConfig()
 
 	pdb := database.NewDbConnectionFromSettings(ctx, settings)
 
@@ -45,7 +35,7 @@ func main() {
 		DisableStartupMessage: true,
 	})
 
-	deviceControllers := controllers.NewDevicesController(&settings, pdb.DBS)
+	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS)
 	app.Use(recover.New(recover.Config{
 		Next:              nil,
 		EnableStackTrace:  true,
