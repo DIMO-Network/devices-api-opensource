@@ -1,13 +1,14 @@
 package config
 
 import (
-	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"reflect"
 	"strconv"
+
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
+	"gopkg.in/yaml.v3"
 )
 
 // LoadConfig fills in all the values in the Settings from local yml file (for dev) and env vars (for deployments)
