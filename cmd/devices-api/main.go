@@ -6,7 +6,7 @@ import (
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/controllers"
-	"github.com/DIMO-INC/devices-api/internal/postgres"
+	"github.com/DIMO-INC/devices-api/internal/database"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -24,19 +24,9 @@ func main() {
 		Str("git-sha1", gitSha1).
 		Logger()
 
-	settings := config.Settings{
-		Port:       "3000",
-		LogLevel:   "info",
-		DbUser:     "dimo",
-		DbPassword: "dimo",
-		DbPort:     "5432",
-		DbHost:     "localhost",
-		DbMaxIdleConnections: 5,
-		DbMaxOpenConnections: 5,
-		DbName: "devices_api",
-	}
+	settings := config.LoadConfig()
 
-	pdb := postgres.NewDbStore(ctx, settings)
+	pdb := database.NewDbConnectionFromSettings(ctx, settings)
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -45,7 +35,7 @@ func main() {
 		DisableStartupMessage: true,
 	})
 
-	deviceControllers := controllers.NewDevicesController(&settings, pdb.DBS)
+	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS)
 	app.Use(recover.New(recover.Config{
 		Next:              nil,
 		EnableStackTrace:  true,

@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"github.com/DIMO-INC/devices-api/internal/config"
-	"github.com/DIMO-INC/devices-api/internal/postgres"
+	"github.com/DIMO-INC/devices-api/internal/database"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -10,10 +10,10 @@ type DevicesController struct {
 	// DB holder
 	// redis cache?
 	Settings *config.Settings
-	DBS func() *postgres.DBS
+	DBS func() *database.DBReaderWriter
 }
 
-func NewDevicesController(settings *config.Settings, dbs func() *postgres.DBS) DevicesController {
+func NewDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter) DevicesController {
 	return DevicesController{
 		Settings: settings,
 		DBS: dbs,

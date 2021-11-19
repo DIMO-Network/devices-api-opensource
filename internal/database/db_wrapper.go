@@ -1,4 +1,4 @@
-package postgres
+package database
 
 import (
 	"context"
@@ -7,19 +7,20 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/lib/pq" // concrete implementation of postgres
+	_ "github.com/lib/pq" // concrete implementation of database
 	"github.com/pkg/errors"
 )
 
-// Options config options for database
-type Options struct {
-	Retries            int
-	Delay              time.Duration
-	Timeout            time.Duration
+// ConnectOptions config options for database
+type ConnectOptions struct {
 	DSN                string
+	DriverName 		   string
+	Retries            int
+	RetryDelay         time.Duration
+	ConnectTimeout     time.Duration
+	ConnMaxLifetime    time.Duration
 	MaxIdleConnections int
 	MaxOpenConnections int
-	ConnMaxLifetime    time.Duration
 }
 
 // DB type to wrap sql.DB
@@ -32,19 +33,19 @@ type Tx struct {
 	*sql.Tx
 }
 
-// DBS wraps db reader and writer
-type DBS struct {
+// DBReaderWriter wraps db reader and writer
+type DBReaderWriter struct {
 	Reader *DB
 	Writer *DB
 }
 
-var dbs *DBS
+var dbs *DBReaderWriter
 
-// NewDBS constructs new DBS object with error handling, retry
-func NewDBS(ctx context.Context, ready *bool, ro Options, wo Options) *DBS {
-	dbs = &DBS{Reader: &DB{}, Writer: &DB{}}
+// NewDbConnection connects to the reader and writer per passed in options, with retries, returning a DBReaderWriter object that contains sql.DB connection
+func NewDbConnection(ctx context.Context, ready *bool, ro ConnectOptions, wo ConnectOptions) *DBReaderWriter {
+	dbs = &DBReaderWriter{Reader: &DB{}, Writer: &DB{}}
 
-	go func(ctx context.Context, ready *bool, dbs *DBS) {
+	go func(ctx context.Context, ready *bool, dbs *DBReaderWriter) {
 		errCh := make(chan error)
 		defer close(errCh)
 
@@ -91,10 +92,10 @@ func NewDBS(ctx context.Context, ready *bool, ro Options, wo Options) *DBS {
 			case <-errCh:
 				cancelFunc(false)
 				return
-			case <-time.After(ro.Timeout):
+			case <-time.After(ro.ConnectTimeout):
 				cancelFunc(false)
 				return
-			case <-time.After(wo.Timeout):
+			case <-time.After(wo.ConnectTimeout):
 				cancelFunc(false)
 				return
 			case <-ctx.Done():
@@ -108,7 +109,7 @@ func NewDBS(ctx context.Context, ready *bool, ro Options, wo Options) *DBS {
 	return dbs
 }
 
-func connectWithRetry(ctx context.Context, errCh chan error, readyCh chan bool, opts Options) (db *sql.DB) {
+func connectWithRetry(ctx context.Context, errCh chan error, readyCh chan bool, opts ConnectOptions) (db *sql.DB) {
 	var (
 		err error
 		try = 0
@@ -129,7 +130,7 @@ loop:
 			select {
 			case <-ctx.Done():
 				break loop
-			case <-time.After(opts.Delay):
+			case <-time.After(opts.RetryDelay):
 				continue
 			}
 		}
@@ -146,8 +147,8 @@ loop:
 	return
 }
 
-func connect(opts Options) (*sql.DB, error) {
-	db, err := sql.Open("postgres", opts.DSN)
+func connect(opts ConnectOptions) (*sql.DB, error) {
+	db, err := sql.Open(opts.DriverName, opts.DSN)
 	if err != nil {
 		return nil, err
 	}
@@ -163,11 +164,11 @@ func connect(opts Options) (*sql.DB, error) {
 }
 
 // GetReaderConn returns connection to reader
-func (dbs *DBS) GetReaderConn() *sql.DB {
+func (dbs *DBReaderWriter) GetReaderConn() *sql.DB {
 	return dbs.Reader.DB
 }
 
 // GetWriterConn returns connection to writer
-func (dbs *DBS) GetWriterConn() *sql.DB {
+func (dbs *DBReaderWriter) GetWriterConn() *sql.DB {
 	return dbs.Writer.DB
 }
