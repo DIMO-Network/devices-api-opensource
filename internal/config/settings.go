@@ -4,16 +4,16 @@ import "fmt"
 
 // Settings contains the application config
 type Settings struct {
-	Port                 string
-	LogLevel             string
-	DbUser               string
-	DbPassword           string
-	DbPort               string
-	DbHost               string
-	DbName               string
-	DbMaxOpenConnections int
-	DbMaxIdleConnections int
-	ServiceName          string
+	Port                 string `yaml:"PORT"`
+	LogLevel             string `yaml:"LOG_LEVEL"`
+	DbUser               string `yaml:"DB_USER"`
+	DbPassword           string `yaml:"DB_PASSWORD"`
+	DbPort               string `yaml:"DB_PORT"`
+	DbHost               string `yaml:"DB_HOST"`
+	DbName               string `yaml:"DB_NAME"`
+	DbMaxOpenConnections int `yaml:"DB_MAX_OPEN_CONNECTIONS"`
+	DbMaxIdleConnections int `yaml:"DB_MAX_IDLE_CONNECTIONS"`
+	ServiceName          string `yaml:"SERVICE_NAME"`
 }
 
 // GetWriterDSN builds the connection string to the db writer - for now same as reader
