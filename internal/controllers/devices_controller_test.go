@@ -1,17 +1,24 @@
 package controllers
 
 import (
+	"context"
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
-
 	"io/ioutil"
 	"net/http"
 	"testing"
 )
 
 func TestDevicesController_GetUsersDevices(t *testing.T) {
-	c := NewDevicesController(&config.Settings{Port: "3000"})
+	ctx := context.Background()
+	pdb, database := setupDatabase(ctx, t)
+	defer func() {
+		if err := database.Stop(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	c := NewDevicesController(&config.Settings{Port: "3000"}, pdb.DBS)
 
 	app := fiber.New()
 	app.Get("/devices", c.GetUsersDevices)

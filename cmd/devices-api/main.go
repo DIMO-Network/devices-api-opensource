@@ -1,19 +1,23 @@
 package main
 
 import (
+	"context"
 	"os"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/controllers"
-	"github.com/rs/zerolog"
+	"github.com/DIMO-INC/devices-api/internal/postgres"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	_ "github.com/lib/pq"
+	"github.com/rs/zerolog"
 )
 
 func main() {
 	gitSha1 := os.Getenv("GIT_SHA1")
+	ctx := context.Background()
 	logger := zerolog.New(os.Stdout).With().
 		Timestamp().
 		Str("app", "devices-api").
@@ -22,12 +26,17 @@ func main() {
 
 	settings := config.Settings{
 		Port:       "3000",
-		LogLevel:   "",
-		DbUser:     "",
-		DbPassword: "",
-		DbPort:     "",
-		DbHost:     "",
+		LogLevel:   "info",
+		DbUser:     "dimo",
+		DbPassword: "dimo",
+		DbPort:     "5432",
+		DbHost:     "localhost",
+		DbMaxIdleConnections: 5,
+		DbMaxOpenConnections: 5,
+		DbName: "devices_api",
 	}
+
+	pdb := postgres.NewDbStore(ctx, settings)
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -36,8 +45,12 @@ func main() {
 		DisableStartupMessage: true,
 	})
 
-	deviceControllers := controllers.NewDevicesController(&settings)
-	app.Use(recover.New())
+	deviceControllers := controllers.NewDevicesController(&settings, pdb.DBS)
+	app.Use(recover.New(recover.Config{
+		Next:              nil,
+		EnableStackTrace:  true,
+		StackTraceHandler: nil,
+	}))
 	app.Use(cors.New())
 	app.Get("/", HealthCheck)
 	v1 := app.Group("/v1")
