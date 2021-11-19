@@ -2,6 +2,7 @@ package config
 
 import (
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
@@ -12,10 +13,16 @@ import (
 // LoadConfig fills in all the values in the Settings from local yml file (for dev) and env vars (for deployments)
 func LoadConfig(filePath string) (*Settings, error) {
 	b, err := ioutil.ReadFile(filePath)
+	var settings *Settings
+	// if no file found, ignore as we could be running in higher level environment. We could make this more explicit with a cli parameter w/ the filename
 	if err != nil {
-		return nil, errors.Wrap(err, "could not read file: " + filePath)
+		log.Info().Err(errors.Wrap(err, "could not read file: " + filePath))
+	} else {
+		settings, err = loadFromYaml(b)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not load yaml")
+		}
 	}
-	settings, err := loadFromYaml(b)
 	loadFromEnvVars(settings) // override with any env vars found
 
 	return settings, nil
