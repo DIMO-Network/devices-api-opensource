@@ -48,7 +48,8 @@ func main() {
 	app.Get("/", HealthCheck)
 	v1 := app.Group("/v1")
 
-	v1.Get("/devices", deviceControllers.GetUsersDevices)
+	v1.Get("/devices/:userId", deviceControllers.GetUsersDevices)
+	v1.Get("/devices/lookup/vin/:vin", deviceControllers.LookupDeviceDefinitionByVIN) // generic response for vehicles, e-bike, any device type
 
 	logger.Info().Msg("Server started on port " + settings.Port)
 

@@ -25,13 +25,29 @@ You can connect to db eg: `psql -h localhost -p 5432 -U dimo` or with your favor
 3. Migrate DB to latest: `$ go run ./cmd/db_migrate`
 
 4. Run application
-`$ go run ./cmd/devices-api` 
+`$ go run ./cmd/devices-api`
+
+### Database ORM
+
+This is using [sqlboiler](https://github.com/volatiletech/sqlboiler). The ORM models are code generated. If the db changes,
+you must update the models.
+
+Make sure you have sqlboiler installed:
+```bash
+go install github.com/volatiletech/sqlboiler/v4@latest
+go install github.com/volatiletech/sqlboiler/v4/drivers/sqlboiler-psql@latest
+```
+
+To generate the models:
+```bash
+sqlboiler psql --no-tests
+```
 
 ## Migrations
 
 To install goose CLI:
 ```bash
-$ go get -u github.com/pressly/goose/v3/cmd/goose
+$ go install github.com/pressly/goose/v3/cmd/goose
 export GOOSE_DRIVER=postgres
 ```
 

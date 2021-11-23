@@ -3,13 +3,17 @@
 SELECT 'up SQL query';
 CREATE TABLE devices_api.device_definitions
 (
-    uuid         uuid DEFAULT public.uuid_generate_v4(),
-    make         varchar(100),
-    model        varchar(100),
-    year         varchar(4),
-    vin_first_10 varchar(10),
-    other_data   jsonb
+    uuid         uuid DEFAULT public.uuid_generate_v4() PRIMARY KEY,
+    vin_first_10 varchar(10) not null, -- aka squishVin
+    make         varchar(100) not null,
+    model        varchar(100) not null,
+    year         smallint    not null,
+    sub_model    varchar(100),
+    other_data   jsonb,
+    created_at   timestamptz not null default current_timestamp,
+    updated_at   timestamptz not null default current_timestamp
 );
+CREATE UNIQUE INDEX vin_idx ON devices_api.device_definitions (vin_first_10);
 
 -- +goose StatementEnd
 
