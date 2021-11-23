@@ -18,6 +18,7 @@ type DevicesController struct {
 	DBS      func() *database.DBReaderWriter
 }
 
+// NewDevicesController constructor
 func NewDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter) DevicesController {
 	return DevicesController{
 		Settings: settings,
@@ -25,6 +26,7 @@ func NewDevicesController(settings *config.Settings, dbs func() *database.DBRead
 	}
 }
 
+// GetUsersDevices placeholder for endpoint to get devices that belong to a user
 func (d *DevicesController) GetUsersDevices(c *fiber.Ctx) error {
 	ds := make([]DeviceRp, 0)
 	ds = append(ds, DeviceRp{
@@ -37,19 +39,21 @@ func (d *DevicesController) GetUsersDevices(c *fiber.Ctx) error {
 	})
 }
 
+// LookupDeviceDefinitionByVIN decodes a VIN by first looking it up on our DB, and then calling out to external sources. If it does call out, it will backfill our DB
 func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 	vin := c.Params("vin")
 	squishVin := vin[0:9]
 	dd, err := models.DeviceDefinitions(qm.Where("vin_first_10 = ?", squishVin)).One(c.Context(), d.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			// call out to nhtsa
+			// todo: call out to nhtsa, smartcar compatibility api ideally too
 		} else {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error_message": err.Error(),
 			})
 		}
 	}
+	// todo: move this to a function
 	rp := DeviceDefinitionRp{
 		DeviceDefinitionId: dd.UUID,
 		Name:               fmt.Sprintf("%d %s %s", dd.Year, dd.Make, dd.Model),
