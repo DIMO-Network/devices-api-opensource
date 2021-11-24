@@ -56,3 +56,15 @@ type NHTSADecodeVINResponse struct {
 		VariableId int     `json:"VariableId"`
 	} `json:"Results"`
 }
+
+func (n *NHTSADecodeVINResponse) LookupValue(variableName string) string {
+	for _, result := range n.Results {
+		if result.Variable == variableName {
+			if result.Value != nil {
+				return *result.Value
+			}
+			return ""
+		}
+	}
+	return ""
+}

@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	qm "github.com/volatiletech/sqlboiler/v4/queries/qm"
+	"strconv"
 )
 
 type DevicesController struct {
@@ -53,7 +54,7 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 					"error_message": err.Error(),
 				})
 			}
-			rp := NewDeviceDefinitionRpFromNHTSA(decodedVIN)
+			rp := NewDeviceDefinitionFromNHTSA(decodedVIN)
 			// todo: persist in our db
 			return c.JSON(fiber.Map{
 				"device_definition": rp,
@@ -65,25 +66,29 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 			})
 		}
 	}
-	// todo: move this to a function
-	rp := DeviceDefinitionRp{
-		DeviceDefinitionId: dd.UUID,
-		Name:               fmt.Sprintf("%d %s %s", dd.Year, dd.Make, dd.Model),
-		ImageURL:           "",
-		Compatibility:      DeviceCompatibilityRp{},
-		Type: DeviceTypeRp{
-			Type:     "Vehicle",
-			Make:     dd.Make,
-			Model:    dd.Model,
-			Year:     dd.Year,
-			SubModel: dd.SubModel.String,
-		},
-		VehicleInfo: DeviceVehicleInfoRp{},
-		MetaData:    string(dd.OtherData.JSON),
-	}
+	rp := NewDeviceDefinitionFromDatabase(dd)
 	return c.JSON(fiber.Map{
 		"device_definition": rp,
 	})
+}
+
+func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefinition {
+	rp := DeviceDefinition{
+		DeviceDefinitionId: dd.UUID,
+		Name:               fmt.Sprintf("%d %s %s", dd.Year, dd.Make, dd.Model),
+		ImageURL:           "",
+		Compatibility:      DeviceCompatibility{},
+		Type: DeviceType{
+			Type:     "Vehicle",
+			Make:     dd.Make,
+			Model:    dd.Model,
+			Year:     int(dd.Year),
+			SubModel: dd.SubModel.String,
+		},
+		VehicleInfo: DeviceVehicleInfo{},
+		MetaData:    string(dd.OtherData.JSON),
+	}
+	return rp
 }
 
 type DeviceRp struct {
@@ -91,46 +96,60 @@ type DeviceRp struct {
 	Name     string `json:"name"`
 }
 
-func NewDeviceDefinitionRpFromNHTSA(decodedVin *services.NHTSADecodeVINResponse) DeviceDefinitionRp {
-	deviceDefinition := DeviceDefinitionRp{}
-	// todo: fill in
+func NewDeviceDefinitionFromNHTSA(decodedVin *services.NHTSADecodeVINResponse) DeviceDefinition {
+	dd := DeviceDefinition{}
+	yr, _ := strconv.Atoi(decodedVin.LookupValue("Model Year"))
+	msrp, _ := strconv.Atoi(decodedVin.LookupValue("Base Price ($)"))
+	dd.Type = DeviceType{
+		Type:     "Vehicle",
+		Make:     decodedVin.LookupValue("Make"),
+		Model:    decodedVin.LookupValue("Model"),
+		Year:     yr,
+	}
+	dd.Name = fmt.Sprintf("%d %s %s", dd.Type.Year, dd.Type.Make, dd.Type.Model)
+	dd.VehicleInfo = DeviceVehicleInfo{
+		FuelType:      decodedVin.LookupValue("Fuel Type - Primary"),
+		NumberOfDoors: decodedVin.LookupValue("Doors"),
+		BaseMSRP:      msrp,
+		VehicleType:   decodedVin.LookupValue("Vehicle Type"),
+	}
 
-	return deviceDefinition
+	return dd
 }
 
-type DeviceDefinitionRp struct {
-	DeviceDefinitionId string                `json:"device_definition_id"`
-	Name               string                `json:"name"`
-	ImageURL           string                `json:"image_url"`
-	Compatibility      DeviceCompatibilityRp `json:"compatibility"`
-	Type               DeviceTypeRp          `json:"type"`
+type DeviceDefinition struct {
+	DeviceDefinitionId string              `json:"device_definition_id"`
+	Name               string              `json:"name"`
+	ImageURL           string              `json:"image_url"`
+	Compatibility DeviceCompatibility `json:"compatibility"`
+	Type          DeviceType          `json:"type"`
 	// VehicleInfo will be empty if not a vehicle type
-	VehicleInfo DeviceVehicleInfoRp `json:"vehicle_data,omitempty"`
-	MetaData    interface{}         `json:"meta_data"`
+	VehicleInfo DeviceVehicleInfo `json:"vehicle_data,omitempty"`
+	MetaData    interface{}       `json:"meta_data"`
 }
 
-// DeviceCompatibilityRp represents what systems we know this is compatible with
-type DeviceCompatibilityRp struct {
+// DeviceCompatibility represents what systems we know this is compatible with
+type DeviceCompatibility struct {
 	IsSmartCarCompatible   bool `json:"is_smart_car_compatible"`
 	IsDimoAutoPiCompatible bool `json:"is_dimo_auto_pi_compatible"`
 }
 
-// DeviceTypeRp whether it is a vehicle or other type and basic information
-type DeviceTypeRp struct {
+// DeviceType whether it is a vehicle or other type and basic information
+type DeviceType struct {
 	// Type is eg. Vehicle, E-bike, roomba
 	Type     string `json:"type"`
 	Make     string `json:"make"`
 	Model    string `json:"model"`
-	Year     int16  `json:"year"`
+	Year     int  `json:"year"`
 	SubModel string `json:"sub_model"`
 }
 
-// DeviceVehicleInfoRp represents some standard vehicle specific properties
-type DeviceVehicleInfoRp struct {
+// DeviceVehicleInfo represents some standard vehicle specific properties
+type DeviceVehicleInfo struct {
 	FuelType      string  `json:"fuel_type,omitempty"`
 	DrivenWheels  string  `json:"driven_wheels,omitempty"`
 	NumberOfDoors string  `json:"number_of_doors,omitempty"`
-	BaseMSRP      float32 `json:"base_msrp,omitempty"`
+	BaseMSRP      int `json:"base_msrp,omitempty"`
 	EPAClass      string  `json:"epa_class,omitempty"`
 	VehicleType   string  `json:"vehicle_type,omitempty"`
 	MPGHighway    string  `json:"mpg_highway,omitempty"`
