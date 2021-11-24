@@ -52,3 +52,13 @@ docker compose up -d
 When running migrations from CD, we will want to set the following env vars:
 - SERVICE_ACCOUNT_PASSWORD: This will be the password the `service` account will use to connect to, which is the account the application should connect with in HL envs.
 - 
+
+## Helm Requirements
+
+* cf-credentials
+  ```sh
+    aws secretsmanager create-secret --name infra/cf-credentials/email --description "Cloudflare email" --secret-string "xxx@xxx.xxx"
+    aws secretsmanager create-secret --name infra/cf-credentials/token --description "Cloudflare token" --secret-string "XXXXXX"
+    ----------------
+     kubectl create secret generic cf-credentials --from-literal=email='XXX@XXX.XXX' --from-literal=token='XXX' -n infra
+  ```
