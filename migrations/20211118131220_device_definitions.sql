@@ -9,7 +9,7 @@ CREATE TABLE devices_api.device_definitions
     model        varchar(100) not null,
     year         smallint    not null,
     sub_model    varchar(100),
-    other_data   jsonb,
+    metadata     jsonb,
     created_at   timestamptz not null default current_timestamp,
     updated_at   timestamptz not null default current_timestamp
 );

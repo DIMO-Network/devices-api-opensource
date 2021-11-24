@@ -91,7 +91,7 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 			SubModel: dd.SubModel.String,
 		},
 		VehicleInfo: DeviceVehicleInfo{},
-		MetaData:    string(dd.OtherData.JSON),
+		Metadata:    string(dd.OtherData.JSON),
 	}
 	return rp
 }
@@ -106,10 +106,10 @@ func NewDeviceDefinitionFromNHTSA(decodedVin *services.NHTSADecodeVINResponse) D
 	yr, _ := strconv.Atoi(decodedVin.LookupValue("Model Year"))
 	msrp, _ := strconv.Atoi(decodedVin.LookupValue("Base Price ($)"))
 	dd.Type = DeviceType{
-		Type:     "Vehicle",
-		Make:     decodedVin.LookupValue("Make"),
-		Model:    decodedVin.LookupValue("Model"),
-		Year:     yr,
+		Type:  "Vehicle",
+		Make:  decodedVin.LookupValue("Make"),
+		Model: decodedVin.LookupValue("Model"),
+		Year:  yr,
 	}
 	dd.Name = fmt.Sprintf("%d %s %s", dd.Type.Year, dd.Type.Make, dd.Type.Model)
 	dd.VehicleInfo = DeviceVehicleInfo{
@@ -126,11 +126,11 @@ type DeviceDefinition struct {
 	DeviceDefinitionId string              `json:"device_definition_id"`
 	Name               string              `json:"name"`
 	ImageURL           string              `json:"image_url"`
-	Compatibility DeviceCompatibility `json:"compatibility"`
-	Type          DeviceType          `json:"type"`
+	Compatibility      DeviceCompatibility `json:"compatibility"`
+	Type               DeviceType          `json:"type"`
 	// VehicleInfo will be empty if not a vehicle type
 	VehicleInfo DeviceVehicleInfo `json:"vehicle_data,omitempty"`
-	MetaData    interface{}       `json:"meta_data"`
+	Metadata    interface{}       `json:"metadata"`
 }
 
 // DeviceCompatibility represents what systems we know this is compatible with
@@ -145,18 +145,18 @@ type DeviceType struct {
 	Type     string `json:"type"`
 	Make     string `json:"make"`
 	Model    string `json:"model"`
-	Year     int  `json:"year"`
+	Year     int    `json:"year"`
 	SubModel string `json:"sub_model"`
 }
 
 // DeviceVehicleInfo represents some standard vehicle specific properties
 type DeviceVehicleInfo struct {
-	FuelType      string  `json:"fuel_type,omitempty"`
-	DrivenWheels  string  `json:"driven_wheels,omitempty"`
-	NumberOfDoors string  `json:"number_of_doors,omitempty"`
-	BaseMSRP      int `json:"base_msrp,omitempty"`
-	EPAClass      string  `json:"epa_class,omitempty"`
-	VehicleType   string  `json:"vehicle_type,omitempty"`
-	MPGHighway    string  `json:"mpg_highway,omitempty"`
-	MPGCity       string  `json:"mpg_city,omitempty"`
+	FuelType      string `json:"fuel_type,omitempty"`
+	DrivenWheels  string `json:"driven_wheels,omitempty"`
+	NumberOfDoors string `json:"number_of_doors,omitempty"`
+	BaseMSRP      int    `json:"base_msrp,omitempty"`
+	EPAClass      string `json:"epa_class,omitempty"`
+	VehicleType   string `json:"vehicle_type,omitempty"`
+	MPGHighway    string `json:"mpg_highway,omitempty"`
+	MPGCity       string `json:"mpg_city,omitempty"`
 }

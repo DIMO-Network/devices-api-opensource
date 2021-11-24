@@ -25,8 +25,7 @@ func NewNHTSAService() INHTSAService {
 
 func (ns *NHTSAService) DecodeVIN(vin string) (*NHTSADecodeVINResponse, error) {
 	url := fmt.Sprintf("%s/vehicles/decodevinextended/%s?format=json", ns.baseURL, vin)
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	res, err := http.DefaultClient.Do(req)
+	res, err := http.Get(url)
 	if err != nil {
 		return nil, err
 	}
@@ -50,8 +49,8 @@ type NHTSADecodeVINResponse struct {
 	Message        string `json:"Message"`
 	SearchCriteria string `json:"SearchCriteria"`
 	Results        []struct {
-		Value      *string `json:"Value"`
-		ValueId    *string `json:"ValueId"`
+		Value      string `json:"Value"`
+		ValueId    string `json:"ValueId"`
 		Variable   string  `json:"Variable"`
 		VariableId int     `json:"VariableId"`
 	} `json:"Results"`
@@ -60,10 +59,7 @@ type NHTSADecodeVINResponse struct {
 func (n *NHTSADecodeVINResponse) LookupValue(variableName string) string {
 	for _, result := range n.Results {
 		if result.Variable == variableName {
-			if result.Value != nil {
-				return *result.Value
-			}
-			return ""
+			return result.Value
 		}
 	}
 	return ""
