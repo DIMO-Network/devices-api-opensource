@@ -9,7 +9,9 @@ ENV CGO_ENABLED=0
 ENV GOOS=linux
 ENV GOFLAGS=-mod=vendor
 
-RUN make TAGS="timetzdata"
+RUN ls
+
+RUN make install
 
 FROM busybox AS package
 

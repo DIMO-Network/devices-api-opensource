@@ -23,6 +23,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v2
         with:
-          context: resources/docker
+          context: .
+          file: ./resources/docker/Dockerfile
           push: true
           tags: dimozone/devices-api:latest
