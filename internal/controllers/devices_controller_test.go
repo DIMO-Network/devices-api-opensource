@@ -29,3 +29,7 @@ func TestDevicesController_GetUsersDevices(t *testing.T) {
 	assert.Equal(t, 200, response.StatusCode)
 	assert.Equal(t, "{\"devices\":[{\"device_id\":\"123123\",\"name\":\"Johnny's Tesla\"}]}", string(body))
 }
+
+func TestDevicesController_LookupDeviceDefinitionByVIN(t *testing.T) {
+	// just use mock db instead of embedded pgsql
+}

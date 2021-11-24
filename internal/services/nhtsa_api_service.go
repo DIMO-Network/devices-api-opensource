@@ -1,38 +1,58 @@
 package services
 
+//go:generate mockgen -source nhtsa_api_service.go -destination mocks/nhtsa_api_service_mock.go
+
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	"io/ioutil"
 	"net/http"
 )
+type INHTSAService interface {
+	DecodeVIN(vin string) (*NHTSADecodeVINResponse, error)
+}
 
 type NHTSAService struct {
-	BaseURL string
+	baseURL string
 }
 
-type INHTSAService interface {
-	DecodeVIN(vin string) error
-}
-
-func NewNHTSAService() NHTSAService {
-	return NHTSAService{
-		BaseURL: "https://vpic.nhtsa.dot.gov/api/",
+func NewNHTSAService() INHTSAService {
+	return &NHTSAService{
+		baseURL: "https://vpic.nhtsa.dot.gov/api/",
 	}
 }
 
-func (ns *NHTSAService) DecodeVIN(vin string) error {
-	url := fmt.Sprintf("%s/vehicles/decodevinextended/%s?format=json", ns.BaseURL, vin)
+func (ns *NHTSAService) DecodeVIN(vin string) (*NHTSADecodeVINResponse, error) {
+	url := fmt.Sprintf("%s/vehicles/decodevinextended/%s?format=json", ns.baseURL, vin)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
-		return errors.New("received a non 200 response")
+		return nil, errors.New("received a non 200 response from nhtsa api")
 	}
-	// todo: parse response body
+	resBody, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read response body from nhtsa api")
+	}
+	decodedVin := NHTSADecodeVINResponse{}
+	_ = json.Unmarshal(resBody, &decodedVin)
 
-	return nil
+	return &decodedVin, nil
+}
+
+type NHTSADecodeVINResponse struct {
+	Count          int    `json:"Count"`
+	Message        string `json:"Message"`
+	SearchCriteria string `json:"SearchCriteria"`
+	Results        []struct {
+		Value      *string `json:"Value"`
+		ValueId    *string `json:"ValueId"`
+		Variable   string  `json:"Variable"`
+		VariableId int     `json:"VariableId"`
+	} `json:"Results"`
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
+	"github.com/DIMO-INC/devices-api/internal/services"
 	"github.com/DIMO-INC/devices-api/models"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
@@ -12,10 +13,9 @@ import (
 )
 
 type DevicesController struct {
-	// DB holder
-	// redis cache?
 	Settings *config.Settings
 	DBS      func() *database.DBReaderWriter
+	NHTSASvc services.INHTSAService
 }
 
 // NewDevicesController constructor
@@ -23,6 +23,7 @@ func NewDevicesController(settings *config.Settings, dbs func() *database.DBRead
 	return DevicesController{
 		Settings: settings,
 		DBS:      dbs,
+		NHTSASvc: services.NewNHTSAService(),
 	}
 }
 
@@ -46,8 +47,19 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 	dd, err := models.DeviceDefinitions(qm.Where("vin_first_10 = ?", squishVin)).One(c.Context(), d.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			// todo: call out to nhtsa, smartcar compatibility api ideally too
+			decodedVIN, err := d.NHTSASvc.DecodeVIN(vin)
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error_message": err.Error(),
+				})
+			}
+			rp := NewDeviceDefinitionRpFromNHTSA(decodedVIN)
+			// todo: persist in our db
+			return c.JSON(fiber.Map{
+				"device_definition": rp,
+			})
 		} else {
+			// todo: refactor error handling
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error_message": err.Error(),
 			})
@@ -77,6 +89,13 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 type DeviceRp struct {
 	DeviceID string `json:"device_id"`
 	Name     string `json:"name"`
+}
+
+func NewDeviceDefinitionRpFromNHTSA(decodedVin *services.NHTSADecodeVINResponse) DeviceDefinitionRp {
+	deviceDefinition := DeviceDefinitionRp{}
+	// todo: fill in
+
+	return deviceDefinition
 }
 
 type DeviceDefinitionRp struct {
