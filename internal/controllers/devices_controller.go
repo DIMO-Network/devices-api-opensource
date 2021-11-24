@@ -44,7 +44,12 @@ func (d *DevicesController) GetUsersDevices(c *fiber.Ctx) error {
 // LookupDeviceDefinitionByVIN decodes a VIN by first looking it up on our DB, and then calling out to external sources. If it does call out, it will backfill our DB
 func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 	vin := c.Params("vin")
-	squishVin := vin[0:9]
+	if len(vin) != 17 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error_message": "vin is not 17 characters",
+		})
+	}
+	squishVin := vin[:10]
 	dd, err := models.DeviceDefinitions(qm.Where("vin_first_10 = ?", squishVin)).One(c.Context(), d.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

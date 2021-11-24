@@ -69,6 +69,10 @@ When running migrations from CD, we will want to set the following env vars:
 - SERVICE_ACCOUNT_PASSWORD: This will be the password the `service` account will use to connect to, which is the account the application should connect with in HL envs.
 - 
 
+## Mocks
+
+To regenerate a mock, you can use go gen since the files that are mocked have a `//go:generate mockgen ...` at the top. For example:
+`nhtsa_api_service.go`
 ## Helm Requirements
 
 * cf-credentials
