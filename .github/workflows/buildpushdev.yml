@@ -28,6 +28,7 @@ jobs:
           push: true
           tags: dimozone/devices-api:${{ github.sha }}
 
+
       - name: Update Image Version in the related HelmChart values.yaml
         uses: fjogeleit/yaml-update-action@master
         with:
