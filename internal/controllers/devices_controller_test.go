@@ -25,7 +25,7 @@ func TestDevicesController_GetUsersDevices(t *testing.T) {
 			t.Fatal(err)
 		}
 	}()
-	c := NewDevicesController(&config.Settings{Port: "3000"}, pdb.DBS)
+	c := NewDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, nil)
 
 	app := fiber.New()
 	app.Get("/devices", c.GetUsersDevices)

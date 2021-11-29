@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
-	"io/ioutil"
 	"net/http"
 )
 type INHTSAService interface {
@@ -34,12 +33,12 @@ func (ns *NHTSAService) DecodeVIN(vin string) (*NHTSADecodeVINResponse, error) {
 	if res.StatusCode != 200 {
 		return nil, errors.New("received a non 200 response from nhtsa api")
 	}
-	resBody, err := ioutil.ReadAll(res.Body)
+
+	decodedVin := NHTSADecodeVINResponse{}
+	err = json.NewDecoder(res.Body).Decode(&decodedVin)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read response body from nhtsa api")
 	}
-	decodedVin := NHTSADecodeVINResponse{}
-	_ = json.Unmarshal(resBody, &decodedVin)
 
 	return &decodedVin, nil
 }

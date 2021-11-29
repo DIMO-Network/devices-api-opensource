@@ -9,6 +9,9 @@ import (
 	"github.com/DIMO-INC/devices-api/models"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 	qm "github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"strconv"
 )
@@ -17,14 +20,16 @@ type DevicesController struct {
 	Settings *config.Settings
 	DBS      func() *database.DBReaderWriter
 	NHTSASvc services.INHTSAService
+	log      *zerolog.Logger
 }
 
 // NewDevicesController constructor
-func NewDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter) DevicesController {
+func NewDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger) DevicesController {
 	return DevicesController{
 		Settings: settings,
 		DBS:      dbs,
 		NHTSASvc: services.NewNHTSAService(),
+		log:      logger,
 	}
 }
 
@@ -55,20 +60,22 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 		if errors.Is(err, sql.ErrNoRows) {
 			decodedVIN, err := d.NHTSASvc.DecodeVIN(vin)
 			if err != nil {
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error_message": err.Error(),
-				})
+				return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 			}
 			rp := NewDeviceDefinitionFromNHTSA(decodedVIN)
-			// todo: persist in our db
+			// save to database, if error just log do not block, execute in go func routine to not block
+			go func() {
+				dbDevice := NewDbModelFromDeviceDefinition(rp, squishVin)
+				err := dbDevice.Insert(c.Context(), d.DBS().Writer, boil.Infer())
+				if err != nil {
+					d.log.Error().Err(err).Msg("error inserting device definition to db")
+				}
+			}()
 			return c.JSON(fiber.Map{
 				"device_definition": rp,
 			})
 		} else {
-			// todo: refactor error handling
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error_message": err.Error(),
-			})
+			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 		}
 	}
 	rp := NewDeviceDefinitionFromDatabase(dd)
@@ -94,6 +101,19 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 		Metadata:    string(dd.OtherData.JSON),
 	}
 	return rp
+}
+
+// NewDbModelFromDeviceDefinition converts a DeviceDefinition response object to a new database model for the given squishVin
+func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin string) *models.DeviceDefinition {
+	dbDevice := models.DeviceDefinition{
+		VinFirst10: squishVin,
+		Make:       dd.Type.Make,
+		Model:      dd.Type.Model,
+		Year:       int16(dd.Type.Year),
+		SubModel:   null.StringFrom(dd.Type.SubModel),
+	}
+
+	return &dbDevice
 }
 
 type DeviceRp struct {

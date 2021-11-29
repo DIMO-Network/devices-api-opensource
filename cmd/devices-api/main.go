@@ -38,7 +38,7 @@ func main() {
 		DisableStartupMessage: true,
 	})
 
-	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS)
+	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger)
 	app.Use(recover.New(recover.Config{
 		Next:              nil,
 		EnableStackTrace:  true,
