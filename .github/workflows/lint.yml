@@ -12,7 +12,7 @@ env:
 jobs:
   golangci:
     name: lint
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - uses: actions/checkout@v2
       - name: golangci-lint

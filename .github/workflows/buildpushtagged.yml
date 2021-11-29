@@ -3,15 +3,13 @@ on:
   push:
     tags:
       - v*
-    branches:
-      - main
   pull_request:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   build_test:
     # The type of runner that the job will run on
     name: buildpush
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
@@ -27,3 +25,12 @@ jobs:
           file: ./resources/docker/Dockerfile
           push: true
           tags: dimozone/devices-api:latest
+          
+      - name: Update Image Version in the related HelmChart values.yaml
+        uses: fjogeleit/yaml-update-action@master
+        with:
+          valueFile: 'charts/helm/values-prod.yaml'
+          propertyPath: 'image.tag'
+          value: ${{ steps.image.outputs.version }}
+          branch: main
+          message: 'Update Image Version to ${{ steps.image.outputs.version }}'
