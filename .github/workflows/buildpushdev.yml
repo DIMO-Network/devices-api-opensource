@@ -18,20 +18,24 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          
+      
+      - name: Get short SHA
+        id: slug
+        run: echo "::set-output name=sha7::$(echo ${GITHUB_SHA} | cut -c1-7)"
+        
       - name: Build and push
         uses: docker/build-push-action@v2
         with:
           context: .
           file: ./resources/docker/Dockerfile
           push: true
-          tags: dimozone/devices-api:${{ github.sha }}, dimozone/devices-api:latest
+          tags: dimozone/devices-api:${{ steps.slug.outputs.sha7 }}, dimozone/devices-api:latest
 
       - name: Update Image Version in the related HelmChart values.yaml
         uses: fjogeleit/yaml-update-action@master
         with:
-          valueFile: '../charts/helm/values-prod.yaml'
+          valueFile: '../charts/devices-api/values.yaml'
           propertyPath: 'image.tag'
-          value: ${{ github.sha }}
+          value: ${{ steps.slug.outputs.sha7 }}
           branch: main
-          message: 'Update Image Version to ${{ github.sha }}'
+          message: 'Update Image Version to ${{ steps.slug.outputs.sha7 }}'
