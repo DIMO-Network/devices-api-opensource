@@ -1,9 +1,9 @@
 -- +goose Up
 -- +goose StatementBegin
 SELECT 'up SQL query';
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; -- uuid gen
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public; -- uuid gen
 REVOKE CREATE ON schema public FROM public; -- public schema isolation
-CREATE SCHEMA devices_api;
+CREATE SCHEMA IF NOT EXISTS devices_api;
 
 -- +goose StatementEnd
 

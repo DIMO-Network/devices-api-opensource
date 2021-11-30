@@ -4,29 +4,40 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
-	"github.com/DIMO-INC/devices-api/internal/config"
-	"github.com/DIMO-INC/devices-api/internal/services"
-	"github.com/DIMO-INC/devices-api/models"
-	"github.com/gofiber/fiber/v2"
-	"github.com/stretchr/testify/assert"
-	"github.com/volatiletech/null/v8"
+	"fmt"
+	"github.com/rs/zerolog"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"testing"
+
+	"github.com/DIMO-INC/devices-api/internal/config"
+	"github.com/DIMO-INC/devices-api/internal/services"
+	mock_services "github.com/DIMO-INC/devices-api/internal/services/mocks"
+	_ "github.com/DIMO-INC/devices-api/migrations"
+	"github.com/DIMO-INC/devices-api/models"
+	"github.com/gofiber/fiber/v2"
+	"github.com/golang/mock/gomock"
+	_ "github.com/lib/pq"
+	"github.com/stretchr/testify/assert"
+	"github.com/volatiletech/null/v8"
 )
 
 //go:embed test_nhtsa_decoded_vin.json
 var testNhtsaDecodedVin string
 
+const migrationsDirRelPath = "../../migrations"
+
 func TestDevicesController_GetUsersDevices(t *testing.T) {
 	ctx := context.Background()
-	pdb, database := setupDatabase(ctx, t)
+
+	pdb, database := setupDatabase(ctx, t, migrationsDirRelPath)
 	defer func() {
 		if err := database.Stop(); err != nil {
 			t.Fatal(err)
 		}
 	}()
-	c := NewDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, nil)
+	c := NewDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, nil, nil)
 
 	app := fiber.New()
 	app.Get("/devices", c.GetUsersDevices)
@@ -39,7 +50,42 @@ func TestDevicesController_GetUsersDevices(t *testing.T) {
 }
 
 func TestDevicesController_LookupDeviceDefinitionByVIN(t *testing.T) {
-	// just use mock db instead of embedded pgsql
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	logger := zerolog.New(os.Stdout).With().
+		Timestamp().
+		Str("app", "devices-api").
+		Logger()
+
+	ctx := context.Background()
+	pdb, database := setupDatabase(ctx, t, migrationsDirRelPath)
+	defer func() {
+		if err := database.Stop(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	nhtsaSvc := mock_services.NewMockINHTSAService(mockCtrl)
+	c := NewDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, nhtsaSvc)
+	vinResp := services.NHTSADecodeVINResponse{}
+	_ = json.Unmarshal([]byte(testNhtsaDecodedVin), &vinResp)
+	const vin = "5YJYGDEF2LFR00942"
+
+	nhtsaSvc.EXPECT().DecodeVIN(vin).Times(1).Return(&vinResp, nil)
+
+	app := fiber.New()
+	app.Get("/devices/lookup/vin/:vin", c.LookupDeviceDefinitionByVIN)
+
+	request, _ := http.NewRequest("GET", "/devices/lookup/vin/" + vin, nil)
+	response, _ := app.Test(request)
+	body, _ := ioutil.ReadAll(response.Body)
+	assert.Equal(t, 200, response.StatusCode)
+	definition, err := models.DeviceDefinitions().One(ctx, pdb.DBS().Writer)
+	assert.NoError(t, err, "expected to find one device def in DB")
+	assert.NotNilf(t, definition, "expected device def not be nil")
+	assert.Equal(t, vin[:10], definition.VinFirst10)
+
+	fmt.Println(string(body))
 }
 
 func TestNewDeviceDefinitionFromNHTSA(t *testing.T) {
@@ -69,7 +115,7 @@ func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
 		Model:      "R500",
 		Year:       2020,
 		SubModel:   null.StringFrom("AMG"),
-		OtherData:  null.JSONFrom([]byte(`{"vehicle_info": {"fuel_type": "gas", "driven_wheels": "4", "number_of_doors":"5" } }`)),
+		Metadata:  null.JSONFrom([]byte(`{"vehicle_info": {"fuel_type": "gas", "driven_wheels": "4", "number_of_doors":"5" } }`)),
 	}
 	dd := NewDeviceDefinitionFromDatabase(&dbDevice)
 
@@ -107,7 +153,7 @@ func TestNewDbModelFromDeviceDefinition(t *testing.T) {
 	assert.Equal(t, "Merc", dbDevice.Make)
 	assert.Equal(t, int16(2020), dbDevice.Year)
 	assert.Equal(t, "AMG", dbDevice.SubModel.String)
-	assert.Equal(t, `{"vehicle_info":{"fuel_type":"gas","driven_wheels":"4","number_of_doors":"5"}}`, string(dbDevice.OtherData.JSON))
+	assert.Equal(t, `{"vehicle_info":{"fuel_type":"gas","driven_wheels":"4","number_of_doors":"5"}}`, string(dbDevice.Metadata.JSON))
 }
 
 

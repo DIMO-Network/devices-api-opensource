@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/DIMO-INC/devices-api/internal/services"
 	"os"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
@@ -37,8 +38,9 @@ func main() {
 		},
 		DisableStartupMessage: true,
 	})
+	nhtsaSvc := services.NewNHTSAService()
+	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc)
 
-	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger)
 	app.Use(recover.New(recover.Config{
 		Next:              nil,
 		EnableStackTrace:  true,

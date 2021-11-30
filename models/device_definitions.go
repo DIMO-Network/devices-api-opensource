@@ -30,7 +30,7 @@ type DeviceDefinition struct {
 	Model      string      `boil:"model" json:"model" toml:"model" yaml:"model"`
 	Year       int16       `boil:"year" json:"year" toml:"year" yaml:"year"`
 	SubModel   null.String `boil:"sub_model" json:"sub_model,omitempty" toml:"sub_model" yaml:"sub_model,omitempty"`
-	OtherData  null.JSON   `boil:"other_data" json:"other_data,omitempty" toml:"other_data" yaml:"other_data,omitempty"`
+	Metadata   null.JSON   `boil:"metadata" json:"metadata,omitempty" toml:"metadata" yaml:"metadata,omitempty"`
 	CreatedAt  time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt  time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 
@@ -45,7 +45,7 @@ var DeviceDefinitionColumns = struct {
 	Model      string
 	Year       string
 	SubModel   string
-	OtherData  string
+	Metadata   string
 	CreatedAt  string
 	UpdatedAt  string
 }{
@@ -55,7 +55,7 @@ var DeviceDefinitionColumns = struct {
 	Model:      "model",
 	Year:       "year",
 	SubModel:   "sub_model",
-	OtherData:  "other_data",
+	Metadata:   "metadata",
 	CreatedAt:  "created_at",
 	UpdatedAt:  "updated_at",
 }
@@ -67,7 +67,7 @@ var DeviceDefinitionTableColumns = struct {
 	Model      string
 	Year       string
 	SubModel   string
-	OtherData  string
+	Metadata   string
 	CreatedAt  string
 	UpdatedAt  string
 }{
@@ -77,7 +77,7 @@ var DeviceDefinitionTableColumns = struct {
 	Model:      "device_definitions.model",
 	Year:       "device_definitions.year",
 	SubModel:   "device_definitions.sub_model",
-	OtherData:  "device_definitions.other_data",
+	Metadata:   "device_definitions.metadata",
 	CreatedAt:  "device_definitions.created_at",
 	UpdatedAt:  "device_definitions.updated_at",
 }
@@ -206,7 +206,7 @@ var DeviceDefinitionWhere = struct {
 	Model      whereHelperstring
 	Year       whereHelperint16
 	SubModel   whereHelpernull_String
-	OtherData  whereHelpernull_JSON
+	Metadata   whereHelpernull_JSON
 	CreatedAt  whereHelpertime_Time
 	UpdatedAt  whereHelpertime_Time
 }{
@@ -216,7 +216,7 @@ var DeviceDefinitionWhere = struct {
 	Model:      whereHelperstring{field: "\"devices_api\".\"device_definitions\".\"model\""},
 	Year:       whereHelperint16{field: "\"devices_api\".\"device_definitions\".\"year\""},
 	SubModel:   whereHelpernull_String{field: "\"devices_api\".\"device_definitions\".\"sub_model\""},
-	OtherData:  whereHelpernull_JSON{field: "\"devices_api\".\"device_definitions\".\"other_data\""},
+	Metadata:   whereHelpernull_JSON{field: "\"devices_api\".\"device_definitions\".\"metadata\""},
 	CreatedAt:  whereHelpertime_Time{field: "\"devices_api\".\"device_definitions\".\"created_at\""},
 	UpdatedAt:  whereHelpertime_Time{field: "\"devices_api\".\"device_definitions\".\"updated_at\""},
 }
@@ -238,8 +238,8 @@ func (*deviceDefinitionR) NewStruct() *deviceDefinitionR {
 type deviceDefinitionL struct{}
 
 var (
-	deviceDefinitionAllColumns            = []string{"uuid", "vin_first_10", "make", "model", "year", "sub_model", "other_data", "created_at", "updated_at"}
-	deviceDefinitionColumnsWithoutDefault = []string{"vin_first_10", "make", "model", "year", "sub_model", "other_data"}
+	deviceDefinitionAllColumns            = []string{"uuid", "vin_first_10", "make", "model", "year", "sub_model", "metadata", "created_at", "updated_at"}
+	deviceDefinitionColumnsWithoutDefault = []string{"vin_first_10", "make", "model", "year", "sub_model", "metadata"}
 	deviceDefinitionColumnsWithDefault    = []string{"uuid", "created_at", "updated_at"}
 	deviceDefinitionPrimaryKeyColumns     = []string{"uuid"}
 )

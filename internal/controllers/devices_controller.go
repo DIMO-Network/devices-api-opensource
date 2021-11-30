@@ -24,11 +24,11 @@ type DevicesController struct {
 }
 
 // NewDevicesController constructor
-func NewDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger) DevicesController {
+func NewDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, nhtsaSvc services.INHTSAService) DevicesController {
 	return DevicesController{
 		Settings: settings,
 		DBS:      dbs,
-		NHTSASvc: services.NewNHTSAService(),
+		NHTSASvc: nhtsaSvc,
 		log:      logger,
 	}
 }
@@ -99,11 +99,11 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 			Year:     int(dd.Year),
 			SubModel: dd.SubModel.String,
 		},
-		Metadata:    string(dd.OtherData.JSON),
+		Metadata:    string(dd.Metadata.JSON),
 	}
 	var vi map[string]DeviceVehicleInfo
 
-	err := dd.OtherData.Unmarshal(&vi)
+	err := dd.Metadata.Unmarshal(&vi)
 	if err == nil {
 		rp.VehicleInfo = vi[vehicleInfoJsonNode]
 	}
@@ -120,7 +120,7 @@ func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin string) *mode
 		Year:       int16(dd.Type.Year),
 		SubModel:   null.StringFrom(dd.Type.SubModel),
 	}
-	_ = dbDevice.OtherData.Marshal(map[string]interface{}{ vehicleInfoJsonNode: dd.VehicleInfo })
+	_ = dbDevice.Metadata.Marshal(map[string]interface{}{ vehicleInfoJsonNode: dd.VehicleInfo })
 	// next: figure out how we store compatibility
 
 	return &dbDevice

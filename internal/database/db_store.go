@@ -34,7 +34,7 @@ func NewDbConnectionFromSettings(ctx context.Context, settings *config.Settings)
 			&ready,
 			ConnectOptions{
 				Retries:            5,
-				RetryDelay:         time.Second * 15,
+				RetryDelay:         time.Second * 10,
 				ConnectTimeout:     time.Minute * 5,
 				DSN:                settings.GetWriterDSN(true),
 				MaxOpenConnections: settings.DbMaxOpenConnections,
@@ -44,7 +44,7 @@ func NewDbConnectionFromSettings(ctx context.Context, settings *config.Settings)
 			},
 			ConnectOptions{
 				Retries:            5,
-				RetryDelay:         time.Second * 15,
+				RetryDelay:         time.Second * 10,
 				ConnectTimeout:     time.Minute * 5,
 				DSN:                settings.GetWriterDSN(true),
 				MaxOpenConnections: settings.DbMaxOpenConnections,
