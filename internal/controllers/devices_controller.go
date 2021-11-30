@@ -84,12 +84,14 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 	})
 }
 
+const vehicleInfoJsonNode = "vehicle_info"
+
 func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefinition {
 	rp := DeviceDefinition{
 		DeviceDefinitionId: dd.UUID,
 		Name:               fmt.Sprintf("%d %s %s", dd.Year, dd.Make, dd.Model),
 		ImageURL:           "",
-		Compatibility:      DeviceCompatibility{},
+		Compatibility:      DeviceCompatibility{}, // next: for expanding on compatibility task
 		Type: DeviceType{
 			Type:     "Vehicle",
 			Make:     dd.Make,
@@ -97,9 +99,15 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 			Year:     int(dd.Year),
 			SubModel: dd.SubModel.String,
 		},
-		VehicleInfo: DeviceVehicleInfo{},
 		Metadata:    string(dd.OtherData.JSON),
 	}
+	var vi map[string]DeviceVehicleInfo
+
+	err := dd.OtherData.Unmarshal(&vi)
+	if err == nil {
+		rp.VehicleInfo = vi[vehicleInfoJsonNode]
+	}
+
 	return rp
 }
 
@@ -112,6 +120,8 @@ func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin string) *mode
 		Year:       int16(dd.Type.Year),
 		SubModel:   null.StringFrom(dd.Type.SubModel),
 	}
+	_ = dbDevice.OtherData.Marshal(map[string]interface{}{ vehicleInfoJsonNode: dd.VehicleInfo })
+	// next: figure out how we store compatibility
 
 	return &dbDevice
 }
