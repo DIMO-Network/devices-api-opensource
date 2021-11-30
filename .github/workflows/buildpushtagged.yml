@@ -29,13 +29,13 @@ jobs:
           context: .
           file: ./resources/docker/Dockerfile
           push: true
-          tags: dimozone/devices-api:${{ steps.slug.outputs.sha7 }}, dimozone/devices-api:latest
+          tags: dimozone/devices-api:${{ env.GITHUB_REF_NAME }}, dimozone/devices-api:latest
 
       - name: Update Image Version in the related HelmChart values.yaml
         uses: fjogeleit/yaml-update-action@master
         with:
           valueFile: 'charts/devices-api/values-prod.yaml'
           propertyPath: 'image.tag'
-          value: ${{ steps.slug.outputs.sha7 }}
+          value: ${{ env.GITHUB_REF_NAME }}
           branch: main
-          message: 'Update Image Version to ${{ steps.slug.outputs.sha7 }}'
+          message: 'Update Prod Image Version to ${{ env.GITHUB_REF_NAME }}'
