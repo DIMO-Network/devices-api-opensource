@@ -56,7 +56,11 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 		})
 	}
 	squishVin := vin[:10]
-	dd, err := models.DeviceDefinitions(qm.Where("vin_first_10 = ?", squishVin)).One(c.Context(), d.DBS().Reader)
+	dd, err := models.DeviceDefinitions(qm.Where("vin_first_10 = ?", squishVin),
+		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
+		qm.Load("DeviceIntegrations.Integrations")).
+		One(c.Context(), d.DBS().Reader)
+
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			decodedVIN, err := d.NHTSASvc.DecodeVIN(vin)
@@ -101,11 +105,20 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 		},
 		Metadata: string(dd.Metadata.JSON),
 	}
+	// vehicle info
 	var vi map[string]DeviceVehicleInfo
-
 	err := dd.Metadata.Unmarshal(&vi)
 	if err == nil {
 		rp.VehicleInfo = vi[vehicleInfoJSONNode]
+	}
+	// compatible integrations
+	for _, di := range dd.R.DeviceIntegrations {
+		rp.Compatibility = append(rp.Compatibility, DeviceCompatibility{
+			Id:      di.R.Integration.UUID,
+			Type:    di.R.Integration.Type,
+			Style:   di.R.Integration.Style,
+			Vendors: di.R.Integration.Vendors,
+		})
 	}
 
 	return rp
