@@ -112,13 +112,15 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 		rp.VehicleInfo = vi[vehicleInfoJSONNode]
 	}
 	// compatible integrations
-	for _, di := range dd.R.DeviceIntegrations {
-		rp.Compatibility = append(rp.Compatibility, DeviceCompatibility{
-			Id:      di.R.Integration.UUID,
-			Type:    di.R.Integration.Type,
-			Style:   di.R.Integration.Style,
-			Vendors: di.R.Integration.Vendors,
-		})
+	if dd.R != nil {
+		for _, di := range dd.R.DeviceIntegrations {
+			rp.Compatibility = append(rp.Compatibility, DeviceCompatibility{
+				Id:      di.R.Integration.UUID,
+				Type:    di.R.Integration.Type,
+				Style:   di.R.Integration.Style,
+				Vendors: di.R.Integration.Vendors,
+			})
+		}
 	}
 
 	return rp
