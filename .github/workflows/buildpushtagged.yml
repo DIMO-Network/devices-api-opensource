@@ -12,6 +12,7 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
+
       - name: Login to DockerHub
         uses: docker/login-action@v1
         with:
@@ -23,6 +24,7 @@ jobs:
         uses: dawidd6/action-get-tag@v1
         with:
           strip_v: true
+          
       - name: Build and push
         uses: docker/build-push-action@v2
         with:
