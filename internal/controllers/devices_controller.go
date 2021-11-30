@@ -58,7 +58,8 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 	squishVin := vin[:10]
 	dd, err := models.DeviceDefinitions(qm.Where("vin_first_10 = ?", squishVin),
 		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
-		qm.Load("DeviceIntegrations.Integrations")).
+		qm.Load("DeviceIntegrations.Integration"),
+		).
 		One(c.Context(), d.DBS().Reader)
 
 	if err != nil {
@@ -136,7 +137,6 @@ func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin string) *mode
 		SubModel:   null.StringFrom(dd.Type.SubModel),
 	}
 	_ = dbDevice.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dd.VehicleInfo})
-	// next: figure out how we store compatibility
 
 	return &dbDevice
 }
