@@ -2,16 +2,16 @@ package controllers
 
 import (
 	"context"
+	"log"
+	"testing"
+	"time"
+
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
 	_ "github.com/DIMO-INC/devices-api/migrations"
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/assert"
-
-	"log"
-	"testing"
-	"time"
 )
 
 func setupDatabase(ctx context.Context, t *testing.T, migrationsDirRelPath string) (database.DbStore, *embeddedpostgres.EmbeddedPostgres) {

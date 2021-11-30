@@ -27,6 +27,12 @@ You can connect to db eg: `psql -h localhost -p 5432 -U dimo` or with your favor
 4. Run application
 `$ go run ./cmd/devices-api`
 
+### Linting
+
+`brew install golangci-lint`
+
+`golangci-lint run -E prealloc -E revive -E goimports -E deadcode -E errcheck -E gosimple -E govet -E ineffassign -E staticcheck -E structcheck -E typecheck -E unused -E varcheck --timeout=5m`
+
 ### Database ORM
 
 This is using [sqlboiler](https://github.com/volatiletech/sqlboiler). The ORM models are code generated. If the db changes,

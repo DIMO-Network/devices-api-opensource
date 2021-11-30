@@ -3,6 +3,8 @@ package controllers
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
+
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
 	"github.com/DIMO-INC/devices-api/internal/services"
@@ -13,7 +15,6 @@ import (
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	qm "github.com/volatiletech/sqlboiler/v4/queries/qm"
-	"strconv"
 )
 
 type DevicesController struct {
@@ -74,9 +75,8 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 			return c.JSON(fiber.Map{
 				"device_definition": rp,
 			})
-		} else {
-			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 		}
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 	rp := NewDeviceDefinitionFromDatabase(dd)
 	return c.JSON(fiber.Map{
@@ -84,11 +84,11 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 	})
 }
 
-const vehicleInfoJsonNode = "vehicle_info"
+const vehicleInfoJSONNode = "vehicle_info"
 
 func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefinition {
 	rp := DeviceDefinition{
-		DeviceDefinitionId: dd.UUID,
+		DeviceDefinitionID: dd.UUID,
 		Name:               fmt.Sprintf("%d %s %s", dd.Year, dd.Make, dd.Model),
 		ImageURL:           "",
 		Compatibility:      DeviceCompatibility{}, // next: for expanding on compatibility task
@@ -99,13 +99,13 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 			Year:     int(dd.Year),
 			SubModel: dd.SubModel.String,
 		},
-		Metadata:    string(dd.Metadata.JSON),
+		Metadata: string(dd.Metadata.JSON),
 	}
 	var vi map[string]DeviceVehicleInfo
 
 	err := dd.Metadata.Unmarshal(&vi)
 	if err == nil {
-		rp.VehicleInfo = vi[vehicleInfoJsonNode]
+		rp.VehicleInfo = vi[vehicleInfoJSONNode]
 	}
 
 	return rp
@@ -120,7 +120,7 @@ func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin string) *mode
 		Year:       int16(dd.Type.Year),
 		SubModel:   null.StringFrom(dd.Type.SubModel),
 	}
-	_ = dbDevice.Metadata.Marshal(map[string]interface{}{ vehicleInfoJsonNode: dd.VehicleInfo })
+	_ = dbDevice.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dd.VehicleInfo})
 	// next: figure out how we store compatibility
 
 	return &dbDevice
@@ -153,7 +153,7 @@ func NewDeviceDefinitionFromNHTSA(decodedVin *services.NHTSADecodeVINResponse) D
 }
 
 type DeviceDefinition struct {
-	DeviceDefinitionId string              `json:"device_definition_id"`
+	DeviceDefinitionID string              `json:"device_definition_id"`
 	Name               string              `json:"name"`
 	ImageURL           string              `json:"image_url"`
 	Compatibility      DeviceCompatibility `json:"compatibility"`

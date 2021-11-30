@@ -5,7 +5,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"github.com/rs/zerolog"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -19,6 +18,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/mock/gomock"
 	_ "github.com/lib/pq"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/volatiletech/null/v8"
 )
@@ -76,7 +76,7 @@ func TestDevicesController_LookupDeviceDefinitionByVIN(t *testing.T) {
 	app := fiber.New()
 	app.Get("/devices/lookup/vin/:vin", c.LookupDeviceDefinitionByVIN)
 
-	request, _ := http.NewRequest("GET", "/devices/lookup/vin/" + vin, nil)
+	request, _ := http.NewRequest("GET", "/devices/lookup/vin/"+vin, nil)
 	response, _ := app.Test(request)
 	body, _ := ioutil.ReadAll(response.Body)
 	assert.Equal(t, 200, response.StatusCode)
@@ -94,7 +94,7 @@ func TestNewDeviceDefinitionFromNHTSA(t *testing.T) {
 
 	deviceDefinition := NewDeviceDefinitionFromNHTSA(&vinResp)
 
-	assert.Equal(t, "", deviceDefinition.DeviceDefinitionId)
+	assert.Equal(t, "", deviceDefinition.DeviceDefinitionID)
 	assert.Equal(t, "2020 TESLA Model Y", deviceDefinition.Name)
 	assert.Equal(t, "Vehicle", deviceDefinition.Type.Type)
 	assert.Equal(t, 2020, deviceDefinition.Type.Year)
@@ -115,11 +115,11 @@ func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
 		Model:      "R500",
 		Year:       2020,
 		SubModel:   null.StringFrom("AMG"),
-		Metadata:  null.JSONFrom([]byte(`{"vehicle_info": {"fuel_type": "gas", "driven_wheels": "4", "number_of_doors":"5" } }`)),
+		Metadata:   null.JSONFrom([]byte(`{"vehicle_info": {"fuel_type": "gas", "driven_wheels": "4", "number_of_doors":"5" } }`)),
 	}
 	dd := NewDeviceDefinitionFromDatabase(&dbDevice)
 
-	assert.Equal(t, "123", dd.DeviceDefinitionId)
+	assert.Equal(t, "123", dd.DeviceDefinitionID)
 	assert.Equal(t, "gas", dd.VehicleInfo.FuelType)
 	assert.Equal(t, "4", dd.VehicleInfo.DrivenWheels)
 	assert.Equal(t, "5", dd.VehicleInfo.NumberOfDoors)
@@ -133,14 +133,14 @@ func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
 
 func TestNewDbModelFromDeviceDefinition(t *testing.T) {
 	dd := DeviceDefinition{
-		Type:               DeviceType{
+		Type: DeviceType{
 			Type:     "Vehicle",
 			Make:     "Merc",
 			Model:    "R500",
 			Year:     2020,
 			SubModel: "AMG",
 		},
-		VehicleInfo:        DeviceVehicleInfo{
+		VehicleInfo: DeviceVehicleInfo{
 			FuelType:      "gas",
 			DrivenWheels:  "4",
 			NumberOfDoors: "5",
@@ -155,5 +155,3 @@ func TestNewDbModelFromDeviceDefinition(t *testing.T) {
 	assert.Equal(t, "AMG", dbDevice.SubModel.String)
 	assert.Equal(t, `{"vehicle_info":{"fuel_type":"gas","driven_wheels":"4","number_of_doors":"5"}}`, string(dbDevice.Metadata.JSON))
 }
-
-

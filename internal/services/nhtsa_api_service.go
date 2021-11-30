@@ -5,9 +5,11 @@ package services
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
 	"net/http"
+
+	"github.com/pkg/errors"
 )
+
 type INHTSAService interface {
 	DecodeVIN(vin string) (*NHTSADecodeVINResponse, error)
 }
@@ -49,9 +51,9 @@ type NHTSADecodeVINResponse struct {
 	SearchCriteria string `json:"SearchCriteria"`
 	Results        []struct {
 		Value      string `json:"Value"`
-		ValueId    string `json:"ValueId"`
-		Variable   string  `json:"Variable"`
-		VariableId int     `json:"VariableId"`
+		ValueID    string `json:"ValueId"`
+		Variable   string `json:"Variable"`
+		VariableID int    `json:"VariableId"`
 	} `json:"Results"`
 }
 

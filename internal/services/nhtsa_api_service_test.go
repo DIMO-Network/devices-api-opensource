@@ -2,11 +2,11 @@ package services
 
 import (
 	_ "embed"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
 
 	"github.com/jarcoal/httpmock"
+	"github.com/stretchr/testify/assert"
 )
 
 //go:embed test_nhtsa_decoded_vin.json

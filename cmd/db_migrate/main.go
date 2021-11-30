@@ -5,9 +5,10 @@ import (
 	"log"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
+	"github.com/pressly/goose/v3"
+
 	_ "github.com/DIMO-INC/devices-api/migrations"
 	_ "github.com/lib/pq"
-	"github.com/pressly/goose/v3"
 )
 
 func main() {

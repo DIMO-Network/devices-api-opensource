@@ -14,7 +14,7 @@ import (
 // ConnectOptions config options for database
 type ConnectOptions struct {
 	DSN                string
-	DriverName 		   string
+	DriverName         string
 	Retries            int
 	RetryDelay         time.Duration
 	ConnectTimeout     time.Duration

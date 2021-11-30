@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
-	"github.com/DIMO-INC/devices-api/internal/services"
 	"os"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/controllers"
 	"github.com/DIMO-INC/devices-api/internal/database"
+	"github.com/DIMO-INC/devices-api/internal/services"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"

@@ -11,8 +11,8 @@ type Settings struct {
 	DbPort               string `yaml:"DB_PORT"`
 	DbHost               string `yaml:"DB_HOST"`
 	DbName               string `yaml:"DB_NAME"`
-	DbMaxOpenConnections int `yaml:"DB_MAX_OPEN_CONNECTIONS"`
-	DbMaxIdleConnections int `yaml:"DB_MAX_IDLE_CONNECTIONS"`
+	DbMaxOpenConnections int    `yaml:"DB_MAX_OPEN_CONNECTIONS"`
+	DbMaxIdleConnections int    `yaml:"DB_MAX_IDLE_CONNECTIONS"`
 	ServiceName          string `yaml:"SERVICE_NAME"`
 }
 
@@ -30,4 +30,3 @@ func (app *Settings) GetWriterDSN(withSearchPath bool) string {
 	}
 	return dsn
 }
-

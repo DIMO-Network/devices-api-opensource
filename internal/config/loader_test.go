@@ -25,12 +25,12 @@ DB_PASSWORD: dimo
 
 func Test_loadFromEnvVars(t *testing.T) {
 	settings := Settings{
-		Port:                 "3000",
-		LogLevel:             "info",
-		DbUser:               "dimo",
+		Port:       "3000",
+		LogLevel:   "info",
+		DbUser:     "dimo",
 		DbPassword: "",
-		DbPort:               "5432",
-		DbHost:               "localhost",
+		DbPort:     "5432",
+		DbHost:     "localhost",
 	}
 	os.Setenv("DB_PASSWORD", "password")
 	os.Setenv("DB_MAX_OPEN_CONNECTIONS", "5")
