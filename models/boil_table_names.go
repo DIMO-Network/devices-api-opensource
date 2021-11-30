@@ -4,7 +4,11 @@
 package models
 
 var TableNames = struct {
-	DeviceDefinitions string
+	DeviceDefinitions  string
+	DeviceIntegrations string
+	Integrations       string
 }{
-	DeviceDefinitions: "device_definitions",
+	DeviceDefinitions:  "device_definitions",
+	DeviceIntegrations: "device_integrations",
+	Integrations:       "integrations",
 }

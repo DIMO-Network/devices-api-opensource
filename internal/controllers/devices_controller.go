@@ -91,7 +91,7 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 		DeviceDefinitionID: dd.UUID,
 		Name:               fmt.Sprintf("%d %s %s", dd.Year, dd.Make, dd.Model),
 		ImageURL:           "",
-		Compatibility:      DeviceCompatibility{}, // next: for expanding on compatibility task
+		Compatibility:      []DeviceCompatibility{},
 		Type: DeviceType{
 			Type:     "Vehicle",
 			Make:     dd.Make,
@@ -156,7 +156,8 @@ type DeviceDefinition struct {
 	DeviceDefinitionID string              `json:"device_definition_id"`
 	Name               string              `json:"name"`
 	ImageURL           string              `json:"image_url"`
-	Compatibility      DeviceCompatibility `json:"compatibility"`
+	// Compatibility has systems this vehicle can integrate with
+	Compatibility      []DeviceCompatibility `json:"compatibility"`
 	Type               DeviceType          `json:"type"`
 	// VehicleInfo will be empty if not a vehicle type
 	VehicleInfo DeviceVehicleInfo `json:"vehicle_data,omitempty"`
@@ -165,8 +166,10 @@ type DeviceDefinition struct {
 
 // DeviceCompatibility represents what systems we know this is compatible with
 type DeviceCompatibility struct {
-	IsSmartCarCompatible   bool `json:"is_smart_car_compatible"`
-	IsDimoAutoPiCompatible bool `json:"is_dimo_auto_pi_compatible"`
+	Id string `json:"id"`
+	Type string `json:"type"`
+	Style string `json:"style"`
+	Vendors string `json:"vendors"`
 }
 
 // DeviceType whether it is a vehicle or other type and basic information
