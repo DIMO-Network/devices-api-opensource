@@ -19,9 +19,8 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           
-      - name: Get short SHA
-        id: slug
-        run: echo "::set-output name=sha7::$(echo ${GITHUB_SHA} | cut -c1-7)"
+      - uses: tenhaus/get-release-or-tag@v2
+        id: tag
         
       - name: Build and push
         uses: docker/build-push-action@v2
@@ -29,13 +28,13 @@ jobs:
           context: .
           file: ./resources/docker/Dockerfile
           push: true
-          tags: dimozone/devices-api:${{ env.GITHUB_REF_NAME }}, dimozone/devices-api:latest
+          tags: dimozone/devices-api:${{ steps.tag.outputs.tag }}
 
       - name: Update Image Version in the related HelmChart values.yaml
         uses: fjogeleit/yaml-update-action@master
         with:
           valueFile: 'charts/devices-api/values-prod.yaml'
           propertyPath: 'image.tag'
-          value: ${{ env.GITHUB_REF_NAME }}
+          value: ${{ steps.tag.outputs.tag }}
           branch: main
-          message: 'Update Prod Image Version to ${{ env.GITHUB_REF_NAME }}'
+          message: 'Update Prod Image Version to ${{ steps.tag.outputs.tag }}'
