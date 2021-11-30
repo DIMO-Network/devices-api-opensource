@@ -58,8 +58,7 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 	squishVin := vin[:10]
 	dd, err := models.DeviceDefinitions(qm.Where("vin_first_10 = ?", squishVin),
 		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
-		qm.Load("DeviceIntegrations.Integration"),
-		).
+		qm.Load("DeviceIntegrations.Integration")).
 		One(c.Context(), d.DBS().Reader)
 
 	if err != nil {
@@ -116,7 +115,7 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 	if dd.R != nil {
 		for _, di := range dd.R.DeviceIntegrations {
 			rp.Compatibility = append(rp.Compatibility, DeviceCompatibility{
-				Id:      di.R.Integration.UUID,
+				ID:      di.R.Integration.UUID,
 				Type:    di.R.Integration.Type,
 				Style:   di.R.Integration.Style,
 				Vendors: di.R.Integration.Vendors,
@@ -168,12 +167,12 @@ func NewDeviceDefinitionFromNHTSA(decodedVin *services.NHTSADecodeVINResponse) D
 }
 
 type DeviceDefinition struct {
-	DeviceDefinitionID string              `json:"device_definition_id"`
-	Name               string              `json:"name"`
-	ImageURL           string              `json:"image_url"`
+	DeviceDefinitionID string `json:"device_definition_id"`
+	Name               string `json:"name"`
+	ImageURL           string `json:"image_url"`
 	// Compatibility has systems this vehicle can integrate with
-	Compatibility      []DeviceCompatibility `json:"compatibility"`
-	Type               DeviceType          `json:"type"`
+	Compatibility []DeviceCompatibility `json:"compatibility"`
+	Type          DeviceType            `json:"type"`
 	// VehicleInfo will be empty if not a vehicle type
 	VehicleInfo DeviceVehicleInfo `json:"vehicle_data,omitempty"`
 	Metadata    interface{}       `json:"metadata"`
@@ -181,9 +180,9 @@ type DeviceDefinition struct {
 
 // DeviceCompatibility represents what systems we know this is compatible with
 type DeviceCompatibility struct {
-	Id string `json:"id"`
-	Type string `json:"type"`
-	Style string `json:"style"`
+	ID      string `json:"id"`
+	Type    string `json:"type"`
+	Style   string `json:"style"`
 	Vendors string `json:"vendors"`
 }
 
