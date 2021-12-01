@@ -107,8 +107,7 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 	}
 	// vehicle info
 	var vi map[string]DeviceVehicleInfo
-	err := dd.Metadata.Unmarshal(&vi)
-	if err == nil {
+	if err := dd.Metadata.Unmarshal(&vi); err == nil {
 		rp.VehicleInfo = vi[vehicleInfoJSONNode]
 	}
 	// compatible integrations

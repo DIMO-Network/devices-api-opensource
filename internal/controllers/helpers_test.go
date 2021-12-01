@@ -25,13 +25,13 @@ func setupDatabase(ctx context.Context, t *testing.T, migrationsDirRelPath strin
 
 	settings := config.Settings{
 		LogLevel:             "info",
-		DbName:               dbName,
-		DbHost:               "localhost",
-		DbPort:               "6669",
-		DbUser:               "postgres",
-		DbPassword:           "postgres",
-		DbMaxOpenConnections: 2,
-		DbMaxIdleConnections: 2,
+		DBName:               dbName,
+		DBHost:               "localhost",
+		DBPort:               "6669",
+		DBUser:               "postgres",
+		DBPassword:           "postgres",
+		DBMaxOpenConnections: 2,
+		DBMaxIdleConnections: 2,
 		ServiceName:          "devices-api",
 	}
 	pdb := database.NewDbConnectionFromSettings(ctx, &settings)

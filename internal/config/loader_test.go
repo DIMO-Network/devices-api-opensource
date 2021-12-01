@@ -19,26 +19,26 @@ DB_PASSWORD: dimo
 	assert.NotNilf(t, settings, "settings not expected to be nil")
 	assert.Equal(t, "3000", settings.Port)
 	assert.Equal(t, "info", settings.LogLevel)
-	assert.Equal(t, "dimo", settings.DbUser)
-	assert.Equal(t, "dimo", settings.DbPassword)
+	assert.Equal(t, "dimo", settings.DBUser)
+	assert.Equal(t, "dimo", settings.DBPassword)
 }
 
 func Test_loadFromEnvVars(t *testing.T) {
 	settings := Settings{
 		Port:       "3000",
 		LogLevel:   "info",
-		DbUser:     "dimo",
-		DbPassword: "",
-		DbPort:     "5432",
-		DbHost:     "localhost",
+		DBUser:     "dimo",
+		DBPassword: "",
+		DBPort:     "5432",
+		DBHost:     "localhost",
 	}
 	os.Setenv("DB_PASSWORD", "password")
 	os.Setenv("DB_MAX_OPEN_CONNECTIONS", "5")
 
 	loadFromEnvVars(&settings)
 	assert.NotNilf(t, settings, "expected not nil")
-	assert.Equal(t, "password", settings.DbPassword)
-	assert.Equal(t, 5, settings.DbMaxOpenConnections)
+	assert.Equal(t, "password", settings.DBPassword)
+	assert.Equal(t, 5, settings.DBMaxOpenConnections)
 	assert.Equal(t, "info", settings.LogLevel)
-	assert.Equal(t, "localhost", settings.DbHost)
+	assert.Equal(t, "localhost", settings.DBHost)
 }

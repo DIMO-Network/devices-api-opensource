@@ -32,8 +32,8 @@ func (ns *NHTSAService) DecodeVIN(vin string) (*NHTSADecodeVINResponse, error) {
 	}
 	defer res.Body.Close()
 
-	if res.StatusCode != 200 {
-		return nil, errors.New("received a non 200 response from nhtsa api")
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("received a non 200 response from nhtsa api. status code: %d", res.StatusCode)
 	}
 
 	decodedVin := NHTSADecodeVINResponse{}
