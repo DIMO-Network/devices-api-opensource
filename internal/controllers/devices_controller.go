@@ -56,7 +56,8 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 		})
 	}
 	squishVin := vin[:10]
-	dd, err := models.DeviceDefinitions(qm.Where("vin_first_10 = ?", squishVin),
+	dd, err := models.DeviceDefinitions(
+		qm.Where("vin_first_10 = ?", squishVin),
 		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
 		qm.Load("DeviceIntegrations.Integration")).
 		One(c.Context(), d.DBS().Reader)
@@ -92,10 +93,10 @@ const vehicleInfoJSONNode = "vehicle_info"
 
 func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefinition {
 	rp := DeviceDefinition{
-		DeviceDefinitionID: dd.UUID,
-		Name:               fmt.Sprintf("%d %s %s", dd.Year, dd.Make, dd.Model),
-		ImageURL:           "",
-		Compatibility:      []DeviceCompatibility{},
+		DeviceDefinitionID:     dd.UUID,
+		Name:                   fmt.Sprintf("%d %s %s", dd.Year, dd.Make, dd.Model),
+		ImageURL:               "",
+		CompatibleIntegrations: []DeviceCompatibility{},
 		Type: DeviceType{
 			Type:     "Vehicle",
 			Make:     dd.Make,
@@ -113,7 +114,7 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 	// compatible integrations
 	if dd.R != nil {
 		for _, di := range dd.R.DeviceIntegrations {
-			rp.Compatibility = append(rp.Compatibility, DeviceCompatibility{
+			rp.CompatibleIntegrations = append(rp.CompatibleIntegrations, DeviceCompatibility{
 				ID:      di.R.Integration.UUID,
 				Type:    di.R.Integration.Type,
 				Style:   di.R.Integration.Style,
@@ -169,9 +170,9 @@ type DeviceDefinition struct {
 	DeviceDefinitionID string `json:"device_definition_id"`
 	Name               string `json:"name"`
 	ImageURL           string `json:"image_url"`
-	// Compatibility has systems this vehicle can integrate with
-	Compatibility []DeviceCompatibility `json:"compatibility"`
-	Type          DeviceType            `json:"type"`
+	// CompatibleIntegrations has systems this vehicle can integrate with
+	CompatibleIntegrations []DeviceCompatibility `json:"compatible_integrations"`
+	Type                   DeviceType            `json:"type"`
 	// VehicleInfo will be empty if not a vehicle type
 	VehicleInfo DeviceVehicleInfo `json:"vehicle_data,omitempty"`
 	Metadata    interface{}       `json:"metadata"`

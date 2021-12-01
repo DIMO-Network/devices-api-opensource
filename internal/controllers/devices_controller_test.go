@@ -145,8 +145,8 @@ func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
 	assert.Equal(t, "R500", dd.Type.Model)
 	assert.Equal(t, "AMG", dd.Type.SubModel)
 
-	assert.Len(t, dd.Compatibility, 1)
-	assert.Equal(t, "Autopi", dd.Compatibility[0].Vendors)
+	assert.Len(t, dd.CompatibleIntegrations, 1)
+	assert.Equal(t, "Autopi", dd.CompatibleIntegrations[0].Vendors)
 }
 
 func TestNewDbModelFromDeviceDefinition(t *testing.T) {
