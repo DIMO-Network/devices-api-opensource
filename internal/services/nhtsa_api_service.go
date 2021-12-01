@@ -1,0 +1,67 @@
+package services
+
+//go:generate mockgen -source nhtsa_api_service.go -destination mocks/nhtsa_api_service_mock.go
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+
+	"github.com/pkg/errors"
+)
+
+type INHTSAService interface {
+	DecodeVIN(vin string) (*NHTSADecodeVINResponse, error)
+}
+
+type NHTSAService struct {
+	baseURL string
+}
+
+func NewNHTSAService() INHTSAService {
+	return &NHTSAService{
+		baseURL: "https://vpic.nhtsa.dot.gov/api/",
+	}
+}
+
+func (ns *NHTSAService) DecodeVIN(vin string) (*NHTSADecodeVINResponse, error) {
+	url := fmt.Sprintf("%s/vehicles/decodevinextended/%s?format=json", ns.baseURL, vin)
+	res, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != 200 {
+		return nil, errors.New("received a non 200 response from nhtsa api")
+	}
+
+	decodedVin := NHTSADecodeVINResponse{}
+	err = json.NewDecoder(res.Body).Decode(&decodedVin)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read response body from nhtsa api")
+	}
+
+	return &decodedVin, nil
+}
+
+type NHTSADecodeVINResponse struct {
+	Count          int    `json:"Count"`
+	Message        string `json:"Message"`
+	SearchCriteria string `json:"SearchCriteria"`
+	Results        []struct {
+		Value      string `json:"Value"`
+		ValueID    string `json:"ValueId"`
+		Variable   string `json:"Variable"`
+		VariableID int    `json:"VariableId"`
+	} `json:"Results"`
+}
+
+func (n *NHTSADecodeVINResponse) LookupValue(variableName string) string {
+	for _, result := range n.Results {
+		if result.Variable == variableName {
+			return result.Value
+		}
+	}
+	return ""
+}

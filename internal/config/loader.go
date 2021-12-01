@@ -17,7 +17,7 @@ func LoadConfig(filePath string) (*Settings, error) {
 	var settings *Settings
 	// if no file found, ignore as we could be running in higher level environment. We could make this more explicit with a cli parameter w/ the filename
 	if err != nil {
-		log.Info().Err(errors.Wrap(err, "could not read file: " + filePath))
+		log.Info().Err(errors.Wrap(err, "could not read file: "+filePath))
 	} else {
 		settings, err = loadFromYaml(b)
 		if err != nil {
@@ -58,7 +58,7 @@ func loadFromEnvVars(settings *Settings) {
 			case reflect.Int:
 				val, _ = strconv.Atoi(env)
 			case reflect.Int64:
-				val, _ = strconv.ParseInt(env, 10,64)
+				val, _ = strconv.ParseInt(env, 10, 64)
 			}
 			// now set the field with the val
 			if val != nil {

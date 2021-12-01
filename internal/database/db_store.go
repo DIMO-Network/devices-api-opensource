@@ -9,7 +9,7 @@ import (
 	"github.com/DIMO-INC/devices-api/internal/config"
 )
 
-const driverName = "postgres"
+const databaseDriver = "postgres"
 
 // instance holds a single instance of the database
 var instance *DBReaderWriter
@@ -34,23 +34,23 @@ func NewDbConnectionFromSettings(ctx context.Context, settings *config.Settings)
 			&ready,
 			ConnectOptions{
 				Retries:            5,
-				RetryDelay:         time.Second * 15,
+				RetryDelay:         time.Second * 10,
 				ConnectTimeout:     time.Minute * 5,
 				DSN:                settings.GetWriterDSN(true),
 				MaxOpenConnections: settings.DbMaxOpenConnections,
 				MaxIdleConnections: settings.DbMaxIdleConnections,
 				ConnMaxLifetime:    time.Minute * 5,
-				DriverName: driverName,
+				DriverName:         databaseDriver,
 			},
 			ConnectOptions{
 				Retries:            5,
-				RetryDelay:         time.Second * 15,
+				RetryDelay:         time.Second * 10,
 				ConnectTimeout:     time.Minute * 5,
 				DSN:                settings.GetWriterDSN(true),
 				MaxOpenConnections: settings.DbMaxOpenConnections,
 				MaxIdleConnections: settings.DbMaxIdleConnections,
 				ConnMaxLifetime:    time.Minute * 5,
-				DriverName: driverName,
+				DriverName:         databaseDriver,
 			},
 		)
 	})

@@ -7,6 +7,7 @@ import (
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/controllers"
 	"github.com/DIMO-INC/devices-api/internal/database"
+	"github.com/DIMO-INC/devices-api/internal/services"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -37,8 +38,9 @@ func main() {
 		},
 		DisableStartupMessage: true,
 	})
+	nhtsaSvc := services.NewNHTSAService()
+	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc)
 
-	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS)
 	app.Use(recover.New(recover.Config{
 		Next:              nil,
 		EnableStackTrace:  true,
@@ -49,6 +51,7 @@ func main() {
 	v1 := app.Group("/v1")
 
 	v1.Get("/devices", deviceControllers.GetUsersDevices)
+	v1.Get("/devices/lookup/vin/:vin", deviceControllers.LookupDeviceDefinitionByVIN) // generic response for vehicles, e-bike, any device type
 
 	logger.Info().Msg("Server started on port " + settings.Port)
 
