@@ -52,6 +52,7 @@ func main() {
 
 	v1.Get("/devices", deviceControllers.GetUsersDevices)
 	v1.Get("/devices/lookup/vin/:vin", deviceControllers.LookupDeviceDefinitionByVIN) // generic response, specific for vehicle lookup
+	v1.Get("/devices/lookup/all", deviceControllers.GetAllDeviceMakeModelYears)
 	v1.Get("/devices/lookup/makes", deviceControllers.LookupDeviceMakes)
 	v1.Get("/devices/lookup/models?make=:make", deviceControllers.LookupDeviceModels)
 	v1.Get("/devices/lookup/years?make=:make&model=:model", deviceControllers.LookupDeviceYears)
