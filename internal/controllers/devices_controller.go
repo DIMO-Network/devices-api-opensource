@@ -56,7 +56,12 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 		})
 	}
 	squishVin := vin[:10]
-	dd, err := models.DeviceDefinitions(qm.Where("vin_first_10 = ?", squishVin)).One(c.Context(), d.DBS().Reader)
+	dd, err := models.DeviceDefinitions(
+		qm.Where("vin_first_10 = ?", squishVin),
+		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
+		qm.Load("DeviceIntegrations.Integration")).
+		One(c.Context(), d.DBS().Reader)
+
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			decodedVIN, err := d.NHTSASvc.DecodeVIN(vin)
@@ -88,10 +93,10 @@ const vehicleInfoJSONNode = "vehicle_info"
 
 func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefinition {
 	rp := DeviceDefinition{
-		DeviceDefinitionID: dd.UUID,
-		Name:               fmt.Sprintf("%d %s %s", dd.Year, dd.Make, dd.Model),
-		ImageURL:           "",
-		Compatibility:      DeviceCompatibility{}, // next: for expanding on compatibility task
+		DeviceDefinitionID:     dd.UUID,
+		Name:                   fmt.Sprintf("%d %s %s", dd.Year, dd.Make, dd.Model),
+		ImageURL:               "",
+		CompatibleIntegrations: []DeviceCompatibility{},
 		Type: DeviceType{
 			Type:     "Vehicle",
 			Make:     dd.Make,
@@ -101,11 +106,21 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 		},
 		Metadata: string(dd.Metadata.JSON),
 	}
+	// vehicle info
 	var vi map[string]DeviceVehicleInfo
-
-	err := dd.Metadata.Unmarshal(&vi)
-	if err == nil {
+	if err := dd.Metadata.Unmarshal(&vi); err == nil {
 		rp.VehicleInfo = vi[vehicleInfoJSONNode]
+	}
+	// compatible integrations
+	if dd.R != nil {
+		for _, di := range dd.R.DeviceIntegrations {
+			rp.CompatibleIntegrations = append(rp.CompatibleIntegrations, DeviceCompatibility{
+				ID:      di.R.Integration.UUID,
+				Type:    di.R.Integration.Type,
+				Style:   di.R.Integration.Style,
+				Vendors: di.R.Integration.Vendors,
+			})
+		}
 	}
 
 	return rp
@@ -121,7 +136,6 @@ func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin string) *mode
 		SubModel:   null.StringFrom(dd.Type.SubModel),
 	}
 	_ = dbDevice.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dd.VehicleInfo})
-	// next: figure out how we store compatibility
 
 	return &dbDevice
 }
@@ -153,11 +167,12 @@ func NewDeviceDefinitionFromNHTSA(decodedVin *services.NHTSADecodeVINResponse) D
 }
 
 type DeviceDefinition struct {
-	DeviceDefinitionID string              `json:"device_definition_id"`
-	Name               string              `json:"name"`
-	ImageURL           string              `json:"image_url"`
-	Compatibility      DeviceCompatibility `json:"compatibility"`
-	Type               DeviceType          `json:"type"`
+	DeviceDefinitionID string `json:"device_definition_id"`
+	Name               string `json:"name"`
+	ImageURL           string `json:"image_url"`
+	// CompatibleIntegrations has systems this vehicle can integrate with
+	CompatibleIntegrations []DeviceCompatibility `json:"compatible_integrations"`
+	Type                   DeviceType            `json:"type"`
 	// VehicleInfo will be empty if not a vehicle type
 	VehicleInfo DeviceVehicleInfo `json:"vehicle_data,omitempty"`
 	Metadata    interface{}       `json:"metadata"`
@@ -165,8 +180,10 @@ type DeviceDefinition struct {
 
 // DeviceCompatibility represents what systems we know this is compatible with
 type DeviceCompatibility struct {
-	IsSmartCarCompatible   bool `json:"is_smart_car_compatible"`
-	IsDimoAutoPiCompatible bool `json:"is_dimo_auto_pi_compatible"`
+	ID      string `json:"id"`
+	Type    string `json:"type"`
+	Style   string `json:"style"`
+	Vendors string `json:"vendors"`
 }
 
 // DeviceType whether it is a vehicle or other type and basic information

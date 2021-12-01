@@ -50,3 +50,15 @@ func makeCacheKey(cols boil.Columns, nzDefaults []string) string {
 	strmangle.PutBuffer(buf)
 	return str
 }
+
+// Enum values for IntegrationType
+const (
+	IntegrationTypeHardware = "Hardware"
+	IntegrationTypeAPI      = "API"
+)
+
+// Enum values for IntegrationStyle
+const (
+	IntegrationStyleAddon = "Addon"
+	IntegrationStyleOEM   = "OEM"
+)

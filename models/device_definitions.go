@@ -223,10 +223,14 @@ var DeviceDefinitionWhere = struct {
 
 // DeviceDefinitionRels is where relationship names are stored.
 var DeviceDefinitionRels = struct {
-}{}
+	DeviceIntegrations string
+}{
+	DeviceIntegrations: "DeviceIntegrations",
+}
 
 // deviceDefinitionR is where relationships are stored.
 type deviceDefinitionR struct {
+	DeviceIntegrations DeviceIntegrationSlice `boil:"DeviceIntegrations" json:"DeviceIntegrations" toml:"DeviceIntegrations" yaml:"DeviceIntegrations"`
 }
 
 // NewStruct creates a new relationship struct
@@ -517,6 +521,178 @@ func (q deviceDefinitionQuery) Exists(ctx context.Context, exec boil.ContextExec
 	}
 
 	return count > 0, nil
+}
+
+// DeviceIntegrations retrieves all the device_integration's DeviceIntegrations with an executor.
+func (o *DeviceDefinition) DeviceIntegrations(mods ...qm.QueryMod) deviceIntegrationQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"devices_api\".\"device_integrations\".\"device_definition_uuid\"=?", o.UUID),
+	)
+
+	query := DeviceIntegrations(queryMods...)
+	queries.SetFrom(query.Query, "\"devices_api\".\"device_integrations\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"devices_api\".\"device_integrations\".*"})
+	}
+
+	return query
+}
+
+// LoadDeviceIntegrations allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (deviceDefinitionL) LoadDeviceIntegrations(ctx context.Context, e boil.ContextExecutor, singular bool, maybeDeviceDefinition interface{}, mods queries.Applicator) error {
+	var slice []*DeviceDefinition
+	var object *DeviceDefinition
+
+	if singular {
+		object = maybeDeviceDefinition.(*DeviceDefinition)
+	} else {
+		slice = *maybeDeviceDefinition.(*[]*DeviceDefinition)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &deviceDefinitionR{}
+		}
+		args = append(args, object.UUID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &deviceDefinitionR{}
+			}
+
+			for _, a := range args {
+				if a == obj.UUID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.UUID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`devices_api.device_integrations`),
+		qm.WhereIn(`devices_api.device_integrations.device_definition_uuid in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load device_integrations")
+	}
+
+	var resultSlice []*DeviceIntegration
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice device_integrations")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on device_integrations")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for device_integrations")
+	}
+
+	if len(deviceIntegrationAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.DeviceIntegrations = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &deviceIntegrationR{}
+			}
+			foreign.R.DeviceDefinition = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.UUID == foreign.DeviceDefinitionUUID {
+				local.R.DeviceIntegrations = append(local.R.DeviceIntegrations, foreign)
+				if foreign.R == nil {
+					foreign.R = &deviceIntegrationR{}
+				}
+				foreign.R.DeviceDefinition = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// AddDeviceIntegrations adds the given related objects to the existing relationships
+// of the device_definition, optionally inserting them as new records.
+// Appends related to o.R.DeviceIntegrations.
+// Sets related.R.DeviceDefinition appropriately.
+func (o *DeviceDefinition) AddDeviceIntegrations(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*DeviceIntegration) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.DeviceDefinitionUUID = o.UUID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"devices_api\".\"device_integrations\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"device_definition_uuid"}),
+				strmangle.WhereClause("\"", "\"", 2, deviceIntegrationPrimaryKeyColumns),
+			)
+			values := []interface{}{o.UUID, rel.DeviceDefinitionUUID, rel.IntegrationUUID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.DeviceDefinitionUUID = o.UUID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &deviceDefinitionR{
+			DeviceIntegrations: related,
+		}
+	} else {
+		o.R.DeviceIntegrations = append(o.R.DeviceIntegrations, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &deviceIntegrationR{
+				DeviceDefinition: o,
+			}
+		} else {
+			rel.R.DeviceDefinition = o
+		}
+	}
+	return nil
 }
 
 // DeviceDefinitions retrieves all the records using an executor.

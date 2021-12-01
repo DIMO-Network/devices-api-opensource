@@ -48,6 +48,7 @@ To generate the models:
 ```bash
 sqlboiler psql --no-tests
 ```
+*Make sure you're running the docker image (ie. docker compose up)
 
 ## Migrations
 

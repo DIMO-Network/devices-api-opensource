@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/services"
@@ -117,6 +118,21 @@ func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
 		SubModel:   null.StringFrom("AMG"),
 		Metadata:   null.JSONFrom([]byte(`{"vehicle_info": {"fuel_type": "gas", "driven_wheels": "4", "number_of_doors":"5" } }`)),
 	}
+	di := models.DeviceIntegration{
+		DeviceDefinitionUUID: "123",
+		IntegrationUUID:      "123",
+		CreatedAt:            time.Time{},
+		UpdatedAt:            time.Time{},
+	}
+	di.R = di.R.NewStruct()
+	di.R.Integration = &models.Integration{
+		UUID:    "123",
+		Type:    "Hardware",
+		Style:   "Addon",
+		Vendors: "Autopi",
+	}
+	dbDevice.R = dbDevice.R.NewStruct()
+	dbDevice.R.DeviceIntegrations = append(dbDevice.R.DeviceIntegrations, &di)
 	dd := NewDeviceDefinitionFromDatabase(&dbDevice)
 
 	assert.Equal(t, "123", dd.DeviceDefinitionID)
@@ -129,6 +145,8 @@ func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
 	assert.Equal(t, "R500", dd.Type.Model)
 	assert.Equal(t, "AMG", dd.Type.SubModel)
 
+	assert.Len(t, dd.CompatibleIntegrations, 1)
+	assert.Equal(t, "Autopi", dd.CompatibleIntegrations[0].Vendors)
 }
 
 func TestNewDbModelFromDeviceDefinition(t *testing.T) {
