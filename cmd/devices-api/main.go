@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/gofiber/fiber/v2/middleware/cache"
 	"os"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/DIMO-INC/devices-api/internal/services"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	_ "github.com/lib/pq"
@@ -53,13 +53,12 @@ func main() {
 		Next: func(c *fiber.Ctx) bool {
 			return c.Query("refresh") == "true"
 		},
-		Expiration: 30 * time.Minute,
+		Expiration:   30 * time.Minute,
 		CacheControl: true,
 	})
 	app.Get("/", HealthCheck)
 	v1 := app.Group("/v1")
 
-	v1.Get("/devices", deviceControllers.GetUsersDevices)
 	v1.Get("/devices/lookup/vin/:vin", deviceControllers.LookupDeviceDefinitionByVIN) // generic response, specific for vehicle lookup
 	v1.Get("/devices/lookup/all", cacheHandler, deviceControllers.GetAllDeviceMakeModelYears)
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -16,6 +15,7 @@ import (
 	mock_services "github.com/DIMO-INC/devices-api/internal/services/mocks"
 	_ "github.com/DIMO-INC/devices-api/migrations"
 	"github.com/DIMO-INC/devices-api/models"
+	"github.com/buger/jsonparser"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/mock/gomock"
 	_ "github.com/lib/pq"
@@ -29,28 +29,9 @@ var testNhtsaDecodedVin string
 
 const migrationsDirRelPath = "../../migrations"
 
-func TestDevicesController_GetUsersDevices(t *testing.T) {
-	ctx := context.Background()
-
-	pdb, database := setupDatabase(ctx, t, migrationsDirRelPath)
-	defer func() {
-		if err := database.Stop(); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	c := NewDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, nil, nil)
-
-	app := fiber.New()
-	app.Get("/devices", c.GetUsersDevices)
-
-	request, _ := http.NewRequest("GET", "/devices", nil)
-	response, _ := app.Test(request)
-	body, _ := ioutil.ReadAll(response.Body)
-	assert.Equal(t, 200, response.StatusCode)
-	assert.Equal(t, "{\"devices\":[{\"device_id\":\"123123\",\"name\":\"Johnny's Tesla\"}]}", string(body))
-}
-
-func TestDevicesController_LookupDeviceDefinitionByVIN(t *testing.T) {
+// integration tests using embedded pgsql, must be run in order
+func TestDevicesController(t *testing.T) {
+	// arrange global db and route setup
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -68,25 +49,42 @@ func TestDevicesController_LookupDeviceDefinitionByVIN(t *testing.T) {
 	}()
 	nhtsaSvc := mock_services.NewMockINHTSAService(mockCtrl)
 	c := NewDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, nhtsaSvc)
-	vinResp := services.NHTSADecodeVINResponse{}
-	_ = json.Unmarshal([]byte(testNhtsaDecodedVin), &vinResp)
-	const vin = "5YJYGDEF2LFR00942"
-
-	nhtsaSvc.EXPECT().DecodeVIN(vin).Times(1).Return(&vinResp, nil)
-
+	// routes
 	app := fiber.New()
 	app.Get("/devices/lookup/vin/:vin", c.LookupDeviceDefinitionByVIN)
+	app.Get("/devices/lookup/all", c.GetAllDeviceMakeModelYears)
 
-	request, _ := http.NewRequest("GET", "/devices/lookup/vin/"+vin, nil)
-	response, _ := app.Test(request)
-	body, _ := ioutil.ReadAll(response.Body)
-	assert.Equal(t, 200, response.StatusCode)
-	definition, err := models.DeviceDefinitions().One(ctx, pdb.DBS().Writer)
-	assert.NoError(t, err, "expected to find one device def in DB")
-	assert.NotNilf(t, definition, "expected device def not be nil")
-	assert.Equal(t, vin[:10], definition.VinFirst10)
-
-	fmt.Println(string(body))
+	t.Run("GET - lookup device definition by VIN", func(t *testing.T) {
+		// arrange mock setup
+		vinResp := services.NHTSADecodeVINResponse{}
+		_ = json.Unmarshal([]byte(testNhtsaDecodedVin), &vinResp)
+		const vin = "5YJYGDEF2LFR00942"
+		nhtsaSvc.EXPECT().DecodeVIN(vin).Times(1).Return(&vinResp, nil)
+		// act
+		request, _ := http.NewRequest("GET", "/devices/lookup/vin/"+vin, nil)
+		response, _ := app.Test(request)
+		// assert
+		assert.Equal(t, 200, response.StatusCode)
+		definition, err := models.DeviceDefinitions().One(ctx, pdb.DBS().Writer)
+		assert.NoError(t, err, "expected to find one device def in DB")
+		assert.NotNilf(t, definition, "expected device def not be nil")
+		assert.Equal(t, vin[:10], definition.VinFirst10)
+	})
+	t.Run("GET - all make model years as a tree", func(t *testing.T) {
+		request, _ := http.NewRequest("GET", "/devices/lookup/all", nil)
+		response, _ := app.Test(request)
+		body, _ := ioutil.ReadAll(response.Body)
+		// assert
+		assert.Equal(t, 200, response.StatusCode)
+		v, _, _, _ := jsonparser.Get(body, "makes")
+		var mmy []DeviceMMYRoot
+		err := json.Unmarshal(v, &mmy)
+		assert.NoError(t, err)
+		assert.Len(t, mmy, 1)
+		assert.Equal(t, "TESLA", mmy[0].Make)
+		assert.Equal(t, "Model Y", mmy[0].Models[0].Model)
+		assert.Equal(t, int16(2020), mmy[0].Models[0].Years[0])
+	})
 }
 
 func TestNewDeviceDefinitionFromNHTSA(t *testing.T) {

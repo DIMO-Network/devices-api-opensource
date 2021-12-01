@@ -34,7 +34,7 @@ func NewDevicesController(settings *config.Settings, dbs func() *database.DBRead
 	}
 }
 
-// GetUsersDevices placeholder for endpoint to get devices that belong to a user
+// GetUsersDevices placeholder for endpoint to get devices that belong to a user TODO
 func (d *DevicesController) GetUsersDevices(c *fiber.Ctx) error {
 	ds := make([]DeviceRp, 0)
 	ds = append(ds, DeviceRp{
@@ -89,6 +89,7 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 	})
 }
 
+// GetAllDeviceMakeModelYears returns a json tree of Makes, models, and years
 func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
 	all, err := models.DeviceDefinitions().All(c.Context(), d.DBS().Reader)
 	if err != nil {
