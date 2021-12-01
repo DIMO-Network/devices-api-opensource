@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"github.com/gofiber/fiber/v2/middleware/cache"
 	"os"
+	"time"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/controllers"
@@ -47,15 +49,19 @@ func main() {
 		StackTraceHandler: nil,
 	}))
 	app.Use(cors.New())
+	cacheHandler := cache.New(cache.Config{
+		Next: func(c *fiber.Ctx) bool {
+			return c.Query("refresh") == "true"
+		},
+		Expiration: 30 * time.Minute,
+		CacheControl: true,
+	})
 	app.Get("/", HealthCheck)
 	v1 := app.Group("/v1")
 
 	v1.Get("/devices", deviceControllers.GetUsersDevices)
 	v1.Get("/devices/lookup/vin/:vin", deviceControllers.LookupDeviceDefinitionByVIN) // generic response, specific for vehicle lookup
-	v1.Get("/devices/lookup/all", deviceControllers.GetAllDeviceMakeModelYears)
-	v1.Get("/devices/lookup/makes", deviceControllers.LookupDeviceMakes)
-	v1.Get("/devices/lookup/models?make=:make", deviceControllers.LookupDeviceModels)
-	v1.Get("/devices/lookup/years?make=:make&model=:model", deviceControllers.LookupDeviceYears)
+	v1.Get("/devices/lookup/all", cacheHandler, deviceControllers.GetAllDeviceMakeModelYears)
 
 	logger.Info().Msg("Server started on port " + settings.Port)
 

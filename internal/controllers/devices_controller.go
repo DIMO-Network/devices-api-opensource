@@ -14,7 +14,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
-	"github.com/volatiletech/sqlboiler/v4/queries"
 	qm "github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
@@ -90,63 +89,7 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 	})
 }
 
-// LookupDeviceMakes finds all unique makes in device_definitions
-func (d *DevicesController) LookupDeviceMakes(c *fiber.Ctx) error {
-	var makes []string
-	err := queries.Raw("select make from device_definitions group by make").Bind(c.Context(), d.DBS().Reader, &makes)
-	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
-	}
-
-	return c.JSON(fiber.Map{
-		"makes": makes,
-	})
-}
-
-// LookupDeviceModels finds all unique models given a make in device_definitions
-func (d *DevicesController) LookupDeviceModels(c *fiber.Ctx) error {
-	m := c.Params("make")
-	if len(m) == 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error_message": "make querystring is required",
-		})
-	}
-
-	var models []string
-	err := queries.Raw("select model from device_definitions group by model where make = ?", m).Bind(c.Context(), d.DBS().Reader, &models)
-	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
-	}
-
-	return c.JSON(fiber.Map{
-		"models": models,
-	})
-}
-
-// LookupDeviceYears finds all unique years given a make and model in device_definitions
-func (d *DevicesController) LookupDeviceYears(c *fiber.Ctx) error {
-	m := c.Params("make")
-	mo := c.Params("model")
-	if len(m) == 0 || len(mo) == 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error_message": "make and model query strings are required",
-		})
-	}
-
-	var years []string
-	err := queries.Raw("select year from device_definitions group by year where make = ? and model = ?", m, mo).
-		Bind(c.Context(), d.DBS().Reader, &years)
-	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
-	}
-
-	return c.JSON(fiber.Map{
-		"models": years,
-	})
-}
-
 func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
-	// next: add caching in memory
 	all, err := models.DeviceDefinitions().All(c.Context(), d.DBS().Reader)
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
