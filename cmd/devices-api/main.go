@@ -41,11 +41,11 @@ func main() {
 	case "migrate":
 		migrateDatabase(logger, settings)
 	default:
-		startWebApi(logger, settings, pdb)
+		startWebAPI(logger, settings, pdb)
 	}
 }
 
-func startWebApi(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) {
+func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return ErrorHandler(c, err, logger)
