@@ -14,7 +14,7 @@ import (
 // LoadConfig fills in all the values in the Settings from local yml file (for dev) and env vars (for deployments)
 func LoadConfig(filePath string) (*Settings, error) {
 	b, err := ioutil.ReadFile(filePath)
-	var settings *Settings
+	settings := Settings{}
 	// if no file found, ignore as we could be running in higher level environment. We could make this more explicit with a cli parameter w/ the filename
 	if err != nil {
 		log.Info().Err(errors.Wrapf(err, "could not read file: %s ", filePath))
@@ -24,24 +24,27 @@ func LoadConfig(filePath string) (*Settings, error) {
 			return nil, errors.Wrap(err, "could not load yaml")
 		}
 	}
-	loadFromEnvVars(settings) // override with any env vars found
+	err = loadFromEnvVars(&settings) // override with any env vars found
 
-	return settings, nil
+	return &settings, err
 }
 
-func loadFromYaml(yamlFile []byte) (*Settings, error) {
+func loadFromYaml(yamlFile []byte) (Settings, error) {
 	var settings Settings
 	err := yaml.Unmarshal(yamlFile, &settings)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not unmarshall yaml file to settings")
+		return settings, errors.Wrap(err, "could not unmarshall yaml file to settings")
 	}
-	return &settings, nil
+	return settings, nil
 }
 
-func loadFromEnvVars(settings *Settings) {
+func loadFromEnvVars(settings *Settings) error {
+	if settings == nil {
+		return errors.New("settings param cannot be nil")
+	}
 	valueOfConfig := reflect.ValueOf(settings).Elem()
 	typeOfT := valueOfConfig.Type()
-
+	var err error
 	// iterate over all struct fields
 	for i := 0; i < valueOfConfig.NumField(); i++ {
 		field := valueOfConfig.Field(i)
@@ -54,11 +57,11 @@ func loadFromEnvVars(settings *Settings) {
 			case reflect.String:
 				val = env
 			case reflect.Bool:
-				val, _ = strconv.ParseBool(env)
+				val, err = strconv.ParseBool(env)
 			case reflect.Int:
-				val, _ = strconv.Atoi(env)
+				val, err = strconv.Atoi(env)
 			case reflect.Int64:
-				val, _ = strconv.ParseInt(env, 10, 64)
+				val, err = strconv.ParseInt(env, 10, 64)
 			}
 			// now set the field with the val
 			if val != nil {
@@ -66,4 +69,5 @@ func loadFromEnvVars(settings *Settings) {
 			}
 		}
 	}
+	return err
 }

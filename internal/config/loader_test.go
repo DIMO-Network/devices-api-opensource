@@ -42,3 +42,8 @@ func Test_loadFromEnvVars(t *testing.T) {
 	assert.Equal(t, "info", settings.LogLevel)
 	assert.Equal(t, "localhost", settings.DBHost)
 }
+
+func Test_loadFromEnvVars_errOnNil(t *testing.T) {
+	err := loadFromEnvVars(nil)
+	assert.Error(t, err, "expected error if nil settings")
+}
