@@ -31,9 +31,21 @@ func main() {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("could not load settings")
 	}
-
 	pdb := database.NewDbConnectionFromSettings(ctx, settings)
 
+	arg := ""
+	if len(os.Args) > 1 {
+		arg = os.Args[1]
+	}
+	switch arg {
+	case "migrate":
+		migrateDatabase(logger, settings)
+	default:
+		startWebAPI(logger, settings, pdb)
+	}
+}
+
+func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return ErrorHandler(c, err, logger)

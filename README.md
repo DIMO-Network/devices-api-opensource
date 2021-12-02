@@ -8,7 +8,7 @@ Api for managing devices on the DIMO platform.
 cp settings.sample.yaml settings.yaml
 mkdir ./resources/data
 docker compose up -d
-go run ./cmd/db_migrate
+go run ./cmd/devices-api migrate
 go run ./cmd/devices-api
 ```
 
@@ -22,7 +22,7 @@ Data will be persisted across sessions b/c we have the volume set.
 To check container status: `$ docker ps`
 You can connect to db eg: `psql -h localhost -p 5432 -U dimo` or with your favorite db IDE
 
-3. Migrate DB to latest: `$ go run ./cmd/db_migrate`
+3. Migrate DB to latest: `$ go run ./cmd/devices-api migrate`
 
 4. Run application
 `$ go run ./cmd/devices-api`
