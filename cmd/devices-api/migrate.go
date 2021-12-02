@@ -7,6 +7,9 @@ import (
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/pressly/goose/v3"
 	"github.com/rs/zerolog"
+
+	_ "github.com/DIMO-INC/devices-api/migrations" // migrations won't work without these two
+	_ "github.com/lib/pq"
 )
 
 func migrateDatabase(logger zerolog.Logger, settings *config.Settings) {

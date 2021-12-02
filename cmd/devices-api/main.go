@@ -9,6 +9,7 @@ import (
 	"github.com/DIMO-INC/devices-api/internal/controllers"
 	"github.com/DIMO-INC/devices-api/internal/database"
 	"github.com/DIMO-INC/devices-api/internal/services"
+	_ "github.com/DIMO-INC/devices-api/migrations"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
