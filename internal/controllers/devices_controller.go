@@ -34,7 +34,7 @@ func NewDevicesController(settings *config.Settings, dbs func() *database.DBRead
 	}
 }
 
-// GetUsersDevices placeholder for endpoint to get devices that belong to a user
+// GetUsersDevices placeholder for endpoint to get devices that belong to a user TODO
 func (d *DevicesController) GetUsersDevices(c *fiber.Ctx) error {
 	ds := make([]DeviceRp, 0)
 	ds = append(ds, DeviceRp{
@@ -87,6 +87,59 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"device_definition": rp,
 	})
+}
+
+// GetAllDeviceMakeModelYears returns a json tree of Makes, models, and years
+func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
+	all, err := models.DeviceDefinitions().All(c.Context(), d.DBS().Reader)
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+	var mmy []DeviceMMYRoot
+	for _, dd := range all {
+		idx := indexOfMake(mmy, dd.Make)
+		// append make if not found
+		if idx == -1 {
+			mmy = append(mmy, DeviceMMYRoot{
+				Make:   dd.Make,
+				Models: []DeviceModels{{Model: dd.Model, Years: []int16{dd.Year}}},
+			})
+		} else {
+			// attach model or year to existing make, lookup model
+			idx2 := indexOfModel(mmy[idx].Models, dd.Model)
+			if idx2 == -1 {
+				// append model if not found
+				mmy[idx].Models = append(mmy[idx].Models, DeviceModels{
+					Model: dd.Model,
+					Years: []int16{dd.Year},
+				})
+			} else {
+				// make and model already found, just add year
+				mmy[idx].Models[idx2].Years = append(mmy[idx].Models[idx2].Years, dd.Year)
+			}
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"makes": mmy,
+	})
+}
+
+func indexOfMake(makes []DeviceMMYRoot, make string) int {
+	for i, root := range makes {
+		if root.Make == make {
+			return i
+		}
+	}
+	return -1
+}
+func indexOfModel(models []DeviceModels, model string) int {
+	for i, m := range models {
+		if m.Model == model {
+			return i
+		}
+	}
+	return -1
 }
 
 const vehicleInfoJSONNode = "vehicle_info"
@@ -206,4 +259,14 @@ type DeviceVehicleInfo struct {
 	VehicleType   string `json:"vehicle_type,omitempty"`
 	MPGHighway    string `json:"mpg_highway,omitempty"`
 	MPGCity       string `json:"mpg_city,omitempty"`
+}
+
+type DeviceMMYRoot struct {
+	Make   string         `json:"make"`
+	Models []DeviceModels `json:"models"`
+}
+
+type DeviceModels struct {
+	Model string  `json:"model"`
+	Years []int16 `json:"years"`
 }

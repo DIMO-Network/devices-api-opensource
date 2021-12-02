@@ -89,3 +89,11 @@ To regenerate a mock, you can use go gen since the files that are mocked have a 
     ----------------
      kubectl create secret generic cf-credentials --from-literal=email='XXX@XXX.XXX' --from-literal=token='XXX' -n infra
   ```
+  
+## API
+
+Endpoints as curl commands:
+```bash
+curl http://localhost:3000/v1/devices/lookup/all -w '\n%{time_starttransfer}\n' -v
+curl http://localhost:3000/v1/devices/lookup/vin/:vin
+```
