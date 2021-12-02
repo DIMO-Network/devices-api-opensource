@@ -25,7 +25,7 @@ COPY --from=build /etc/passwd /etc/passwd
 COPY --from=build /go/src/github.com/DIMO-INC/devices-api/target/bin/devices-api .
 COPY --from=build /go/src/github.com/DIMO-INC/devices-api/migrations /migrations
 USER dimo
-tw
+
 EXPOSE 8080
 
 CMD /devices-api
