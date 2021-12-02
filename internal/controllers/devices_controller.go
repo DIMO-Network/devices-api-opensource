@@ -3,7 +3,6 @@ package controllers
 import (
 	"database/sql"
 	"fmt"
-	"github.com/google/uuid"
 	"strconv"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
@@ -11,6 +10,7 @@ import (
 	"github.com/DIMO-INC/devices-api/internal/services"
 	"github.com/DIMO-INC/devices-api/models"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/null/v8"
@@ -71,11 +71,8 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 			}
 			rp := NewDeviceDefinitionFromNHTSA(decodedVIN)
 			// save to database, if error just log do not block, execute in go func routine to not block
-			dbDevice, err := NewDbModelFromDeviceDefinition(rp, squishVin)
-			if err != nil {
-				return err
-			}
 			go func() {
+				dbDevice := NewDbModelFromDeviceDefinition(rp, squishVin)
 				err = dbDevice.Insert(c.Context(), d.DBS().Writer, boil.Infer())
 				if err != nil {
 					d.log.Error().Err(err).Msg("error inserting device definition to db")
@@ -184,13 +181,9 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 }
 
 // NewDbModelFromDeviceDefinition converts a DeviceDefinition response object to a new database model for the given squishVin
-func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin string) (*models.DeviceDefinition, error) {
-	newUUID, err := uuid.NewUUID()
-	if err != nil {
-		return nil, err
-	}
+func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin string) *models.DeviceDefinition {
 	dbDevice := models.DeviceDefinition{
-		UUID: newUUID.String(),
+		UUID:       uuid.New().String(),
 		VinFirst10: squishVin,
 		Make:       dd.Type.Make,
 		Model:      dd.Type.Model,
@@ -199,7 +192,7 @@ func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin string) (*mod
 	}
 	_ = dbDevice.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dd.VehicleInfo})
 
-	return &dbDevice, nil
+	return &dbDevice
 }
 
 type DeviceRp struct {
