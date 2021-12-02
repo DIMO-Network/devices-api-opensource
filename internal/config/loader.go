@@ -17,7 +17,7 @@ func LoadConfig(filePath string) (*Settings, error) {
 	settings := Settings{}
 	// if no file found, ignore as we could be running in higher level environment. We could make this more explicit with a cli parameter w/ the filename
 	if err != nil {
-		log.Info().Err(errors.Wrapf(err, "could not read file: %s ", filePath))
+		log.Info().Err(errors.Wrapf(err, "looks like running in higher level env as could not read file: %s ", filePath))
 	} else {
 		settings, err = loadFromYaml(b)
 		if err != nil {

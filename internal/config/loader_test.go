@@ -35,7 +35,8 @@ func Test_loadFromEnvVars(t *testing.T) {
 	os.Setenv("DB_PASSWORD", "password")
 	os.Setenv("DB_MAX_OPEN_CONNECTIONS", "5")
 
-	loadFromEnvVars(&settings)
+	err := loadFromEnvVars(&settings)
+	assert.NoError(t, err)
 	assert.NotNilf(t, settings, "expected not nil")
 	assert.Equal(t, "password", settings.DBPassword)
 	assert.Equal(t, 5, settings.DBMaxOpenConnections)
