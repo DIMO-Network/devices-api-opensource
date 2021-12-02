@@ -26,6 +26,7 @@ require (
 	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/gofrs/uuid v3.2.0+incompatible // indirect
 	github.com/golang/snappy v0.0.3 // indirect
+	github.com/google/uuid v1.3.0 // indirect
 	github.com/klauspost/compress v1.13.4 // indirect
 	github.com/klauspost/pgzip v1.2.4 // indirect
 	github.com/mattn/go-sqlite3 v1.14.9 // indirect
