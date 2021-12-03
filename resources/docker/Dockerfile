@@ -24,8 +24,9 @@ COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /etc/passwd /etc/passwd
 COPY --from=build /go/src/github.com/DIMO-INC/devices-api/target/bin/devices-api .
 COPY --from=build /go/src/github.com/DIMO-INC/devices-api/migrations /migrations
-RUN rm migrations/20211117135549_base_schema.sql
-RUN rm migrations/20211117204109_add_service_user.sql
+
+RUN rm migrations/20211117204109_add_service_user.go
+
 USER dimo
 
 EXPOSE 8080
