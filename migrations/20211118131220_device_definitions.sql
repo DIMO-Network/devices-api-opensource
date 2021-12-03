@@ -3,7 +3,7 @@
 SELECT 'up SQL query';
 CREATE TABLE devices_api.device_definitions
 (
-    uuid         uuid DEFAULT public.uuid_generate_v4() PRIMARY KEY,
+    uuid         uuid PRIMARY KEY,
     vin_first_10 varchar(10) not null, -- aka squishVin
     make         varchar(100) not null,
     model        varchar(100) not null,

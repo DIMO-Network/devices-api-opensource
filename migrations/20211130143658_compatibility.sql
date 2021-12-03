@@ -6,15 +6,15 @@ SET search_path = devices_api, public;
 CREATE TYPE integration_type AS ENUM (
     'Hardware',
     'API'
-);
+    );
 CREATE TYPE integration_style AS ENUM (
     'Addon',
     'OEM'
-);
+    );
 
 CREATE TABLE integrations
 (
-    uuid       uuid                       DEFAULT public.uuid_generate_v4() PRIMARY KEY,
+    uuid       uuid PRIMARY KEY,
     type       integration_type  not null,
     style      integration_style not null,
     vendors    varchar(50)       not null,
@@ -31,9 +31,9 @@ CREATE TABLE device_integrations
     created_at             timestamptz not null default current_timestamp,
     updated_at             timestamptz not null default current_timestamp,
 
-    PRIMARY KEY(device_definition_uuid, integration_uuid),
-    CONSTRAINT fk_device_definition FOREIGN KEY (device_definition_uuid) REFERENCES device_definitions(uuid),
-    CONSTRAINT fk_integration FOREIGN KEY (integration_uuid) REFERENCES integrations(uuid)
+    PRIMARY KEY (device_definition_uuid, integration_uuid),
+    CONSTRAINT fk_device_definition FOREIGN KEY (device_definition_uuid) REFERENCES device_definitions (uuid),
+    CONSTRAINT fk_integration FOREIGN KEY (integration_uuid) REFERENCES integrations (uuid)
 );
 
 -- +goose StatementEnd

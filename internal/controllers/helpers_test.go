@@ -8,7 +8,6 @@ import (
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
-	_ "github.com/DIMO-INC/devices-api/migrations"
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/assert"
@@ -52,4 +51,5 @@ func setupDatabase(ctx context.Context, t *testing.T, migrationsDirRelPath strin
 	}
 
 	return pdb, edb
+	// if we add code migrations, import: _ "github.com/DIMO-INC/devices-api/migrations"
 }
