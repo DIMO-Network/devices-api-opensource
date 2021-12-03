@@ -155,7 +155,7 @@ func TestNewDbModelFromDeviceDefinition(t *testing.T) {
 			Year:     2020,
 			SubModel: "AMG",
 		},
-		VehicleInfo: DeviceVehicleInfo{
+		VehicleInfo: services.DeviceVehicleInfo{
 			FuelType:      "gas",
 			DrivenWheels:  "4",
 			NumberOfDoors: "5",

@@ -161,7 +161,7 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 		Metadata: string(dd.Metadata.JSON),
 	}
 	// vehicle info
-	var vi map[string]DeviceVehicleInfo
+	var vi map[string]services.DeviceVehicleInfo
 	if err := dd.Metadata.Unmarshal(&vi); err == nil {
 		rp.VehicleInfo = vi[vehicleInfoJSONNode]
 	}
@@ -211,7 +211,7 @@ func NewDeviceDefinitionFromNHTSA(decodedVin *services.NHTSADecodeVINResponse) D
 		Year:  yr,
 	}
 	dd.Name = fmt.Sprintf("%d %s %s", dd.Type.Year, dd.Type.Make, dd.Type.Model)
-	dd.VehicleInfo = DeviceVehicleInfo{
+	dd.VehicleInfo = services.DeviceVehicleInfo{
 		FuelType:      decodedVin.LookupValue("Fuel Type - Primary"),
 		NumberOfDoors: decodedVin.LookupValue("Doors"),
 		BaseMSRP:      msrp,
@@ -229,7 +229,7 @@ type DeviceDefinition struct {
 	CompatibleIntegrations []DeviceCompatibility `json:"compatible_integrations"`
 	Type                   DeviceType            `json:"type"`
 	// VehicleInfo will be empty if not a vehicle type
-	VehicleInfo DeviceVehicleInfo `json:"vehicle_data,omitempty"`
+	VehicleInfo services.DeviceVehicleInfo `json:"vehicle_data,omitempty"`
 	Metadata    interface{}       `json:"metadata"`
 }
 
@@ -249,18 +249,6 @@ type DeviceType struct {
 	Model    string `json:"model"`
 	Year     int    `json:"year"`
 	SubModel string `json:"sub_model"`
-}
-
-// DeviceVehicleInfo represents some standard vehicle specific properties
-type DeviceVehicleInfo struct {
-	FuelType      string `json:"fuel_type,omitempty"`
-	DrivenWheels  string `json:"driven_wheels,omitempty"`
-	NumberOfDoors string `json:"number_of_doors,omitempty"`
-	BaseMSRP      int    `json:"base_msrp,omitempty"`
-	EPAClass      string `json:"epa_class,omitempty"`
-	VehicleType   string `json:"vehicle_type,omitempty"`
-	MPGHighway    string `json:"mpg_highway,omitempty"`
-	MPGCity       string `json:"mpg_city,omitempty"`
 }
 
 type DeviceMMYRoot struct {
