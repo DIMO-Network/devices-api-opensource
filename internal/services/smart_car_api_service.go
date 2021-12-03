@@ -20,8 +20,8 @@ import (
 
 type SmartCarService struct {
 	BaseURL string
-	DBS      func() *database.DBReaderWriter
-	log      *zerolog.Logger
+	DBS     func() *database.DBReaderWriter
+	log     *zerolog.Logger
 }
 
 const vehicleInfoJSONNode = "vehicle_info"
@@ -40,7 +40,7 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 		/// for now can hard code the position in the row, but later should look up the position
 		for _, row := range usData.Rows {
 			vehicleModel := null.StringFromPtr(row[0].Text).String
-			years := row[0].Subtext // eg. 2017+
+			years := row[0].Subtext                                      // eg. 2017+
 			vehicleType := null.StringFromPtr(row[1].VehicleType).String // ICE, PHEV, BEV
 
 			ic := IntegrationCapabilities{
@@ -56,6 +56,10 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 				VehicleAttributes: null.StringFromPtr(row[11].Type).String == "check",
 				VIN:               null.StringFromPtr(row[12].Type).String == "check",
 			}
+			capabilitiesJSON, err := json.Marshal(&ic)
+			if err != nil {
+				return err
+			}
 			// parse out year
 			startYear := strings.Trim(null.StringFromPtr(years).String, "+")
 			startYearInt, err := strconv.Atoi(startYear)
@@ -63,14 +67,14 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 				s.log.Warn().Err(err).Msg("could not parse year so can't save smartcar device def to db")
 				continue
 			}
-			vi := DeviceVehicleInfo{VehicleType: "PASSENGER CAR", FuelType: smartCarVehicleTypeToNhtsaFuelType(vehicleType) }
+			vi := DeviceVehicleInfo{VehicleType: "PASSENGER CAR", FuelType: smartCarVehicleTypeToNhtsaFuelType(vehicleType)}
 			viJSON, err := json.Marshal(vi)
 			// db operation, note we are not setting vin
 			dbDeviceDef := models.DeviceDefinition{
-				UUID:       uuid.New().String(),
-				Make:       vehicleMake,
-				Model:      vehicleModel,
-				Year:       int16(startYearInt),
+				UUID:  uuid.New().String(),
+				Make:  vehicleMake,
+				Model: vehicleModel,
+				Year:  int16(startYearInt),
 			}
 			if err != nil {
 				dbDeviceDef.Metadata = null.JSONFrom(viJSON)
@@ -78,8 +82,13 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 			// attach smart car integration in intermediary table
 			dbDeviceDef.R.NewStruct()
 			dbDeviceDef.R.DeviceIntegrations = append(dbDeviceDef.R.DeviceIntegrations, &models.DeviceIntegration{
-				IntegrationUUID:      smartCarIntegration.UUID,
+				IntegrationUUID: smartCarIntegration.UUID,
+				Capabilities:    null.JSONFrom(capabilitiesJSON),
 			})
+			err = dbDeviceDef.Insert(ctx, s.DBS().Writer, boil.Infer())
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -88,9 +97,9 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 
 func (s *SmartCarService) getOrCreateSmartCarIntegration(ctx context.Context) (*models.Integration, error) {
 	const (
-		smartCarType = "API"
+		smartCarType   = "API"
 		smartCarVendor = "SmartCar"
-		smartCarStyle = "webhook"
+		smartCarStyle  = "webhook"
 	)
 	integration, err := models.Integrations(qm.Where("type = ?", smartCarType),
 		qm.And("vendors = ?", smartCarVendor),

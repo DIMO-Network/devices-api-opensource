@@ -106,8 +106,8 @@ type integrationL struct{}
 
 var (
 	integrationAllColumns            = []string{"uuid", "type", "style", "vendors", "created_at", "updated_at"}
-	integrationColumnsWithoutDefault = []string{"type", "style", "vendors"}
-	integrationColumnsWithDefault    = []string{"uuid", "created_at", "updated_at"}
+	integrationColumnsWithoutDefault = []string{"uuid", "type", "style", "vendors"}
+	integrationColumnsWithDefault    = []string{"created_at", "updated_at"}
 	integrationPrimaryKeyColumns     = []string{"uuid"}
 )
 

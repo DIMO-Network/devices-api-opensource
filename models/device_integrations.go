@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/friendsofgo/errors"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -27,6 +28,7 @@ type DeviceIntegration struct {
 	IntegrationUUID      string    `boil:"integration_uuid" json:"integration_uuid" toml:"integration_uuid" yaml:"integration_uuid"`
 	CreatedAt            time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt            time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	Capabilities         null.JSON `boil:"capabilities" json:"capabilities,omitempty" toml:"capabilities" yaml:"capabilities,omitempty"`
 
 	R *deviceIntegrationR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L deviceIntegrationL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -37,11 +39,13 @@ var DeviceIntegrationColumns = struct {
 	IntegrationUUID      string
 	CreatedAt            string
 	UpdatedAt            string
+	Capabilities         string
 }{
 	DeviceDefinitionUUID: "device_definition_uuid",
 	IntegrationUUID:      "integration_uuid",
 	CreatedAt:            "created_at",
 	UpdatedAt:            "updated_at",
+	Capabilities:         "capabilities",
 }
 
 var DeviceIntegrationTableColumns = struct {
@@ -49,11 +53,13 @@ var DeviceIntegrationTableColumns = struct {
 	IntegrationUUID      string
 	CreatedAt            string
 	UpdatedAt            string
+	Capabilities         string
 }{
 	DeviceDefinitionUUID: "device_integrations.device_definition_uuid",
 	IntegrationUUID:      "device_integrations.integration_uuid",
 	CreatedAt:            "device_integrations.created_at",
 	UpdatedAt:            "device_integrations.updated_at",
+	Capabilities:         "device_integrations.capabilities",
 }
 
 // Generated where
@@ -63,11 +69,13 @@ var DeviceIntegrationWhere = struct {
 	IntegrationUUID      whereHelperstring
 	CreatedAt            whereHelpertime_Time
 	UpdatedAt            whereHelpertime_Time
+	Capabilities         whereHelpernull_JSON
 }{
 	DeviceDefinitionUUID: whereHelperstring{field: "\"devices_api\".\"device_integrations\".\"device_definition_uuid\""},
 	IntegrationUUID:      whereHelperstring{field: "\"devices_api\".\"device_integrations\".\"integration_uuid\""},
 	CreatedAt:            whereHelpertime_Time{field: "\"devices_api\".\"device_integrations\".\"created_at\""},
 	UpdatedAt:            whereHelpertime_Time{field: "\"devices_api\".\"device_integrations\".\"updated_at\""},
+	Capabilities:         whereHelpernull_JSON{field: "\"devices_api\".\"device_integrations\".\"capabilities\""},
 }
 
 // DeviceIntegrationRels is where relationship names are stored.
@@ -94,8 +102,8 @@ func (*deviceIntegrationR) NewStruct() *deviceIntegrationR {
 type deviceIntegrationL struct{}
 
 var (
-	deviceIntegrationAllColumns            = []string{"device_definition_uuid", "integration_uuid", "created_at", "updated_at"}
-	deviceIntegrationColumnsWithoutDefault = []string{"device_definition_uuid", "integration_uuid"}
+	deviceIntegrationAllColumns            = []string{"device_definition_uuid", "integration_uuid", "created_at", "updated_at", "capabilities"}
+	deviceIntegrationColumnsWithoutDefault = []string{"device_definition_uuid", "integration_uuid", "capabilities"}
 	deviceIntegrationColumnsWithDefault    = []string{"created_at", "updated_at"}
 	deviceIntegrationPrimaryKeyColumns     = []string{"device_definition_uuid", "integration_uuid"}
 )
