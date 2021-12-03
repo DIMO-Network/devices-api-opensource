@@ -97,3 +97,7 @@ Endpoints as curl commands:
 curl http://localhost:3000/v1/devices/lookup/all -w '\n%{time_starttransfer}\n' -v
 curl http://localhost:3000/v1/devices/lookup/vin/:vin
 ```
+
+Some test VINs:
+5YJYGDEE5MF085533
+5YJ3E1EA6MF873863
