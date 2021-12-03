@@ -31,10 +31,10 @@ ingress:
     nginx.ingress.kubernetes.io/auth-tls-secret: ingress/cf-origin-ca
     nginx.ingress.kubernetes.io/auth-tls-verify-client: "on"
     nginx.ingress.kubernetes.io/enable-cors: "true"
-    nginx.ingress.kubernetes.io/cors-allow-origin: "https://devices-api.p.dimo.zone"
-    external-dns.alpha.kubernetes.io/hostname: devices-api.p.dimo.zone
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://devices-api.dimo.zone"
+    external-dns.alpha.kubernetes.io/hostname: devices-api.dimo.zone
   hosts:
-    - host: devices-api.p.dimo.zone
+    - host: devices-api.dimo.zone
       paths:
         - path: /
           pathType: ImplementationSpecific
