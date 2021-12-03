@@ -13,7 +13,6 @@ import (
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/services"
 	mock_services "github.com/DIMO-INC/devices-api/internal/services/mocks"
-	_ "github.com/DIMO-INC/devices-api/migrations"
 	"github.com/DIMO-INC/devices-api/models"
 	"github.com/buger/jsonparser"
 	"github.com/gofiber/fiber/v2"

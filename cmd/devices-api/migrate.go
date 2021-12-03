@@ -8,7 +8,6 @@ import (
 	"github.com/pressly/goose/v3"
 	"github.com/rs/zerolog"
 
-	_ "github.com/DIMO-INC/devices-api/migrations" // migrations won't work without these two
 	_ "github.com/lib/pq"
 )
 
@@ -31,4 +30,5 @@ func migrateDatabase(logger zerolog.Logger, settings *config.Settings) {
 	if err := goose.Run("up", db, "migrations"); err != nil {
 		log.Fatalf("failed to apply go code migrations: %v\n", err)
 	}
+	// if we add any code migrations import _ "github.com/DIMO-INC/devices-api/migrations" // migrations won't work without this
 }

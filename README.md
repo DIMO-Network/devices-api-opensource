@@ -72,14 +72,14 @@ rm -R ./resources/data/ && mkdir ./resources/data/
 docker compose up -d
 ```
 
-When running migrations from CD, we will want to set the following env vars:
-- SERVICE_ACCOUNT_PASSWORD: This will be the password the `service` account will use to connect to, which is the account the application should connect with in HL envs.
-- 
+If we have code base migrations in the migrations folder, we must import `_ "github.com/DIMO-INC/devices-api/migrations"` in the runner so that
+it can find the migrations, otherwise get error.
 
 ## Mocks
 
 To regenerate a mock, you can use go gen since the files that are mocked have a `//go:generate mockgen ...` at the top. For example:
 `nhtsa_api_service.go`
+
 ## Helm Requirements
 
 * cf-credentials
