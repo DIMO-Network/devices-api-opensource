@@ -8,12 +8,12 @@ require (
 	github.com/friendsofgo/errors v0.9.2
 	github.com/gofiber/fiber/v2 v2.20.2
 	github.com/golang/mock v1.6.0
-	github.com/google/uuid v1.3.0
 	github.com/jarcoal/httpmock v1.0.8
 	github.com/lib/pq v1.10.4
 	github.com/pkg/errors v0.9.1
 	github.com/pressly/goose/v3 v3.3.1
 	github.com/rs/zerolog v1.25.0
+	github.com/segmentio/ksuid v1.0.4
 	github.com/stretchr/testify v1.7.0
 	github.com/volatiletech/null/v8 v8.1.2
 	github.com/volatiletech/sqlboiler/v4 v4.8.3

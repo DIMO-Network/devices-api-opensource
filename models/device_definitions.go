@@ -24,7 +24,7 @@ import (
 
 // DeviceDefinition is an object representing the database table.
 type DeviceDefinition struct {
-	UUID       string      `boil:"uuid" json:"uuid" toml:"uuid" yaml:"uuid"`
+	ID         string      `boil:"id" json:"id" toml:"id" yaml:"id"`
 	VinFirst10 null.String `boil:"vin_first_10" json:"vin_first_10,omitempty" toml:"vin_first_10" yaml:"vin_first_10,omitempty"`
 	Make       string      `boil:"make" json:"make" toml:"make" yaml:"make"`
 	Model      string      `boil:"model" json:"model" toml:"model" yaml:"model"`
@@ -39,7 +39,7 @@ type DeviceDefinition struct {
 }
 
 var DeviceDefinitionColumns = struct {
-	UUID       string
+	ID         string
 	VinFirst10 string
 	Make       string
 	Model      string
@@ -49,7 +49,7 @@ var DeviceDefinitionColumns = struct {
 	CreatedAt  string
 	UpdatedAt  string
 }{
-	UUID:       "uuid",
+	ID:         "id",
 	VinFirst10: "vin_first_10",
 	Make:       "make",
 	Model:      "model",
@@ -61,7 +61,7 @@ var DeviceDefinitionColumns = struct {
 }
 
 var DeviceDefinitionTableColumns = struct {
-	UUID       string
+	ID         string
 	VinFirst10 string
 	Make       string
 	Model      string
@@ -71,7 +71,7 @@ var DeviceDefinitionTableColumns = struct {
 	CreatedAt  string
 	UpdatedAt  string
 }{
-	UUID:       "device_definitions.uuid",
+	ID:         "device_definitions.id",
 	VinFirst10: "device_definitions.vin_first_10",
 	Make:       "device_definitions.make",
 	Model:      "device_definitions.model",
@@ -200,7 +200,7 @@ func (w whereHelpertime_Time) GTE(x time.Time) qm.QueryMod {
 }
 
 var DeviceDefinitionWhere = struct {
-	UUID       whereHelperstring
+	ID         whereHelperstring
 	VinFirst10 whereHelpernull_String
 	Make       whereHelperstring
 	Model      whereHelperstring
@@ -210,7 +210,7 @@ var DeviceDefinitionWhere = struct {
 	CreatedAt  whereHelpertime_Time
 	UpdatedAt  whereHelpertime_Time
 }{
-	UUID:       whereHelperstring{field: "\"devices_api\".\"device_definitions\".\"uuid\""},
+	ID:         whereHelperstring{field: "\"devices_api\".\"device_definitions\".\"id\""},
 	VinFirst10: whereHelpernull_String{field: "\"devices_api\".\"device_definitions\".\"vin_first_10\""},
 	Make:       whereHelperstring{field: "\"devices_api\".\"device_definitions\".\"make\""},
 	Model:      whereHelperstring{field: "\"devices_api\".\"device_definitions\".\"model\""},
@@ -242,10 +242,10 @@ func (*deviceDefinitionR) NewStruct() *deviceDefinitionR {
 type deviceDefinitionL struct{}
 
 var (
-	deviceDefinitionAllColumns            = []string{"uuid", "vin_first_10", "make", "model", "year", "sub_model", "metadata", "created_at", "updated_at"}
-	deviceDefinitionColumnsWithoutDefault = []string{"uuid", "vin_first_10", "make", "model", "year", "sub_model", "metadata"}
+	deviceDefinitionAllColumns            = []string{"id", "vin_first_10", "make", "model", "year", "sub_model", "metadata", "created_at", "updated_at"}
+	deviceDefinitionColumnsWithoutDefault = []string{"id", "vin_first_10", "make", "model", "year", "sub_model", "metadata"}
 	deviceDefinitionColumnsWithDefault    = []string{"created_at", "updated_at"}
-	deviceDefinitionPrimaryKeyColumns     = []string{"uuid"}
+	deviceDefinitionPrimaryKeyColumns     = []string{"id"}
 )
 
 type (
@@ -531,7 +531,7 @@ func (o *DeviceDefinition) DeviceIntegrations(mods ...qm.QueryMod) deviceIntegra
 	}
 
 	queryMods = append(queryMods,
-		qm.Where("\"devices_api\".\"device_integrations\".\"device_definition_uuid\"=?", o.UUID),
+		qm.Where("\"devices_api\".\"device_integrations\".\"device_definition_id\"=?", o.ID),
 	)
 
 	query := DeviceIntegrations(queryMods...)
@@ -561,7 +561,7 @@ func (deviceDefinitionL) LoadDeviceIntegrations(ctx context.Context, e boil.Cont
 		if object.R == nil {
 			object.R = &deviceDefinitionR{}
 		}
-		args = append(args, object.UUID)
+		args = append(args, object.ID)
 	} else {
 	Outer:
 		for _, obj := range slice {
@@ -570,12 +570,12 @@ func (deviceDefinitionL) LoadDeviceIntegrations(ctx context.Context, e boil.Cont
 			}
 
 			for _, a := range args {
-				if a == obj.UUID {
+				if a == obj.ID {
 					continue Outer
 				}
 			}
 
-			args = append(args, obj.UUID)
+			args = append(args, obj.ID)
 		}
 	}
 
@@ -585,7 +585,7 @@ func (deviceDefinitionL) LoadDeviceIntegrations(ctx context.Context, e boil.Cont
 
 	query := NewQuery(
 		qm.From(`devices_api.device_integrations`),
-		qm.WhereIn(`devices_api.device_integrations.device_definition_uuid in ?`, args...),
+		qm.WhereIn(`devices_api.device_integrations.device_definition_id in ?`, args...),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -628,7 +628,7 @@ func (deviceDefinitionL) LoadDeviceIntegrations(ctx context.Context, e boil.Cont
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
-			if local.UUID == foreign.DeviceDefinitionUUID {
+			if local.ID == foreign.DeviceDefinitionID {
 				local.R.DeviceIntegrations = append(local.R.DeviceIntegrations, foreign)
 				if foreign.R == nil {
 					foreign.R = &deviceIntegrationR{}
@@ -650,17 +650,17 @@ func (o *DeviceDefinition) AddDeviceIntegrations(ctx context.Context, exec boil.
 	var err error
 	for _, rel := range related {
 		if insert {
-			rel.DeviceDefinitionUUID = o.UUID
+			rel.DeviceDefinitionID = o.ID
 			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
 				return errors.Wrap(err, "failed to insert into foreign table")
 			}
 		} else {
 			updateQuery := fmt.Sprintf(
 				"UPDATE \"devices_api\".\"device_integrations\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 1, []string{"device_definition_uuid"}),
+				strmangle.SetParamNames("\"", "\"", 1, []string{"device_definition_id"}),
 				strmangle.WhereClause("\"", "\"", 2, deviceIntegrationPrimaryKeyColumns),
 			)
-			values := []interface{}{o.UUID, rel.DeviceDefinitionUUID, rel.IntegrationUUID}
+			values := []interface{}{o.ID, rel.DeviceDefinitionID, rel.IntegrationID}
 
 			if boil.IsDebug(ctx) {
 				writer := boil.DebugWriterFrom(ctx)
@@ -671,7 +671,7 @@ func (o *DeviceDefinition) AddDeviceIntegrations(ctx context.Context, exec boil.
 				return errors.Wrap(err, "failed to update foreign table")
 			}
 
-			rel.DeviceDefinitionUUID = o.UUID
+			rel.DeviceDefinitionID = o.ID
 		}
 	}
 
@@ -703,7 +703,7 @@ func DeviceDefinitions(mods ...qm.QueryMod) deviceDefinitionQuery {
 
 // FindDeviceDefinition retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindDeviceDefinition(ctx context.Context, exec boil.ContextExecutor, uUID string, selectCols ...string) (*DeviceDefinition, error) {
+func FindDeviceDefinition(ctx context.Context, exec boil.ContextExecutor, iD string, selectCols ...string) (*DeviceDefinition, error) {
 	deviceDefinitionObj := &DeviceDefinition{}
 
 	sel := "*"
@@ -711,10 +711,10 @@ func FindDeviceDefinition(ctx context.Context, exec boil.ContextExecutor, uUID s
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from \"devices_api\".\"device_definitions\" where \"uuid\"=$1", sel,
+		"select %s from \"devices_api\".\"device_definitions\" where \"id\"=$1", sel,
 	)
 
-	q := queries.Raw(query, uUID)
+	q := queries.Raw(query, iD)
 
 	err := q.Bind(ctx, exec, deviceDefinitionObj)
 	if err != nil {
@@ -1089,7 +1089,7 @@ func (o *DeviceDefinition) Delete(ctx context.Context, exec boil.ContextExecutor
 	}
 
 	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), deviceDefinitionPrimaryKeyMapping)
-	sql := "DELETE FROM \"devices_api\".\"device_definitions\" WHERE \"uuid\"=$1"
+	sql := "DELETE FROM \"devices_api\".\"device_definitions\" WHERE \"id\"=$1"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1186,7 +1186,7 @@ func (o DeviceDefinitionSlice) DeleteAll(ctx context.Context, exec boil.ContextE
 // Reload refetches the object from the database
 // using the primary keys with an executor.
 func (o *DeviceDefinition) Reload(ctx context.Context, exec boil.ContextExecutor) error {
-	ret, err := FindDeviceDefinition(ctx, exec, o.UUID)
+	ret, err := FindDeviceDefinition(ctx, exec, o.ID)
 	if err != nil {
 		return err
 	}
@@ -1225,16 +1225,16 @@ func (o *DeviceDefinitionSlice) ReloadAll(ctx context.Context, exec boil.Context
 }
 
 // DeviceDefinitionExists checks if the DeviceDefinition row exists.
-func DeviceDefinitionExists(ctx context.Context, exec boil.ContextExecutor, uUID string) (bool, error) {
+func DeviceDefinitionExists(ctx context.Context, exec boil.ContextExecutor, iD string) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from \"devices_api\".\"device_definitions\" where \"uuid\"=$1 limit 1)"
+	sql := "select exists(select 1 from \"devices_api\".\"device_definitions\" where \"id\"=$1 limit 1)"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
 		fmt.Fprintln(writer, sql)
-		fmt.Fprintln(writer, uUID)
+		fmt.Fprintln(writer, iD)
 	}
-	row := exec.QueryRowContext(ctx, sql, uUID)
+	row := exec.QueryRowContext(ctx, sql, iD)
 
 	err := row.Scan(&exists)
 	if err != nil {

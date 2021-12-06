@@ -59,6 +59,7 @@ const (
 
 // Enum values for IntegrationStyle
 const (
-	IntegrationStyleAddon = "Addon"
-	IntegrationStyleOEM   = "OEM"
+	IntegrationStyleAddon   = "Addon"
+	IntegrationStyleOEM     = "OEM"
+	IntegrationStyleWebhook = "Webhook"
 )

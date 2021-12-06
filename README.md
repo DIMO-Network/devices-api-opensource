@@ -27,6 +27,9 @@ You can connect to db eg: `psql -h localhost -p 5432 -U dimo` or with your favor
 4. Run application
 `$ go run ./cmd/devices-api`
 
+5. Seed data from SmartCar:
+`$ go run ./cmd/devices-api seed-smartcar`
+
 ### Linting
 
 `brew install golangci-lint`

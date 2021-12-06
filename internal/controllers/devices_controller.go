@@ -3,6 +3,7 @@ package controllers
 import (
 	"database/sql"
 	"fmt"
+	"github.com/segmentio/ksuid"
 	"strconv"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
@@ -10,7 +11,6 @@ import (
 	"github.com/DIMO-INC/devices-api/internal/services"
 	"github.com/DIMO-INC/devices-api/models"
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/null/v8"
@@ -147,7 +147,7 @@ const vehicleInfoJSONNode = "vehicle_info"
 
 func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefinition {
 	rp := DeviceDefinition{
-		DeviceDefinitionID:     dd.UUID,
+		DeviceDefinitionID:     dd.ID,
 		Name:                   fmt.Sprintf("%d %s %s", dd.Year, dd.Make, dd.Model),
 		ImageURL:               "",
 		CompatibleIntegrations: []DeviceCompatibility{},
@@ -169,7 +169,7 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 	if dd.R != nil {
 		for _, di := range dd.R.DeviceIntegrations {
 			rp.CompatibleIntegrations = append(rp.CompatibleIntegrations, DeviceCompatibility{
-				ID:      di.R.Integration.UUID,
+				ID:      di.R.Integration.ID,
 				Type:    di.R.Integration.Type,
 				Style:   di.R.Integration.Style,
 				Vendors: di.R.Integration.Vendors,
@@ -183,7 +183,7 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 // NewDbModelFromDeviceDefinition converts a DeviceDefinition response object to a new database model for the given squishVin
 func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin *string) *models.DeviceDefinition {
 	dbDevice := models.DeviceDefinition{
-		UUID:       uuid.New().String(),
+		ID:         ksuid.New().String(),
 		VinFirst10: null.StringFromPtr(squishVin),
 		Make:       dd.Type.Make,
 		Model:      dd.Type.Model,
@@ -230,7 +230,7 @@ type DeviceDefinition struct {
 	Type                   DeviceType            `json:"type"`
 	// VehicleInfo will be empty if not a vehicle type
 	VehicleInfo services.DeviceVehicleInfo `json:"vehicle_data,omitempty"`
-	Metadata    interface{}       `json:"metadata"`
+	Metadata    interface{}                `json:"metadata"`
 }
 
 // DeviceCompatibility represents what systems we know this is compatible with

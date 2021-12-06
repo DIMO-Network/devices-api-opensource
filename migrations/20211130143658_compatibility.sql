@@ -9,12 +9,13 @@ CREATE TYPE integration_type AS ENUM (
     );
 CREATE TYPE integration_style AS ENUM (
     'Addon',
-    'OEM'
+    'OEM',
+    'Webhook'
     );
 
 CREATE TABLE integrations
 (
-    uuid       uuid PRIMARY KEY,
+    id       char(27) PRIMARY KEY, -- ksuid
     type       integration_type  not null,
     style      integration_style not null,
     vendors    varchar(50)       not null,
@@ -25,15 +26,15 @@ CREATE TABLE integrations
 
 CREATE TABLE device_integrations
 (
-    device_definition_uuid uuid        not null,
-    integration_uuid       uuid        not null,
+    device_definition_id char(27)        not null,
+    integration_id       char(27)        not null,
 
     created_at             timestamptz not null default current_timestamp,
     updated_at             timestamptz not null default current_timestamp,
 
-    PRIMARY KEY (device_definition_uuid, integration_uuid),
-    CONSTRAINT fk_device_definition FOREIGN KEY (device_definition_uuid) REFERENCES device_definitions (uuid),
-    CONSTRAINT fk_integration FOREIGN KEY (integration_uuid) REFERENCES integrations (uuid)
+    PRIMARY KEY (device_definition_id, integration_id),
+    CONSTRAINT fk_device_definition FOREIGN KEY (device_definition_id) REFERENCES device_definitions (id),
+    CONSTRAINT fk_integration FOREIGN KEY (integration_id) REFERENCES integrations (id)
 );
 
 -- +goose StatementEnd
