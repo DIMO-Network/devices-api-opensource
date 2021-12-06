@@ -31,7 +31,7 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 	if err != nil {
 		return err
 	}
-
+	// todo: need to loop for each .US .EU .CA
 	for _, usData := range data.Result.Data.AllMakesTable.Edges[0].Node.CompatibilityData.US {
 		vehicleMake := usData.Name
 		if strings.Contains(vehicleMake, "Nissan") || strings.Contains(vehicleMake, "Hyundai") {
@@ -56,19 +56,19 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 				VehicleAttributes: null.StringFromPtr(row[11].Type).String == "check",
 				VIN:               null.StringFromPtr(row[12].Type).String == "check",
 			}
-			capabilitiesJSON, err := json.Marshal(&ic)
+			icJSON, err := json.Marshal(&ic)
 			if err != nil {
 				return err
 			}
-			// parse out year
+			// parse out year. todo: will need to create DB record for each year
 			startYear := strings.Trim(null.StringFromPtr(years).String, "+")
 			startYearInt, err := strconv.Atoi(startYear)
 			if err != nil {
 				s.log.Warn().Err(err).Msg("could not parse year so can't save smartcar device def to db")
 				continue
 			}
-			vi := DeviceVehicleInfo{VehicleType: "PASSENGER CAR", FuelType: smartCarVehicleTypeToNhtsaFuelType(vehicleType)}
-			viJSON, err := json.Marshal(vi)
+			dvi := DeviceVehicleInfo{VehicleType: "PASSENGER CAR", FuelType: smartCarVehicleTypeToNhtsaFuelType(vehicleType)}
+			dviJSON, err := json.Marshal(map[string]interface{}{vehicleInfoJSONNode: dvi})
 			// db operation, note we are not setting vin
 			dbDeviceDef := models.DeviceDefinition{
 				UUID:  uuid.New().String(),
@@ -77,13 +77,13 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 				Year:  int16(startYearInt),
 			}
 			if err != nil {
-				dbDeviceDef.Metadata = null.JSONFrom(viJSON)
+				dbDeviceDef.Metadata = null.JSONFrom(dviJSON)
 			}
 			// attach smart car integration in intermediary table
 			dbDeviceDef.R.NewStruct()
 			dbDeviceDef.R.DeviceIntegrations = append(dbDeviceDef.R.DeviceIntegrations, &models.DeviceIntegration{
 				IntegrationUUID: smartCarIntegration.UUID,
-				Capabilities:    null.JSONFrom(capabilitiesJSON),
+				Capabilities:    null.JSONFrom(icJSON),
 			})
 			err = dbDeviceDef.Insert(ctx, s.DBS().Writer, boil.Infer())
 			if err != nil {

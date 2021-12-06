@@ -72,7 +72,7 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 			rp := NewDeviceDefinitionFromNHTSA(decodedVIN)
 			// save to database, if error just log do not block, execute in go func routine to not block
 			go func() {
-				dbDevice := NewDbModelFromDeviceDefinition(rp, squishVin)
+				dbDevice := NewDbModelFromDeviceDefinition(rp, &squishVin)
 				err = dbDevice.Insert(c.Context(), d.DBS().Writer, boil.Infer())
 				if err != nil {
 					d.log.Error().Err(err).Msg("error inserting device definition to db")
@@ -181,10 +181,10 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 }
 
 // NewDbModelFromDeviceDefinition converts a DeviceDefinition response object to a new database model for the given squishVin
-func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin string) *models.DeviceDefinition {
+func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin *string) *models.DeviceDefinition {
 	dbDevice := models.DeviceDefinition{
 		UUID:       uuid.New().String(),
-		VinFirst10: squishVin,
+		VinFirst10: null.StringFromPtr(squishVin),
 		Make:       dd.Type.Make,
 		Model:      dd.Type.Model,
 		Year:       int16(dd.Type.Year),
