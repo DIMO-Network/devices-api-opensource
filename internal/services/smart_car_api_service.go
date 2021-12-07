@@ -47,7 +47,7 @@ func (s *SmartCarService) SeedDeviceDefinitionsFromSmartCar(ctx context.Context)
 }
 
 func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data *SmartCarCompatibilityData) error {
-	smartCarIntegration, err := s.getOrCreateSmartCarIntegration(ctx)
+	scIntegrationID, err := s.getOrCreateSmartCarIntegration(ctx)
 	if err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 			}
 			// loop over each year and insert into device definition same stuff just changing year
 			for _, yr := range yearRange {
-				err := s.saveDeviceDefinition(ctx, tx, vehicleMake, vehicleModel, yr, dvi, icJSON, smartCarIntegration.ID, "us")
+				err := s.saveDeviceDefinition(ctx, tx, vehicleMake, vehicleModel, yr, dvi, icJSON, scIntegrationID, "us")
 				if err != nil {
 					return errors.Wrapf(err, "could not save device definition to db for mmy: %s %s %d", vehicleMake, vehicleModel, yr)
 				}
@@ -206,7 +206,7 @@ func parseSmartCarYears(yearsPtr *string) ([]int, error) {
 	return []int{y}, nil
 }
 
-func (s *SmartCarService) getOrCreateSmartCarIntegration(ctx context.Context) (*models.Integration, error) {
+func (s *SmartCarService) getOrCreateSmartCarIntegration(ctx context.Context) (string, error) {
 	const (
 		smartCarType   = "API"
 		smartCarVendor = "SmartCar"
@@ -226,12 +226,13 @@ func (s *SmartCarService) getOrCreateSmartCarIntegration(ctx context.Context) (*
 			integration.Style = smartCarStyle
 			err = integration.Insert(ctx, s.DBS().Writer, boil.Infer())
 			if err != nil {
-				return nil, errors.Wrap(err, "error inserting smart car integration")
+				return "", errors.Wrap(err, "error inserting smart car integration")
 			}
+		} else {
+			return "", errors.Wrap(err, "error fetching smart car integration from database")
 		}
-		return nil, errors.Wrap(err, "error fetching smart car integration from database")
 	}
-	return integration, nil
+	return integration.ID, nil
 }
 
 func smartCarVehicleTypeToNhtsaFuelType(vehicleType string) string {
