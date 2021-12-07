@@ -523,7 +523,7 @@ func (o *Integration) AddDeviceIntegrations(ctx context.Context, exec boil.Conte
 				strmangle.SetParamNames("\"", "\"", 1, []string{"integration_id"}),
 				strmangle.WhereClause("\"", "\"", 2, deviceIntegrationPrimaryKeyColumns),
 			)
-			values := []interface{}{o.ID, rel.DeviceDefinitionID, rel.IntegrationID}
+			values := []interface{}{o.ID, rel.DeviceDefinitionID, rel.IntegrationID, rel.Country}
 
 			if boil.IsDebug(ctx) {
 				writer := boil.DebugWriterFrom(ctx)

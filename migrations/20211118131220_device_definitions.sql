@@ -4,7 +4,7 @@ SELECT 'up SQL query';
 CREATE TABLE devices_api.device_definitions
 (
     id         char(27) PRIMARY KEY, -- ksuid, not calling it ksuid b/c makes model generation funky
-    vin_first_10 varchar(10) not null, -- aka squishVin
+    vin_first_10 varchar(10), -- aka squishVin
     make         varchar(100) not null,
     model        varchar(100) not null,
     year         smallint    not null,

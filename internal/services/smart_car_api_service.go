@@ -51,14 +51,13 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 	if err != nil {
 		return err
 	}
-	// todo: need to loop for each .US .EU .CA
+	// future: loop for each other country .EU .CA - difference is in integration capability but MMY may be the same.
 	for _, usData := range data.Result.Data.AllMakesTable.Edges[0].Node.CompatibilityData.US {
 		vehicleMake := usData.Name
 		if strings.Contains(vehicleMake, "Nissan") || strings.Contains(vehicleMake, "Hyundai") {
 			continue // skip if nissan or hyundai b/c not really supported
 		}
 
-		/// for now can hard code the position in the row, but later should look up the position
 		for _, row := range usData.Rows {
 			vehicleModel := null.StringFromPtr(row[0].Text).String
 			years := row[0].Subtext                                      // eg. 2017+ or 2012-2017
@@ -94,7 +93,7 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 			}
 			// loop over each year and insert into device definition same stuff just changing year
 			for _, yr := range yearRange {
-				err := s.saveDeviceDefinition(ctx, tx, vehicleMake, vehicleModel, yr, dvi, icJSON, smartCarIntegration.ID)
+				err := s.saveDeviceDefinition(ctx, tx, vehicleMake, vehicleModel, yr, dvi, icJSON, smartCarIntegration.ID, "us")
 				if err != nil {
 					return errors.Wrapf(err, "could not save device definition to db for mmy: %s %s %d", vehicleMake, vehicleModel, yr)
 				}
@@ -109,7 +108,9 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 	return nil
 }
 
-func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, make, model string, year int, dvi DeviceVehicleInfo, icJSON []byte, integrationID string) error {
+func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, make, model string, year int, dvi DeviceVehicleInfo, icJSON []byte, integrationID string, integrationCountry string) error {
+	// todo: idempotency - read all info from DB singleton and then compare MMY, but integration capabilities vary by country
+
 	// db operation, note we are not setting vin
 	dbDeviceDef := models.DeviceDefinition{
 		ID:    ksuid.New().String(),
@@ -131,6 +132,7 @@ func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, 
 		IntegrationID:      integrationID,
 		DeviceDefinitionID: dbDeviceDef.ID,
 		Capabilities:       null.JSONFrom(icJSON),
+		Country:            integrationCountry,
 	}
 	return deviceIntegration.Insert(ctx, tx, boil.Infer())
 }
