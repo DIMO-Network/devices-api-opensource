@@ -95,6 +95,7 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 			for _, yr := range yearRange {
 				err := s.saveDeviceDefinition(ctx, tx, vehicleMake, vehicleModel, yr, dvi, icJSON, scIntegrationID, "us")
 				if err != nil {
+					_ = tx.Rollback()
 					return errors.Wrapf(err, "could not save device definition to db for mmy: %s %s %d", vehicleMake, vehicleModel, yr)
 				}
 			}
@@ -125,6 +126,7 @@ func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, 
 
 	err = dbDeviceDef.Insert(ctx, tx, boil.Infer())
 	if err != nil {
+		_ = tx.Rollback()
 		return err
 	}
 	// attach smart car integration in intermediary table
