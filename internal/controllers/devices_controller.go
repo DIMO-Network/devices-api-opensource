@@ -103,7 +103,7 @@ func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
 		if idx == -1 {
 			mmy = append(mmy, DeviceMMYRoot{
 				Make:   dd.Make,
-				Models: []DeviceModels{{Model: dd.Model, Years: []int16{dd.Year}}},
+				Models: []DeviceModels{{Model: dd.Model, Years: []DeviceModelYear{{Year: dd.Year, DeviceDefinitionID: dd.ID}}}},
 			})
 		} else {
 			// attach model or year to existing make, lookup model
@@ -112,11 +112,11 @@ func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
 				// append model if not found
 				mmy[idx].Models = append(mmy[idx].Models, DeviceModels{
 					Model: dd.Model,
-					Years: []int16{dd.Year},
+					Years: []DeviceModelYear{{Year: dd.Year, DeviceDefinitionID: dd.ID}},
 				})
 			} else {
 				// make and model already found, just add year
-				mmy[idx].Models[idx2].Years = append(mmy[idx].Models[idx2].Years, dd.Year)
+				mmy[idx].Models[idx2].Years = append(mmy[idx].Models[idx2].Years, DeviceModelYear{Year: dd.Year, DeviceDefinitionID: dd.ID})
 			}
 		}
 	}
@@ -257,6 +257,11 @@ type DeviceMMYRoot struct {
 }
 
 type DeviceModels struct {
-	Model string  `json:"model"`
-	Years []int16 `json:"years"`
+	Model string            `json:"model"`
+	Years []DeviceModelYear `json:"years"`
+}
+
+type DeviceModelYear struct {
+	Year               int16  `json:"year"`
+	DeviceDefinitionID string `json:"id"`
 }
