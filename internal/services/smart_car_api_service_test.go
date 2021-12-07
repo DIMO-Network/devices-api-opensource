@@ -1,15 +1,23 @@
 package services
 
 import (
+	_ "embed"
+	"github.com/jarcoal/httpmock"
+	"github.com/stretchr/testify/assert"
+	"net/http"
 	"reflect"
 	"testing"
 )
+
+//go:embed test_smart_car_vehicles.json
+var testSmartCarVehicles string
 
 func Test_parseSmartCarYears(t *testing.T) {
 	singleYear := "2019"
 	rangeYear := "2012-2015"
 	plusYears := "2019+" // figure out way to stub out time so we always get same. https://stackoverflow.com/questions/18970265/is-there-an-easy-way-to-stub-out-time-now-globally-during-test
 	garbage := "bobby"
+	empty := ""
 
 	tests := []struct {
 		name     string
@@ -18,10 +26,16 @@ func Test_parseSmartCarYears(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name:     "nil return",
+			name:     "nil",
 			yearsPtr: nil,
 			want:     nil,
-			wantErr:  false,
+			wantErr:  true,
+		},
+		{
+			name:     "empty",
+			yearsPtr: &empty,
+			want:     nil,
+			wantErr:  true,
 		},
 		{
 			name:     "parse single year",
@@ -60,4 +74,19 @@ func Test_parseSmartCarYears(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_getSmartCarVehicleData(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	url := "https://smartcar.com/page-data/product/compatible-vehicles/page-data.json"
+	httpmock.RegisterResponder(http.MethodGet, url, httpmock.NewStringResponder(200, testSmartCarVehicles))
+
+	data, err := getSmartCarVehicleData()
+	assert.NoError(t, err)
+
+	assert.Equal(t,"Audi", data.Result.Data.AllMakesTable.Edges[0].Node.CompatibilityData.US[0].Name)
+	assert.Equal(t,"Location", data.Result.Data.AllMakesTable.Edges[0].Node.CompatibilityData.US[0].Headers[1].Text)
+	assert.Equal(t,"A3", *data.Result.Data.AllMakesTable.Edges[0].Node.CompatibilityData.US[0].Rows[0][0].Text)
 }

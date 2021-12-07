@@ -62,7 +62,7 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 			vehicleModel := null.StringFromPtr(row[0].Text).String
 			years := row[0].Subtext                                      // eg. 2017+ or 2012-2017
 			vehicleType := null.StringFromPtr(row[1].VehicleType).String // ICE, PHEV, BEV
-			// these indexes may be out of whack
+			// todo: properly look up indexes
 			ic := IntegrationCapabilities{
 				Location:          null.StringFromPtr(row[2].Type).String == "check",
 				Odometer:          null.StringFromPtr(row[3].Type).String == "check",
@@ -74,7 +74,7 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 				TirePressure:      null.StringFromPtr(row[9].Type).String == "check",
 				EngineOilLife:     null.StringFromPtr(row[10].Type).String == "check",
 				VehicleAttributes: null.StringFromPtr(row[11].Type).String == "check",
-				VIN:               null.StringFromPtr(row[12].Type).String == "check",
+				VIN:               null.StringFromPtr(row[12].Type).String == "check", // todo: this index did not exist for some records
 			}
 			icJSON, err := json.Marshal(&ic)
 			if err != nil {
@@ -130,8 +130,8 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 
 // parseSmartCarYears parses out the years format in the smartcar document and returns an array of years
 func parseSmartCarYears(yearsPtr *string) ([]int, error) {
-	if yearsPtr == nil {
-		return nil, nil
+	if yearsPtr == nil || len(*yearsPtr) == 0 {
+		return nil, errors.New("years string was nil")
 	}
 	years := *yearsPtr
 	if len(years) > 4 {
