@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/DIMO-INC/devices-api/internal/database"
 	"github.com/DIMO-INC/devices-api/models"
@@ -59,7 +60,7 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 		/// for now can hard code the position in the row, but later should look up the position
 		for _, row := range usData.Rows {
 			vehicleModel := null.StringFromPtr(row[0].Text).String
-			years := row[0].Subtext                                      // eg. 2017+
+			years := row[0].Subtext                                      // eg. 2017+ or 2012-2017
 			vehicleType := null.StringFromPtr(row[1].VehicleType).String // ICE, PHEV, BEV
 			// these indexes may be out of whack
 			ic := IntegrationCapabilities{
@@ -79,32 +80,44 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 			if err != nil {
 				return err
 			}
-			// parse out year. todo: will need to create DB record for each year
-			startYear := strings.Trim(null.StringFromPtr(years).String, "+")
-			startYearInt, err := strconv.Atoi(startYear)
+			yearRange, err := parseSmartCarYears(years)
 			if err != nil {
-				s.log.Warn().Err(err).Msg("could not parse year so can't save smartcar device def to db")
-				continue
+				return errors.Wrapf(err, "could not parse years: %s", *years)
 			}
+
+			// todo: refactor below to call for each year
 			dvi := DeviceVehicleInfo{VehicleType: "PASSENGER CAR", FuelType: smartCarVehicleTypeToNhtsaFuelType(vehicleType)}
-			dviJSON, err := json.Marshal(map[string]interface{}{vehicleInfoJSONNode: dvi})
 			// db operation, note we are not setting vin
 			dbDeviceDef := models.DeviceDefinition{
 				ID:    ksuid.New().String(),
 				Make:  vehicleMake,
 				Model: vehicleModel,
-				Year:  int16(startYearInt),
+				Year:  int16(yearRange[0]),
 			}
+			err = dbDeviceDef.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dvi})
 			if err != nil {
-				dbDeviceDef.Metadata = null.JSONFrom(dviJSON)
+				s.log.Warn().Err(err).Msg("could not marshal DeviceVehicleInfo for DeviceDefinition metadata")
+			}
+
+			tx, err := s.DBS().Writer.DB.BeginTx(ctx, nil)
+			if err != nil {
+				return err
+			}
+			err = dbDeviceDef.Insert(ctx, tx, boil.Infer())
+			if err != nil {
+				return err
 			}
 			// attach smart car integration in intermediary table
-			dbDeviceDef.R = dbDeviceDef.R.NewStruct()
-			dbDeviceDef.R.DeviceIntegrations = append(dbDeviceDef.R.DeviceIntegrations, &models.DeviceIntegration{
+			deviceIntegration := &models.DeviceIntegration{
 				IntegrationID: smartCarIntegration.ID,
+				DeviceDefinitionID: dbDeviceDef.ID,
 				Capabilities:  null.JSONFrom(icJSON),
-			})
-			err = dbDeviceDef.Insert(ctx, s.DBS().Writer, boil.Infer())
+			}
+			err = deviceIntegration.Insert(ctx, tx, boil.Infer())
+			if err != nil {
+				return err
+			}
+			err = tx.Commit()
 			if err != nil {
 				return err
 			}
@@ -114,11 +127,49 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 	return nil
 }
 
+
+// parseSmartCarYears parses out the years format in the smartcar document and returns an array of years
+func parseSmartCarYears(yearsPtr *string) ([]int, error) {
+	if yearsPtr == nil {
+		return nil, nil
+	}
+	years := *yearsPtr
+	if len(years) > 4 {
+		var rangeYears []int
+		startYear := years[:4]
+		startYearInt, err := strconv.Atoi(startYear)
+		if err != nil {
+			return nil, errors.Errorf("could not parse start year from: %s", years)
+		}
+		endYear := time.Now().Year()
+		if strings.Contains(years, "-") {
+			eyStr := years[5:]
+			endYear, err = strconv.Atoi(eyStr)
+			if err != nil {
+				return nil, errors.Errorf("could not parse end year from: %s", years)
+			}
+		}
+		diff := endYear - startYearInt
+		if diff == 0 {
+			return []int {startYearInt}, nil
+		}
+		for i := 0; i <= diff; i++ {
+			rangeYears = append(rangeYears, startYearInt + i)
+		}
+		return rangeYears, nil
+	}
+	y, err := strconv.Atoi(years)
+	if err != nil {
+		return nil, errors.Errorf("could not parse single year from: %s", years)
+	}
+	return []int {y}, nil
+}
+
 func (s *SmartCarService) getOrCreateSmartCarIntegration(ctx context.Context) (*models.Integration, error) {
 	const (
 		smartCarType   = "API"
 		smartCarVendor = "SmartCar"
-		smartCarStyle  = "Webhook"
+		smartCarStyle  = models.IntegrationStyleWebhook
 	)
 	integration, err := models.Integrations(qm.Where("type = ?", smartCarType),
 		qm.And("vendors = ?", smartCarVendor),
