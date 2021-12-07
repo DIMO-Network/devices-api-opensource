@@ -126,6 +126,16 @@ func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
 	})
 }
 
+func (d *DevicesController) LookupDeviceDefinitionByID(c *fiber.Ctx) error {
+	return nil
+	// todo: fill in
+}
+
+func (d *DevicesController) LookupIntegrationsByID(c *fiber.Ctx) error {
+	return nil
+	// todo: fill in
+}
+
 func indexOfMake(makes []DeviceMMYRoot, make string) int {
 	for i, root := range makes {
 		if root.Make == make {

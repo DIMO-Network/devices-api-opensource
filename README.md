@@ -97,8 +97,10 @@ To regenerate a mock, you can use go gen since the files that are mocked have a 
 
 Endpoints as curl commands:
 ```bash
-curl http://localhost:3000/v1/devices/lookup/all -w '\n%{time_starttransfer}\n' -v
-curl http://localhost:3000/v1/devices/lookup/vin/:vin
+curl http://localhost:3000/v1/device-definitions/all -w '\n%{time_starttransfer}\n' -v
+curl http://localhost:3000/v1/device-definitions/vin/:vin
+curl http://localhost:3000/v1/device-definitions/:id
+curl http://localhost:3000/v1/device-definitions/:id/integrations
 ```
 
 Some test VINs:
