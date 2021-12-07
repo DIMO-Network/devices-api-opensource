@@ -2,11 +2,13 @@ package services
 
 import (
 	_ "embed"
-	"github.com/jarcoal/httpmock"
-	"github.com/stretchr/testify/assert"
+	"encoding/json"
 	"net/http"
 	"reflect"
 	"testing"
+
+	"github.com/jarcoal/httpmock"
+	"github.com/stretchr/testify/assert"
 )
 
 //go:embed test_smart_car_vehicles.json
@@ -40,7 +42,7 @@ func Test_parseSmartCarYears(t *testing.T) {
 		{
 			name:     "parse single year",
 			yearsPtr: &singleYear,
-			want:     []int{ 2019 },
+			want:     []int{2019},
 			wantErr:  false,
 		},
 		{
@@ -86,7 +88,53 @@ func Test_getSmartCarVehicleData(t *testing.T) {
 	data, err := getSmartCarVehicleData()
 	assert.NoError(t, err)
 
-	assert.Equal(t,"Audi", data.Result.Data.AllMakesTable.Edges[0].Node.CompatibilityData.US[0].Name)
-	assert.Equal(t,"Location", data.Result.Data.AllMakesTable.Edges[0].Node.CompatibilityData.US[0].Headers[1].Text)
-	assert.Equal(t,"A3", *data.Result.Data.AllMakesTable.Edges[0].Node.CompatibilityData.US[0].Rows[0][0].Text)
+	assert.Equal(t, "Audi", data.Result.Data.AllMakesTable.Edges[0].Node.CompatibilityData.US[0].Name)
+	assert.Equal(t, "Location", data.Result.Data.AllMakesTable.Edges[0].Node.CompatibilityData.US[0].Headers[1].Text)
+	assert.Equal(t, "A3", *data.Result.Data.AllMakesTable.Edges[0].Node.CompatibilityData.US[0].Rows[0][0].Text)
+}
+
+func Test_getColIdxForCapability(t *testing.T) {
+	compatibleVehicles := SmartCarCompatibilityData{}
+	err := json.Unmarshal([]byte(testSmartCarVehicles), &compatibleVehicles)
+	assert.NoError(t, err)
+
+	hdrs := compatibleVehicles.Result.Data.AllMakesTable.Edges[0].Node.CompatibilityData.US[0].Headers
+
+	locationIdx := getHdrIdxForCapability("Location", hdrs)
+	assert.Equal(t, 1, locationIdx)
+
+	lockIdx := getHdrIdxForCapability("Lock & unlock", hdrs)
+	assert.Equal(t, 3, lockIdx)
+
+	vinIdx := getHdrIdxForCapability("VIN", hdrs)
+	assert.Equal(t, 11, vinIdx)
+}
+
+func Test_getCapability(t *testing.T) {
+	compatibleVehicles := SmartCarCompatibilityData{}
+	err := json.Unmarshal([]byte(testSmartCarVehicles), &compatibleVehicles)
+	assert.NoError(t, err)
+
+	hdrs := compatibleVehicles.Result.Data.AllMakesTable.Edges[0].Node.CompatibilityData.US[0].Headers
+	row := compatibleVehicles.Result.Data.AllMakesTable.Edges[0].Node.CompatibilityData.US[0].Rows[0]
+	locCap := getCapability("Location", hdrs, row)
+	assert.True(t, locCap, "expected location to be true")
+
+	odoCap := getCapability("Odometer", hdrs, row)
+	assert.True(t, odoCap, "expected odometer to be true")
+
+	lockUnLockCap := getCapability("Lock & unlock", hdrs, row)
+	assert.True(t, lockUnLockCap, "expected lock and unlock to be true")
+
+	evBattery := getCapability("EV Battery", hdrs, row)
+	assert.False(t, evBattery, "expected ev battery to be false")
+
+	evChargeStat := getCapability("EV Charging Status", hdrs, row)
+	assert.False(t, evChargeStat, "expected EV charge status to be false")
+
+	fuelTank := getCapability("Fuel Tank", hdrs, row)
+	assert.True(t, fuelTank, "expected fuel to be true")
+
+	vinCap := getCapability("VIN", hdrs, row)
+	assert.True(t, vinCap, "expected vin capability to be true")
 }
