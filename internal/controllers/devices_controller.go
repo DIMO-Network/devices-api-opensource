@@ -127,13 +127,65 @@ func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
 }
 
 func (d *DevicesController) LookupDeviceDefinitionByID(c *fiber.Ctx) error {
-	return nil
-	// todo: fill in
+	id := c.Params("id")
+	if len(id) != 27 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error_message": "invalid dvice definition id",
+		})
+	}
+	dd, err := models.DeviceDefinitions(
+		qm.Where("id = ?", id),
+		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
+		qm.Load("DeviceIntegrations.Integration")).
+		One(c.Context(), d.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, err, fiber.StatusNotFound)
+		}
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	rp := NewDeviceDefinitionFromDatabase(dd)
+	return c.JSON(fiber.Map{
+		"device_definition": rp,
+	})
 }
 
 func (d *DevicesController) LookupIntegrationsByID(c *fiber.Ctx) error {
-	return nil
-	// todo: fill in
+	id := c.Params("id")
+	if len(id) != 27 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error_message": "invalid dvice definition id",
+		})
+	}
+	dd, err := models.DeviceDefinitions(
+		qm.Where("id = ?", id),
+		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
+		qm.Load("DeviceIntegrations.Integration")).
+		One(c.Context(), d.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, err, fiber.StatusNotFound)
+		}
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+	// build object for integrations that have all the info
+	var integrations []DeviceCompatibility
+	if dd.R != nil {
+		for _, di := range dd.R.DeviceIntegrations {
+			integrations = append(integrations, DeviceCompatibility{
+				ID:           di.R.Integration.ID,
+				Type:         di.R.Integration.Type,
+				Style:        di.R.Integration.Style,
+				Vendor:       di.R.Integration.Vendors,
+				Country:      di.Country,
+				Capabilities: string(di.Capabilities.JSON),
+			})
+		}
+	}
+	return c.JSON(fiber.Map{
+		"compatible_integrations": integrations,
+	})
 }
 
 func indexOfMake(makes []DeviceMMYRoot, make string) int {
@@ -182,7 +234,8 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 				ID:      di.R.Integration.ID,
 				Type:    di.R.Integration.Type,
 				Style:   di.R.Integration.Style,
-				Vendors: di.R.Integration.Vendors,
+				Vendor:  di.R.Integration.Vendors,
+				Country: di.Country,
 			})
 		}
 	}
@@ -245,10 +298,12 @@ type DeviceDefinition struct {
 
 // DeviceCompatibility represents what systems we know this is compatible with
 type DeviceCompatibility struct {
-	ID      string `json:"id"`
-	Type    string `json:"type"`
-	Style   string `json:"style"`
-	Vendors string `json:"vendors"`
+	ID           string `json:"id"`
+	Type         string `json:"type"`
+	Style        string `json:"style"`
+	Vendor       string `json:"vendor"`
+	Country      string `json:"country"`
+	Capabilities string `json:"capabilities,omitempty"`
 }
 
 // DeviceType whether it is a vehicle or other type and basic information
