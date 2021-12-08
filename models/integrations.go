@@ -23,7 +23,7 @@ import (
 
 // Integration is an object representing the database table.
 type Integration struct {
-	UUID      string    `boil:"uuid" json:"uuid" toml:"uuid" yaml:"uuid"`
+	ID        string    `boil:"id" json:"id" toml:"id" yaml:"id"`
 	Type      string    `boil:"type" json:"type" toml:"type" yaml:"type"`
 	Style     string    `boil:"style" json:"style" toml:"style" yaml:"style"`
 	Vendors   string    `boil:"vendors" json:"vendors" toml:"vendors" yaml:"vendors"`
@@ -35,14 +35,14 @@ type Integration struct {
 }
 
 var IntegrationColumns = struct {
-	UUID      string
+	ID        string
 	Type      string
 	Style     string
 	Vendors   string
 	CreatedAt string
 	UpdatedAt string
 }{
-	UUID:      "uuid",
+	ID:        "id",
 	Type:      "type",
 	Style:     "style",
 	Vendors:   "vendors",
@@ -51,14 +51,14 @@ var IntegrationColumns = struct {
 }
 
 var IntegrationTableColumns = struct {
-	UUID      string
+	ID        string
 	Type      string
 	Style     string
 	Vendors   string
 	CreatedAt string
 	UpdatedAt string
 }{
-	UUID:      "integrations.uuid",
+	ID:        "integrations.id",
 	Type:      "integrations.type",
 	Style:     "integrations.style",
 	Vendors:   "integrations.vendors",
@@ -69,14 +69,14 @@ var IntegrationTableColumns = struct {
 // Generated where
 
 var IntegrationWhere = struct {
-	UUID      whereHelperstring
+	ID        whereHelperstring
 	Type      whereHelperstring
 	Style     whereHelperstring
 	Vendors   whereHelperstring
 	CreatedAt whereHelpertime_Time
 	UpdatedAt whereHelpertime_Time
 }{
-	UUID:      whereHelperstring{field: "\"devices_api\".\"integrations\".\"uuid\""},
+	ID:        whereHelperstring{field: "\"devices_api\".\"integrations\".\"id\""},
 	Type:      whereHelperstring{field: "\"devices_api\".\"integrations\".\"type\""},
 	Style:     whereHelperstring{field: "\"devices_api\".\"integrations\".\"style\""},
 	Vendors:   whereHelperstring{field: "\"devices_api\".\"integrations\".\"vendors\""},
@@ -105,10 +105,10 @@ func (*integrationR) NewStruct() *integrationR {
 type integrationL struct{}
 
 var (
-	integrationAllColumns            = []string{"uuid", "type", "style", "vendors", "created_at", "updated_at"}
-	integrationColumnsWithoutDefault = []string{"type", "style", "vendors"}
-	integrationColumnsWithDefault    = []string{"uuid", "created_at", "updated_at"}
-	integrationPrimaryKeyColumns     = []string{"uuid"}
+	integrationAllColumns            = []string{"id", "type", "style", "vendors", "created_at", "updated_at"}
+	integrationColumnsWithoutDefault = []string{"id", "type", "style", "vendors"}
+	integrationColumnsWithDefault    = []string{"created_at", "updated_at"}
+	integrationPrimaryKeyColumns     = []string{"id"}
 )
 
 type (
@@ -394,7 +394,7 @@ func (o *Integration) DeviceIntegrations(mods ...qm.QueryMod) deviceIntegrationQ
 	}
 
 	queryMods = append(queryMods,
-		qm.Where("\"devices_api\".\"device_integrations\".\"integration_uuid\"=?", o.UUID),
+		qm.Where("\"devices_api\".\"device_integrations\".\"integration_id\"=?", o.ID),
 	)
 
 	query := DeviceIntegrations(queryMods...)
@@ -424,7 +424,7 @@ func (integrationL) LoadDeviceIntegrations(ctx context.Context, e boil.ContextEx
 		if object.R == nil {
 			object.R = &integrationR{}
 		}
-		args = append(args, object.UUID)
+		args = append(args, object.ID)
 	} else {
 	Outer:
 		for _, obj := range slice {
@@ -433,12 +433,12 @@ func (integrationL) LoadDeviceIntegrations(ctx context.Context, e boil.ContextEx
 			}
 
 			for _, a := range args {
-				if a == obj.UUID {
+				if a == obj.ID {
 					continue Outer
 				}
 			}
 
-			args = append(args, obj.UUID)
+			args = append(args, obj.ID)
 		}
 	}
 
@@ -448,7 +448,7 @@ func (integrationL) LoadDeviceIntegrations(ctx context.Context, e boil.ContextEx
 
 	query := NewQuery(
 		qm.From(`devices_api.device_integrations`),
-		qm.WhereIn(`devices_api.device_integrations.integration_uuid in ?`, args...),
+		qm.WhereIn(`devices_api.device_integrations.integration_id in ?`, args...),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -491,7 +491,7 @@ func (integrationL) LoadDeviceIntegrations(ctx context.Context, e boil.ContextEx
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
-			if local.UUID == foreign.IntegrationUUID {
+			if local.ID == foreign.IntegrationID {
 				local.R.DeviceIntegrations = append(local.R.DeviceIntegrations, foreign)
 				if foreign.R == nil {
 					foreign.R = &deviceIntegrationR{}
@@ -513,17 +513,17 @@ func (o *Integration) AddDeviceIntegrations(ctx context.Context, exec boil.Conte
 	var err error
 	for _, rel := range related {
 		if insert {
-			rel.IntegrationUUID = o.UUID
+			rel.IntegrationID = o.ID
 			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
 				return errors.Wrap(err, "failed to insert into foreign table")
 			}
 		} else {
 			updateQuery := fmt.Sprintf(
 				"UPDATE \"devices_api\".\"device_integrations\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 1, []string{"integration_uuid"}),
+				strmangle.SetParamNames("\"", "\"", 1, []string{"integration_id"}),
 				strmangle.WhereClause("\"", "\"", 2, deviceIntegrationPrimaryKeyColumns),
 			)
-			values := []interface{}{o.UUID, rel.DeviceDefinitionUUID, rel.IntegrationUUID}
+			values := []interface{}{o.ID, rel.DeviceDefinitionID, rel.IntegrationID, rel.Country}
 
 			if boil.IsDebug(ctx) {
 				writer := boil.DebugWriterFrom(ctx)
@@ -534,7 +534,7 @@ func (o *Integration) AddDeviceIntegrations(ctx context.Context, exec boil.Conte
 				return errors.Wrap(err, "failed to update foreign table")
 			}
 
-			rel.IntegrationUUID = o.UUID
+			rel.IntegrationID = o.ID
 		}
 	}
 
@@ -566,7 +566,7 @@ func Integrations(mods ...qm.QueryMod) integrationQuery {
 
 // FindIntegration retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindIntegration(ctx context.Context, exec boil.ContextExecutor, uUID string, selectCols ...string) (*Integration, error) {
+func FindIntegration(ctx context.Context, exec boil.ContextExecutor, iD string, selectCols ...string) (*Integration, error) {
 	integrationObj := &Integration{}
 
 	sel := "*"
@@ -574,10 +574,10 @@ func FindIntegration(ctx context.Context, exec boil.ContextExecutor, uUID string
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from \"devices_api\".\"integrations\" where \"uuid\"=$1", sel,
+		"select %s from \"devices_api\".\"integrations\" where \"id\"=$1", sel,
 	)
 
-	q := queries.Raw(query, uUID)
+	q := queries.Raw(query, iD)
 
 	err := q.Bind(ctx, exec, integrationObj)
 	if err != nil {
@@ -952,7 +952,7 @@ func (o *Integration) Delete(ctx context.Context, exec boil.ContextExecutor) (in
 	}
 
 	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), integrationPrimaryKeyMapping)
-	sql := "DELETE FROM \"devices_api\".\"integrations\" WHERE \"uuid\"=$1"
+	sql := "DELETE FROM \"devices_api\".\"integrations\" WHERE \"id\"=$1"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1049,7 +1049,7 @@ func (o IntegrationSlice) DeleteAll(ctx context.Context, exec boil.ContextExecut
 // Reload refetches the object from the database
 // using the primary keys with an executor.
 func (o *Integration) Reload(ctx context.Context, exec boil.ContextExecutor) error {
-	ret, err := FindIntegration(ctx, exec, o.UUID)
+	ret, err := FindIntegration(ctx, exec, o.ID)
 	if err != nil {
 		return err
 	}
@@ -1088,16 +1088,16 @@ func (o *IntegrationSlice) ReloadAll(ctx context.Context, exec boil.ContextExecu
 }
 
 // IntegrationExists checks if the Integration row exists.
-func IntegrationExists(ctx context.Context, exec boil.ContextExecutor, uUID string) (bool, error) {
+func IntegrationExists(ctx context.Context, exec boil.ContextExecutor, iD string) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from \"devices_api\".\"integrations\" where \"uuid\"=$1 limit 1)"
+	sql := "select exists(select 1 from \"devices_api\".\"integrations\" where \"id\"=$1 limit 1)"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
 		fmt.Fprintln(writer, sql)
-		fmt.Fprintln(writer, uUID)
+		fmt.Fprintln(writer, iD)
 	}
-	row := exec.QueryRowContext(ctx, sql, uUID)
+	row := exec.QueryRowContext(ctx, sql, iD)
 
 	err := row.Scan(&exists)
 	if err != nil {

@@ -40,6 +40,8 @@ func main() {
 	switch arg {
 	case "migrate":
 		migrateDatabase(logger, settings)
+	case "seed-smartcar":
+		loadSmartCarData(ctx, logger, settings, pdb)
 	default:
 		startWebAPI(logger, settings, pdb)
 	}

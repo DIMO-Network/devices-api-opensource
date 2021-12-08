@@ -10,9 +10,9 @@ import (
 	"github.com/DIMO-INC/devices-api/internal/services"
 	"github.com/DIMO-INC/devices-api/models"
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/segmentio/ksuid"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	qm "github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -72,7 +72,7 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 			rp := NewDeviceDefinitionFromNHTSA(decodedVIN)
 			// save to database, if error just log do not block, execute in go func routine to not block
 			go func() {
-				dbDevice := NewDbModelFromDeviceDefinition(rp, squishVin)
+				dbDevice := NewDbModelFromDeviceDefinition(rp, &squishVin)
 				err = dbDevice.Insert(c.Context(), d.DBS().Writer, boil.Infer())
 				if err != nil {
 					d.log.Error().Err(err).Msg("error inserting device definition to db")
@@ -147,7 +147,7 @@ const vehicleInfoJSONNode = "vehicle_info"
 
 func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefinition {
 	rp := DeviceDefinition{
-		DeviceDefinitionID:     dd.UUID,
+		DeviceDefinitionID:     dd.ID,
 		Name:                   fmt.Sprintf("%d %s %s", dd.Year, dd.Make, dd.Model),
 		ImageURL:               "",
 		CompatibleIntegrations: []DeviceCompatibility{},
@@ -161,7 +161,7 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 		Metadata: string(dd.Metadata.JSON),
 	}
 	// vehicle info
-	var vi map[string]DeviceVehicleInfo
+	var vi map[string]services.DeviceVehicleInfo
 	if err := dd.Metadata.Unmarshal(&vi); err == nil {
 		rp.VehicleInfo = vi[vehicleInfoJSONNode]
 	}
@@ -169,7 +169,7 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 	if dd.R != nil {
 		for _, di := range dd.R.DeviceIntegrations {
 			rp.CompatibleIntegrations = append(rp.CompatibleIntegrations, DeviceCompatibility{
-				ID:      di.R.Integration.UUID,
+				ID:      di.R.Integration.ID,
 				Type:    di.R.Integration.Type,
 				Style:   di.R.Integration.Style,
 				Vendors: di.R.Integration.Vendors,
@@ -181,10 +181,10 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 }
 
 // NewDbModelFromDeviceDefinition converts a DeviceDefinition response object to a new database model for the given squishVin
-func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin string) *models.DeviceDefinition {
+func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin *string) *models.DeviceDefinition {
 	dbDevice := models.DeviceDefinition{
-		UUID:       uuid.New().String(),
-		VinFirst10: squishVin,
+		ID:         ksuid.New().String(),
+		VinFirst10: null.StringFromPtr(squishVin),
 		Make:       dd.Type.Make,
 		Model:      dd.Type.Model,
 		Year:       int16(dd.Type.Year),
@@ -211,7 +211,7 @@ func NewDeviceDefinitionFromNHTSA(decodedVin *services.NHTSADecodeVINResponse) D
 		Year:  yr,
 	}
 	dd.Name = fmt.Sprintf("%d %s %s", dd.Type.Year, dd.Type.Make, dd.Type.Model)
-	dd.VehicleInfo = DeviceVehicleInfo{
+	dd.VehicleInfo = services.DeviceVehicleInfo{
 		FuelType:      decodedVin.LookupValue("Fuel Type - Primary"),
 		NumberOfDoors: decodedVin.LookupValue("Doors"),
 		BaseMSRP:      msrp,
@@ -229,8 +229,8 @@ type DeviceDefinition struct {
 	CompatibleIntegrations []DeviceCompatibility `json:"compatible_integrations"`
 	Type                   DeviceType            `json:"type"`
 	// VehicleInfo will be empty if not a vehicle type
-	VehicleInfo DeviceVehicleInfo `json:"vehicle_data,omitempty"`
-	Metadata    interface{}       `json:"metadata"`
+	VehicleInfo services.DeviceVehicleInfo `json:"vehicle_data,omitempty"`
+	Metadata    interface{}                `json:"metadata"`
 }
 
 // DeviceCompatibility represents what systems we know this is compatible with
@@ -249,18 +249,6 @@ type DeviceType struct {
 	Model    string `json:"model"`
 	Year     int    `json:"year"`
 	SubModel string `json:"sub_model"`
-}
-
-// DeviceVehicleInfo represents some standard vehicle specific properties
-type DeviceVehicleInfo struct {
-	FuelType      string `json:"fuel_type,omitempty"`
-	DrivenWheels  string `json:"driven_wheels,omitempty"`
-	NumberOfDoors string `json:"number_of_doors,omitempty"`
-	BaseMSRP      int    `json:"base_msrp,omitempty"`
-	EPAClass      string `json:"epa_class,omitempty"`
-	VehicleType   string `json:"vehicle_type,omitempty"`
-	MPGHighway    string `json:"mpg_highway,omitempty"`
-	MPGCity       string `json:"mpg_city,omitempty"`
 }
 
 type DeviceMMYRoot struct {

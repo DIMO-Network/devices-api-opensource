@@ -106,9 +106,10 @@ func TestNewDeviceDefinitionFromNHTSA(t *testing.T) {
 }
 
 func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
+	vin := "1231231231"
 	dbDevice := models.DeviceDefinition{
-		UUID:       "123",
-		VinFirst10: "1231231231",
+		ID:         "123",
+		VinFirst10: null.StringFrom(vin),
 		Make:       "Merc",
 		Model:      "R500",
 		Year:       2020,
@@ -116,14 +117,14 @@ func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
 		Metadata:   null.JSONFrom([]byte(`{"vehicle_info": {"fuel_type": "gas", "driven_wheels": "4", "number_of_doors":"5" } }`)),
 	}
 	di := models.DeviceIntegration{
-		DeviceDefinitionUUID: "123",
-		IntegrationUUID:      "123",
-		CreatedAt:            time.Time{},
-		UpdatedAt:            time.Time{},
+		DeviceDefinitionID: "123",
+		IntegrationID:      "123",
+		CreatedAt:          time.Time{},
+		UpdatedAt:          time.Time{},
 	}
 	di.R = di.R.NewStruct()
 	di.R.Integration = &models.Integration{
-		UUID:    "123",
+		ID:      "123",
 		Type:    "Hardware",
 		Style:   "Addon",
 		Vendors: "Autopi",
@@ -155,15 +156,16 @@ func TestNewDbModelFromDeviceDefinition(t *testing.T) {
 			Year:     2020,
 			SubModel: "AMG",
 		},
-		VehicleInfo: DeviceVehicleInfo{
+		VehicleInfo: services.DeviceVehicleInfo{
 			FuelType:      "gas",
 			DrivenWheels:  "4",
 			NumberOfDoors: "5",
 		},
 	}
-	dbDevice := NewDbModelFromDeviceDefinition(dd, "1231231")
+	vin := "1231231"
+	dbDevice := NewDbModelFromDeviceDefinition(dd, &vin)
 
-	assert.Equal(t, "1231231", dbDevice.VinFirst10)
+	assert.Equal(t, vin, dbDevice.VinFirst10.String)
 	assert.Equal(t, "R500", dbDevice.Model)
 	assert.Equal(t, "Merc", dbDevice.Make)
 	assert.Equal(t, int16(2020), dbDevice.Year)
