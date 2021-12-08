@@ -190,12 +190,8 @@ func parseSmartCarYears(yearsPtr *string) ([]int, error) {
 				return nil, errors.Errorf("could not parse end year from: %s", years)
 			}
 		}
-		diff := endYear - startYearInt
-		if diff == 0 {
-			return []int{startYearInt}, nil
-		}
-		for i := 0; i <= diff; i++ {
-			rangeYears = append(rangeYears, startYearInt+i)
+		for y := startYearInt; y <= endYear; y++ {
+			rangeYears = append(rangeYears, y)
 		}
 		return rangeYears, nil
 	}
