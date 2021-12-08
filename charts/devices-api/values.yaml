@@ -2,7 +2,7 @@ replicaCount: 1
 image:
   repository: dimozone/devices-api
   pullPolicy: Always
-  tag: 247ab4d
+  tag: 6eed8ef
 imagePullSecrets: []
 nameOverride: ''
 fullnameOverride: ''
@@ -21,6 +21,7 @@ env:
   DB_MAX_OPEN_CONNECTIONS: '10'
   DB_MAX_IDLE_CONNECTIONS: '3'
   SERVICE_NAME: devices-api
+  JWT_KEY_SET_URL: https://auth.dev.dimo.zone/dex/keys
 service:
   type: ClusterIP
   port: 8080
