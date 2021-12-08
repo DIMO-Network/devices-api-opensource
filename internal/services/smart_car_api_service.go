@@ -101,6 +101,7 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 			}
 			err = tx.Commit()
 			if err != nil {
+				_ = tx.Rollback()
 				return err
 			}
 		}
@@ -108,7 +109,7 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 
 	return nil
 }
-
+// saveDeviceDefinition does not commit or rollback the transaction, just operates the insert
 func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, make, model string, year int, dvi DeviceVehicleInfo, icJSON []byte, integrationID string, integrationCountry string) error {
 	// todo: idempotency - read all info from DB singleton and then compare MMY, but integration capabilities vary by country
 
@@ -126,7 +127,6 @@ func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, 
 
 	err = dbDeviceDef.Insert(ctx, tx, boil.Infer())
 	if err != nil {
-		_ = tx.Rollback()
 		return err
 	}
 	// attach smart car integration in intermediary table
