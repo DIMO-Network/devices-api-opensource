@@ -55,7 +55,7 @@ func TestDevicesController(t *testing.T) {
 	app.Get("/device-definitions/:id", c.GetDeviceDefinitionByID)
 	app.Get("/device-definitions/:id/integrations", c.GetIntegrationsByID)
 
-	createdId := ""
+	createdID := ""
 
 	t.Run("GET - lookup device definition by VIN", func(t *testing.T) {
 		// arrange mock setup
@@ -72,10 +72,10 @@ func TestDevicesController(t *testing.T) {
 		assert.NoError(t, err, "expected to find one device def in DB")
 		assert.NotNilf(t, definition, "expected device def not be nil")
 		assert.Equal(t, vin[:10], definition.VinFirst10.String)
-		createdId = definition.ID
+		createdID = definition.ID
 	})
 	t.Run("GET - device definition by id", func(t *testing.T) {
-		request, _ := http.NewRequest("GET", "/device-definitions/"+createdId, nil)
+		request, _ := http.NewRequest("GET", "/device-definitions/"+createdID, nil)
 		response, _ := app.Test(request)
 		body, _ := ioutil.ReadAll(response.Body)
 		// assert
@@ -84,7 +84,7 @@ func TestDevicesController(t *testing.T) {
 		var dd DeviceDefinition
 		err := json.Unmarshal(v, &dd)
 		assert.NoError(t, err)
-		assert.Equal(t, createdId, dd.DeviceDefinitionID)
+		assert.Equal(t, createdID, dd.DeviceDefinitionID)
 	})
 	t.Run("GET - all make model years as a tree", func(t *testing.T) {
 		request, _ := http.NewRequest("GET", "/device-definitions/all", nil)
@@ -100,7 +100,7 @@ func TestDevicesController(t *testing.T) {
 		assert.Equal(t, "TESLA", mmy[0].Make)
 		assert.Equal(t, "Model Y", mmy[0].Models[0].Model)
 		assert.Equal(t, int16(2020), mmy[0].Models[0].Years[0].Year)
-		assert.Equal(t, createdId, mmy[0].Models[0].Years[0].DeviceDefinitionID)
+		assert.Equal(t, createdID, mmy[0].Models[0].Years[0].DeviceDefinitionID)
 	})
 }
 
