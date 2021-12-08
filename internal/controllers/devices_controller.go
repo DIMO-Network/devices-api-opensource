@@ -103,7 +103,7 @@ func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
 		if idx == -1 {
 			mmy = append(mmy, DeviceMMYRoot{
 				Make:   dd.Make,
-				Models: []DeviceModels{{Model: dd.Model, Years: []int16{dd.Year}}},
+				Models: []DeviceModels{{Model: dd.Model, Years: []DeviceModelYear{{Year: dd.Year, DeviceDefinitionID: dd.ID}}}},
 			})
 		} else {
 			// attach model or year to existing make, lookup model
@@ -112,17 +112,79 @@ func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
 				// append model if not found
 				mmy[idx].Models = append(mmy[idx].Models, DeviceModels{
 					Model: dd.Model,
-					Years: []int16{dd.Year},
+					Years: []DeviceModelYear{{Year: dd.Year, DeviceDefinitionID: dd.ID}},
 				})
 			} else {
 				// make and model already found, just add year
-				mmy[idx].Models[idx2].Years = append(mmy[idx].Models[idx2].Years, dd.Year)
+				mmy[idx].Models[idx2].Years = append(mmy[idx].Models[idx2].Years, DeviceModelYear{Year: dd.Year, DeviceDefinitionID: dd.ID})
 			}
 		}
 	}
 
 	return c.JSON(fiber.Map{
 		"makes": mmy,
+	})
+}
+
+func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if len(id) != 27 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error_message": "invalid device_definition_id",
+		})
+	}
+	dd, err := models.DeviceDefinitions(
+		qm.Where("id = ?", id),
+		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
+		qm.Load("DeviceIntegrations.Integration")).
+		One(c.Context(), d.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, err, fiber.StatusNotFound)
+		}
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	rp := NewDeviceDefinitionFromDatabase(dd)
+	return c.JSON(fiber.Map{
+		"device_definition": rp,
+	})
+}
+
+func (d *DevicesController) GetIntegrationsByID(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if len(id) != 27 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error_message": "invalid dvice definition id",
+		})
+	}
+	dd, err := models.DeviceDefinitions(
+		qm.Where("id = ?", id),
+		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
+		qm.Load("DeviceIntegrations.Integration")).
+		One(c.Context(), d.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, err, fiber.StatusNotFound)
+		}
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+	// build object for integrations that have all the info
+	var integrations []DeviceCompatibility
+	if dd.R != nil {
+		for _, di := range dd.R.DeviceIntegrations {
+			integrations = append(integrations, DeviceCompatibility{
+				ID:           di.R.Integration.ID,
+				Type:         di.R.Integration.Type,
+				Style:        di.R.Integration.Style,
+				Vendor:       di.R.Integration.Vendors,
+				Country:      di.Country,
+				Capabilities: string(di.Capabilities.JSON),
+			})
+		}
+	}
+	return c.JSON(fiber.Map{
+		"compatible_integrations": integrations,
 	})
 }
 
@@ -172,7 +234,8 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 				ID:      di.R.Integration.ID,
 				Type:    di.R.Integration.Type,
 				Style:   di.R.Integration.Style,
-				Vendors: di.R.Integration.Vendors,
+				Vendor:  di.R.Integration.Vendors,
+				Country: di.Country,
 			})
 		}
 	}
@@ -235,10 +298,12 @@ type DeviceDefinition struct {
 
 // DeviceCompatibility represents what systems we know this is compatible with
 type DeviceCompatibility struct {
-	ID      string `json:"id"`
-	Type    string `json:"type"`
-	Style   string `json:"style"`
-	Vendors string `json:"vendors"`
+	ID           string `json:"id"`
+	Type         string `json:"type"`
+	Style        string `json:"style"`
+	Vendor       string `json:"vendor"`
+	Country      string `json:"country"`
+	Capabilities string `json:"capabilities,omitempty"`
 }
 
 // DeviceType whether it is a vehicle or other type and basic information
@@ -257,6 +322,11 @@ type DeviceMMYRoot struct {
 }
 
 type DeviceModels struct {
-	Model string  `json:"model"`
-	Years []int16 `json:"years"`
+	Model string            `json:"model"`
+	Years []DeviceModelYear `json:"years"`
+}
+
+type DeviceModelYear struct {
+	Year               int16  `json:"year"`
+	DeviceDefinitionID string `json:"id"`
 }

@@ -50,8 +50,12 @@ func TestDevicesController(t *testing.T) {
 	c := NewDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, nhtsaSvc)
 	// routes
 	app := fiber.New()
-	app.Get("/devices/lookup/vin/:vin", c.LookupDeviceDefinitionByVIN)
-	app.Get("/devices/lookup/all", c.GetAllDeviceMakeModelYears)
+	app.Get("/device-definitions/vin/:vin", c.LookupDeviceDefinitionByVIN)
+	app.Get("/device-definitions/all", c.GetAllDeviceMakeModelYears)
+	app.Get("/device-definitions/:id", c.GetDeviceDefinitionByID)
+	app.Get("/device-definitions/:id/integrations", c.GetIntegrationsByID)
+
+	createdID := ""
 
 	t.Run("GET - lookup device definition by VIN", func(t *testing.T) {
 		// arrange mock setup
@@ -60,17 +64,53 @@ func TestDevicesController(t *testing.T) {
 		const vin = "5YJYGDEF2LFR00942"
 		nhtsaSvc.EXPECT().DecodeVIN(vin).Times(1).Return(&vinResp, nil)
 		// act
-		request, _ := http.NewRequest("GET", "/devices/lookup/vin/"+vin, nil)
+		request, _ := http.NewRequest("GET", "/device-definitions/vin/"+vin, nil)
 		response, _ := app.Test(request)
 		// assert
 		assert.Equal(t, 200, response.StatusCode)
 		definition, err := models.DeviceDefinitions().One(ctx, pdb.DBS().Writer)
 		assert.NoError(t, err, "expected to find one device def in DB")
 		assert.NotNilf(t, definition, "expected device def not be nil")
-		assert.Equal(t, vin[:10], definition.VinFirst10)
+		assert.Equal(t, vin[:10], definition.VinFirst10.String)
+		createdID = definition.ID
+	})
+	t.Run("GET - device definition by id", func(t *testing.T) {
+		request, _ := http.NewRequest("GET", "/device-definitions/"+createdID, nil)
+		response, _ := app.Test(request)
+		body, _ := ioutil.ReadAll(response.Body)
+		// assert
+		assert.Equal(t, 200, response.StatusCode)
+		v, _, _, _ := jsonparser.Get(body, "device_definition")
+		var dd DeviceDefinition
+		err := json.Unmarshal(v, &dd)
+		assert.NoError(t, err)
+		assert.Equal(t, createdID, dd.DeviceDefinitionID)
+	})
+	t.Run("GET - device integrations by id", func(t *testing.T) {
+		request, _ := http.NewRequest("GET", "/device-definitions/"+createdID+"/integrations", nil)
+		response, _ := app.Test(request)
+		body, _ := ioutil.ReadAll(response.Body)
+		// assert
+		assert.Equal(t, 200, response.StatusCode)
+		v, _, _, _ := jsonparser.Get(body, "compatible_integrations")
+		var dc []DeviceCompatibility
+		err := json.Unmarshal(v, &dc)
+		assert.NoError(t, err)
+	})
+	t.Run("GET 400 - device definition by id invalid", func(t *testing.T) {
+		request, _ := http.NewRequest("GET", "/device-definitions/caca", nil)
+		response, _ := app.Test(request)
+		// assert
+		assert.Equal(t, 400, response.StatusCode)
+	})
+	t.Run("GET 400 - device definition integrations invalid", func(t *testing.T) {
+		request, _ := http.NewRequest("GET", "/device-definitions/caca/integrations", nil)
+		response, _ := app.Test(request)
+		// assert
+		assert.Equal(t, 400, response.StatusCode)
 	})
 	t.Run("GET - all make model years as a tree", func(t *testing.T) {
-		request, _ := http.NewRequest("GET", "/devices/lookup/all", nil)
+		request, _ := http.NewRequest("GET", "/device-definitions/all", nil)
 		response, _ := app.Test(request)
 		body, _ := ioutil.ReadAll(response.Body)
 		// assert
@@ -82,7 +122,8 @@ func TestDevicesController(t *testing.T) {
 		assert.Len(t, mmy, 1)
 		assert.Equal(t, "TESLA", mmy[0].Make)
 		assert.Equal(t, "Model Y", mmy[0].Models[0].Model)
-		assert.Equal(t, int16(2020), mmy[0].Models[0].Years[0])
+		assert.Equal(t, int16(2020), mmy[0].Models[0].Years[0].Year)
+		assert.Equal(t, createdID, mmy[0].Models[0].Years[0].DeviceDefinitionID)
 	})
 }
 
@@ -144,7 +185,7 @@ func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
 	assert.Equal(t, "AMG", dd.Type.SubModel)
 
 	assert.Len(t, dd.CompatibleIntegrations, 1)
-	assert.Equal(t, "Autopi", dd.CompatibleIntegrations[0].Vendors)
+	assert.Equal(t, "Autopi", dd.CompatibleIntegrations[0].Vendor)
 }
 
 func TestNewDbModelFromDeviceDefinition(t *testing.T) {

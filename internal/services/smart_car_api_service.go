@@ -91,15 +91,18 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 			if err != nil {
 				return err
 			}
+			// future: put below code in own function so we can defer tx.rollback here https://manse.cloud/posts/go-footuns-go-defer-rust-drop
 			// loop over each year and insert into device definition same stuff just changing year
 			for _, yr := range yearRange {
 				err := s.saveDeviceDefinition(ctx, tx, vehicleMake, vehicleModel, yr, dvi, icJSON, scIntegrationID, "us")
 				if err != nil {
+					_ = tx.Rollback()
 					return errors.Wrapf(err, "could not save device definition to db for mmy: %s %s %d", vehicleMake, vehicleModel, yr)
 				}
 			}
 			err = tx.Commit()
 			if err != nil {
+				_ = tx.Rollback()
 				return err
 			}
 		}
@@ -108,6 +111,7 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 	return nil
 }
 
+// saveDeviceDefinition does not commit or rollback the transaction, just operates the insert
 func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, make, model string, year int, dvi DeviceVehicleInfo, icJSON []byte, integrationID string, integrationCountry string) error {
 	// todo: idempotency - read all info from DB singleton and then compare MMY, but integration capabilities vary by country
 
