@@ -75,9 +75,9 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 
 	v1.Get("/device-definitions/vin/:vin", deviceControllers.LookupDeviceDefinitionByVIN) // generic response, specific for vehicle lookup
 	v1.Get("/device-definitions/all", cacheHandler, deviceControllers.GetAllDeviceMakeModelYears)
-	v1.Get("/device-definitions/:id", deviceControllers.LookupDeviceDefinitionByID)
+	v1.Get("/device-definitions/:id", deviceControllers.GetDeviceDefinitionByID)
 
-	v1.Get("/device-definitions/:id/integrations", deviceControllers.LookupIntegrationsByID)
+	v1.Get("/device-definitions/:id/integrations", deviceControllers.GetIntegrationsByID)
 
 	logger.Info().Msg("Server started on port " + settings.Port)
 

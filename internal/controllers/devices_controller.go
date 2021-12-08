@@ -126,7 +126,7 @@ func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
 	})
 }
 
-func (d *DevicesController) LookupDeviceDefinitionByID(c *fiber.Ctx) error {
+func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if len(id) != 27 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -151,7 +151,7 @@ func (d *DevicesController) LookupDeviceDefinitionByID(c *fiber.Ctx) error {
 	})
 }
 
-func (d *DevicesController) LookupIntegrationsByID(c *fiber.Ctx) error {
+func (d *DevicesController) GetIntegrationsByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if len(id) != 27 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
