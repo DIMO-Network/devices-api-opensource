@@ -2,7 +2,7 @@ replicaCount: 1
 image:
   repository: dimozone/devices-api
   pullPolicy: Always
-  tag: 0.0.7
+  tag: 0.0.8
 imagePullSecrets: []
 nameOverride: ''
 fullnameOverride: ''
@@ -29,9 +29,9 @@ ingress:
   className: nginx
   annotations:
     nginx.ingress.kubernetes.io/auth-tls-secret: ingress/cf-origin-ca
-    nginx.ingress.kubernetes.io/auth-tls-verify-client: "on"
-    nginx.ingress.kubernetes.io/enable-cors: "true"
-    nginx.ingress.kubernetes.io/cors-allow-origin: "https://devices-api.dimo.zone"
+    nginx.ingress.kubernetes.io/auth-tls-verify-client: 'on'
+    nginx.ingress.kubernetes.io/enable-cors: 'true'
+    nginx.ingress.kubernetes.io/cors-allow-origin: https://devices-api.dimo.zone
     external-dns.alpha.kubernetes.io/hostname: devices-api.dimo.zone
   hosts:
     - host: devices-api.dimo.zone
