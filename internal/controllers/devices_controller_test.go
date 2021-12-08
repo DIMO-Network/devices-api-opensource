@@ -86,6 +86,29 @@ func TestDevicesController(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, createdID, dd.DeviceDefinitionID)
 	})
+	t.Run("GET - device integrations by id", func(t *testing.T) {
+		request, _ := http.NewRequest("GET", "/device-definitions/"+createdID+"/integrations", nil)
+		response, _ := app.Test(request)
+		body, _ := ioutil.ReadAll(response.Body)
+		// assert
+		assert.Equal(t, 200, response.StatusCode)
+		v, _, _, _ := jsonparser.Get(body, "compatible_integrations")
+		var dc []DeviceCompatibility
+		err := json.Unmarshal(v, &dc)
+		assert.NoError(t, err)
+	})
+	t.Run("GET 400 - device definition by id invalid", func(t *testing.T) {
+		request, _ := http.NewRequest("GET", "/device-definitions/caca", nil)
+		response, _ := app.Test(request)
+		// assert
+		assert.Equal(t, 400, response.StatusCode)
+	})
+	t.Run("GET 400 - device definition integrations invalid", func(t *testing.T) {
+		request, _ := http.NewRequest("GET", "/device-definitions/caca/integrations", nil)
+		response, _ := app.Test(request)
+		// assert
+		assert.Equal(t, 400, response.StatusCode)
+	})
 	t.Run("GET - all make model years as a tree", func(t *testing.T) {
 		request, _ := http.NewRequest("GET", "/device-definitions/all", nil)
 		response, _ := app.Test(request)

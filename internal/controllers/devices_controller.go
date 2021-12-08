@@ -130,7 +130,7 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if len(id) != 27 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error_message": "invalid dvice definition id",
+			"error_message": "invalid device_definition_id",
 		})
 	}
 	dd, err := models.DeviceDefinitions(
