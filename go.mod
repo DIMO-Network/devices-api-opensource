@@ -6,7 +6,8 @@ require (
 	github.com/buger/jsonparser v1.1.1
 	github.com/fergusstrange/embedded-postgres v1.11.0
 	github.com/friendsofgo/errors v0.9.2
-	github.com/gofiber/fiber/v2 v2.20.2
+	github.com/gofiber/fiber/v2 v2.23.0
+	github.com/gofiber/jwt/v3 v3.2.2
 	github.com/golang/mock v1.6.0
 	github.com/jarcoal/httpmock v1.0.8
 	github.com/lib/pq v1.10.4
@@ -26,6 +27,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/gofrs/uuid v3.2.0+incompatible // indirect
+	github.com/golang-jwt/jwt/v4 v4.2.0 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/klauspost/compress v1.13.4 // indirect
 	github.com/klauspost/pgzip v1.2.4 // indirect
@@ -37,7 +39,7 @@ require (
 	github.com/spf13/cast v1.4.1 // indirect
 	github.com/ulikunitz/xz v0.5.7 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.29.0 // indirect
+	github.com/valyala/fasthttp v1.31.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
 	github.com/volatiletech/inflect v0.0.1 // indirect
 	github.com/volatiletech/randomize v0.0.1 // indirect
