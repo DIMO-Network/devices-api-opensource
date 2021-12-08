@@ -106,3 +106,7 @@ curl http://localhost:3000/v1/device-definitions/:id/integrations
 Some test VINs:
 5YJYGDEE5MF085533
 5YJ3E1EA6MF873863
+
+Higher level env hosts:
+https://devices-api.dev.dimo.zone
+https://devices-api.dimo.zone

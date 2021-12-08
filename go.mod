@@ -6,8 +6,10 @@ require (
 	github.com/buger/jsonparser v1.1.1
 	github.com/fergusstrange/embedded-postgres v1.11.0
 	github.com/friendsofgo/errors v0.9.2
+	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
 	github.com/gofiber/fiber/v2 v2.23.0
 	github.com/gofiber/jwt/v3 v3.2.2
+	github.com/golang-jwt/jwt/v4 v4.2.0
 	github.com/golang/mock v1.6.0
 	github.com/jarcoal/httpmock v1.0.8
 	github.com/lib/pq v1.10.4
@@ -27,7 +29,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/gofrs/uuid v3.2.0+incompatible // indirect
-	github.com/golang-jwt/jwt/v4 v4.2.0 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/klauspost/compress v1.13.4 // indirect
 	github.com/klauspost/pgzip v1.2.4 // indirect

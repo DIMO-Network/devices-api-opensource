@@ -7,8 +7,10 @@ var TableNames = struct {
 	DeviceDefinitions  string
 	DeviceIntegrations string
 	Integrations       string
+	UserDevices        string
 }{
 	DeviceDefinitions:  "device_definitions",
 	DeviceIntegrations: "device_integrations",
 	Integrations:       "integrations",
+	UserDevices:        "user_devices",
 }

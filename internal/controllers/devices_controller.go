@@ -59,6 +59,7 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 	squishVin := vin[:10]
 	dd, err := models.DeviceDefinitions(
 		qm.Where("vin_first_10 = ?", squishVin),
+		qm.Where("verified = true"),
 		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
 		qm.Load("DeviceIntegrations.Integration")).
 		One(c.Context(), d.DBS().Reader)
@@ -73,6 +74,9 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 			// save to database, if error just log do not block, execute in go func routine to not block
 			go func() {
 				dbDevice := NewDbModelFromDeviceDefinition(rp, &squishVin)
+				dbDevice.Verified = true
+				dbDevice.Source = null.StringFrom("NHTSA")
+
 				err = dbDevice.Insert(c.Context(), d.DBS().Writer, boil.Infer())
 				if err != nil {
 					d.log.Error().Err(err).Msg("error inserting device definition to db")
@@ -92,7 +96,7 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 
 // GetAllDeviceMakeModelYears returns a json tree of Makes, models, and years
 func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
-	all, err := models.DeviceDefinitions().All(c.Context(), d.DBS().Reader)
+	all, err := models.DeviceDefinitions(qm.Where("verified = true")).All(c.Context(), d.DBS().Reader)
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}

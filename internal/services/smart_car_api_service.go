@@ -121,6 +121,8 @@ func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, 
 		Make:  make,
 		Model: model,
 		Year:  int16(year),
+		Verified: true,
+		Source: null.StringFrom("SmartCar"),
 	}
 	err := dbDeviceDef.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dvi})
 	if err != nil {
