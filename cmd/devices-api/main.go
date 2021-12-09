@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	jwtware "github.com/gofiber/jwt/v3"
 	_ "github.com/lib/pq"
 	"github.com/rs/zerolog"
 )
@@ -56,6 +57,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	})
 	nhtsaSvc := services.NewNHTSAService()
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc)
+	userDeviceControllers := controllers.NewUserDevicesController(settings, pdb.DBS, &logger)
 
 	app.Use(recover.New(recover.Config{
 		Next:              nil,
@@ -76,11 +78,14 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1.Get("/device-definitions/vin/:vin", deviceControllers.LookupDeviceDefinitionByVIN) // generic response, specific for vehicle lookup
 	v1.Get("/device-definitions/all", cacheHandler, deviceControllers.GetAllDeviceMakeModelYears)
 	v1.Get("/device-definitions/:id", deviceControllers.GetDeviceDefinitionByID)
-
 	v1.Get("/device-definitions/:id/integrations", deviceControllers.GetIntegrationsByID)
+	// secured paths
+	jwtAuth := jwtware.New(jwtware.Config{KeySetURL: settings.JwtKeySetURL})
+	v1.Get("/user/devices/me", jwtAuth, userDeviceControllers.GetUserDevices)
+	v1.Post("/user/devices", jwtAuth, userDeviceControllers.RegisterDeviceForUser)
+	v1.Post("/user/devices/:id/integrations/smartcar", jwtAuth, userDeviceControllers.RegisterSmartCarIntegration)
 
 	logger.Info().Msg("Server started on port " + settings.Port)
-
 	// Start Server
 	if err := app.Listen(":" + settings.Port); err != nil {
 		logger.Fatal().Err(err)
