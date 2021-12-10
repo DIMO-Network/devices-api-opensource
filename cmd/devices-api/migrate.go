@@ -2,10 +2,11 @@ package main
 
 import (
 	"database/sql"
+
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/pressly/goose/v3"
 	"github.com/rs/zerolog"
-
+	
 	_ "github.com/lib/pq"
 )
 
