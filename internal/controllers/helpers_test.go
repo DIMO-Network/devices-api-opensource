@@ -2,7 +2,11 @@ package controllers
 
 import (
 	"context"
+	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v4"
 	"log"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -52,4 +56,28 @@ func setupDatabase(ctx context.Context, t *testing.T, migrationsDirRelPath strin
 
 	return pdb, edb
 	// if we add code migrations, import: _ "github.com/DIMO-INC/devices-api/migrations"
+}
+
+func buildRequest(method, url, body string) *http.Request {
+	req, _ := http.NewRequest(
+		method,
+		url,
+		strings.NewReader(body),
+	)
+	req.Header.Set("Content-Type", "application/json")
+
+	return req
+}
+
+// authInjectorTestHandler injects fake jwt with sub
+func authInjectorTestHandler(userId string) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"sub": userId,
+			"nbf": time.Now().Unix(),
+		})
+
+		c.Locals("user", token)
+		return c.Next()
+	}
 }

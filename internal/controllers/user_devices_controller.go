@@ -9,7 +9,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
 type UserDevicesController struct {
@@ -37,32 +39,62 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	var dd *models.DeviceDefinition
 	if reg.DeviceDefinitionId != nil {
 		// attach device def to user
-		dd, err := models.FindDeviceDefinition(c.Context(), tx, *reg.DeviceDefinitionId)
+		dd, err = models.FindDeviceDefinition(c.Context(), tx, *reg.DeviceDefinitionId)
 		if err != nil {
-			return errorResponseHandler(c, errors.Wrap(err, "could not find provided device definition id"), fiber.StatusBadRequest)
+			return errorResponseHandler(c, errors.Wrapf(err, "error querying for device definition id: %s", *reg.DeviceDefinitionId), fiber.StatusInternalServerError)
 		}
-		// todo: check that device def doesn't already exist for
-		ud := models.UserDevice{
-			ID:                 ksuid.New().String(),
-			UserID:             userId,
-			DeviceDefinitionID: dd.ID,
+		if dd == nil {
+			return errorResponseHandler(c, errors.Wrapf(err, "could not find device definition id: %s", *reg.DeviceDefinitionId), fiber.StatusBadRequest)
 		}
-		err = ud.Insert(c.Context(), tx, boil.Infer())
+		exists, err := models.UserDevices(qm.Where("user_id = ?", userId), qm.And("device_definition_id = ?", dd.ID)).Exists(c.Context(), tx)
 		if err != nil {
-			return errorResponseHandler(c, errors.Wrap(err, "could not create device"), fiber.StatusInternalServerError)
+			return errorResponseHandler(c, errors.Wrap(err, "error checking duplicate user device"), fiber.StatusInternalServerError)
 		}
-
-		return c.JSON(fiber.Map{
-			"device_id": ud.ID,
-			"device_definition_id": dd.ID,
-			"integration_capabilities": "array of integrations for device dev", // todo
-		})
+		if exists {
+			return errorResponseHandler(c, errors.Wrap(err, "user already has this device registered"), fiber.StatusBadRequest)
+		}
+	} else {
+		// since Definition does not exist, create one on the fly with userId as source and not verified
+		dd = &models.DeviceDefinition{
+			ID:     ksuid.New().String(),
+			Make:   *reg.Make,
+			Model:  *reg.Model,
+			Year:   int16(*reg.Year),
+			Source: null.StringFrom("userId:" + userId),
+		}
+		err = dd.Insert(c.Context(), tx, boil.Infer())
+		if err != nil {
+			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		}
 	}
-	// todo: handle else case of creating a Device def on the fly, previous lookup
+	// register device for the user
+	ud := models.UserDevice{
+		ID:                 ksuid.New().String(),
+		UserID:             userId,
+		DeviceDefinitionID: dd.ID,
+	}
+	err = ud.Insert(c.Context(), tx, boil.Infer())
+	if err != nil {
+		return errorResponseHandler(c, errors.Wrapf(err, "could not create user device for def_id: %s", dd.ID), fiber.StatusInternalServerError)
+	}
+	// get device integrations to return in payload - helps frontend
+	deviceInts, err := models.DeviceIntegrations(qm.Load(models.DeviceIntegrationRels.Integration), qm.Where("device_definition_id = ?", dd.ID)).All(c.Context(), tx)
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+	err = tx.Commit()
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
 
-	return nil
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"user_device_id":           ud.ID,
+		"device_definition_id":     dd.ID,
+		"integration_capabilities": DeviceCompatibilityFromDB(deviceInts),
+	})
 }
 
 func (udc *UserDevicesController) RegisterSmartCarIntegration(c *fiber.Ctx) error {

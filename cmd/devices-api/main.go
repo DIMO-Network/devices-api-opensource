@@ -81,7 +81,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1.Get("/device-definitions/:id/integrations", deviceControllers.GetIntegrationsByID)
 	// secured paths
 	jwtAuth := jwtware.New(jwtware.Config{KeySetURL: settings.JwtKeySetURL})
-	v1.Get("/user/devices/me", jwtAuth, userDeviceControllers.GetUserDevices)
+	v1.Get("/user/devices/me", jwtAuth,  userDeviceControllers.GetUserDevices)
 	v1.Post("/user/devices", jwtAuth, userDeviceControllers.RegisterDeviceForUser)
 	v1.Post("/user/devices/:id/integrations/smartcar", jwtAuth, userDeviceControllers.RegisterSmartCarIntegration)
 

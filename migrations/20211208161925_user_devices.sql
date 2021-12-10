@@ -8,6 +8,7 @@ CREATE TABLE user_devices
     id char(27) not null,
     user_id text not null,
     device_definition_id char(27)    not null,
+    vin_identifier text,
 
     created_at           timestamptz not null default current_timestamp,
     updated_at           timestamptz not null default current_timestamp,
