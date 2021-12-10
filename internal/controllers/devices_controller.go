@@ -92,7 +92,7 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 // @Description returns a json tree of Makes, models, and years
 // @Tags 	device-definitions
 // @Produce json
-// @Success 200 {object} controllers.DeviceMMYRoot
+// @Success 200 {object} []controllers.DeviceMMYRoot
 // @Router  /device-definitions/all [get]
 func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
 	all, err := models.DeviceDefinitions(qm.Where("verified = true")).All(c.Context(), d.DBS().Reader)
@@ -129,6 +129,13 @@ func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
 	})
 }
 
+// GetDeviceDefinitionByID godoc
+// @Description gets a specific device definition by id
+// @Tags 	device-definitions
+// @Produce json
+// @Param 	id path string true "device definition id, KSUID format"
+// @Success 200 {object} controllers.DeviceDefinition
+// @Router  /device-definitions/{id} [get]
 func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if len(id) != 27 {
@@ -154,6 +161,13 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 	})
 }
 
+// GetIntegrationsByID godoc
+// @Description gets all the available integrations for a device definition. Includes the capabilities of the device with the integration
+// @Tags 	device-definitions
+// @Produce json
+// @Param 	id path string true "device definition id, KSUID format"
+// @Success 200 {object} []controllers.DeviceCompatibility
+// @Router  /device-definitions/{id}/integrations [get]
 func (d *DevicesController) GetIntegrationsByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if len(id) != 27 {

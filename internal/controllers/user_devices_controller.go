@@ -30,6 +30,13 @@ func NewUserDevicesController(settings *config.Settings, dbs func() *database.DB
 	}
 }
 
+// GetUserDevices godoc
+// @Description gets all devices associated with current user - pulled from token
+// @Tags 	user-devices
+// @Produce json
+// @Success 200 {object} []controllers.UserDeviceFull
+// @Security BearerAuth
+// @Router  /user/devices/me [get]
 func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 	userId := getUserId(c)
 	devices, err := models.UserDevices(qm.Where("user_id = ?", userId),
@@ -59,6 +66,16 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 	})
 }
 
+// RegisterDeviceForUser godoc
+// @Description adds a device to a user. can add with only device_definition_id or with MMY, which will create a device_definition on the fly
+// @Tags 	user-devices
+// @Produce json
+// @Accept json
+// @Param user_device body controllers.RegisterUserDevice true "add device to user. either MMY or id are required"
+// @Security ApiKeyAuth
+// @Success 200 {object} controllers.RegisterUserDeviceResponse
+// @Security BearerAuth
+// @Router  /user/devices [post]
 func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	userId := getUserId(c)
 	reg := &RegisterUserDevice{}
@@ -126,11 +143,12 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"user_device_id":           ud.ID,
-		"device_definition_id":     dd.ID,
-		"integration_capabilities": DeviceCompatibilityFromDB(deviceInts),
-	})
+	return c.Status(fiber.StatusCreated).JSON(
+		RegisterUserDeviceResponse{
+			UserDeviceId:            ud.ID,
+			DeviceDefinitionId:      dd.ID,
+			IntegrationCapabilities: DeviceCompatibilityFromDB(deviceInts),
+		})
 }
 
 func (udc *UserDevicesController) RegisterSmartCarIntegration(c *fiber.Ctx) error {
@@ -143,6 +161,12 @@ type RegisterUserDevice struct {
 	Year               *int    `json:"year"`
 	DeviceDefinitionId *string `json:"device_definition_id"`
 	Region             *string `json:"region"`
+}
+
+type RegisterUserDeviceResponse struct {
+	UserDeviceId            string                `json:"user_device_id"`
+	DeviceDefinitionId      string                `json:"device_definition_id"`
+	IntegrationCapabilities []DeviceCompatibility `json:"integration_capabilities"`
 }
 
 func (reg *RegisterUserDevice) validate() error {

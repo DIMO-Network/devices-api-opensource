@@ -60,7 +60,10 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/controllers.DeviceMMYRoot"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/controllers.DeviceMMYRoot"
+                            }
                         }
                     }
                 }
@@ -89,6 +92,133 @@ var doc = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/controllers.DeviceDefinition"
+                        }
+                    }
+                }
+            }
+        },
+        "/device-definitions/{id}": {
+            "get": {
+                "description": "gets a specific device definition by id",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device-definitions"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "device definition id, KSUID format",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.DeviceDefinition"
+                        }
+                    }
+                }
+            }
+        },
+        "/device-definitions/{id}/integrations": {
+            "get": {
+                "description": "gets all the available integrations for a device definition. Includes the capabilities of the device with the integration",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device-definitions"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "device definition id, KSUID format",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/controllers.DeviceCompatibility"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/user/devices": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "adds a device to a user. can add with only device_definition_id or with MMY, which will create a device_definition on the fly",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user-devices"
+                ],
+                "parameters": [
+                    {
+                        "description": "add device to user. either MMY or id are required",
+                        "name": "user_device",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.RegisterUserDevice"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.RegisterUserDeviceResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/devices/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "gets all devices associated with current user - pulled from token",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user-devices"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/controllers.UserDeviceFull"
+                            }
                         }
                     }
                 }
@@ -208,6 +338,66 @@ var doc = `{
                 }
             }
         },
+        "controllers.RegisterUserDevice": {
+            "type": "object",
+            "properties": {
+                "device_definition_id": {
+                    "type": "string"
+                },
+                "make": {
+                    "type": "string"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "region": {
+                    "type": "string"
+                },
+                "year": {
+                    "type": "integer"
+                }
+            }
+        },
+        "controllers.RegisterUserDeviceResponse": {
+            "type": "object",
+            "properties": {
+                "device_definition_id": {
+                    "type": "string"
+                },
+                "integration_capabilities": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.DeviceCompatibility"
+                    }
+                },
+                "user_device_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "controllers.UserDeviceFull": {
+            "type": "object",
+            "properties": {
+                "custom_image_url": {
+                    "type": "string"
+                },
+                "device_definition": {
+                    "$ref": "#/definitions/controllers.DeviceDefinition"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "region": {
+                    "type": "string"
+                },
+                "vin": {
+                    "type": "string"
+                }
+            }
+        },
         "services.DeviceVehicleInfo": {
             "type": "object",
             "properties": {
@@ -237,6 +427,13 @@ var doc = `{
                     "type": "string"
                 }
             }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }`
