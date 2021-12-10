@@ -22,8 +22,7 @@ import (
 )
 
 // @title     DIMO Devices API
-// @version   1.0
-// @host      localhost:3000
+// @version   2.0
 // @BasePath  /v1
 func main() {
 	gitSha1 := os.Getenv("GIT_SHA1")
@@ -95,9 +94,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	sc := swagger.Config{ // custom
 		// Expand ("list") or Collapse ("none") tag groups by default
 		DocExpansion: "list",
-	}
-	if len(settings.SwaggerBaseURL) > 0 {
-		sc.URL = settings.SwaggerBaseURL
 	}
 	v1.Get("/swagger/*", swagger.New(sc))
 
