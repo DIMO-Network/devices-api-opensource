@@ -101,7 +101,15 @@ curl http://localhost:3000/v1/device-definitions/all -w '\n%{time_starttransfer}
 curl http://localhost:3000/v1/device-definitions/vin/:vin
 curl http://localhost:3000/v1/device-definitions/:id
 curl http://localhost:3000/v1/device-definitions/:id/integrations
+curl http://localhost:3000/v1/user/devices/me
+  -H "Authorization: Bearer {token}"
+curl -X POST http://localhost:3000/v1/user/devices
+   -H 'Content-Type: application/json'
+   -H "Authorization: Bearer {token}"
+   -d '{"device_definition_id":"{existing device def if}"}'
 ```
+
+To prettify json, pipe to json_pp: `| json_pp`
 
 Some test VINs:
 5YJYGDEE5MF085533
