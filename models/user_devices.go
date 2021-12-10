@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/friendsofgo/errors"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -23,11 +24,12 @@ import (
 
 // UserDevice is an object representing the database table.
 type UserDevice struct {
-	ID                 string    `boil:"id" json:"id" toml:"id" yaml:"id"`
-	UserID             string    `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
-	DeviceDefinitionID string    `boil:"device_definition_id" json:"device_definition_id" toml:"device_definition_id" yaml:"device_definition_id"`
-	CreatedAt          time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt          time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	ID                 string      `boil:"id" json:"id" toml:"id" yaml:"id"`
+	UserID             string      `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
+	DeviceDefinitionID string      `boil:"device_definition_id" json:"device_definition_id" toml:"device_definition_id" yaml:"device_definition_id"`
+	VinIdentifier      null.String `boil:"vin_identifier" json:"vin_identifier,omitempty" toml:"vin_identifier" yaml:"vin_identifier,omitempty"`
+	CreatedAt          time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt          time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 
 	R *userDeviceR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userDeviceL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -37,12 +39,14 @@ var UserDeviceColumns = struct {
 	ID                 string
 	UserID             string
 	DeviceDefinitionID string
+	VinIdentifier      string
 	CreatedAt          string
 	UpdatedAt          string
 }{
 	ID:                 "id",
 	UserID:             "user_id",
 	DeviceDefinitionID: "device_definition_id",
+	VinIdentifier:      "vin_identifier",
 	CreatedAt:          "created_at",
 	UpdatedAt:          "updated_at",
 }
@@ -51,12 +55,14 @@ var UserDeviceTableColumns = struct {
 	ID                 string
 	UserID             string
 	DeviceDefinitionID string
+	VinIdentifier      string
 	CreatedAt          string
 	UpdatedAt          string
 }{
 	ID:                 "user_devices.id",
 	UserID:             "user_devices.user_id",
 	DeviceDefinitionID: "user_devices.device_definition_id",
+	VinIdentifier:      "user_devices.vin_identifier",
 	CreatedAt:          "user_devices.created_at",
 	UpdatedAt:          "user_devices.updated_at",
 }
@@ -67,12 +73,14 @@ var UserDeviceWhere = struct {
 	ID                 whereHelperstring
 	UserID             whereHelperstring
 	DeviceDefinitionID whereHelperstring
+	VinIdentifier      whereHelpernull_String
 	CreatedAt          whereHelpertime_Time
 	UpdatedAt          whereHelpertime_Time
 }{
 	ID:                 whereHelperstring{field: "\"devices_api\".\"user_devices\".\"id\""},
 	UserID:             whereHelperstring{field: "\"devices_api\".\"user_devices\".\"user_id\""},
 	DeviceDefinitionID: whereHelperstring{field: "\"devices_api\".\"user_devices\".\"device_definition_id\""},
+	VinIdentifier:      whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"vin_identifier\""},
 	CreatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"user_devices\".\"created_at\""},
 	UpdatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"user_devices\".\"updated_at\""},
 }
@@ -98,8 +106,8 @@ func (*userDeviceR) NewStruct() *userDeviceR {
 type userDeviceL struct{}
 
 var (
-	userDeviceAllColumns            = []string{"id", "user_id", "device_definition_id", "created_at", "updated_at"}
-	userDeviceColumnsWithoutDefault = []string{"id", "user_id", "device_definition_id"}
+	userDeviceAllColumns            = []string{"id", "user_id", "device_definition_id", "vin_identifier", "created_at", "updated_at"}
+	userDeviceColumnsWithoutDefault = []string{"id", "user_id", "device_definition_id", "vin_identifier"}
 	userDeviceColumnsWithDefault    = []string{"created_at", "updated_at"}
 	userDevicePrimaryKeyColumns     = []string{"id"}
 )

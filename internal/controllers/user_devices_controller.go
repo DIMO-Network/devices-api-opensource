@@ -21,8 +21,37 @@ type UserDevicesController struct {
 	log      *zerolog.Logger
 }
 
+// NewUserDevicesController constructor
+func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger) UserDevicesController {
+	return UserDevicesController{
+		Settings: settings,
+		DBS:      dbs,
+		log:      logger,
+	}
+}
+
 func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
-	return nil
+	userId := getUserId(c)
+	devices, err := models.UserDevices(qm.Where("user_id = ?", userId),
+		qm.Load(models.UserDeviceRels.DeviceDefinition)).All(c.Context(), udc.DBS().Reader)
+	// todo: what other relations are needed to load?
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+	var rp []UserDeviceFull
+	for _, d := range devices {
+		rp = append(rp, UserDeviceFull{
+			ID:               d.ID,
+			VIN:              d.VinIdentifier.String,
+			Name:             "",
+			CustomImageUrl:   "",
+			DeviceDefinition: NewDeviceDefinitionFromDatabase(d.R.DeviceDefinition),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"user_devices": rp,
+	})
 }
 
 func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
@@ -102,15 +131,6 @@ func (udc *UserDevicesController) RegisterSmartCarIntegration(c *fiber.Ctx) erro
 	return nil
 }
 
-// NewUserDevicesController constructor
-func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger) UserDevicesController {
-	return UserDevicesController{
-		Settings: settings,
-		DBS:      dbs,
-		log:      logger,
-	}
-}
-
 type RegisterUserDevice struct {
 	Make               *string `json:"make"`
 	Model              *string `json:"model"`
@@ -125,4 +145,13 @@ func (reg *RegisterUserDevice) validate() error {
 		validation.Field(&reg.Year, validation.When(reg.DeviceDefinitionId == nil, validation.Required)),
 		validation.Field(&reg.DeviceDefinitionId, validation.When(reg.Make == nil && reg.Model == nil && reg.Year == nil, validation.Required)),
 	)
+}
+
+// UserDeviceFull represents object user's see on frontend for listing of their devices
+type UserDeviceFull struct {
+	ID               string           `json:"id"`
+	VIN              string           `json:"vin"`
+	Name             string           `json:"name"`
+	CustomImageUrl   string           `json:"custom_image_url"`
+	DeviceDefinition DeviceDefinition `json:"device_definition"`
 }

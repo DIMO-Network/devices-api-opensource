@@ -9,6 +9,8 @@ CREATE TABLE user_devices
     user_id text not null,
     device_definition_id char(27)    not null,
     vin_identifier text,
+    name text, -- name the user can give
+    custom_image_url text,
 
     created_at           timestamptz not null default current_timestamp,
     updated_at           timestamptz not null default current_timestamp,
