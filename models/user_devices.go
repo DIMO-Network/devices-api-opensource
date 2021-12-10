@@ -28,6 +28,9 @@ type UserDevice struct {
 	UserID             string      `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
 	DeviceDefinitionID string      `boil:"device_definition_id" json:"device_definition_id" toml:"device_definition_id" yaml:"device_definition_id"`
 	VinIdentifier      null.String `boil:"vin_identifier" json:"vin_identifier,omitempty" toml:"vin_identifier" yaml:"vin_identifier,omitempty"`
+	Name               null.String `boil:"name" json:"name,omitempty" toml:"name" yaml:"name,omitempty"`
+	CustomImageURL     null.String `boil:"custom_image_url" json:"custom_image_url,omitempty" toml:"custom_image_url" yaml:"custom_image_url,omitempty"`
+	Region             null.String `boil:"region" json:"region,omitempty" toml:"region" yaml:"region,omitempty"`
 	CreatedAt          time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt          time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 
@@ -40,6 +43,9 @@ var UserDeviceColumns = struct {
 	UserID             string
 	DeviceDefinitionID string
 	VinIdentifier      string
+	Name               string
+	CustomImageURL     string
+	Region             string
 	CreatedAt          string
 	UpdatedAt          string
 }{
@@ -47,6 +53,9 @@ var UserDeviceColumns = struct {
 	UserID:             "user_id",
 	DeviceDefinitionID: "device_definition_id",
 	VinIdentifier:      "vin_identifier",
+	Name:               "name",
+	CustomImageURL:     "custom_image_url",
+	Region:             "region",
 	CreatedAt:          "created_at",
 	UpdatedAt:          "updated_at",
 }
@@ -56,6 +65,9 @@ var UserDeviceTableColumns = struct {
 	UserID             string
 	DeviceDefinitionID string
 	VinIdentifier      string
+	Name               string
+	CustomImageURL     string
+	Region             string
 	CreatedAt          string
 	UpdatedAt          string
 }{
@@ -63,6 +75,9 @@ var UserDeviceTableColumns = struct {
 	UserID:             "user_devices.user_id",
 	DeviceDefinitionID: "user_devices.device_definition_id",
 	VinIdentifier:      "user_devices.vin_identifier",
+	Name:               "user_devices.name",
+	CustomImageURL:     "user_devices.custom_image_url",
+	Region:             "user_devices.region",
 	CreatedAt:          "user_devices.created_at",
 	UpdatedAt:          "user_devices.updated_at",
 }
@@ -74,6 +89,9 @@ var UserDeviceWhere = struct {
 	UserID             whereHelperstring
 	DeviceDefinitionID whereHelperstring
 	VinIdentifier      whereHelpernull_String
+	Name               whereHelpernull_String
+	CustomImageURL     whereHelpernull_String
+	Region             whereHelpernull_String
 	CreatedAt          whereHelpertime_Time
 	UpdatedAt          whereHelpertime_Time
 }{
@@ -81,6 +99,9 @@ var UserDeviceWhere = struct {
 	UserID:             whereHelperstring{field: "\"devices_api\".\"user_devices\".\"user_id\""},
 	DeviceDefinitionID: whereHelperstring{field: "\"devices_api\".\"user_devices\".\"device_definition_id\""},
 	VinIdentifier:      whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"vin_identifier\""},
+	Name:               whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"name\""},
+	CustomImageURL:     whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"custom_image_url\""},
+	Region:             whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"region\""},
 	CreatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"user_devices\".\"created_at\""},
 	UpdatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"user_devices\".\"updated_at\""},
 }
@@ -106,8 +127,8 @@ func (*userDeviceR) NewStruct() *userDeviceR {
 type userDeviceL struct{}
 
 var (
-	userDeviceAllColumns            = []string{"id", "user_id", "device_definition_id", "vin_identifier", "created_at", "updated_at"}
-	userDeviceColumnsWithoutDefault = []string{"id", "user_id", "device_definition_id", "vin_identifier"}
+	userDeviceAllColumns            = []string{"id", "user_id", "device_definition_id", "vin_identifier", "name", "custom_image_url", "region", "created_at", "updated_at"}
+	userDeviceColumnsWithoutDefault = []string{"id", "user_id", "device_definition_id", "vin_identifier", "name", "custom_image_url", "region"}
 	userDeviceColumnsWithDefault    = []string{"created_at", "updated_at"}
 	userDevicePrimaryKeyColumns     = []string{"id"}
 )

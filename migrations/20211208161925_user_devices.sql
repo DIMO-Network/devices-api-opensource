@@ -11,6 +11,7 @@ CREATE TABLE user_devices
     vin_identifier text,
     name text, -- name the user can give
     custom_image_url text,
+    region text,
 
     created_at           timestamptz not null default current_timestamp,
     updated_at           timestamptz not null default current_timestamp,

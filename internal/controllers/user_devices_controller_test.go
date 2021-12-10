@@ -66,11 +66,12 @@ func TestUserDevicesController(t *testing.T) {
 			fmt.Println("message: " + string(body))
 		}
 		udi := gjson.Get(string(body), "user_device_id")
+		fmt.Println("DDI user_device_id created: " + udi.String())
 		assert.True(t, udi.Exists(), "expected to find user_device_id")
 	})
 	t.Run("POST - register with MMY", func(t *testing.T) {
 		mk := "Tesla"
-		model := "Model"
+		model := "Model Z"
 		year := 2021
 		reg := RegisterUserDevice{
 			Make:  &mk,
@@ -86,6 +87,7 @@ func TestUserDevicesController(t *testing.T) {
 			fmt.Println("message: " + string(body))
 		}
 		udi := gjson.Get(string(body), "user_device_id")
+		fmt.Println("MMY user_device_id created: " + udi.String())
 		assert.True(t, udi.Exists(), "expected to find user_device_id")
 	})
 	t.Run("POST - bad payload", func(t *testing.T) {
@@ -109,5 +111,19 @@ func TestUserDevicesController(t *testing.T) {
 		msg := gjson.Get(string(body), "error_message").String()
 		fmt.Println("message: " + msg)
 		assert.Contains(t, msg, "caca")
+	})
+	t.Run("GET - user devices", func(t *testing.T) {
+		request := buildRequest("GET", "/user/devices/me", "")
+		response, _ := app.Test(request)
+		body, _ := ioutil.ReadAll(response.Body)
+
+		assert.Equal(t, fiber.StatusOK, response.StatusCode)
+
+		result := gjson.Get(string(body), "user_devices.#.id")
+		fmt.Println(string(body))
+		assert.Len(t, result.Array(), 2)
+		for _, id := range result.Array() {
+			assert.True(t, id.Exists(), "expected to find the ID")
+		}
 	})
 }

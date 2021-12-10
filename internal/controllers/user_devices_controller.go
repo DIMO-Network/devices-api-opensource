@@ -33,8 +33,12 @@ func NewUserDevicesController(settings *config.Settings, dbs func() *database.DB
 func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 	userId := getUserId(c)
 	devices, err := models.UserDevices(qm.Where("user_id = ?", userId),
-		qm.Load(models.UserDeviceRels.DeviceDefinition)).All(c.Context(), udc.DBS().Reader)
-	// todo: what other relations are needed to load?
+		qm.Load(models.UserDeviceRels.DeviceDefinition),
+		qm.Load("DeviceDefinition.DeviceIntegrations"),
+		qm.Load("DeviceDefinition.DeviceIntegrations.Integration"),
+	).
+		All(c.Context(), udc.DBS().Reader)
+	//qm.Load("DeviceIntegrations.Integration")
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
@@ -43,8 +47,9 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		rp = append(rp, UserDeviceFull{
 			ID:               d.ID,
 			VIN:              d.VinIdentifier.String,
-			Name:             "",
-			CustomImageUrl:   "",
+			Name:             d.Name.String,
+			CustomImageUrl:   d.CustomImageURL.String,
+			Region:           d.Region.String,
 			DeviceDefinition: NewDeviceDefinitionFromDatabase(d.R.DeviceDefinition),
 		})
 	}
@@ -105,6 +110,7 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		ID:                 ksuid.New().String(),
 		UserID:             userId,
 		DeviceDefinitionID: dd.ID,
+		Region:             null.StringFromPtr(reg.Region),
 	}
 	err = ud.Insert(c.Context(), tx, boil.Infer())
 	if err != nil {
@@ -136,6 +142,7 @@ type RegisterUserDevice struct {
 	Model              *string `json:"model"`
 	Year               *int    `json:"year"`
 	DeviceDefinitionId *string `json:"device_definition_id"`
+	Region             *string `json:"region"`
 }
 
 func (reg *RegisterUserDevice) validate() error {
@@ -154,4 +161,5 @@ type UserDeviceFull struct {
 	Name             string           `json:"name"`
 	CustomImageUrl   string           `json:"custom_image_url"`
 	DeviceDefinition DeviceDefinition `json:"device_definition"`
+	Region           string           `json:"region"`
 }
