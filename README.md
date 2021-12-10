@@ -121,4 +121,7 @@ https://devices-api.dimo.zone
 
 ### Generating swagger / openapi spec
 
-`swag init --generalInfo ./cmd/devices-api/main.go --parseInternal true --generatedTime true`
+```bash
+swag init --generalInfo ./cmd/devices-api/main.go --parseInternal true --generatedTime true
+```
+

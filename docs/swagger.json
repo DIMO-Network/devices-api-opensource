@@ -3,9 +3,8 @@
     "info": {
         "title": "DIMO Devices API",
         "contact": {},
-        "version": "1.0"
+        "version": "2.0"
     },
-    "host": "localhost:3000",
     "basePath": "/v1",
     "paths": {
         "/": {
@@ -32,6 +31,25 @@
                 }
             }
         },
+        "/device-definitions/all": {
+            "get": {
+                "description": "returns a json tree of Makes, models, and years",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device-definitions"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.DeviceMMYRoot"
+                        }
+                    }
+                }
+            }
+        },
         "/device-definitions/vin/{vin}": {
             "get": {
                 "description": "decodes a VIN by first looking it up on our DB, and then calling out to external sources. If it does call out, it will backfill our DB",
@@ -44,7 +62,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "VIN",
+                        "description": "VIN eg. 5YJ3E1EA6MF873863",
                         "name": "vin",
                         "in": "path",
                         "required": true
@@ -111,6 +129,45 @@
                 "vehicle_data": {
                     "description": "VehicleInfo will be empty if not a vehicle type",
                     "$ref": "#/definitions/services.DeviceVehicleInfo"
+                }
+            }
+        },
+        "controllers.DeviceMMYRoot": {
+            "type": "object",
+            "properties": {
+                "make": {
+                    "type": "string"
+                },
+                "models": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.DeviceModels"
+                    }
+                }
+            }
+        },
+        "controllers.DeviceModelYear": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "year": {
+                    "type": "integer"
+                }
+            }
+        },
+        "controllers.DeviceModels": {
+            "type": "object",
+            "properties": {
+                "model": {
+                    "type": "string"
+                },
+                "years": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.DeviceModelYear"
+                    }
                 }
             }
         },

@@ -47,6 +47,25 @@ var doc = `{
                 }
             }
         },
+        "/device-definitions/all": {
+            "get": {
+                "description": "returns a json tree of Makes, models, and years",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device-definitions"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.DeviceMMYRoot"
+                        }
+                    }
+                }
+            }
+        },
         "/device-definitions/vin/{vin}": {
             "get": {
                 "description": "decodes a VIN by first looking it up on our DB, and then calling out to external sources. If it does call out, it will backfill our DB",
@@ -59,7 +78,7 @@ var doc = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "VIN",
+                        "description": "VIN eg. 5YJ3E1EA6MF873863",
                         "name": "vin",
                         "in": "path",
                         "required": true
@@ -129,6 +148,45 @@ var doc = `{
                 }
             }
         },
+        "controllers.DeviceMMYRoot": {
+            "type": "object",
+            "properties": {
+                "make": {
+                    "type": "string"
+                },
+                "models": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.DeviceModels"
+                    }
+                }
+            }
+        },
+        "controllers.DeviceModelYear": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "year": {
+                    "type": "integer"
+                }
+            }
+        },
+        "controllers.DeviceModels": {
+            "type": "object",
+            "properties": {
+                "model": {
+                    "type": "string"
+                },
+                "years": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.DeviceModelYear"
+                    }
+                }
+            }
+        },
         "controllers.DeviceType": {
             "type": "object",
             "properties": {
@@ -194,8 +252,8 @@ type swaggerInfo struct {
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = swaggerInfo{
-	Version:     "1.0",
-	Host:        "localhost:3000",
+	Version:     "2.0",
+	Host:        "",
 	BasePath:    "/v1",
 	Schemes:     []string{},
 	Title:       "DIMO Devices API",

@@ -36,6 +36,31 @@ definitions:
         $ref: '#/definitions/services.DeviceVehicleInfo'
         description: VehicleInfo will be empty if not a vehicle type
     type: object
+  controllers.DeviceMMYRoot:
+    properties:
+      make:
+        type: string
+      models:
+        items:
+          $ref: '#/definitions/controllers.DeviceModels'
+        type: array
+    type: object
+  controllers.DeviceModelYear:
+    properties:
+      id:
+        type: string
+      year:
+        type: integer
+    type: object
+  controllers.DeviceModels:
+    properties:
+      model:
+        type: string
+      years:
+        items:
+          $ref: '#/definitions/controllers.DeviceModelYear'
+        type: array
+    type: object
   controllers.DeviceType:
     properties:
       make:
@@ -70,11 +95,10 @@ definitions:
         description: VehicleType PASSENGER CAR, from NHTSA
         type: string
     type: object
-host: localhost:3000
 info:
   contact: {}
   title: DIMO Devices API
-  version: "1.0"
+  version: "2.0"
 paths:
   /:
     get:
@@ -92,12 +116,24 @@ paths:
       summary: Show the status of server.
       tags:
       - root
+  /device-definitions/all:
+    get:
+      description: returns a json tree of Makes, models, and years
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.DeviceMMYRoot'
+      tags:
+      - device-definitions
   /device-definitions/vin/{vin}:
     get:
       description: decodes a VIN by first looking it up on our DB, and then calling
         out to external sources. If it does call out, it will backfill our DB
       parameters:
-      - description: VIN
+      - description: VIN eg. 5YJ3E1EA6MF873863
         in: path
         name: vin
         required: true

@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strconv"
@@ -39,7 +40,7 @@ func NewDevicesController(settings *config.Settings, dbs func() *database.DBRead
 // @Description decodes a VIN by first looking it up on our DB, and then calling out to external sources. If it does call out, it will backfill our DB
 // @Tags 	device-definitions
 // @Produce json
-// @Param 	vin path string true "VIN"
+// @Param 	vin path string true "VIN eg. 5YJ3E1EA6MF873863"
 // @Success 200 {object} controllers.DeviceDefinition
 // @Router  /device-definitions/vin/{vin} [get]
 func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
@@ -70,7 +71,7 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 				dbDevice.Verified = true
 				dbDevice.Source = null.StringFrom("NHTSA")
 
-				err = dbDevice.Insert(c.Context(), d.DBS().Writer, boil.Infer())
+				err = dbDevice.Insert(context.Background(), d.DBS().Writer, boil.Infer())
 				if err != nil {
 					d.log.Error().Err(err).Msg("error inserting device definition to db")
 				}
@@ -87,7 +88,12 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 	})
 }
 
-// GetAllDeviceMakeModelYears returns a json tree of Makes, models, and years
+// GetAllDeviceMakeModelYears godoc
+// @Description returns a json tree of Makes, models, and years
+// @Tags 	device-definitions
+// @Produce json
+// @Success 200 {object} controllers.DeviceMMYRoot
+// @Router  /device-definitions/all [get]
 func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
 	all, err := models.DeviceDefinitions(qm.Where("verified = true")).All(c.Context(), d.DBS().Reader)
 	if err != nil {
