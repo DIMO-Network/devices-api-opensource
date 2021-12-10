@@ -15,7 +15,7 @@ func errorResponseHandler(c *fiber.Ctx, err error, status int) error {
 	})
 }
 
-func getUserId(c *fiber.Ctx) string {
+func getUserID(c *fiber.Ctx) string {
 	token := c.Locals("user").(*jwt.Token)
 	claims := token.Claims.(jwt.MapClaims)
 	userID := claims["sub"].(string)

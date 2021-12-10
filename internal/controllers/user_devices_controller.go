@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"database/sql"
+
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
 	"github.com/DIMO-INC/devices-api/models"
@@ -38,8 +39,8 @@ func NewUserDevicesController(settings *config.Settings, dbs func() *database.DB
 // @Security BearerAuth
 // @Router  /user/devices/me [get]
 func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
-	userId := getUserId(c)
-	devices, err := models.UserDevices(qm.Where("user_id = ?", userId),
+	userID := getUserID(c)
+	devices, err := models.UserDevices(qm.Where("user_id = ?", userID),
 		qm.Load(models.UserDeviceRels.DeviceDefinition),
 		qm.Load("DeviceDefinition.DeviceIntegrations"),
 		qm.Load("DeviceDefinition.DeviceIntegrations.Integration"),
@@ -49,13 +50,13 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
-	var rp []UserDeviceFull
+	rp := make([]UserDeviceFull, len(devices))
 	for _, d := range devices {
 		rp = append(rp, UserDeviceFull{
 			ID:               d.ID,
 			VIN:              d.VinIdentifier.String,
 			Name:             d.Name.String,
-			CustomImageUrl:   d.CustomImageURL.String,
+			CustomImageURL:   d.CustomImageURL.String,
 			Region:           d.Region.String,
 			DeviceDefinition: NewDeviceDefinitionFromDatabase(d.R.DeviceDefinition),
 		})
@@ -77,7 +78,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 // @Security BearerAuth
 // @Router  /user/devices [post]
 func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
-	userId := getUserId(c)
+	userID := getUserID(c)
 	reg := &RegisterUserDevice{}
 	if err := c.BodyParser(reg); err != nil {
 		// Return status 400 and error message.
@@ -87,21 +88,21 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		return errorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
 	tx, err := udc.DBS().Writer.DB.BeginTx(c.Context(), nil)
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint
 	if err != nil {
 		return err
 	}
 	var dd *models.DeviceDefinition
-	if reg.DeviceDefinitionId != nil {
+	if reg.DeviceDefinitionID != nil {
 		// attach device def to user
-		dd, err = models.FindDeviceDefinition(c.Context(), tx, *reg.DeviceDefinitionId)
+		dd, err = models.FindDeviceDefinition(c.Context(), tx, *reg.DeviceDefinitionID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return errorResponseHandler(c, errors.Wrapf(err, "could not find device definition id: %s", *reg.DeviceDefinitionId), fiber.StatusBadRequest)
+				return errorResponseHandler(c, errors.Wrapf(err, "could not find device definition id: %s", *reg.DeviceDefinitionID), fiber.StatusBadRequest)
 			}
-			return errorResponseHandler(c, errors.Wrapf(err, "error querying for device definition id: %s", *reg.DeviceDefinitionId), fiber.StatusInternalServerError)
+			return errorResponseHandler(c, errors.Wrapf(err, "error querying for device definition id: %s", *reg.DeviceDefinitionID), fiber.StatusInternalServerError)
 		}
-		exists, err := models.UserDevices(qm.Where("user_id = ?", userId), qm.And("device_definition_id = ?", dd.ID)).Exists(c.Context(), tx)
+		exists, err := models.UserDevices(qm.Where("user_id = ?", userID), qm.And("device_definition_id = ?", dd.ID)).Exists(c.Context(), tx)
 		if err != nil {
 			return errorResponseHandler(c, errors.Wrap(err, "error checking duplicate user device"), fiber.StatusInternalServerError)
 		}
@@ -109,13 +110,13 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 			return errorResponseHandler(c, errors.Wrap(err, "user already has this device registered"), fiber.StatusBadRequest)
 		}
 	} else {
-		// since Definition does not exist, create one on the fly with userId as source and not verified
+		// since Definition does not exist, create one on the fly with userID as source and not verified
 		dd = &models.DeviceDefinition{
 			ID:     ksuid.New().String(),
 			Make:   *reg.Make,
 			Model:  *reg.Model,
 			Year:   int16(*reg.Year),
-			Source: null.StringFrom("userId:" + userId),
+			Source: null.StringFrom("userID:" + userID),
 		}
 		err = dd.Insert(c.Context(), tx, boil.Infer())
 		if err != nil {
@@ -125,7 +126,7 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	// register device for the user
 	ud := models.UserDevice{
 		ID:                 ksuid.New().String(),
-		UserID:             userId,
+		UserID:             userID,
 		DeviceDefinitionID: dd.ID,
 		Region:             null.StringFromPtr(reg.Region),
 	}
@@ -145,8 +146,8 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusCreated).JSON(
 		RegisterUserDeviceResponse{
-			UserDeviceId:            ud.ID,
-			DeviceDefinitionId:      dd.ID,
+			UserDeviceID:            ud.ID,
+			DeviceDefinitionID:      dd.ID,
 			IntegrationCapabilities: DeviceCompatibilityFromDB(deviceInts),
 		})
 }
@@ -159,22 +160,22 @@ type RegisterUserDevice struct {
 	Make               *string `json:"make"`
 	Model              *string `json:"model"`
 	Year               *int    `json:"year"`
-	DeviceDefinitionId *string `json:"device_definition_id"`
+	DeviceDefinitionID *string `json:"device_definition_id"`
 	Region             *string `json:"region"`
 }
 
 type RegisterUserDeviceResponse struct {
-	UserDeviceId            string                `json:"user_device_id"`
-	DeviceDefinitionId      string                `json:"device_definition_id"`
+	UserDeviceID            string                `json:"user_device_id"`
+	DeviceDefinitionID      string                `json:"device_definition_id"`
 	IntegrationCapabilities []DeviceCompatibility `json:"integration_capabilities"`
 }
 
 func (reg *RegisterUserDevice) validate() error {
 	return validation.ValidateStruct(reg,
-		validation.Field(&reg.Make, validation.When(reg.DeviceDefinitionId == nil, validation.Required)),
-		validation.Field(&reg.Model, validation.When(reg.DeviceDefinitionId == nil, validation.Required)),
-		validation.Field(&reg.Year, validation.When(reg.DeviceDefinitionId == nil, validation.Required)),
-		validation.Field(&reg.DeviceDefinitionId, validation.When(reg.Make == nil && reg.Model == nil && reg.Year == nil, validation.Required)),
+		validation.Field(&reg.Make, validation.When(reg.DeviceDefinitionID == nil, validation.Required)),
+		validation.Field(&reg.Model, validation.When(reg.DeviceDefinitionID == nil, validation.Required)),
+		validation.Field(&reg.Year, validation.When(reg.DeviceDefinitionID == nil, validation.Required)),
+		validation.Field(&reg.DeviceDefinitionID, validation.When(reg.Make == nil && reg.Model == nil && reg.Year == nil, validation.Required)),
 	)
 }
 
@@ -183,7 +184,7 @@ type UserDeviceFull struct {
 	ID               string           `json:"id"`
 	VIN              string           `json:"vin"`
 	Name             string           `json:"name"`
-	CustomImageUrl   string           `json:"custom_image_url"`
+	CustomImageURL   string           `json:"custom_image_url"`
 	DeviceDefinition DeviceDefinition `json:"device_definition"`
 	Region           string           `json:"region"`
 }

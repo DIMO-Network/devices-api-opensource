@@ -303,10 +303,10 @@ func NewDeviceDefinitionFromNHTSA(decodedVin *services.NHTSADecodeVINResponse) D
 
 // DeviceCompatibilityFromDB returns list of compatibility representation from device integrations db slice, assumes integration relation loaded
 func DeviceCompatibilityFromDB(dbDIS models.DeviceIntegrationSlice) []DeviceCompatibility {
-	var compatibilities []DeviceCompatibility
 	if len(dbDIS) == 0 {
-		return compatibilities
+		return []DeviceCompatibility{}
 	}
+	compatibilities := make([]DeviceCompatibility, len(dbDIS))
 	for _, di := range dbDIS {
 		compatibilities = append(compatibilities, DeviceCompatibility{
 			ID:           di.IntegrationID,

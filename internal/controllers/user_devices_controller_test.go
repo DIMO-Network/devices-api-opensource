@@ -37,11 +37,11 @@ func TestUserDevicesController(t *testing.T) {
 		}
 	}()
 
-	testUserId := "123123"
+	testUserID := "123123"
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger)
 	app := fiber.New()
-	app.Post("/user/devices", authInjectorTestHandler(testUserId), c.RegisterDeviceForUser)
-	app.Get("/user/devices/me", authInjectorTestHandler(testUserId), c.GetUserDevices)
+	app.Post("/user/devices", authInjectorTestHandler(testUserID), c.RegisterDeviceForUser)
+	app.Get("/user/devices/me", authInjectorTestHandler(testUserID), c.GetUserDevices)
 
 	t.Run("POST - register with device_definition_id", func(t *testing.T) {
 		ddID := "123"
@@ -55,7 +55,7 @@ func TestUserDevicesController(t *testing.T) {
 		err := dd.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 		assert.NoError(t, err, "database error")
 		reg := RegisterUserDevice{
-			DeviceDefinitionId: &ddID,
+			DeviceDefinitionID: &ddID,
 		}
 		j, _ := json.Marshal(reg)
 		request := buildRequest("POST", "/user/devices", string(j))
@@ -101,7 +101,7 @@ func TestUserDevicesController(t *testing.T) {
 	t.Run("POST - bad device_definition_id", func(t *testing.T) {
 		ddID := "caca"
 		reg := RegisterUserDevice{
-			DeviceDefinitionId: &ddID,
+			DeviceDefinitionID: &ddID,
 		}
 		j, _ := json.Marshal(reg)
 		request := buildRequest("POST", "/user/devices", string(j))

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	swagger "github.com/arsmn/fiber-swagger/v2"
 	"os"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/DIMO-INC/devices-api/internal/database"
 	"github.com/DIMO-INC/devices-api/internal/services"
 
+	swagger "github.com/arsmn/fiber-swagger/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/cors"

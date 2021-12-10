@@ -2,8 +2,6 @@ package controllers
 
 import (
 	"context"
-	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v4"
 	"log"
 	"net/http"
 	"strings"
@@ -13,6 +11,8 @@ import (
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
+	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/assert"
 )
@@ -70,10 +70,10 @@ func buildRequest(method, url, body string) *http.Request {
 }
 
 // authInjectorTestHandler injects fake jwt with sub
-func authInjectorTestHandler(userId string) fiber.Handler {
+func authInjectorTestHandler(userID string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-			"sub": userId,
+			"sub": userID,
 			"nbf": time.Now().Unix(),
 		})
 
