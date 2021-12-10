@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
 	"github.com/DIMO-INC/devices-api/models"
@@ -44,10 +45,10 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		// attach device def to user
 		dd, err = models.FindDeviceDefinition(c.Context(), tx, *reg.DeviceDefinitionId)
 		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return errorResponseHandler(c, errors.Wrapf(err, "could not find device definition id: %s", *reg.DeviceDefinitionId), fiber.StatusBadRequest)
+			}
 			return errorResponseHandler(c, errors.Wrapf(err, "error querying for device definition id: %s", *reg.DeviceDefinitionId), fiber.StatusInternalServerError)
-		}
-		if dd == nil {
-			return errorResponseHandler(c, errors.Wrapf(err, "could not find device definition id: %s", *reg.DeviceDefinitionId), fiber.StatusBadRequest)
 		}
 		exists, err := models.UserDevices(qm.Where("user_id = ?", userId), qm.And("device_definition_id = ?", dd.ID)).Exists(c.Context(), tx)
 		if err != nil {

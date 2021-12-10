@@ -46,11 +46,11 @@ func TestUserDevicesController(t *testing.T) {
 	t.Run("POST - register with device_definition_id", func(t *testing.T) {
 		ddID := "123"
 		dd := models.DeviceDefinition{
-			ID:         ddID,
-			Make:       "Tesla",
-			Model:      "Model X",
-			Year:       2020,
-			Verified:   true,
+			ID:       ddID,
+			Make:     "Tesla",
+			Model:    "Model X",
+			Year:     2020,
+			Verified: true,
 		}
 		err := dd.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 		assert.NoError(t, err, "database error")
@@ -58,7 +58,7 @@ func TestUserDevicesController(t *testing.T) {
 			DeviceDefinitionId: &ddID,
 		}
 		j, _ := json.Marshal(reg)
-		request := buildRequest("POST", "/user/devices",string(j))
+		request := buildRequest("POST", "/user/devices", string(j))
 		response, _ := app.Test(request)
 		body, _ := ioutil.ReadAll(response.Body)
 		// assert
@@ -73,12 +73,12 @@ func TestUserDevicesController(t *testing.T) {
 		model := "Model"
 		year := 2021
 		reg := RegisterUserDevice{
-			Make: &mk,
+			Make:  &mk,
 			Model: &model,
-			Year: &year,
+			Year:  &year,
 		}
 		j, _ := json.Marshal(reg)
-		request := buildRequest("POST", "/user/devices",string(j))
+		request := buildRequest("POST", "/user/devices", string(j))
 		response, _ := app.Test(request)
 		body, _ := ioutil.ReadAll(response.Body)
 		// assert
@@ -88,13 +88,26 @@ func TestUserDevicesController(t *testing.T) {
 		udi := gjson.Get(string(body), "user_device_id")
 		assert.True(t, udi.Exists(), "expected to find user_device_id")
 	})
-	t.Run("POST - bad payload", func(t *testing.T){
-		request := buildRequest("POST", "/user/devices","{}")
+	t.Run("POST - bad payload", func(t *testing.T) {
+		request := buildRequest("POST", "/user/devices", "{}")
 		response, _ := app.Test(request)
 		body, _ := ioutil.ReadAll(response.Body)
 		assert.Equal(t, fiber.StatusBadRequest, response.StatusCode)
-		msg := gjson.Get(string(body), "error_message")
-		assert.Contains(t, msg, "")
+		msg := gjson.Get(string(body), "error_message").String()
+		assert.Contains(t, msg, "cannot be blank")
+	})
+	t.Run("POST - bad device_definition_id", func(t *testing.T) {
+		ddID := "caca"
+		reg := RegisterUserDevice{
+			DeviceDefinitionId: &ddID,
+		}
+		j, _ := json.Marshal(reg)
+		request := buildRequest("POST", "/user/devices", string(j))
+		response, _ := app.Test(request)
+		body, _ := ioutil.ReadAll(response.Body)
+		assert.Equal(t, fiber.StatusBadRequest, response.StatusCode)
+		msg := gjson.Get(string(body), "error_message").String()
+		fmt.Println("message: " + msg)
+		assert.Contains(t, msg, "caca")
 	})
 }
-
