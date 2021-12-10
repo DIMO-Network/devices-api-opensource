@@ -307,15 +307,15 @@ func DeviceCompatibilityFromDB(dbDIS models.DeviceIntegrationSlice) []DeviceComp
 		return []DeviceCompatibility{}
 	}
 	compatibilities := make([]DeviceCompatibility, len(dbDIS))
-	for _, di := range dbDIS {
-		compatibilities = append(compatibilities, DeviceCompatibility{
+	for i, di := range dbDIS {
+		compatibilities[i] = DeviceCompatibility{
 			ID:           di.IntegrationID,
 			Type:         di.R.Integration.Type,
 			Style:        di.R.Integration.Style,
 			Vendor:       di.R.Integration.Vendors,
 			Country:      di.Country,
 			Capabilities: string(di.Capabilities.JSON),
-		})
+		}
 	}
 	return compatibilities
 }

@@ -46,20 +46,19 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		qm.Load("DeviceDefinition.DeviceIntegrations.Integration"),
 	).
 		All(c.Context(), udc.DBS().Reader)
-	//qm.Load("DeviceIntegrations.Integration")
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 	rp := make([]UserDeviceFull, len(devices))
-	for _, d := range devices {
-		rp = append(rp, UserDeviceFull{
+	for i, d := range devices {
+		rp[i] = UserDeviceFull{
 			ID:               d.ID,
 			VIN:              d.VinIdentifier.String,
 			Name:             d.Name.String,
 			CustomImageURL:   d.CustomImageURL.String,
 			Region:           d.CountryCode.String,
 			DeviceDefinition: NewDeviceDefinitionFromDatabase(d.R.DeviceDefinition),
-		})
+		}
 	}
 
 	return c.JSON(fiber.Map{
