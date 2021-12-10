@@ -1,0 +1,169 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "title": "DIMO Devices API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:3000",
+    "basePath": "/v1",
+    "paths": {
+        "/": {
+            "get": {
+                "description": "get the status of server.",
+                "consumes": [
+                    "*/*"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "root"
+                ],
+                "summary": "Show the status of server.",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/device-definitions/vin/{vin}": {
+            "get": {
+                "description": "decodes a VIN by first looking it up on our DB, and then calling out to external sources. If it does call out, it will backfill our DB",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device-definitions"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "VIN",
+                        "name": "vin",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.DeviceDefinition"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "controllers.DeviceCompatibility": {
+            "type": "object",
+            "properties": {
+                "capabilities": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "style": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "vendor": {
+                    "type": "string"
+                }
+            }
+        },
+        "controllers.DeviceDefinition": {
+            "type": "object",
+            "properties": {
+                "compatible_integrations": {
+                    "description": "CompatibleIntegrations has systems this vehicle can integrate with",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.DeviceCompatibility"
+                    }
+                },
+                "device_definition_id": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "metadata": {},
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/controllers.DeviceType"
+                },
+                "vehicle_data": {
+                    "description": "VehicleInfo will be empty if not a vehicle type",
+                    "$ref": "#/definitions/services.DeviceVehicleInfo"
+                }
+            }
+        },
+        "controllers.DeviceType": {
+            "type": "object",
+            "properties": {
+                "make": {
+                    "type": "string"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "sub_model": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "Type is eg. Vehicle, E-bike, roomba",
+                    "type": "string"
+                },
+                "year": {
+                    "type": "integer"
+                }
+            }
+        },
+        "services.DeviceVehicleInfo": {
+            "type": "object",
+            "properties": {
+                "base_msrp": {
+                    "type": "integer"
+                },
+                "driven_wheels": {
+                    "type": "string"
+                },
+                "epa_class": {
+                    "type": "string"
+                },
+                "fuel_type": {
+                    "type": "string"
+                },
+                "mpg_city": {
+                    "type": "string"
+                },
+                "mpg_highway": {
+                    "type": "string"
+                },
+                "number_of_doors": {
+                    "type": "string"
+                },
+                "vehicle_type": {
+                    "description": "VehicleType PASSENGER CAR, from NHTSA",
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

@@ -118,3 +118,7 @@ Some test VINs:
 Higher level env hosts:
 https://devices-api.dev.dimo.zone
 https://devices-api.dimo.zone
+
+### Generating swagger / openapi spec
+
+`swag init --generalInfo ./cmd/devices-api/main.go --parseInternal true --generatedTime true`

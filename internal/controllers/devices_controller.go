@@ -35,20 +35,13 @@ func NewDevicesController(settings *config.Settings, dbs func() *database.DBRead
 	}
 }
 
-// GetUsersDevices placeholder for endpoint to get devices that belong to a user TODO
-func (d *DevicesController) GetUsersDevices(c *fiber.Ctx) error {
-	ds := make([]DeviceRp, 0)
-	ds = append(ds, DeviceRp{
-		DeviceID: "123123",
-		Name:     "Johnny's Tesla",
-	})
-
-	return c.JSON(fiber.Map{
-		"devices": ds,
-	})
-}
-
-// LookupDeviceDefinitionByVIN decodes a VIN by first looking it up on our DB, and then calling out to external sources. If it does call out, it will backfill our DB
+// LookupDeviceDefinitionByVIN godoc
+// @Description decodes a VIN by first looking it up on our DB, and then calling out to external sources. If it does call out, it will backfill our DB
+// @Tags 	device-definitions
+// @Produce json
+// @Param 	vin path string true "VIN"
+// @Success 200 {object} controllers.DeviceDefinition
+// @Router  /device-definitions/vin/{vin} [get]
 func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 	vin := c.Params("vin")
 	if len(vin) != 17 {

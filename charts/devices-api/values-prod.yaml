@@ -22,6 +22,7 @@ env:
   DB_MAX_IDLE_CONNECTIONS: '3'
   SERVICE_NAME: devices-api
   JWT_KEY_SET_URL: https://auth.dimo.zone/dex/keys
+  SWAGGER_BASE_URL: https://devices-api.dimo.zone
 service:
   type: ClusterIP
   port: 8080

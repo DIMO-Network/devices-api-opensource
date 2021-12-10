@@ -1,0 +1,114 @@
+basePath: /v1
+definitions:
+  controllers.DeviceCompatibility:
+    properties:
+      capabilities:
+        type: string
+      country:
+        type: string
+      id:
+        type: string
+      style:
+        type: string
+      type:
+        type: string
+      vendor:
+        type: string
+    type: object
+  controllers.DeviceDefinition:
+    properties:
+      compatible_integrations:
+        description: CompatibleIntegrations has systems this vehicle can integrate
+          with
+        items:
+          $ref: '#/definitions/controllers.DeviceCompatibility'
+        type: array
+      device_definition_id:
+        type: string
+      image_url:
+        type: string
+      metadata: {}
+      name:
+        type: string
+      type:
+        $ref: '#/definitions/controllers.DeviceType'
+      vehicle_data:
+        $ref: '#/definitions/services.DeviceVehicleInfo'
+        description: VehicleInfo will be empty if not a vehicle type
+    type: object
+  controllers.DeviceType:
+    properties:
+      make:
+        type: string
+      model:
+        type: string
+      sub_model:
+        type: string
+      type:
+        description: Type is eg. Vehicle, E-bike, roomba
+        type: string
+      year:
+        type: integer
+    type: object
+  services.DeviceVehicleInfo:
+    properties:
+      base_msrp:
+        type: integer
+      driven_wheels:
+        type: string
+      epa_class:
+        type: string
+      fuel_type:
+        type: string
+      mpg_city:
+        type: string
+      mpg_highway:
+        type: string
+      number_of_doors:
+        type: string
+      vehicle_type:
+        description: VehicleType PASSENGER CAR, from NHTSA
+        type: string
+    type: object
+host: localhost:3000
+info:
+  contact: {}
+  title: DIMO Devices API
+  version: "1.0"
+paths:
+  /:
+    get:
+      consumes:
+      - '*/*'
+      description: get the status of server.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Show the status of server.
+      tags:
+      - root
+  /device-definitions/vin/{vin}:
+    get:
+      description: decodes a VIN by first looking it up on our DB, and then calling
+        out to external sources. If it does call out, it will backfill our DB
+      parameters:
+      - description: VIN
+        in: path
+        name: vin
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.DeviceDefinition'
+      tags:
+      - device-definitions
+swagger: "2.0"

@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	swagger "github.com/arsmn/fiber-swagger/v2"
 	"os"
 	"time"
 
+	_ "github.com/DIMO-INC/devices-api/docs"
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/controllers"
 	"github.com/DIMO-INC/devices-api/internal/database"
@@ -19,6 +21,10 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// @title     DIMO Devices API
+// @version   1.0
+// @host      localhost:3000
+// @BasePath  /v1
 func main() {
 	gitSha1 := os.Getenv("GIT_SHA1")
 	ctx := context.Background()
@@ -81,9 +87,19 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1.Get("/device-definitions/:id/integrations", deviceControllers.GetIntegrationsByID)
 	// secured paths
 	jwtAuth := jwtware.New(jwtware.Config{KeySetURL: settings.JwtKeySetURL})
-	v1.Get("/user/devices/me", jwtAuth,  userDeviceControllers.GetUserDevices)
+	v1.Get("/user/devices/me", jwtAuth, userDeviceControllers.GetUserDevices)
 	v1.Post("/user/devices", jwtAuth, userDeviceControllers.RegisterDeviceForUser)
 	v1.Post("/user/devices/:id/integrations/smartcar", jwtAuth, userDeviceControllers.RegisterSmartCarIntegration)
+
+	// swagger - note could add auth middleware so it is not open
+	sc := swagger.Config{ // custom
+		// Expand ("list") or Collapse ("none") tag groups by default
+		DocExpansion: "list",
+	}
+	if len(settings.SwaggerBaseURL) > 0 {
+		sc.URL = settings.SwaggerBaseURL
+	}
+	v1.Get("/swagger/*", swagger.New(sc))
 
 	logger.Info().Msg("Server started on port " + settings.Port)
 	// Start Server
