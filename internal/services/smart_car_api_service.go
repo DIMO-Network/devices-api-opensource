@@ -54,7 +54,7 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 	// future: loop for each other country .EU .CA - difference is in integration capability but MMY may be the same.
 	for _, usData := range data.Result.Data.AllMakesTable.Edges[0].Node.CompatibilityData.US {
 		vehicleMake := usData.Name
-		if strings.Contains(vehicleMake, "Nissan") || strings.Contains(vehicleMake, "Hyundai") {
+		if strings.Contains(vehicleMake, "Nissan") || strings.Contains(vehicleMake, "Hyundai") || strings.Contains(vehicleMake, "All makes") {
 			continue // skip if nissan or hyundai b/c not really supported
 		}
 
@@ -117,12 +117,12 @@ func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, 
 
 	// db operation, note we are not setting vin
 	dbDeviceDef := models.DeviceDefinition{
-		ID:    ksuid.New().String(),
-		Make:  make,
-		Model: model,
-		Year:  int16(year),
+		ID:       ksuid.New().String(),
+		Make:     make,
+		Model:    model,
+		Year:     int16(year),
 		Verified: true,
-		Source: null.StringFrom("SmartCar"),
+		Source:   null.StringFrom("SmartCar"),
 	}
 	err := dbDeviceDef.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dvi})
 	if err != nil {
