@@ -11,7 +11,7 @@ CREATE TABLE user_devices
     vin_identifier text,
     name text, -- name the user can give
     custom_image_url text,
-    region text,
+    country_code char(3),
 
     created_at           timestamptz not null default current_timestamp,
     updated_at           timestamptz not null default current_timestamp,
@@ -28,5 +28,7 @@ alter table device_definitions add column verified boolean not null DEFAULT true
 -- +goose Down
 -- +goose StatementBegin
 SELECT 'down SQL query';
-drop table user_devices;
+drop table devices_api.user_devices;
+alter table devices_api.device_definitions drop column source;
+alter table devices_api.device_definitions drop column verified;
 -- +goose StatementEnd

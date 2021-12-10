@@ -57,7 +57,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 			VIN:              d.VinIdentifier.String,
 			Name:             d.Name.String,
 			CustomImageURL:   d.CustomImageURL.String,
-			Region:           d.Region.String,
+			Region:           d.CountryCode.String,
 			DeviceDefinition: NewDeviceDefinitionFromDatabase(d.R.DeviceDefinition),
 		})
 	}
@@ -128,7 +128,7 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		ID:                 ksuid.New().String(),
 		UserID:             userID,
 		DeviceDefinitionID: dd.ID,
-		Region:             null.StringFromPtr(reg.Region),
+		CountryCode:        null.StringFromPtr(reg.CountryCode),
 	}
 	err = ud.Insert(c.Context(), tx, boil.Infer())
 	if err != nil {
@@ -161,7 +161,7 @@ type RegisterUserDevice struct {
 	Model              *string `json:"model"`
 	Year               *int    `json:"year"`
 	DeviceDefinitionID *string `json:"device_definition_id"`
-	Region             *string `json:"region"`
+	CountryCode        *string `json:"region"`
 }
 
 type RegisterUserDeviceResponse struct {

@@ -48,10 +48,10 @@ func setupDatabase(ctx context.Context, t *testing.T, migrationsDirRelPath strin
 		SET search_path = devices_api, public;
 		ALTER USER postgres SET search_path = devices_api, public;
 		`)
-	assert.Nil(t, err, "did not expect error connecting and executing query to DB")
-	if err := goose.Run("up", pdb.DBS().Writer.DB, migrationsDirRelPath); err != nil {
+	assert.Nil(t, err, "did not expect error connecting and executing query to embedded DB for schema stuff")
+	if err := goose.Run("up", pdb.DBS().Writer.DB, migrationsDirRelPath, "-table devices_api.migrations"); err != nil {
 		_ = edb.Stop()
-		log.Fatalf("failed to apply go code migrations: %v\n", err)
+		log.Fatalf("failed to apply goose migrations for test: %v\n", err)
 	}
 
 	return pdb, edb

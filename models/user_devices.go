@@ -30,7 +30,7 @@ type UserDevice struct {
 	VinIdentifier      null.String `boil:"vin_identifier" json:"vin_identifier,omitempty" toml:"vin_identifier" yaml:"vin_identifier,omitempty"`
 	Name               null.String `boil:"name" json:"name,omitempty" toml:"name" yaml:"name,omitempty"`
 	CustomImageURL     null.String `boil:"custom_image_url" json:"custom_image_url,omitempty" toml:"custom_image_url" yaml:"custom_image_url,omitempty"`
-	Region             null.String `boil:"region" json:"region,omitempty" toml:"region" yaml:"region,omitempty"`
+	CountryCode        null.String `boil:"country_code" json:"country_code,omitempty" toml:"country_code" yaml:"country_code,omitempty"`
 	CreatedAt          time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt          time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 
@@ -45,7 +45,7 @@ var UserDeviceColumns = struct {
 	VinIdentifier      string
 	Name               string
 	CustomImageURL     string
-	Region             string
+	CountryCode        string
 	CreatedAt          string
 	UpdatedAt          string
 }{
@@ -55,7 +55,7 @@ var UserDeviceColumns = struct {
 	VinIdentifier:      "vin_identifier",
 	Name:               "name",
 	CustomImageURL:     "custom_image_url",
-	Region:             "region",
+	CountryCode:        "country_code",
 	CreatedAt:          "created_at",
 	UpdatedAt:          "updated_at",
 }
@@ -67,7 +67,7 @@ var UserDeviceTableColumns = struct {
 	VinIdentifier      string
 	Name               string
 	CustomImageURL     string
-	Region             string
+	CountryCode        string
 	CreatedAt          string
 	UpdatedAt          string
 }{
@@ -77,7 +77,7 @@ var UserDeviceTableColumns = struct {
 	VinIdentifier:      "user_devices.vin_identifier",
 	Name:               "user_devices.name",
 	CustomImageURL:     "user_devices.custom_image_url",
-	Region:             "user_devices.region",
+	CountryCode:        "user_devices.country_code",
 	CreatedAt:          "user_devices.created_at",
 	UpdatedAt:          "user_devices.updated_at",
 }
@@ -91,7 +91,7 @@ var UserDeviceWhere = struct {
 	VinIdentifier      whereHelpernull_String
 	Name               whereHelpernull_String
 	CustomImageURL     whereHelpernull_String
-	Region             whereHelpernull_String
+	CountryCode        whereHelpernull_String
 	CreatedAt          whereHelpertime_Time
 	UpdatedAt          whereHelpertime_Time
 }{
@@ -101,7 +101,7 @@ var UserDeviceWhere = struct {
 	VinIdentifier:      whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"vin_identifier\""},
 	Name:               whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"name\""},
 	CustomImageURL:     whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"custom_image_url\""},
-	Region:             whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"region\""},
+	CountryCode:        whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"country_code\""},
 	CreatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"user_devices\".\"created_at\""},
 	UpdatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"user_devices\".\"updated_at\""},
 }
@@ -127,8 +127,8 @@ func (*userDeviceR) NewStruct() *userDeviceR {
 type userDeviceL struct{}
 
 var (
-	userDeviceAllColumns            = []string{"id", "user_id", "device_definition_id", "vin_identifier", "name", "custom_image_url", "region", "created_at", "updated_at"}
-	userDeviceColumnsWithoutDefault = []string{"id", "user_id", "device_definition_id", "vin_identifier", "name", "custom_image_url", "region"}
+	userDeviceAllColumns            = []string{"id", "user_id", "device_definition_id", "vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at"}
+	userDeviceColumnsWithoutDefault = []string{"id", "user_id", "device_definition_id", "vin_identifier", "name", "custom_image_url", "country_code"}
 	userDeviceColumnsWithDefault    = []string{"created_at", "updated_at"}
 	userDevicePrimaryKeyColumns     = []string{"id"}
 )

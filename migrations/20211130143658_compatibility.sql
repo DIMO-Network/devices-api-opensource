@@ -44,6 +44,7 @@ CREATE TABLE device_integrations
 -- +goose Down
 -- +goose StatementBegin
 SELECT 'down SQL query';
+SET search_path = devices_api, public;
 
 DROP TABLE integrations;
 DROP TABLE device_integrations
