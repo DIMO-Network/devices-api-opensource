@@ -6,4 +6,6 @@ metadata:
   labels:
     {{- include "devices-api.labels" . | nindent 4 }}
 data:
-{{ toYaml .Values.env | indent 2 }}
+{{- range $key, $val := .Values.env }}
+  {{ $key }} : {{ $val | quote}}
+{{- end}}
