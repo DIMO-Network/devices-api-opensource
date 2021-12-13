@@ -106,7 +106,7 @@ curl http://localhost:3000/v1/user/devices/me
 curl -X POST http://localhost:3000/v1/user/devices
    -H 'Content-Type: application/json'
    -H "Authorization: Bearer {token}"
-   -d '{"device_definition_id":"{existing device def if}"}'
+   -d '{"device_definition_id":"{existing device def id}"}'
 ```
 
 To prettify json, pipe to json_pp: `| json_pp`

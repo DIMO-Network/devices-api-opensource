@@ -204,7 +204,7 @@ func TestNewDbModelFromDeviceDefinition(t *testing.T) {
 		},
 	}
 	vin := "1231231"
-	dbDevice := NewDbModelFromDeviceDefinition(dd, &vin)
+	dbDevice := NewDbModelFromDeviceDefinition(dd, &vin, nil)
 
 	assert.Equal(t, vin, dbDevice.VinFirst10.String)
 	assert.Equal(t, "R500", dbDevice.Model)

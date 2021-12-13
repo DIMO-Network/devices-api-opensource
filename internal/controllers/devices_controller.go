@@ -67,7 +67,8 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 			rp := NewDeviceDefinitionFromNHTSA(decodedVIN)
 			// save to database, if error just log do not block, execute in go func routine to not block
 			go func() {
-				dbDevice := NewDbModelFromDeviceDefinition(rp, &squishVin)
+				src := "NHTSA"
+				dbDevice := NewDbModelFromDeviceDefinition(rp, &squishVin, &src)
 				dbDevice.Verified = true
 				dbDevice.Source = null.StringFrom("NHTSA")
 
@@ -260,8 +261,8 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 	return rp
 }
 
-// NewDbModelFromDeviceDefinition converts a DeviceDefinition response object to a new database model for the given squishVin
-func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin *string) *models.DeviceDefinition {
+// NewDbModelFromDeviceDefinition converts a DeviceDefinition response object to a new database model for the given squishVin. source is NHTSA, edmunds, smartcar, etc
+func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin *string, source *string) *models.DeviceDefinition {
 	dbDevice := models.DeviceDefinition{
 		ID:         ksuid.New().String(),
 		VinFirst10: null.StringFromPtr(squishVin),
@@ -269,6 +270,8 @@ func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin *string) *mod
 		Model:      dd.Type.Model,
 		Year:       int16(dd.Type.Year),
 		SubModel:   null.StringFrom(dd.Type.SubModel),
+		Verified:   true,
+		Source:     null.StringFromPtr(source),
 	}
 	_ = dbDevice.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dd.VehicleInfo})
 

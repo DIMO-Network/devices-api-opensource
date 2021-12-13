@@ -56,7 +56,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 			VIN:              d.VinIdentifier.String,
 			Name:             d.Name.String,
 			CustomImageURL:   d.CustomImageURL.String,
-			Region:           d.CountryCode.String,
+			CountryCode:      d.CountryCode.String,
 			DeviceDefinition: NewDeviceDefinitionFromDatabase(d.R.DeviceDefinition),
 		}
 	}
@@ -111,11 +111,12 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	} else {
 		// since Definition does not exist, create one on the fly with userID as source and not verified
 		dd = &models.DeviceDefinition{
-			ID:     ksuid.New().String(),
-			Make:   *reg.Make,
-			Model:  *reg.Model,
-			Year:   int16(*reg.Year),
-			Source: null.StringFrom("userID:" + userID),
+			ID:       ksuid.New().String(),
+			Make:     *reg.Make,
+			Model:    *reg.Model,
+			Year:     int16(*reg.Year),
+			Source:   null.StringFrom("userID:" + userID),
+			Verified: false,
 		}
 		err = dd.Insert(c.Context(), tx, boil.Infer())
 		if err != nil {
@@ -175,6 +176,7 @@ func (reg *RegisterUserDevice) validate() error {
 		validation.Field(&reg.Model, validation.When(reg.DeviceDefinitionID == nil, validation.Required)),
 		validation.Field(&reg.Year, validation.When(reg.DeviceDefinitionID == nil, validation.Required)),
 		validation.Field(&reg.DeviceDefinitionID, validation.When(reg.Make == nil && reg.Model == nil && reg.Year == nil, validation.Required)),
+		validation.Field(&reg.CountryCode, validation.When(reg.CountryCode != nil, validation.Length(3, 3))),
 	)
 }
 
@@ -185,5 +187,5 @@ type UserDeviceFull struct {
 	Name             string           `json:"name"`
 	CustomImageURL   string           `json:"custom_image_url"`
 	DeviceDefinition DeviceDefinition `json:"device_definition"`
-	Region           string           `json:"region"`
+	CountryCode      string           `json:"country_code"`
 }

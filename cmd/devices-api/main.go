@@ -43,6 +43,7 @@ func main() {
 	}
 	pdb := database.NewDbConnectionFromSettings(ctx, settings)
 
+	// todo: use flag or other package to handle args
 	arg := ""
 	if len(os.Args) > 1 {
 		arg = os.Args[1]

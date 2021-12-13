@@ -21,7 +21,7 @@ CREATE TABLE user_devices
 );
 
 alter table device_definitions add column source text; -- where the information came from
-alter table device_definitions add column verified boolean not null DEFAULT true; -- whether this info has been verified and should show up in our endpoints outward
+alter table device_definitions add column verified boolean not null DEFAULT false; -- whether this info has been verified and should show up in our endpoints outward
 
 -- +goose StatementEnd
 
