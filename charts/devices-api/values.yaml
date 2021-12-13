@@ -1,8 +1,13 @@
 replicaCount: 1
 image:
   repository: dimozone/devices-api
+<<<<<<< HEAD
   pullPolicy: Always
   tag: 7af1b3d
+=======
+  pullPolicy: IfNotPresent
+  tag: d9a69ab
+>>>>>>> 017cefd (Updating devices-api pull policy)
 imagePullSecrets: []
 nameOverride: ''
 fullnameOverride: ''
