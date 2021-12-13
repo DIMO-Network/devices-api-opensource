@@ -21,7 +21,8 @@ env:
   DB_MAX_OPEN_CONNECTIONS: '10'
   DB_MAX_IDLE_CONNECTIONS: '3'
   SERVICE_NAME: devices-api
-  JWT_KEY_SET_URL: https://auth.dimo.zone/dex/keys
+  JWT_KEY_SET_URL: https://auth.dimo.zone/keys
+  SWAGGER_BASE_URL: https://devices-api.dimo.zone
 service:
   type: ClusterIP
   port: 8080
@@ -29,10 +30,12 @@ ingress:
   enabled: true
   className: nginx
   annotations:
+    nginx.ingress.kubernetes.io/enable-modsecurity: "true"
+    nginx.ingress.kubernetes.io/enable-owasp-core-rules: "true"
     nginx.ingress.kubernetes.io/auth-tls-secret: ingress/cf-origin-ca
-    nginx.ingress.kubernetes.io/auth-tls-verify-client: 'on'
-    nginx.ingress.kubernetes.io/enable-cors: 'true'
-    nginx.ingress.kubernetes.io/cors-allow-origin: https://devices-api.dimo.zone
+    nginx.ingress.kubernetes.io/auth-tls-verify-client: "on"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://devices-api.dimo.zone, https://app.dimo.zone, https://app.p.dimo.zone"
     external-dns.alpha.kubernetes.io/hostname: devices-api.dimo.zone
   hosts:
     - host: devices-api.dimo.zone
