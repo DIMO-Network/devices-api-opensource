@@ -2,7 +2,7 @@ replicaCount: 1
 image:
   repository: dimozone/devices-api
   pullPolicy: IfNotPresent
-  tag: ac6b232
+  tag: 9f3621b
 imagePullSecrets: []
 nameOverride: ''
 fullnameOverride: ''
@@ -43,7 +43,7 @@ ingress:
         - path: /
           pathType: ImplementationSpecific
   tls: []
-resources: 
+resources:
   limits:
     cpu: 250m
     memory: 256Mi
