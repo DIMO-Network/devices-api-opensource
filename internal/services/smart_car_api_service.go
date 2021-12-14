@@ -215,7 +215,7 @@ func (s *SmartCarService) getOrCreateSmartCarIntegration(ctx context.Context) (s
 		smartCarStyle  = models.IntegrationStyleWebhook
 	)
 	integration, err := models.Integrations(qm.Where("type = ?", smartCarType),
-		qm.And("vendors = ?", smartCarVendor),
+		qm.And("vendor = ?", smartCarVendor),
 		qm.And("style = ?", smartCarStyle)).One(ctx, s.DBS().Writer)
 
 	if err != nil {
