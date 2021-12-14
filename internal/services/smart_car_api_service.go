@@ -59,9 +59,9 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 		}
 
 		for _, row := range usData.Rows {
-			vehicleModel := null.StringFromPtr(row[0].Text).String
-			years := row[0].Subtext                                      // eg. 2017+ or 2012-2017
-			vehicleType := null.StringFromPtr(row[1].VehicleType).String // ICE, PHEV, BEV
+			vehicleModel := strings.ToUpper(null.StringFromPtr(row[0].Text).String)
+			years := row[0].Subtext                                                       // eg. 2017+ or 2012-2017
+			vehicleType := strings.ToUpper(null.StringFromPtr(row[1].VehicleType).String) // ICE, PHEV, BEV
 
 			ic := IntegrationCapabilities{
 				Location:          getCapability("Location", usData.Headers, row),
@@ -118,8 +118,8 @@ func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, 
 	// db operation, note we are not setting vin
 	dbDeviceDef := models.DeviceDefinition{
 		ID:       ksuid.New().String(),
-		Make:     make,
-		Model:    model,
+		Make:     strings.ToUpper(make),
+		Model:    strings.ToUpper(model),
 		Year:     int16(year),
 		Verified: true,
 		Source:   null.StringFrom("SmartCar"),
@@ -138,7 +138,7 @@ func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, 
 		IntegrationID:      integrationID,
 		DeviceDefinitionID: dbDeviceDef.ID,
 		Capabilities:       null.JSONFrom(icJSON),
-		Country:            integrationCountry,
+		Country:            strings.ToLower(integrationCountry),
 	}
 	return deviceIntegration.Insert(ctx, tx, boil.Infer())
 }
@@ -239,9 +239,9 @@ func (s *SmartCarService) getOrCreateSmartCarIntegration(ctx context.Context) (s
 
 func smartCarVehicleTypeToNhtsaFuelType(vehicleType string) string {
 	if vehicleType == "BEV" {
-		return "electric"
+		return "ELECTRIC"
 	}
-	return "gasoline"
+	return "GASOLINE"
 }
 
 // getSmartCarVehicleData gets all smartcar data on compatibility from their website

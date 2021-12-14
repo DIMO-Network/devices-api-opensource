@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -57,10 +58,11 @@ type NHTSADecodeVINResponse struct {
 	} `json:"Results"`
 }
 
+// LookupValue looks up value in nhtsa object, and uppercase the resulting value
 func (n *NHTSADecodeVINResponse) LookupValue(variableName string) string {
 	for _, result := range n.Results {
 		if result.Variable == variableName {
-			return result.Value
+			return strings.ToUpper(result.Value)
 		}
 	}
 	return ""
