@@ -46,8 +46,8 @@ CREATE TABLE device_integrations
 SELECT 'down SQL query';
 SET search_path = devices_api, public;
 
+DROP TABLE device_integrations;
 DROP TABLE integrations;
-DROP TABLE device_integrations
 DROP TYPE integration_style;
 DROP TYPE integration_type;
 -- +goose StatementEnd
