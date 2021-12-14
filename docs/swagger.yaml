@@ -101,6 +101,8 @@ definitions:
     type: object
   controllers.UserDeviceFull:
     properties:
+      country_code:
+        type: string
       custom_image_url:
         type: string
       device_definition:
@@ -108,8 +110,6 @@ definitions:
       id:
         type: string
       name:
-        type: string
-      region:
         type: string
       vin:
         type: string
@@ -155,6 +155,24 @@ paths:
       summary: Show the status of server.
       tags:
       - root
+  /device-definitions:
+    get:
+      description: gets a specific device definition by make model and year
+      parameters:
+      - description: make
+        in: query
+        name: make
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.DeviceDefinition'
+      tags:
+      - device-definitions
   /device-definitions/{id}:
     get:
       description: gets a specific device definition by id

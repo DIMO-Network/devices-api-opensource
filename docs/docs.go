@@ -47,6 +47,34 @@ var doc = `{
                 }
             }
         },
+        "/device-definitions": {
+            "get": {
+                "description": "gets a specific device definition by make model and year",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device-definitions"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "make",
+                        "name": "make",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.DeviceDefinition"
+                        }
+                    }
+                }
+            }
+        },
         "/device-definitions/all": {
             "get": {
                 "description": "returns a json tree of Makes, models, and years",
@@ -378,6 +406,9 @@ var doc = `{
         "controllers.UserDeviceFull": {
             "type": "object",
             "properties": {
+                "country_code": {
+                    "type": "string"
+                },
                 "custom_image_url": {
                     "type": "string"
                 },
@@ -388,9 +419,6 @@ var doc = `{
                     "type": "string"
                 },
                 "name": {
-                    "type": "string"
-                },
-                "region": {
                     "type": "string"
                 },
                 "vin": {
