@@ -14,6 +14,7 @@ import (
 	"github.com/golang/mock/gomock"
 	_ "github.com/lib/pq"
 	"github.com/rs/zerolog"
+	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
 	"github.com/volatiletech/sqlboiler/v4/boil"
@@ -43,8 +44,9 @@ func TestUserDevicesController(t *testing.T) {
 	app.Post("/user/devices", authInjectorTestHandler(testUserID), c.RegisterDeviceForUser)
 	app.Get("/user/devices/me", authInjectorTestHandler(testUserID), c.GetUserDevices)
 
-	t.Run("POST - register with device_definition_id", func(t *testing.T) {
-		ddID := "123"
+	t.Run("POST - register with existing device_definition_id", func(t *testing.T) {
+		// arrange DB
+		ddID := ksuid.New().String()
 		dd := models.DeviceDefinition{
 			ID:       ddID,
 			Make:     "Tesla",
@@ -54,8 +56,26 @@ func TestUserDevicesController(t *testing.T) {
 		}
 		err := dd.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 		assert.NoError(t, err, "database error")
+		integration := models.Integration{
+			ID:     ksuid.New().String(),
+			Type:   models.IntegrationTypeAPI,
+			Style:  models.IntegrationStyleWebhook,
+			Vendor: "SmartCar",
+		}
+		err = integration.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+		assert.NoError(t, err, "database error")
+		deviceInt := models.DeviceIntegration{
+			DeviceDefinitionID: ddID,
+			IntegrationID:      integration.ID,
+			Country:            "USA",
+		}
+		err = deviceInt.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+		assert.NoError(t, err, "database error")
+		// act request
+		cc := "USA"
 		reg := RegisterUserDevice{
 			DeviceDefinitionID: &ddID,
+			CountryCode:        &cc,
 		}
 		j, _ := json.Marshal(reg)
 		request := buildRequest("POST", "/user/devices", string(j))
@@ -65,9 +85,17 @@ func TestUserDevicesController(t *testing.T) {
 		if assert.Equal(t, fiber.StatusCreated, response.StatusCode) == false {
 			fmt.Println("message: " + string(body))
 		}
-		udi := gjson.Get(string(body), "user_device_id")
-		fmt.Println("DDI user_device_id created: " + udi.String())
-		assert.True(t, udi.Exists(), "expected to find user_device_id")
+		regUserResp := RegisterUserDeviceResponse{}
+		_ = json.Unmarshal(body, &regUserResp)
+		assert.Len(t, regUserResp.UserDeviceID, 27)
+		assert.Len(t, regUserResp.DeviceDefinitionID, 27)
+		assert.Equal(t, ddID, regUserResp.DeviceDefinitionID)
+		if assert.Len(t, regUserResp.IntegrationCapabilities, 1) == false {
+			fmt.Println("resp body: " + string(body))
+		}
+		assert.Equal(t, integration.Vendor, regUserResp.IntegrationCapabilities[0].Vendor)
+		assert.Equal(t, integration.Type, regUserResp.IntegrationCapabilities[0].Type)
+		assert.Equal(t, integration.ID, regUserResp.IntegrationCapabilities[0].ID)
 	})
 	t.Run("POST - register with MMY", func(t *testing.T) {
 		mk := "Tesla"

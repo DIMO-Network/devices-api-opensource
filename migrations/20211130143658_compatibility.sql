@@ -18,7 +18,7 @@ CREATE TABLE integrations
     id         char(27) PRIMARY KEY, -- ksuid
     type       integration_type  not null,
     style      integration_style not null,
-    vendors    varchar(50)       not null,
+    vendor    varchar(50)       not null,
 
     created_at timestamptz       not null default current_timestamp,
     updated_at timestamptz       not null default current_timestamp
@@ -28,7 +28,7 @@ CREATE TABLE device_integrations
 (
     device_definition_id char(27)    not null,
     integration_id       char(27)    not null,
-    country              char(2),
+    country              char(3),
     capabilities         jsonb,
 
     created_at           timestamptz not null default current_timestamp,

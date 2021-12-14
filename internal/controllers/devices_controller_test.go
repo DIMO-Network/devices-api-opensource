@@ -165,10 +165,10 @@ func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
 	}
 	di.R = di.R.NewStruct()
 	di.R.Integration = &models.Integration{
-		ID:      "123",
-		Type:    "Hardware",
-		Style:   "Addon",
-		Vendors: "Autopi",
+		ID:     "123",
+		Type:   "Hardware",
+		Style:  "Addon",
+		Vendor: "Autopi",
 	}
 	dbDevice.R = dbDevice.R.NewStruct()
 	dbDevice.R.DeviceIntegrations = append(dbDevice.R.DeviceIntegrations, &di)

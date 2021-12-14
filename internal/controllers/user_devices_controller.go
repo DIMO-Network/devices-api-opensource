@@ -135,7 +135,9 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		return errorResponseHandler(c, errors.Wrapf(err, "could not create user device for def_id: %s", dd.ID), fiber.StatusInternalServerError)
 	}
 	// get device integrations to return in payload - helps frontend
-	deviceInts, err := models.DeviceIntegrations(qm.Load(models.DeviceIntegrationRels.Integration), qm.Where("device_definition_id = ?", dd.ID)).All(c.Context(), tx)
+	deviceInts, err := models.DeviceIntegrations(qm.Load(models.DeviceIntegrationRels.Integration),
+		qm.Where("device_definition_id = ?", dd.ID)).
+		All(c.Context(), tx)
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}

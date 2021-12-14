@@ -195,7 +195,7 @@ func (d *DevicesController) GetIntegrationsByID(c *fiber.Ctx) error {
 				ID:           di.R.Integration.ID,
 				Type:         di.R.Integration.Type,
 				Style:        di.R.Integration.Style,
-				Vendor:       di.R.Integration.Vendors,
+				Vendor:       di.R.Integration.Vendor,
 				Country:      di.Country,
 				Capabilities: string(di.Capabilities.JSON),
 			})
@@ -252,7 +252,7 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 				ID:      di.R.Integration.ID,
 				Type:    di.R.Integration.Type,
 				Style:   di.R.Integration.Style,
-				Vendor:  di.R.Integration.Vendors,
+				Vendor:  di.R.Integration.Vendor,
 				Country: di.Country,
 			})
 		}
@@ -315,7 +315,7 @@ func DeviceCompatibilityFromDB(dbDIS models.DeviceIntegrationSlice) []DeviceComp
 			ID:           di.IntegrationID,
 			Type:         di.R.Integration.Type,
 			Style:        di.R.Integration.Style,
-			Vendor:       di.R.Integration.Vendors,
+			Vendor:       di.R.Integration.Vendor,
 			Country:      di.Country,
 			Capabilities: string(di.Capabilities.JSON),
 		}

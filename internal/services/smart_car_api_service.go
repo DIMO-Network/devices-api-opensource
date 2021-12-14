@@ -223,7 +223,7 @@ func (s *SmartCarService) getOrCreateSmartCarIntegration(ctx context.Context) (s
 			// create
 			integration = &models.Integration{}
 			integration.ID = ksuid.New().String()
-			integration.Vendors = smartCarVendor
+			integration.Vendor = smartCarVendor
 			integration.Type = smartCarType
 			integration.Style = smartCarStyle
 			err = integration.Insert(ctx, s.DBS().Writer, boil.Infer())
