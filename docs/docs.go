@@ -47,6 +47,46 @@ var doc = `{
                 }
             }
         },
+        "/admin/user/:user_id/devices": {
+            "post": {
+                "description": "meant for internal admin use - adds a device to a user. can add with only device_definition_id or with MMY, which will create a device_definition on the fly",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user-devices"
+                ],
+                "parameters": [
+                    {
+                        "description": "add device to user. either MMY or id are required",
+                        "name": "user_device",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.AdminRegisterUserDevice"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "user id",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.RegisterUserDeviceResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/device-definitions": {
             "get": {
                 "description": "gets a specific device definition by make model and year",
@@ -230,8 +270,8 @@ var doc = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "201": {
+                        "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/controllers.RegisterUserDeviceResponse"
                         }
@@ -268,6 +308,42 @@ var doc = `{
         }
     },
     "definitions": {
+        "controllers.AdminRegisterUserDevice": {
+            "type": "object",
+            "properties": {
+                "country_code": {
+                    "type": "string"
+                },
+                "created_date": {
+                    "description": "unix timestamp",
+                    "type": "integer"
+                },
+                "device_definition_id": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "make": {
+                    "type": "string"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "vehicle_name": {
+                    "type": "string"
+                },
+                "verified": {
+                    "type": "boolean"
+                },
+                "vin": {
+                    "type": "string"
+                },
+                "year": {
+                    "type": "integer"
+                }
+            }
+        },
         "controllers.DeviceCompatibility": {
             "type": "object",
             "properties": {
@@ -383,6 +459,9 @@ var doc = `{
         "controllers.RegisterUserDevice": {
             "type": "object",
             "properties": {
+                "country_code": {
+                    "type": "string"
+                },
                 "device_definition_id": {
                     "type": "string"
                 },
@@ -390,9 +469,6 @@ var doc = `{
                     "type": "string"
                 },
                 "model": {
-                    "type": "string"
-                },
-                "region": {
                     "type": "string"
                 },
                 "year": {

@@ -1,5 +1,29 @@
 basePath: /v1
 definitions:
+  controllers.AdminRegisterUserDevice:
+    properties:
+      country_code:
+        type: string
+      created_date:
+        description: unix timestamp
+        type: integer
+      device_definition_id:
+        type: string
+      image_url:
+        type: string
+      make:
+        type: string
+      model:
+        type: string
+      vehicle_name:
+        type: string
+      verified:
+        type: boolean
+      vin:
+        type: string
+      year:
+        type: integer
+    type: object
   controllers.DeviceCompatibility:
     properties:
       capabilities:
@@ -77,13 +101,13 @@ definitions:
     type: object
   controllers.RegisterUserDevice:
     properties:
+      country_code:
+        type: string
       device_definition_id:
         type: string
       make:
         type: string
       model:
-        type: string
-      region:
         type: string
       year:
         type: integer
@@ -155,6 +179,34 @@ paths:
       summary: Show the status of server.
       tags:
       - root
+  /admin/user/:user_id/devices:
+    post:
+      consumes:
+      - application/json
+      description: meant for internal admin use - adds a device to a user. can add
+        with only device_definition_id or with MMY, which will create a device_definition
+        on the fly
+      parameters:
+      - description: add device to user. either MMY or id are required
+        in: body
+        name: user_device
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.AdminRegisterUserDevice'
+      - description: user id
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/controllers.RegisterUserDeviceResponse'
+      tags:
+      - user-devices
   /device-definitions:
     get:
       description: gets a specific device definition by make model and year
@@ -271,8 +323,8 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "201":
+          description: Created
           schema:
             $ref: '#/definitions/controllers.RegisterUserDeviceResponse'
       security:
