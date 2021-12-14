@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"database/sql"
+	"strings"
+	"time"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
@@ -73,7 +75,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 // @Accept json
 // @Param user_device body controllers.RegisterUserDevice true "add device to user. either MMY or id are required"
 // @Security ApiKeyAuth
-// @Success 200 {object} controllers.RegisterUserDeviceResponse
+// @Success 201 {object} controllers.RegisterUserDeviceResponse
 // @Security BearerAuth
 // @Router  /user/devices [post]
 func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
@@ -158,18 +160,131 @@ func (udc *UserDevicesController) RegisterSmartCarIntegration(c *fiber.Ctx) erro
 	return nil
 }
 
+// AdminRegisterUserDevice godoc
+// @Description meant for internal admin use - adds a device to a user. can add with only device_definition_id or with MMY, which will create a device_definition on the fly
+// @Tags 	user-devices
+// @Produce json
+// @Accept json
+// @Param user_device body controllers.AdminRegisterUserDevice true "add device to user. either MMY or id are required"
+// @Param user_id path string true "user id"
+// @Success 201 {object} controllers.RegisterUserDeviceResponse
+// @Router  /admin/user/:user_id/devices [post]
+func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
+	userID := c.Params("user_id")
+	reg := &AdminRegisterUserDevice{}
+	if err := c.BodyParser(reg); err != nil {
+		// Return status 400 and error message.
+		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+	}
+	if err := reg.validate(); err != nil {
+		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+	}
+	tx, err := udc.DBS().Writer.DB.BeginTx(c.Context(), nil)
+	defer tx.Rollback() //nolint
+	if err != nil {
+		return err
+	}
+	var dd *models.DeviceDefinition
+	if reg.DeviceDefinitionID != nil {
+		// attach device def to user
+		dd, err = models.FindDeviceDefinition(c.Context(), tx, *reg.DeviceDefinitionID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return errorResponseHandler(c, errors.Wrapf(err, "could not find device definition id: %s", *reg.DeviceDefinitionID), fiber.StatusBadRequest)
+			}
+			return errorResponseHandler(c, errors.Wrapf(err, "error querying for device definition id: %s", *reg.DeviceDefinitionID), fiber.StatusInternalServerError)
+		}
+		exists, err := models.UserDevices(qm.Where("user_id = ?", userID), qm.And("device_definition_id = ?", dd.ID)).Exists(c.Context(), tx)
+		if err != nil {
+			return errorResponseHandler(c, errors.Wrap(err, "error checking duplicate user device"), fiber.StatusInternalServerError)
+		}
+		if exists {
+			return errorResponseHandler(c, errors.Wrap(err, "user already has this device registered"), fiber.StatusBadRequest)
+		}
+	} else {
+		// lookup existing MMY
+		dd, err := models.DeviceDefinitions(
+			qm.Where("make = ?", strings.ToUpper(*reg.Make)),
+			qm.And("model = ?", strings.ToUpper(*reg.Model)),
+			qm.And("year = ?", *reg.Year)).
+			One(c.Context(), tx)
+		if dd == nil {
+			// since Definition does not exist, create one on the fly with userID as source and not verified
+			dd = &models.DeviceDefinition{
+				ID:       ksuid.New().String(),
+				Make:     *reg.Make,
+				Model:    *reg.Model,
+				Year:     int16(*reg.Year),
+				Source:   null.StringFrom("userID:" + userID),
+				Verified: reg.Verified,
+				ImageURL: null.StringFromPtr(reg.ImageURL),
+			}
+			if len(reg.VIN) == 17 {
+				dd.VinFirst10 = null.StringFrom(reg.VIN[:10])
+			}
+			err = dd.Insert(c.Context(), tx, boil.Infer())
+		}
+		if err != nil {
+			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		}
+	}
+	// register device for the user
+	ud := models.UserDevice{
+		ID:                 ksuid.New().String(),
+		UserID:             userID,
+		DeviceDefinitionID: dd.ID,
+		CountryCode:        null.StringFromPtr(reg.CountryCode),
+		Name:               null.StringFromPtr(reg.VehicleName),
+		CreatedAt:          time.Unix(reg.CreatedDate, 0),
+	}
+	if len(reg.VIN) == 17 {
+		ud.VinIdentifier = null.StringFrom(reg.VIN)
+	}
+	err = ud.Insert(c.Context(), tx, boil.Infer())
+	if err != nil {
+		return errorResponseHandler(c, errors.Wrapf(err, "could not create user device for def_id: %s", dd.ID), fiber.StatusInternalServerError)
+	}
+	// get device integrations to return in payload - helps frontend
+	deviceInts, err := models.DeviceIntegrations(qm.Load(models.DeviceIntegrationRels.Integration),
+		qm.Where("device_definition_id = ?", dd.ID)).
+		All(c.Context(), tx)
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+	err = tx.Commit()
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(
+		RegisterUserDeviceResponse{
+			UserDeviceID:            ud.ID,
+			DeviceDefinitionID:      dd.ID,
+			IntegrationCapabilities: DeviceCompatibilityFromDB(deviceInts),
+		})
+}
+
 type RegisterUserDevice struct {
 	Make               *string `json:"make"`
 	Model              *string `json:"model"`
 	Year               *int    `json:"year"`
 	DeviceDefinitionID *string `json:"device_definition_id"`
-	CountryCode        *string `json:"region"`
+	CountryCode        *string `json:"country_code"`
 }
 
 type RegisterUserDeviceResponse struct {
 	UserDeviceID            string                `json:"user_device_id"`
 	DeviceDefinitionID      string                `json:"device_definition_id"`
 	IntegrationCapabilities []DeviceCompatibility `json:"integration_capabilities"`
+}
+
+type AdminRegisterUserDevice struct {
+	RegisterUserDevice
+	CreatedDate int64   `json:"created_date"` // unix timestamp
+	VehicleName *string `json:"vehicle_name"`
+	VIN         string  `json:"vin"`
+	ImageURL    *string `json:"image_url"`
+	Verified    bool    `json:"verified"`
 }
 
 func (reg *RegisterUserDevice) validate() error {
