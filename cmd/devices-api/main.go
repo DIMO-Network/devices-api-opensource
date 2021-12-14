@@ -2,14 +2,14 @@ package main
 
 import (
 	"context"
-	"os"
-	"time"
-
 	_ "github.com/DIMO-INC/devices-api/docs"
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/controllers"
 	"github.com/DIMO-INC/devices-api/internal/database"
 	"github.com/DIMO-INC/devices-api/internal/services"
+	_ "go.uber.org/automaxprocs"
+	"os"
+	"time"
 
 	swagger "github.com/arsmn/fiber-swagger/v2"
 	"github.com/gofiber/fiber/v2"
