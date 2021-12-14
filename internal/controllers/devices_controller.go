@@ -206,6 +206,40 @@ func (d *DevicesController) GetIntegrationsByID(c *fiber.Ctx) error {
 	})
 }
 
+// GetDeviceDefinitionByMMY godoc
+// @Description gets a specific device definition by make model and year
+// @Tags 	device-definitions
+// @Produce json
+// @Param 	make query string true "make"
+// @Success 200 {object} controllers.DeviceDefinition
+// @Router  /device-definitions [get]
+func (d *DevicesController) GetDeviceDefinitionByMMY(c *fiber.Ctx) error {
+	mk := c.Params("make")
+	model := c.Params("model")
+	year := c.Params("year")
+	if mk == "" || model == "" || year == "" {
+		return errorResponseHandler(c, errors.New("make, model, and year are required"), fiber.StatusBadRequest)
+	}
+	dd, err := models.DeviceDefinitions(
+		qm.Where("make = ?", mk),
+		qm.And("model = ?", model),
+		qm.And("year = ?", year),
+		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
+		qm.Load("DeviceIntegrations.Integration")).
+		One(c.Context(), d.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, err, fiber.StatusNotFound)
+		}
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	rp := NewDeviceDefinitionFromDatabase(dd)
+	return c.JSON(fiber.Map{
+		"device_definition": rp,
+	})
+}
+
 func indexOfMake(makes []DeviceMMYRoot, make string) int {
 	for i, root := range makes {
 		if root.Make == make {

@@ -125,3 +125,5 @@ https://devices-api.dimo.zone
 swag init --generalInfo ./cmd/devices-api/main.go --parseInternal true --generatedTime true
 ```
 
+[declarative_comments_format](https://swaggo.github.io/swaggo.io/declarative_comments_format/)
+
