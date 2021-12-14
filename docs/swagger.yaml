@@ -159,9 +159,19 @@ paths:
     get:
       description: gets a specific device definition by make model and year
       parameters:
-      - description: make
+      - description: make eg TESLA
         in: query
         name: make
+        required: true
+        type: string
+      - description: model eg MODEL Y
+        in: query
+        name: model
+        required: true
+        type: string
+      - description: year eg 2021
+        in: query
+        name: year
         required: true
         type: string
       produces:

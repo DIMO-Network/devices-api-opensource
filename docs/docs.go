@@ -59,8 +59,22 @@ var doc = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "make",
+                        "description": "make eg TESLA",
                         "name": "make",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "model eg MODEL Y",
+                        "name": "model",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "year eg 2021",
+                        "name": "year",
                         "in": "query",
                         "required": true
                     }
