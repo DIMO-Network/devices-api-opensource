@@ -2,15 +2,14 @@ package main
 
 import (
 	"context"
+	"os"
+	"time"
+
 	_ "github.com/DIMO-INC/devices-api/docs"
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/controllers"
 	"github.com/DIMO-INC/devices-api/internal/database"
 	"github.com/DIMO-INC/devices-api/internal/services"
-	_ "go.uber.org/automaxprocs"
-	"os"
-	"time"
-
 	swagger "github.com/arsmn/fiber-swagger/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
@@ -19,6 +18,7 @@ import (
 	jwtware "github.com/gofiber/jwt/v3"
 	_ "github.com/lib/pq"
 	"github.com/rs/zerolog"
+	_ "go.uber.org/automaxprocs"
 )
 
 // @title     DIMO Devices API
