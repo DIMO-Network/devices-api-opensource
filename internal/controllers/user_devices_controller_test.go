@@ -42,6 +42,7 @@ func TestUserDevicesController(t *testing.T) {
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger)
 	app := fiber.New()
 	app.Post("/user/devices", authInjectorTestHandler(testUserID), c.RegisterDeviceForUser)
+	app.Post("/admin/user/:user_id/devices", c.AdminRegisterUserDevice)
 	app.Get("/user/devices/me", authInjectorTestHandler(testUserID), c.GetUserDevices)
 
 	t.Run("POST - register with existing device_definition_id", func(t *testing.T) {
@@ -153,5 +154,29 @@ func TestUserDevicesController(t *testing.T) {
 		for _, id := range result.Array() {
 			assert.True(t, id.Exists(), "expected to find the ID")
 		}
+	})
+	t.Run("POST - admin register with MMY", func(t *testing.T) {
+		payload := `{
+  "country_code": "USA",
+  "created_date": 1634835455,
+  "device_definition_id": null,
+  "image_url": null,
+  "make": "HYUNDAI",
+  "model": "KONA ELECTRIC",
+  "vehicle_name": "Test Name",
+  "verified": false,
+  "vin": null,
+  "year": 2020
+}`
+		request := buildRequest("POST", "/user/1234/devices", payload)
+		response, _ := app.Test(request)
+		body, _ := ioutil.ReadAll(response.Body)
+		// assert
+		if assert.Equal(t, fiber.StatusCreated, response.StatusCode) == false {
+			fmt.Println("message: " + string(body))
+		}
+		udi := gjson.Get(string(body), "user_device_id")
+		fmt.Println("MMY user_device_id created: " + udi.String())
+		assert.True(t, udi.Exists(), "expected to find user_device_id")
 	})
 }
