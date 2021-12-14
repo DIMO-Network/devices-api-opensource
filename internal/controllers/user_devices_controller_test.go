@@ -168,7 +168,7 @@ func TestUserDevicesController(t *testing.T) {
   "vin": null,
   "year": 2020
 }`
-		request := buildRequest("POST", "/user/1234/devices", payload)
+		request := buildRequest("POST", "/admin/user/1234/devices", payload)
 		response, _ := app.Test(request)
 		body, _ := ioutil.ReadAll(response.Body)
 		// assert
