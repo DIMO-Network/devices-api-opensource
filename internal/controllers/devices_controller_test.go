@@ -165,10 +165,10 @@ func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
 	}
 	di.R = di.R.NewStruct()
 	di.R.Integration = &models.Integration{
-		ID:      "123",
-		Type:    "Hardware",
-		Style:   "Addon",
-		Vendors: "Autopi",
+		ID:     "123",
+		Type:   "Hardware",
+		Style:  "Addon",
+		Vendor: "Autopi",
 	}
 	dbDevice.R = dbDevice.R.NewStruct()
 	dbDevice.R.DeviceIntegrations = append(dbDevice.R.DeviceIntegrations, &di)
@@ -204,7 +204,7 @@ func TestNewDbModelFromDeviceDefinition(t *testing.T) {
 		},
 	}
 	vin := "1231231"
-	dbDevice := NewDbModelFromDeviceDefinition(dd, &vin)
+	dbDevice := NewDbModelFromDeviceDefinition(dd, &vin, nil)
 
 	assert.Equal(t, vin, dbDevice.VinFirst10.String)
 	assert.Equal(t, "R500", dbDevice.Model)

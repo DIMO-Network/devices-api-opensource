@@ -3,12 +3,16 @@ package controllers
 import (
 	"context"
 	"log"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
+	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/assert"
 )
@@ -44,12 +48,36 @@ func setupDatabase(ctx context.Context, t *testing.T, migrationsDirRelPath strin
 		SET search_path = devices_api, public;
 		ALTER USER postgres SET search_path = devices_api, public;
 		`)
-	assert.Nil(t, err, "did not expect error connecting and executing query to DB")
-	if err := goose.Run("up", pdb.DBS().Writer.DB, migrationsDirRelPath); err != nil {
+	assert.Nil(t, err, "did not expect error connecting and executing query to embedded DB for schema stuff")
+	if err := goose.Run("up", pdb.DBS().Writer.DB, migrationsDirRelPath, "-table devices_api.migrations"); err != nil {
 		_ = edb.Stop()
-		log.Fatalf("failed to apply go code migrations: %v\n", err)
+		log.Fatalf("failed to apply goose migrations for test: %v\n", err)
 	}
 
 	return pdb, edb
 	// if we add code migrations, import: _ "github.com/DIMO-INC/devices-api/migrations"
+}
+
+func buildRequest(method, url, body string) *http.Request {
+	req, _ := http.NewRequest(
+		method,
+		url,
+		strings.NewReader(body),
+	)
+	req.Header.Set("Content-Type", "application/json")
+
+	return req
+}
+
+// authInjectorTestHandler injects fake jwt with sub
+func authInjectorTestHandler(userID string) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"sub": userID,
+			"nbf": time.Now().Unix(),
+		})
+
+		c.Locals("user", token)
+		return c.Next()
+	}
 }

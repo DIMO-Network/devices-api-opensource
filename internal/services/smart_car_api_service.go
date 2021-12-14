@@ -54,14 +54,14 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 	// future: loop for each other country .EU .CA - difference is in integration capability but MMY may be the same.
 	for _, usData := range data.Result.Data.AllMakesTable.Edges[0].Node.CompatibilityData.US {
 		vehicleMake := usData.Name
-		if strings.Contains(vehicleMake, "Nissan") || strings.Contains(vehicleMake, "Hyundai") {
+		if strings.Contains(vehicleMake, "Nissan") || strings.Contains(vehicleMake, "Hyundai") || strings.Contains(vehicleMake, "All makes") {
 			continue // skip if nissan or hyundai b/c not really supported
 		}
 
 		for _, row := range usData.Rows {
-			vehicleModel := null.StringFromPtr(row[0].Text).String
-			years := row[0].Subtext                                      // eg. 2017+ or 2012-2017
-			vehicleType := null.StringFromPtr(row[1].VehicleType).String // ICE, PHEV, BEV
+			vehicleModel := strings.ToUpper(null.StringFromPtr(row[0].Text).String)
+			years := row[0].Subtext                                                       // eg. 2017+ or 2012-2017
+			vehicleType := strings.ToUpper(null.StringFromPtr(row[1].VehicleType).String) // ICE, PHEV, BEV
 
 			ic := IntegrationCapabilities{
 				Location:          getCapability("Location", usData.Headers, row),
@@ -117,10 +117,12 @@ func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, 
 
 	// db operation, note we are not setting vin
 	dbDeviceDef := models.DeviceDefinition{
-		ID:    ksuid.New().String(),
-		Make:  make,
-		Model: model,
-		Year:  int16(year),
+		ID:       ksuid.New().String(),
+		Make:     strings.ToUpper(make),
+		Model:    strings.ToUpper(model),
+		Year:     int16(year),
+		Verified: true,
+		Source:   null.StringFrom("SmartCar"),
 	}
 	err := dbDeviceDef.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dvi})
 	if err != nil {
@@ -136,7 +138,7 @@ func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, 
 		IntegrationID:      integrationID,
 		DeviceDefinitionID: dbDeviceDef.ID,
 		Capabilities:       null.JSONFrom(icJSON),
-		Country:            integrationCountry,
+		Country:            strings.ToLower(integrationCountry),
 	}
 	return deviceIntegration.Insert(ctx, tx, boil.Infer())
 }
@@ -213,7 +215,7 @@ func (s *SmartCarService) getOrCreateSmartCarIntegration(ctx context.Context) (s
 		smartCarStyle  = models.IntegrationStyleWebhook
 	)
 	integration, err := models.Integrations(qm.Where("type = ?", smartCarType),
-		qm.And("vendors = ?", smartCarVendor),
+		qm.And("vendor = ?", smartCarVendor),
 		qm.And("style = ?", smartCarStyle)).One(ctx, s.DBS().Writer)
 
 	if err != nil {
@@ -221,7 +223,7 @@ func (s *SmartCarService) getOrCreateSmartCarIntegration(ctx context.Context) (s
 			// create
 			integration = &models.Integration{}
 			integration.ID = ksuid.New().String()
-			integration.Vendors = smartCarVendor
+			integration.Vendor = smartCarVendor
 			integration.Type = smartCarType
 			integration.Style = smartCarStyle
 			err = integration.Insert(ctx, s.DBS().Writer, boil.Infer())
@@ -237,9 +239,9 @@ func (s *SmartCarService) getOrCreateSmartCarIntegration(ctx context.Context) (s
 
 func smartCarVehicleTypeToNhtsaFuelType(vehicleType string) string {
 	if vehicleType == "BEV" {
-		return "electric"
+		return "ELECTRIC"
 	}
-	return "gasoline"
+	return "GASOLINE"
 }
 
 // getSmartCarVehicleData gets all smartcar data on compatibility from their website

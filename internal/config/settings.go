@@ -15,6 +15,7 @@ type Settings struct {
 	DBMaxIdleConnections int    `yaml:"DB_MAX_IDLE_CONNECTIONS"`
 	ServiceName          string `yaml:"SERVICE_NAME"`
 	JwtKeySetURL         string `yaml:"JWT_KEY_SET_URL"`
+	SwaggerBaseURL       string `yaml:"SWAGGER_BASE_URL"`
 }
 
 // GetWriterDSN builds the connection string to the db writer - for now same as reader

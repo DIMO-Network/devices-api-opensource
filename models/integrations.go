@@ -26,7 +26,7 @@ type Integration struct {
 	ID        string    `boil:"id" json:"id" toml:"id" yaml:"id"`
 	Type      string    `boil:"type" json:"type" toml:"type" yaml:"type"`
 	Style     string    `boil:"style" json:"style" toml:"style" yaml:"style"`
-	Vendors   string    `boil:"vendors" json:"vendors" toml:"vendors" yaml:"vendors"`
+	Vendor    string    `boil:"vendor" json:"vendor" toml:"vendor" yaml:"vendor"`
 	CreatedAt time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 
@@ -38,14 +38,14 @@ var IntegrationColumns = struct {
 	ID        string
 	Type      string
 	Style     string
-	Vendors   string
+	Vendor    string
 	CreatedAt string
 	UpdatedAt string
 }{
 	ID:        "id",
 	Type:      "type",
 	Style:     "style",
-	Vendors:   "vendors",
+	Vendor:    "vendor",
 	CreatedAt: "created_at",
 	UpdatedAt: "updated_at",
 }
@@ -54,14 +54,14 @@ var IntegrationTableColumns = struct {
 	ID        string
 	Type      string
 	Style     string
-	Vendors   string
+	Vendor    string
 	CreatedAt string
 	UpdatedAt string
 }{
 	ID:        "integrations.id",
 	Type:      "integrations.type",
 	Style:     "integrations.style",
-	Vendors:   "integrations.vendors",
+	Vendor:    "integrations.vendor",
 	CreatedAt: "integrations.created_at",
 	UpdatedAt: "integrations.updated_at",
 }
@@ -72,14 +72,14 @@ var IntegrationWhere = struct {
 	ID        whereHelperstring
 	Type      whereHelperstring
 	Style     whereHelperstring
-	Vendors   whereHelperstring
+	Vendor    whereHelperstring
 	CreatedAt whereHelpertime_Time
 	UpdatedAt whereHelpertime_Time
 }{
 	ID:        whereHelperstring{field: "\"devices_api\".\"integrations\".\"id\""},
 	Type:      whereHelperstring{field: "\"devices_api\".\"integrations\".\"type\""},
 	Style:     whereHelperstring{field: "\"devices_api\".\"integrations\".\"style\""},
-	Vendors:   whereHelperstring{field: "\"devices_api\".\"integrations\".\"vendors\""},
+	Vendor:    whereHelperstring{field: "\"devices_api\".\"integrations\".\"vendor\""},
 	CreatedAt: whereHelpertime_Time{field: "\"devices_api\".\"integrations\".\"created_at\""},
 	UpdatedAt: whereHelpertime_Time{field: "\"devices_api\".\"integrations\".\"updated_at\""},
 }
@@ -105,8 +105,8 @@ func (*integrationR) NewStruct() *integrationR {
 type integrationL struct{}
 
 var (
-	integrationAllColumns            = []string{"id", "type", "style", "vendors", "created_at", "updated_at"}
-	integrationColumnsWithoutDefault = []string{"id", "type", "style", "vendors"}
+	integrationAllColumns            = []string{"id", "type", "style", "vendor", "created_at", "updated_at"}
+	integrationColumnsWithoutDefault = []string{"id", "type", "style", "vendor"}
 	integrationColumnsWithDefault    = []string{"created_at", "updated_at"}
 	integrationPrimaryKeyColumns     = []string{"id"}
 )

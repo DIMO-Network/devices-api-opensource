@@ -5,11 +5,13 @@ import (
 	"os"
 	"time"
 
+	_ "github.com/DIMO-INC/devices-api/docs"
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/controllers"
 	"github.com/DIMO-INC/devices-api/internal/database"
 	"github.com/DIMO-INC/devices-api/internal/services"
 
+	swagger "github.com/arsmn/fiber-swagger/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -19,6 +21,13 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// @title     DIMO Devices API
+// @version   2.0
+// @BasePath  /v1
+
+// @securityDefinitions.apikey  BearerAuth
+// @in                          header
+// @name                        Authorization
 func main() {
 	gitSha1 := os.Getenv("GIT_SHA1")
 	ctx := context.Background()
@@ -34,13 +43,22 @@ func main() {
 	}
 	pdb := database.NewDbConnectionFromSettings(ctx, settings)
 
+	// todo: use flag or other package to handle args
 	arg := ""
 	if len(os.Args) > 1 {
 		arg = os.Args[1]
 	}
 	switch arg {
 	case "migrate":
-		migrateDatabase(logger, settings)
+		command := "up"
+		if len(os.Args) > 2 {
+			command = os.Args[2]
+			if command == "down-to" || command == "up-to" {
+				command = command + " " + os.Args[3]
+			}
+		}
+
+		migrateDatabase(logger, settings, command)
 	case "seed-smartcar":
 		loadSmartCarData(ctx, logger, settings, pdb)
 	default:
@@ -85,6 +103,13 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1.Get("/user/devices/me", jwtAuth, userDeviceControllers.GetUserDevices)
 	v1.Post("/user/devices", jwtAuth, userDeviceControllers.RegisterDeviceForUser)
 	v1.Post("/user/devices/:id/integrations/smartcar", jwtAuth, userDeviceControllers.RegisterSmartCarIntegration)
+
+	// swagger - note could add auth middleware so it is not open
+	sc := swagger.Config{ // custom
+		// Expand ("list") or Collapse ("none") tag groups by default
+		DocExpansion: "list",
+	}
+	v1.Get("/swagger/*", swagger.New(sc))
 
 	logger.Info().Msg("Server started on port " + settings.Port)
 	// Start Server

@@ -1,0 +1,276 @@
+basePath: /v1
+definitions:
+  controllers.DeviceCompatibility:
+    properties:
+      capabilities:
+        type: string
+      country:
+        type: string
+      id:
+        type: string
+      style:
+        type: string
+      type:
+        type: string
+      vendor:
+        type: string
+    type: object
+  controllers.DeviceDefinition:
+    properties:
+      compatible_integrations:
+        description: CompatibleIntegrations has systems this vehicle can integrate
+          with
+        items:
+          $ref: '#/definitions/controllers.DeviceCompatibility'
+        type: array
+      device_definition_id:
+        type: string
+      image_url:
+        type: string
+      metadata: {}
+      name:
+        type: string
+      type:
+        $ref: '#/definitions/controllers.DeviceType'
+      vehicle_data:
+        $ref: '#/definitions/services.DeviceVehicleInfo'
+        description: VehicleInfo will be empty if not a vehicle type
+    type: object
+  controllers.DeviceMMYRoot:
+    properties:
+      make:
+        type: string
+      models:
+        items:
+          $ref: '#/definitions/controllers.DeviceModels'
+        type: array
+    type: object
+  controllers.DeviceModelYear:
+    properties:
+      id:
+        type: string
+      year:
+        type: integer
+    type: object
+  controllers.DeviceModels:
+    properties:
+      model:
+        type: string
+      years:
+        items:
+          $ref: '#/definitions/controllers.DeviceModelYear'
+        type: array
+    type: object
+  controllers.DeviceType:
+    properties:
+      make:
+        type: string
+      model:
+        type: string
+      sub_model:
+        type: string
+      type:
+        description: Type is eg. Vehicle, E-bike, roomba
+        type: string
+      year:
+        type: integer
+    type: object
+  controllers.RegisterUserDevice:
+    properties:
+      device_definition_id:
+        type: string
+      make:
+        type: string
+      model:
+        type: string
+      region:
+        type: string
+      year:
+        type: integer
+    type: object
+  controllers.RegisterUserDeviceResponse:
+    properties:
+      device_definition_id:
+        type: string
+      integration_capabilities:
+        items:
+          $ref: '#/definitions/controllers.DeviceCompatibility'
+        type: array
+      user_device_id:
+        type: string
+    type: object
+  controllers.UserDeviceFull:
+    properties:
+      custom_image_url:
+        type: string
+      device_definition:
+        $ref: '#/definitions/controllers.DeviceDefinition'
+      id:
+        type: string
+      name:
+        type: string
+      region:
+        type: string
+      vin:
+        type: string
+    type: object
+  services.DeviceVehicleInfo:
+    properties:
+      base_msrp:
+        type: integer
+      driven_wheels:
+        type: string
+      epa_class:
+        type: string
+      fuel_type:
+        type: string
+      mpg_city:
+        type: string
+      mpg_highway:
+        type: string
+      number_of_doors:
+        type: string
+      vehicle_type:
+        description: VehicleType PASSENGER CAR, from NHTSA
+        type: string
+    type: object
+info:
+  contact: {}
+  title: DIMO Devices API
+  version: "2.0"
+paths:
+  /:
+    get:
+      consumes:
+      - '*/*'
+      description: get the status of server.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Show the status of server.
+      tags:
+      - root
+  /device-definitions/{id}:
+    get:
+      description: gets a specific device definition by id
+      parameters:
+      - description: device definition id, KSUID format
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.DeviceDefinition'
+      tags:
+      - device-definitions
+  /device-definitions/{id}/integrations:
+    get:
+      description: gets all the available integrations for a device definition. Includes
+        the capabilities of the device with the integration
+      parameters:
+      - description: device definition id, KSUID format
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/controllers.DeviceCompatibility'
+            type: array
+      tags:
+      - device-definitions
+  /device-definitions/all:
+    get:
+      description: returns a json tree of Makes, models, and years
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/controllers.DeviceMMYRoot'
+            type: array
+      tags:
+      - device-definitions
+  /device-definitions/vin/{vin}:
+    get:
+      description: decodes a VIN by first looking it up on our DB, and then calling
+        out to external sources. If it does call out, it will backfill our DB
+      parameters:
+      - description: VIN eg. 5YJ3E1EA6MF873863
+        in: path
+        name: vin
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.DeviceDefinition'
+      tags:
+      - device-definitions
+  /user/devices:
+    post:
+      consumes:
+      - application/json
+      description: adds a device to a user. can add with only device_definition_id
+        or with MMY, which will create a device_definition on the fly
+      parameters:
+      - description: add device to user. either MMY or id are required
+        in: body
+        name: user_device
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.RegisterUserDevice'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.RegisterUserDeviceResponse'
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
+      tags:
+      - user-devices
+  /user/devices/me:
+    get:
+      description: gets all devices associated with current user - pulled from token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/controllers.UserDeviceFull'
+            type: array
+      security:
+      - BearerAuth: []
+      tags:
+      - user-devices
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

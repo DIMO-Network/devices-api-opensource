@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strconv"
@@ -35,20 +36,13 @@ func NewDevicesController(settings *config.Settings, dbs func() *database.DBRead
 	}
 }
 
-// GetUsersDevices placeholder for endpoint to get devices that belong to a user TODO
-func (d *DevicesController) GetUsersDevices(c *fiber.Ctx) error {
-	ds := make([]DeviceRp, 0)
-	ds = append(ds, DeviceRp{
-		DeviceID: "123123",
-		Name:     "Johnny's Tesla",
-	})
-
-	return c.JSON(fiber.Map{
-		"devices": ds,
-	})
-}
-
-// LookupDeviceDefinitionByVIN decodes a VIN by first looking it up on our DB, and then calling out to external sources. If it does call out, it will backfill our DB
+// LookupDeviceDefinitionByVIN godoc
+// @Description decodes a VIN by first looking it up on our DB, and then calling out to external sources. If it does call out, it will backfill our DB
+// @Tags 	device-definitions
+// @Produce json
+// @Param 	vin path string true "VIN eg. 5YJ3E1EA6MF873863"
+// @Success 200 {object} controllers.DeviceDefinition
+// @Router  /device-definitions/vin/{vin} [get]
 func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 	vin := c.Params("vin")
 	if len(vin) != 17 {
@@ -59,6 +53,7 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 	squishVin := vin[:10]
 	dd, err := models.DeviceDefinitions(
 		qm.Where("vin_first_10 = ?", squishVin),
+		qm.Where("verified = true"),
 		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
 		qm.Load("DeviceIntegrations.Integration")).
 		One(c.Context(), d.DBS().Reader)
@@ -72,8 +67,12 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 			rp := NewDeviceDefinitionFromNHTSA(decodedVIN)
 			// save to database, if error just log do not block, execute in go func routine to not block
 			go func() {
-				dbDevice := NewDbModelFromDeviceDefinition(rp, &squishVin)
-				err = dbDevice.Insert(c.Context(), d.DBS().Writer, boil.Infer())
+				src := "NHTSA"
+				dbDevice := NewDbModelFromDeviceDefinition(rp, &squishVin, &src)
+				dbDevice.Verified = true
+				dbDevice.Source = null.StringFrom("NHTSA")
+
+				err = dbDevice.Insert(context.Background(), d.DBS().Writer, boil.Infer())
 				if err != nil {
 					d.log.Error().Err(err).Msg("error inserting device definition to db")
 				}
@@ -90,9 +89,14 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 	})
 }
 
-// GetAllDeviceMakeModelYears returns a json tree of Makes, models, and years
+// GetAllDeviceMakeModelYears godoc
+// @Description returns a json tree of Makes, models, and years
+// @Tags 	device-definitions
+// @Produce json
+// @Success 200 {object} []controllers.DeviceMMYRoot
+// @Router  /device-definitions/all [get]
 func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
-	all, err := models.DeviceDefinitions().All(c.Context(), d.DBS().Reader)
+	all, err := models.DeviceDefinitions(qm.Where("verified = true")).All(c.Context(), d.DBS().Reader)
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
@@ -126,6 +130,13 @@ func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
 	})
 }
 
+// GetDeviceDefinitionByID godoc
+// @Description gets a specific device definition by id
+// @Tags 	device-definitions
+// @Produce json
+// @Param 	id path string true "device definition id, KSUID format"
+// @Success 200 {object} controllers.DeviceDefinition
+// @Router  /device-definitions/{id} [get]
 func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if len(id) != 27 {
@@ -151,6 +162,13 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 	})
 }
 
+// GetIntegrationsByID godoc
+// @Description gets all the available integrations for a device definition. Includes the capabilities of the device with the integration
+// @Tags 	device-definitions
+// @Produce json
+// @Param 	id path string true "device definition id, KSUID format"
+// @Success 200 {object} []controllers.DeviceCompatibility
+// @Router  /device-definitions/{id}/integrations [get]
 func (d *DevicesController) GetIntegrationsByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if len(id) != 27 {
@@ -177,7 +195,7 @@ func (d *DevicesController) GetIntegrationsByID(c *fiber.Ctx) error {
 				ID:           di.R.Integration.ID,
 				Type:         di.R.Integration.Type,
 				Style:        di.R.Integration.Style,
-				Vendor:       di.R.Integration.Vendors,
+				Vendor:       di.R.Integration.Vendor,
 				Country:      di.Country,
 				Capabilities: string(di.Capabilities.JSON),
 			})
@@ -234,7 +252,7 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 				ID:      di.R.Integration.ID,
 				Type:    di.R.Integration.Type,
 				Style:   di.R.Integration.Style,
-				Vendor:  di.R.Integration.Vendors,
+				Vendor:  di.R.Integration.Vendor,
 				Country: di.Country,
 			})
 		}
@@ -243,8 +261,8 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 	return rp
 }
 
-// NewDbModelFromDeviceDefinition converts a DeviceDefinition response object to a new database model for the given squishVin
-func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin *string) *models.DeviceDefinition {
+// NewDbModelFromDeviceDefinition converts a DeviceDefinition response object to a new database model for the given squishVin. source is NHTSA, edmunds, smartcar, etc
+func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin *string, source *string) *models.DeviceDefinition {
 	dbDevice := models.DeviceDefinition{
 		ID:         ksuid.New().String(),
 		VinFirst10: null.StringFromPtr(squishVin),
@@ -252,6 +270,8 @@ func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin *string) *mod
 		Model:      dd.Type.Model,
 		Year:       int16(dd.Type.Year),
 		SubModel:   null.StringFrom(dd.Type.SubModel),
+		Verified:   true,
+		Source:     null.StringFromPtr(source),
 	}
 	_ = dbDevice.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dd.VehicleInfo})
 
@@ -282,6 +302,25 @@ func NewDeviceDefinitionFromNHTSA(decodedVin *services.NHTSADecodeVINResponse) D
 	}
 
 	return dd
+}
+
+// DeviceCompatibilityFromDB returns list of compatibility representation from device integrations db slice, assumes integration relation loaded
+func DeviceCompatibilityFromDB(dbDIS models.DeviceIntegrationSlice) []DeviceCompatibility {
+	if len(dbDIS) == 0 {
+		return []DeviceCompatibility{}
+	}
+	compatibilities := make([]DeviceCompatibility, len(dbDIS))
+	for i, di := range dbDIS {
+		compatibilities[i] = DeviceCompatibility{
+			ID:           di.IntegrationID,
+			Type:         di.R.Integration.Type,
+			Style:        di.R.Integration.Style,
+			Vendor:       di.R.Integration.Vendor,
+			Country:      di.Country,
+			Capabilities: string(di.Capabilities.JSON),
+		}
+	}
+	return compatibilities
 }
 
 type DeviceDefinition struct {
