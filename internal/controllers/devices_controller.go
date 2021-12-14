@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
@@ -203,6 +204,46 @@ func (d *DevicesController) GetIntegrationsByID(c *fiber.Ctx) error {
 	}
 	return c.JSON(fiber.Map{
 		"compatible_integrations": integrations,
+	})
+}
+
+// GetDeviceDefinitionByMMY godoc
+// @Description gets a specific device definition by make model and year
+// @Tags 	device-definitions
+// @Produce json
+// @Param 	make query string true "make eg TESLA"
+// @Param 	model query string true "model eg MODEL Y"
+// @Param 	year query string true "year eg 2021"
+// @Success 200 {object} controllers.DeviceDefinition
+// @Router  /device-definitions [get]
+func (d *DevicesController) GetDeviceDefinitionByMMY(c *fiber.Ctx) error {
+	mk := c.Query("make")
+	model := c.Query("model")
+	year := c.Query("year")
+	if mk == "" || model == "" || year == "" {
+		return errorResponseHandler(c, errors.New("make, model, and year are required"), fiber.StatusBadRequest)
+	}
+	yrInt, err := strconv.Atoi(year)
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+	}
+	dd, err := models.DeviceDefinitions(
+		qm.Where("make = ?", strings.ToUpper(mk)),
+		qm.And("model = ?", strings.ToUpper(model)),
+		qm.And("year = ?", yrInt),
+		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
+		qm.Load("DeviceIntegrations.Integration")).
+		One(c.Context(), d.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, errors.Wrapf(err, "device with %s %s %s not found", mk, model, year), fiber.StatusNotFound)
+		}
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	rp := NewDeviceDefinitionFromDatabase(dd)
+	return c.JSON(fiber.Map{
+		"device_definition": rp,
 	})
 }
 

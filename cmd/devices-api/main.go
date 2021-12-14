@@ -98,6 +98,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1.Get("/device-definitions/all", cacheHandler, deviceControllers.GetAllDeviceMakeModelYears)
 	v1.Get("/device-definitions/:id", deviceControllers.GetDeviceDefinitionByID)
 	v1.Get("/device-definitions/:id/integrations", deviceControllers.GetIntegrationsByID)
+	v1.Get("/device-definitions", deviceControllers.GetDeviceDefinitionByMMY)
 	// secured paths
 	jwtAuth := jwtware.New(jwtware.Config{KeySetURL: settings.JwtKeySetURL})
 	v1.Get("/user/devices/me", jwtAuth, userDeviceControllers.GetUserDevices)

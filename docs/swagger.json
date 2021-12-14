@@ -31,6 +31,48 @@
                 }
             }
         },
+        "/device-definitions": {
+            "get": {
+                "description": "gets a specific device definition by make model and year",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device-definitions"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "make eg TESLA",
+                        "name": "make",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "model eg MODEL Y",
+                        "name": "model",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "year eg 2021",
+                        "name": "year",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.DeviceDefinition"
+                        }
+                    }
+                }
+            }
+        },
         "/device-definitions/all": {
             "get": {
                 "description": "returns a json tree of Makes, models, and years",
@@ -362,6 +404,9 @@
         "controllers.UserDeviceFull": {
             "type": "object",
             "properties": {
+                "country_code": {
+                    "type": "string"
+                },
                 "custom_image_url": {
                     "type": "string"
                 },
@@ -372,9 +417,6 @@
                     "type": "string"
                 },
                 "name": {
-                    "type": "string"
-                },
-                "region": {
                     "type": "string"
                 },
                 "vin": {
