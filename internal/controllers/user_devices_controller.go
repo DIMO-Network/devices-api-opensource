@@ -203,7 +203,7 @@ func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
 		}
 	} else {
 		// lookup existing MMY
-		dd, err := models.DeviceDefinitions(
+		dd, err = models.DeviceDefinitions(
 			qm.Where("make = ?", strings.ToUpper(*reg.Make)),
 			qm.And("model = ?", strings.ToUpper(*reg.Model)),
 			qm.And("year = ?", *reg.Year)).
