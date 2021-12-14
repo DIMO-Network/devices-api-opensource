@@ -99,6 +99,7 @@ Endpoints as curl commands:
 ```bash
 curl http://localhost:3000/v1/device-definitions/all -w '\n%{time_starttransfer}\n' -v
 curl http://localhost:3000/v1/device-definitions/vin/:vin
+curl 'http://localhost:3000/v1/device-definitions?make=TESLA&model=MODEL%20Y&year=2021'
 curl http://localhost:3000/v1/device-definitions/:id
 curl http://localhost:3000/v1/device-definitions/:id/integrations
 curl http://localhost:3000/v1/user/devices/me
