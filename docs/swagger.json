@@ -263,6 +263,41 @@
                 }
             }
         },
+        "/user/devices/:user_device_id/name": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "updates the Name on the user device record",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user-devices"
+                ],
+                "parameters": [
+                    {
+                        "description": "Name",
+                        "name": "name",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.UpdateNameReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/user/devices/:user_device_id/vin": {
             "patch": {
                 "security": [
@@ -508,6 +543,14 @@
                     }
                 },
                 "user_device_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "controllers.UpdateNameReq": {
+            "type": "object",
+            "properties": {
+                "name": {
                     "type": "string"
                 }
             }

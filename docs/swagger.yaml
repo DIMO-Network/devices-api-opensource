@@ -123,6 +123,11 @@ definitions:
       user_device_id:
         type: string
     type: object
+  controllers.UpdateNameReq:
+    properties:
+      name:
+        type: string
+    type: object
   controllers.UpdateVINReq:
     properties:
       vin:
@@ -334,6 +339,27 @@ paths:
             $ref: '#/definitions/controllers.RegisterUserDeviceResponse'
       security:
       - ApiKeyAuth: []
+      - BearerAuth: []
+      tags:
+      - user-devices
+  /user/devices/:user_device_id/name:
+    patch:
+      consumes:
+      - application/json
+      description: updates the Name on the user device record
+      parameters:
+      - description: Name
+        in: body
+        name: name
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.UpdateNameReq'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: ""
+      security:
       - BearerAuth: []
       tags:
       - user-devices
