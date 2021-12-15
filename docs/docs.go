@@ -279,6 +279,33 @@ var doc = `{
                 }
             }
         },
+        "/user/devices/:user_device_id": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "delete the user device record (hard delete)",
+                "tags": [
+                    "user-devices"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user id",
+                        "name": "user_device_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/user/devices/:user_device_id/country_code": {
             "patch": {
                 "security": [
@@ -340,6 +367,13 @@ var doc = `{
                         "schema": {
                             "$ref": "#/definitions/controllers.UpdateNameReq"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "user id",
+                        "name": "user_device_id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -375,6 +409,13 @@ var doc = `{
                         "schema": {
                             "$ref": "#/definitions/controllers.UpdateVINReq"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "user id",
+                        "name": "user_device_id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -498,6 +539,9 @@ var doc = `{
                 "vehicle_data": {
                     "description": "VehicleInfo will be empty if not a vehicle type",
                     "$ref": "#/definitions/services.DeviceVehicleInfo"
+                },
+                "verified": {
+                    "type": "boolean"
                 }
             }
         },

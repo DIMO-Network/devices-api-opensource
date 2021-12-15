@@ -59,6 +59,8 @@ definitions:
       vehicle_data:
         $ref: '#/definitions/services.DeviceVehicleInfo'
         description: VehicleInfo will be empty if not a vehicle type
+      verified:
+        type: boolean
     type: object
   controllers.DeviceMMYRoot:
     properties:
@@ -347,6 +349,22 @@ paths:
       - BearerAuth: []
       tags:
       - user-devices
+  /user/devices/:user_device_id:
+    delete:
+      description: delete the user device record (hard delete)
+      parameters:
+      - description: user id
+        in: path
+        name: user_device_id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: ""
+      security:
+      - BearerAuth: []
+      tags:
+      - user-devices
   /user/devices/:user_device_id/country_code:
     patch:
       consumes:
@@ -380,6 +398,11 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/controllers.UpdateNameReq'
+      - description: user id
+        in: path
+        name: user_device_id
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -401,6 +424,11 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/controllers.UpdateVINReq'
+      - description: user id
+        in: path
+        name: user_device_id
+        required: true
+        type: string
       produces:
       - application/json
       responses:

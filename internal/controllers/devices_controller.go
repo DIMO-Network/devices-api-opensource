@@ -280,6 +280,7 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 			SubModel: dd.SubModel.String,
 		},
 		Metadata: string(dd.Metadata.JSON),
+		Verified: dd.Verified,
 	}
 	// vehicle info
 	var vi map[string]services.DeviceVehicleInfo
@@ -374,6 +375,7 @@ type DeviceDefinition struct {
 	// VehicleInfo will be empty if not a vehicle type
 	VehicleInfo services.DeviceVehicleInfo `json:"vehicle_data,omitempty"`
 	Metadata    interface{}                `json:"metadata"`
+	Verified    bool                       `json:"verified"`
 }
 
 // DeviceCompatibility represents what systems we know this is compatible with

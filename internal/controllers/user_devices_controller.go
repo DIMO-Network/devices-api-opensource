@@ -278,6 +278,7 @@ func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
 // @Produce json
 // @Accept json
 // @Param vin body controllers.UpdateVINReq true "VIN"
+// @Param user_device_id path string true "user id"
 // @Success 204
 // @Security BearerAuth
 // @Router  /user/devices/:user_device_id/vin [patch]
@@ -317,6 +318,7 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 // @Produce json
 // @Accept json
 // @Param name body controllers.UpdateNameReq true "Name"
+// @Param user_device_id path string true "user id"
 // @Success 204
 // @Security BearerAuth
 // @Router  /user/devices/:user_device_id/name [patch]
@@ -372,6 +374,32 @@ func (udc *UserDevicesController) UpdateCountryCode(c *fiber.Ctx) error {
 
 	userDevice.CountryCode = null.StringFromPtr(countryCode.CountryCode)
 	_, err = userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer())
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// DeleteUserDevice godoc
+// @Description delete the user device record (hard delete)
+// @Tags 	user-devices
+// @Param user_device_id path string true "user id"
+// @Success 204
+// @Security BearerAuth
+// @Router  /user/devices/:user_device_id [delete]
+func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
+	udi := c.Params("user_device_id")
+	userID := getUserID(c)
+	userDevice, err := models.UserDevices(qm.Where("id = ?", udi), qm.And("user_id = ?", userID)).One(c.Context(), udc.DBS().Writer)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, err, fiber.StatusNotFound)
+		}
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	_, err = userDevice.Delete(c.Context(), udc.DBS().Writer)
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}

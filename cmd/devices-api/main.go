@@ -103,6 +103,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	jwtAuth := jwtware.New(jwtware.Config{KeySetURL: settings.JwtKeySetURL})
 	v1.Get("/user/devices/me", jwtAuth, userDeviceControllers.GetUserDevices)
 	v1.Post("/user/devices", jwtAuth, userDeviceControllers.RegisterDeviceForUser)
+	v1.Delete("/user/devices/:user_device_id", jwtAuth, userDeviceControllers.DeleteUserDevice)
 	v1.Patch("/user/devices/:user_device_id/vin", jwtAuth, userDeviceControllers.UpdateVIN)
 	v1.Patch("/user/devices/:user_device_id/name", jwtAuth, userDeviceControllers.UpdateName)
 	v1.Patch("/user/devices/:user_device_id/country_code", jwtAuth, userDeviceControllers.UpdateCountryCode)
