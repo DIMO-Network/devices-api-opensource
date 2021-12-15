@@ -283,13 +283,16 @@ func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
 // @Router  /user/devices/:user_device_id/vin [patch]
 func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 	udi := c.Params("user_device_id")
-	userId := getUserID(c)
-	userDevice, err := models.UserDevices(qm.Where("id = ?", udi), qm.And("user_id = ?", userId)).One(c.Context(), udc.DBS().Writer)
+	userID := getUserID(c)
+	userDevice, err := models.UserDevices(qm.Where("id = ?", udi), qm.And("user_id = ?", userID)).One(c.Context(), udc.DBS().Writer)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return errorResponseHandler(c, err, fiber.StatusNotFound)
 		}
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+	if userDevice.VinIdentifier.Ptr() != nil && userDevice.CountryCode.String == "USA" {
+		return errorResponseHandler(c, errors.New("VIN cannot be changed at this point"), fiber.StatusBadRequest)
 	}
 	vin := &UpdateVINReq{}
 	if err := c.BodyParser(vin); err != nil {
