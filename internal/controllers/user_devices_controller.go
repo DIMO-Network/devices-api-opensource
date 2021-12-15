@@ -311,6 +311,40 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+// UpdateName godoc
+// @Description updates the Name on the user device record
+// @Tags 	user-devices
+// @Produce json
+// @Accept json
+// @Param name body controllers.UpdateNameReq true "Name"
+// @Success 204
+// @Security BearerAuth
+// @Router  /user/devices/:user_device_id/name [patch]
+func (udc *UserDevicesController) UpdateName(c *fiber.Ctx) error {
+	udi := c.Params("user_device_id")
+	userID := getUserID(c)
+	userDevice, err := models.UserDevices(qm.Where("id = ?", udi), qm.And("user_id = ?", userID)).One(c.Context(), udc.DBS().Writer)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, err, fiber.StatusNotFound)
+		}
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+	name := &UpdateNameReq{}
+	if err := c.BodyParser(name); err != nil {
+		// Return status 400 and error message.
+		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+	}
+
+	userDevice.Name = null.StringFromPtr(name.Name)
+	_, err = userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer())
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 type RegisterUserDevice struct {
 	Make               *string `json:"make"`
 	Model              *string `json:"model"`
@@ -336,6 +370,10 @@ type AdminRegisterUserDevice struct {
 
 type UpdateVINReq struct {
 	VIN *string `json:"vin"`
+}
+
+type UpdateNameReq struct {
+	Name *string `json:"name"`
 }
 
 func (reg *RegisterUserDevice) validate() error {

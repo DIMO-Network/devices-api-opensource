@@ -47,6 +47,7 @@ func TestUserDevicesController(t *testing.T) {
 	app.Post("/admin/user/:user_id/devices", c.AdminRegisterUserDevice)
 	app.Get("/user/devices/me", authInjectorTestHandler(testUserID), c.GetUserDevices)
 	app.Patch("/user/devices/:user_device_id/vin", authInjectorTestHandler(testUserID), c.UpdateVIN)
+	app.Patch("/user/devices/:user_device_id/name", authInjectorTestHandler(testUserID), c.UpdateName)
 
 	createdUserDeviceID := ""
 
@@ -202,6 +203,15 @@ func TestUserDevicesController(t *testing.T) {
 	t.Run("PATCH - update VIN", func(t *testing.T) {
 		payload := `{ "vin": "5YJYGDEE5MF085533" }`
 		request := buildRequest("PATCH", "/user/devices/"+createdUserDeviceID+"/vin", payload)
+		response, _ := app.Test(request)
+		if assert.Equal(t, fiber.StatusNoContent, response.StatusCode) == false {
+			body, _ := ioutil.ReadAll(response.Body)
+			fmt.Println("message: " + string(body))
+		}
+	})
+	t.Run("PATCH - update Name", func(t *testing.T) {
+		payload := `{ "name": "Queens Charriot" }`
+		request := buildRequest("PATCH", "/user/devices/"+createdUserDeviceID+"/name", payload)
 		response, _ := app.Test(request)
 		if assert.Equal(t, fiber.StatusNoContent, response.StatusCode) == false {
 			body, _ := ioutil.ReadAll(response.Body)
