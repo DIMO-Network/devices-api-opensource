@@ -100,7 +100,13 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1.Get("/device-definitions/:id/integrations", deviceControllers.GetIntegrationsByID)
 	v1.Get("/device-definitions", deviceControllers.GetDeviceDefinitionByMMY)
 	// secured paths
-	jwtAuth := jwtware.New(jwtware.Config{KeySetURL: settings.JwtKeySetURL})
+	keyRefreshInterval := time.Hour
+	keyRefreshUnknownKID := true
+	jwtAuth := jwtware.New(jwtware.Config{
+		KeySetURL:            settings.JwtKeySetURL,
+		KeyRefreshInterval:   &keyRefreshInterval,
+		KeyRefreshUnknownKID: &keyRefreshUnknownKID,
+	})
 	v1.Get("/user/devices/me", jwtAuth, userDeviceControllers.GetUserDevices)
 	v1.Post("/user/devices", jwtAuth, userDeviceControllers.RegisterDeviceForUser)
 	v1.Delete("/user/devices/:user_device_id", jwtAuth, userDeviceControllers.DeleteUserDevice)
