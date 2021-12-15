@@ -123,6 +123,11 @@ definitions:
       user_device_id:
         type: string
     type: object
+  controllers.UpdateCountryCodeReq:
+    properties:
+      countryCode:
+        type: string
+    type: object
   controllers.UpdateNameReq:
     properties:
       name:
@@ -339,6 +344,27 @@ paths:
             $ref: '#/definitions/controllers.RegisterUserDeviceResponse'
       security:
       - ApiKeyAuth: []
+      - BearerAuth: []
+      tags:
+      - user-devices
+  /user/devices/:user_device_id/country_code:
+    patch:
+      consumes:
+      - application/json
+      description: updates the CountryCode on the user device record
+      parameters:
+      - description: Country code
+        in: body
+        name: name
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.UpdateCountryCodeReq'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: ""
+      security:
       - BearerAuth: []
       tags:
       - user-devices

@@ -345,6 +345,40 @@ func (udc *UserDevicesController) UpdateName(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+// UpdateCountryCode godoc
+// @Description updates the CountryCode on the user device record
+// @Tags 	user-devices
+// @Produce json
+// @Accept json
+// @Param name body controllers.UpdateCountryCodeReq true "Country code"
+// @Success 204
+// @Security BearerAuth
+// @Router  /user/devices/:user_device_id/country_code [patch]
+func (udc *UserDevicesController) UpdateCountryCode(c *fiber.Ctx) error {
+	udi := c.Params("user_device_id")
+	userID := getUserID(c)
+	userDevice, err := models.UserDevices(qm.Where("id = ?", udi), qm.And("user_id = ?", userID)).One(c.Context(), udc.DBS().Writer)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, err, fiber.StatusNotFound)
+		}
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+	countryCode := &UpdateCountryCodeReq{}
+	if err := c.BodyParser(countryCode); err != nil {
+		// Return status 400 and error message.
+		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+	}
+
+	userDevice.CountryCode = null.StringFromPtr(countryCode.CountryCode)
+	_, err = userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer())
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 type RegisterUserDevice struct {
 	Make               *string `json:"make"`
 	Model              *string `json:"model"`
@@ -374,6 +408,10 @@ type UpdateVINReq struct {
 
 type UpdateNameReq struct {
 	Name *string `json:"name"`
+}
+
+type UpdateCountryCodeReq struct {
+	CountryCode *string `json:"countryCode"`
 }
 
 func (reg *RegisterUserDevice) validate() error {

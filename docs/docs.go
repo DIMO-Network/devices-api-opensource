@@ -279,6 +279,41 @@ var doc = `{
                 }
             }
         },
+        "/user/devices/:user_device_id/country_code": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "updates the CountryCode on the user device record",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user-devices"
+                ],
+                "parameters": [
+                    {
+                        "description": "Country code",
+                        "name": "name",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.UpdateCountryCodeReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/user/devices/:user_device_id/name": {
             "patch": {
                 "security": [
@@ -559,6 +594,14 @@ var doc = `{
                     }
                 },
                 "user_device_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "controllers.UpdateCountryCodeReq": {
+            "type": "object",
+            "properties": {
+                "countryCode": {
                     "type": "string"
                 }
             }
