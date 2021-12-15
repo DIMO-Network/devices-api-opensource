@@ -272,6 +272,42 @@ func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
 		})
 }
 
+// UpdateVIN godoc
+// @Description updates the VIN on the user device record
+// @Tags 	user-devices
+// @Produce json
+// @Accept json
+// @Param vin body controllers.UpdateVINReq true "VIN"
+// @Success 204
+// @Security BearerAuth
+// @Router  /user/devices/:user_device_id/vin [patch]
+func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
+	udi := c.Params("user_device_id")
+	userId := getUserID(c)
+	userDevice, err := models.UserDevices(qm.Where("id = ?", udi), qm.And("user_id = ?", userId)).One(c.Context(), udc.DBS().Writer)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, err, fiber.StatusNotFound)
+		}
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+	vin := &UpdateVINReq{}
+	if err := c.BodyParser(vin); err != nil {
+		// Return status 400 and error message.
+		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+	}
+	if err := vin.validate(); err != nil {
+		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+	}
+	userDevice.VinIdentifier = null.StringFromPtr(vin.VIN)
+	_, err = userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer())
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 type RegisterUserDevice struct {
 	Make               *string `json:"make"`
 	Model              *string `json:"model"`
@@ -295,6 +331,10 @@ type AdminRegisterUserDevice struct {
 	Verified    bool    `json:"verified"`
 }
 
+type UpdateVINReq struct {
+	VIN *string `json:"vin"`
+}
+
 func (reg *RegisterUserDevice) validate() error {
 	return validation.ValidateStruct(reg,
 		validation.Field(&reg.Make, validation.When(reg.DeviceDefinitionID == nil, validation.Required)),
@@ -303,6 +343,11 @@ func (reg *RegisterUserDevice) validate() error {
 		validation.Field(&reg.DeviceDefinitionID, validation.When(reg.Make == nil && reg.Model == nil && reg.Year == nil, validation.Required)),
 		validation.Field(&reg.CountryCode, validation.When(reg.CountryCode != nil, validation.Length(3, 3))),
 	)
+}
+
+func (u *UpdateVINReq) validate() error {
+	return validation.ValidateStruct(u,
+		validation.Field(&u.VIN, validation.Required, validation.Length(17, 17)))
 }
 
 // UserDeviceFull represents object user's see on frontend for listing of their devices

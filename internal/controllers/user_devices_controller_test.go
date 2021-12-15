@@ -46,6 +46,9 @@ func TestUserDevicesController(t *testing.T) {
 	app.Post("/user/devices/second", authInjectorTestHandler(testUserID2), c.RegisterDeviceForUser)
 	app.Post("/admin/user/:user_id/devices", c.AdminRegisterUserDevice)
 	app.Get("/user/devices/me", authInjectorTestHandler(testUserID), c.GetUserDevices)
+	app.Patch("/user/devices/:user_device_id/vin", authInjectorTestHandler(testUserID), c.UpdateVIN)
+
+	createdUserDeviceId := ""
 
 	t.Run("POST - register with existing device_definition_id", func(t *testing.T) {
 		// arrange DB
@@ -99,6 +102,7 @@ func TestUserDevicesController(t *testing.T) {
 		assert.Equal(t, integration.Vendor, regUserResp.IntegrationCapabilities[0].Vendor)
 		assert.Equal(t, integration.Type, regUserResp.IntegrationCapabilities[0].Type)
 		assert.Equal(t, integration.ID, regUserResp.IntegrationCapabilities[0].ID)
+		createdUserDeviceId = regUserResp.UserDeviceID
 	})
 	t.Run("POST - register with MMY, twice don't duplicate definition", func(t *testing.T) {
 		mk := "Tesla"
@@ -194,5 +198,14 @@ func TestUserDevicesController(t *testing.T) {
 		udi := gjson.Get(string(body), "user_device_id")
 		fmt.Println("MMY user_device_id created: " + udi.String())
 		assert.True(t, udi.Exists(), "expected to find user_device_id")
+	})
+	t.Run("PATCH - update VIN", func(t *testing.T) {
+		payload := `{ "vin": "5YJYGDEE5MF085533" }`
+		request := buildRequest("PATCH", "/user/devices/"+createdUserDeviceId+"/vin", payload)
+		response, _ := app.Test(request)
+		if assert.Equal(t, fiber.StatusNoContent, response.StatusCode) == false {
+			body, _ := ioutil.ReadAll(response.Body)
+			fmt.Println("message: " + string(body))
+		}
 	})
 }
