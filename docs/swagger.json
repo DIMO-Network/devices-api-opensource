@@ -263,6 +263,41 @@
                 }
             }
         },
+        "/user/devices/:user_device_id/vin": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "updates the VIN on the user device record",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user-devices"
+                ],
+                "parameters": [
+                    {
+                        "description": "VIN",
+                        "name": "vin",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.UpdateVINReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/user/devices/me": {
             "get": {
                 "security": [
@@ -473,6 +508,14 @@
                     }
                 },
                 "user_device_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "controllers.UpdateVINReq": {
+            "type": "object",
+            "properties": {
+                "vin": {
                     "type": "string"
                 }
             }

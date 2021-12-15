@@ -123,6 +123,11 @@ definitions:
       user_device_id:
         type: string
     type: object
+  controllers.UpdateVINReq:
+    properties:
+      vin:
+        type: string
+    type: object
   controllers.UserDeviceFull:
     properties:
       country_code:
@@ -329,6 +334,27 @@ paths:
             $ref: '#/definitions/controllers.RegisterUserDeviceResponse'
       security:
       - ApiKeyAuth: []
+      - BearerAuth: []
+      tags:
+      - user-devices
+  /user/devices/:user_device_id/vin:
+    patch:
+      consumes:
+      - application/json
+      description: updates the VIN on the user device record
+      parameters:
+      - description: VIN
+        in: body
+        name: vin
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.UpdateVINReq'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: ""
+      security:
       - BearerAuth: []
       tags:
       - user-devices
