@@ -61,6 +61,8 @@ func main() {
 		migrateDatabase(logger, settings, command)
 	case "seed-smartcar":
 		loadSmartCarData(ctx, logger, settings, pdb)
+	case "seed-mmy-csv":
+		loadMMYCSVData(ctx, logger, settings, pdb)
 	default:
 		startWebAPI(logger, settings, pdb)
 	}
