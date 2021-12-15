@@ -121,7 +121,7 @@ func TestDevicesController(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Len(t, mmy, 1)
 		assert.Equal(t, "TESLA", mmy[0].Make)
-		assert.Equal(t, "Model Y", mmy[0].Models[0].Model)
+		assert.Equal(t, "MODEL Y", mmy[0].Models[0].Model)
 		assert.Equal(t, int16(2020), mmy[0].Models[0].Years[0].Year)
 		assert.Equal(t, createdID, mmy[0].Models[0].Years[0].DeviceDefinitionID)
 	})
@@ -134,16 +134,16 @@ func TestNewDeviceDefinitionFromNHTSA(t *testing.T) {
 	deviceDefinition := NewDeviceDefinitionFromNHTSA(&vinResp)
 
 	assert.Equal(t, "", deviceDefinition.DeviceDefinitionID)
-	assert.Equal(t, "2020 TESLA Model Y", deviceDefinition.Name)
+	assert.Equal(t, "2020 TESLA MODEL Y", deviceDefinition.Name)
 	assert.Equal(t, "Vehicle", deviceDefinition.Type.Type)
 	assert.Equal(t, 2020, deviceDefinition.Type.Year)
 	assert.Equal(t, "TESLA", deviceDefinition.Type.Make)
-	assert.Equal(t, "Model Y", deviceDefinition.Type.Model)
+	assert.Equal(t, "MODEL Y", deviceDefinition.Type.Model)
 	assert.Equal(t, "", deviceDefinition.Type.SubModel)
 	assert.Equal(t, "PASSENGER CAR", deviceDefinition.VehicleInfo.VehicleType)
 	assert.Equal(t, 48000, deviceDefinition.VehicleInfo.BaseMSRP)
 	assert.Equal(t, "5", deviceDefinition.VehicleInfo.NumberOfDoors)
-	assert.Equal(t, "Electric", deviceDefinition.VehicleInfo.FuelType)
+	assert.Equal(t, "ELECTRIC", deviceDefinition.VehicleInfo.FuelType)
 }
 
 func TestNewDeviceDefinitionFromDatabase(t *testing.T) {

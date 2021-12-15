@@ -97,7 +97,8 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 // @Success 200 {object} []controllers.DeviceMMYRoot
 // @Router  /device-definitions/all [get]
 func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
-	all, err := models.DeviceDefinitions(qm.Where("verified = true")).All(c.Context(), d.DBS().Reader)
+	all, err := models.DeviceDefinitions(qm.Where("verified = true"),
+		qm.OrderBy("make, model, year")).All(c.Context(), d.DBS().Reader)
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
