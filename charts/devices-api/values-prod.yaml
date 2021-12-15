@@ -2,7 +2,7 @@ replicaCount: 1
 image:
   repository: dimozone/devices-api
   pullPolicy: IfNotPresent
-  tag: 0.0.8
+  tag: 0.1.0
 imagePullSecrets: []
 nameOverride: ''
 fullnameOverride: ''
@@ -30,12 +30,12 @@ ingress:
   enabled: true
   className: nginx
   annotations:
-    nginx.ingress.kubernetes.io/enable-modsecurity: "true"
-    nginx.ingress.kubernetes.io/enable-owasp-core-rules: "true"
+    nginx.ingress.kubernetes.io/enable-modsecurity: 'true'
+    nginx.ingress.kubernetes.io/enable-owasp-core-rules: 'true'
     nginx.ingress.kubernetes.io/auth-tls-secret: ingress/cf-origin-ca
-    nginx.ingress.kubernetes.io/auth-tls-verify-client: "on"
-    nginx.ingress.kubernetes.io/enable-cors: "true"
-    nginx.ingress.kubernetes.io/cors-allow-origin: "https://devices-api.dimo.zone, https://app.dimo.zone, https://app.p.dimo.zone"
+    nginx.ingress.kubernetes.io/auth-tls-verify-client: 'on'
+    nginx.ingress.kubernetes.io/enable-cors: 'true'
+    nginx.ingress.kubernetes.io/cors-allow-origin: https://devices-api.dimo.zone, https://app.dimo.zone, https://app.p.dimo.zone
     external-dns.alpha.kubernetes.io/hostname: devices-api.dimo.zone
   hosts:
     - host: devices-api.dimo.zone
@@ -43,7 +43,7 @@ ingress:
         - path: /
           pathType: ImplementationSpecific
   tls: []
-resources: 
+resources:
   limits:
     cpu: 1
     memory: 1024Mi
