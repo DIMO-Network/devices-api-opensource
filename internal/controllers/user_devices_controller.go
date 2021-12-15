@@ -111,16 +111,24 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 			return errorResponseHandler(c, errors.Wrap(err, "user already has this device registered"), fiber.StatusBadRequest)
 		}
 	} else {
-		// since Definition does not exist, create one on the fly with userID as source and not verified
-		dd = &models.DeviceDefinition{
-			ID:       ksuid.New().String(),
-			Make:     *reg.Make,
-			Model:    *reg.Model,
-			Year:     int16(*reg.Year),
-			Source:   null.StringFrom("userID:" + userID),
-			Verified: false,
+		// check for existing MMY
+		dd, err = models.DeviceDefinitions(
+			qm.Where("make = ?", strings.ToUpper(*reg.Make)),
+			qm.And("model = ?", strings.ToUpper(*reg.Model)),
+			qm.And("year = ?", *reg.Year)).
+			One(c.Context(), tx)
+		if dd == nil {
+			// since Definition does not exist, create one on the fly with userID as source and not verified
+			dd = &models.DeviceDefinition{
+				ID:       ksuid.New().String(),
+				Make:     strings.ToUpper(*reg.Make),
+				Model:    strings.ToUpper(*reg.Model),
+				Year:     int16(*reg.Year),
+				Source:   null.StringFrom("userID:" + userID),
+				Verified: false,
+			}
+			err = dd.Insert(c.Context(), tx, boil.Infer())
 		}
-		err = dd.Insert(c.Context(), tx, boil.Infer())
 		if err != nil {
 			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 		}

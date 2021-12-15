@@ -39,9 +39,11 @@ func TestUserDevicesController(t *testing.T) {
 	}()
 
 	testUserID := "123123"
+	testUserID2 := "3232451"
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger)
 	app := fiber.New()
 	app.Post("/user/devices", authInjectorTestHandler(testUserID), c.RegisterDeviceForUser)
+	app.Post("/user/devices/second", authInjectorTestHandler(testUserID2), c.RegisterDeviceForUser)
 	app.Post("/admin/user/:user_id/devices", c.AdminRegisterUserDevice)
 	app.Get("/user/devices/me", authInjectorTestHandler(testUserID), c.GetUserDevices)
 
@@ -98,7 +100,7 @@ func TestUserDevicesController(t *testing.T) {
 		assert.Equal(t, integration.Type, regUserResp.IntegrationCapabilities[0].Type)
 		assert.Equal(t, integration.ID, regUserResp.IntegrationCapabilities[0].ID)
 	})
-	t.Run("POST - register with MMY", func(t *testing.T) {
+	t.Run("POST - register with MMY, twice don't duplicate definition", func(t *testing.T) {
 		mk := "Tesla"
 		model := "Model Z"
 		year := 2021
@@ -115,9 +117,23 @@ func TestUserDevicesController(t *testing.T) {
 		if assert.Equal(t, fiber.StatusCreated, response.StatusCode) == false {
 			fmt.Println("message: " + string(body))
 		}
-		udi := gjson.Get(string(body), "user_device_id")
-		fmt.Println("MMY user_device_id created: " + udi.String())
-		assert.True(t, udi.Exists(), "expected to find user_device_id")
+		regUserResp := RegisterUserDeviceResponse{}
+		_ = json.Unmarshal(body, &regUserResp)
+		assert.Len(t, regUserResp.UserDeviceID, 27)
+		assert.Len(t, regUserResp.DeviceDefinitionID, 27)
+
+		// second pass, assert get same device_definition_id
+		request = buildRequest("POST", "/user/devices/second", string(j))
+		response, _ = app.Test(request)
+		body, _ = ioutil.ReadAll(response.Body)
+		// assert
+		if assert.Equal(t, fiber.StatusCreated, response.StatusCode) == false {
+			fmt.Println("message: " + string(body))
+		}
+		regUserResp2 := RegisterUserDeviceResponse{}
+		_ = json.Unmarshal(body, &regUserResp2)
+		assert.Equal(t, regUserResp.DeviceDefinitionID, regUserResp2.DeviceDefinitionID)
+		assert.NotEqual(t, regUserResp.UserDeviceID, regUserResp2.UserDeviceID)
 	})
 	t.Run("POST - bad payload", func(t *testing.T) {
 		request := buildRequest("POST", "/user/devices", "{}")
