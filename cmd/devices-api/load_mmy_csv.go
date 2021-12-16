@@ -6,6 +6,11 @@ import (
 	_ "embed"
 	"encoding/csv"
 	"fmt"
+	"io"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
 	"github.com/DIMO-INC/devices-api/models"
@@ -14,10 +19,6 @@ import (
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
-	"io"
-	"strconv"
-	"strings"
-	"time"
 )
 
 //go:embed mmy_definitions.csv
