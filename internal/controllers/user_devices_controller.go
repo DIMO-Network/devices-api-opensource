@@ -9,6 +9,7 @@ import (
 	"github.com/DIMO-INC/devices-api/internal/database"
 	"github.com/DIMO-INC/devices-api/models"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -86,7 +87,7 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		// Return status 400 and error message.
 		return errorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
-	if err := reg.validate(); err != nil {
+	if err := reg.Validate(); err != nil {
 		return errorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
 	tx, err := udc.DBS().Writer.DB.BeginTx(c.Context(), nil)
@@ -185,7 +186,7 @@ func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
 		// Return status 400 and error message.
 		return errorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
-	if err := reg.validate(); err != nil {
+	if err := reg.Validate(); err != nil {
 		return errorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
 	tx, err := udc.DBS().Writer.DB.BeginTx(c.Context(), nil)
@@ -194,6 +195,7 @@ func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
 		return err
 	}
 	var dd *models.DeviceDefinition
+
 	if reg.DeviceDefinitionID != nil {
 		// attach device def to user
 		dd, err = models.FindDeviceDefinition(c.Context(), tx, *reg.DeviceDefinitionID)
@@ -210,6 +212,12 @@ func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
 		if exists {
 			return errorResponseHandler(c, errors.Wrap(err, "user already has this device registered"), fiber.StatusBadRequest)
 		}
+		if !dd.ImageURL.Valid && reg.ImageURL != nil {
+			dd.ImageURL = null.StringFromPtr(reg.ImageURL)
+			if _, err = dd.Update(c.Context(), tx, boil.Infer()); err != nil {
+				return errorResponseHandler(c, errors.Wrap(err, "couldn't update device definition"), fiber.StatusInternalServerError)
+			}
+		}
 	} else {
 		// lookup existing MMY
 		dd, err = models.DeviceDefinitions(
@@ -217,29 +225,39 @@ func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
 			qm.And("model = ?", strings.ToUpper(*reg.Model)),
 			qm.And("year = ?", *reg.Year)).
 			One(c.Context(), tx)
-		if dd == nil {
-			// since Definition does not exist, create one on the fly with userID as source and not verified
-			dd = &models.DeviceDefinition{
-				ID:       ksuid.New().String(),
-				Make:     *reg.Make,
-				Model:    *reg.Model,
-				Year:     int16(*reg.Year),
-				Source:   null.StringFrom("userID:" + userID),
-				Verified: reg.Verified,
-				ImageURL: null.StringFromPtr(reg.ImageURL),
-			}
-			if len(reg.VIN) == 17 {
-				dd.VinFirst10 = null.StringFrom(reg.VIN[:10])
-			}
-			err = dd.Insert(c.Context(), tx, boil.Infer())
-		}
 		if err != nil {
-			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+			if errors.Is(err, sql.ErrNoRows) {
+				// since Definition does not exist, create one on the fly with userID as source and not verified
+				dd = &models.DeviceDefinition{
+					ID:       ksuid.New().String(),
+					Make:     *reg.Make,
+					Model:    *reg.Model,
+					Year:     int16(*reg.Year),
+					Source:   null.StringFrom("userID:" + userID),
+					Verified: reg.Verified,
+					ImageURL: null.StringFromPtr(reg.ImageURL),
+				}
+				if len(reg.VIN) == 17 {
+					dd.VinFirst10 = null.StringFrom(reg.VIN[:10])
+				}
+				err = dd.Insert(c.Context(), tx, boil.Infer())
+				if err != nil {
+					return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+				}
+			} else {
+				return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+			}
+		} else if !dd.ImageURL.Valid && reg.ImageURL != nil {
+			// We found a DD, maybe we can give it an image
+			dd.ImageURL = null.StringFromPtr(reg.ImageURL)
+			if _, err = dd.Update(c.Context(), tx, boil.Infer()); err != nil {
+				return errorResponseHandler(c, errors.Wrap(err, "couldn't update device definition"), fiber.StatusInternalServerError)
+			}
 		}
 	}
 	// register device for the user
 	ud := models.UserDevice{
-		ID:                 ksuid.New().String(),
+		ID:                 reg.ID,
 		UserID:             userID,
 		DeviceDefinitionID: dd.ID,
 		CountryCode:        null.StringFromPtr(reg.CountryCode),
@@ -249,9 +267,9 @@ func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
 	if len(reg.VIN) == 17 {
 		ud.VinIdentifier = null.StringFrom(reg.VIN)
 	}
-	err = ud.Insert(c.Context(), tx, boil.Infer())
+	err = ud.Upsert(c.Context(), tx, true, []string{"id"}, boil.Infer(), boil.Infer())
 	if err != nil {
-		return errorResponseHandler(c, errors.Wrapf(err, "could not create user device for def_id: %s", dd.ID), fiber.StatusInternalServerError)
+		return errorResponseHandler(c, errors.Wrapf(err, "could not create user/update device for def_id: %s", dd.ID), fiber.StatusInternalServerError)
 	}
 	// get device integrations to return in payload - helps frontend
 	deviceInts, err := models.DeviceIntegrations(qm.Load(models.DeviceIntegrationRels.Integration),
@@ -424,6 +442,7 @@ type RegisterUserDeviceResponse struct {
 
 type AdminRegisterUserDevice struct {
 	RegisterUserDevice
+	ID          string  `json:"id"`           // KSUID from client,
 	CreatedDate int64   `json:"created_date"` // unix timestamp
 	VehicleName *string `json:"vehicle_name"`
 	VIN         string  `json:"vin"`
@@ -443,13 +462,20 @@ type UpdateCountryCodeReq struct {
 	CountryCode *string `json:"countryCode"`
 }
 
-func (reg *RegisterUserDevice) validate() error {
+func (reg *RegisterUserDevice) Validate() error {
 	return validation.ValidateStruct(reg,
 		validation.Field(&reg.Make, validation.When(reg.DeviceDefinitionID == nil, validation.Required)),
 		validation.Field(&reg.Model, validation.When(reg.DeviceDefinitionID == nil, validation.Required)),
 		validation.Field(&reg.Year, validation.When(reg.DeviceDefinitionID == nil, validation.Required)),
 		validation.Field(&reg.DeviceDefinitionID, validation.When(reg.Make == nil && reg.Model == nil && reg.Year == nil, validation.Required)),
 		validation.Field(&reg.CountryCode, validation.When(reg.CountryCode != nil, validation.Length(3, 3))),
+	)
+}
+
+func (reg *AdminRegisterUserDevice) Validate() error {
+	return validation.ValidateStruct(reg,
+		validation.Field(&reg.RegisterUserDevice),
+		validation.Field(&reg.ID, validation.Required, validation.Length(27, 27), is.Alphanumeric),
 	)
 }
 
