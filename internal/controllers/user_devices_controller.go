@@ -230,8 +230,8 @@ func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
 				// since Definition does not exist, create one on the fly with userID as source and not verified
 				dd = &models.DeviceDefinition{
 					ID:       ksuid.New().String(),
-					Make:     *reg.Make,
-					Model:    *reg.Model,
+					Make:     strings.ToUpper(*reg.Make),
+					Model:    strings.ToUpper(*reg.Model),
 					Year:     int16(*reg.Year),
 					Source:   null.StringFrom("userID:" + userID),
 					Verified: reg.Verified,
