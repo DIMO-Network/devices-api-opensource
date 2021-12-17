@@ -32,6 +32,7 @@ deps:
 
 SOURCE_FILES = $(shell find lib internal -type f -name "*.go")
 
+
 $(PATHINSTBIN)/%: $(SOURCE_FILES) 
 	@go build $(GO_FLAGS) -tags "$(TAGS)" -ldflags "$(LD_FLAGS) " -o $@ ./cmd/$*
 
