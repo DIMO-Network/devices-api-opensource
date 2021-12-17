@@ -271,7 +271,7 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 	rp := DeviceDefinition{
 		DeviceDefinitionID:     dd.ID,
 		Name:                   fmt.Sprintf("%d %s %s", dd.Year, dd.Make, dd.Model),
-		ImageURL:               "",
+		ImageURL:               dd.ImageURL.String,
 		CompatibleIntegrations: []DeviceCompatibility{},
 		Type: DeviceType{
 			Type:     "Vehicle",
