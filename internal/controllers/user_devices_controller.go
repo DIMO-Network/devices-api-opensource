@@ -205,13 +205,6 @@ func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
 			}
 			return errorResponseHandler(c, errors.Wrapf(err, "error querying for device definition id: %s", *reg.DeviceDefinitionID), fiber.StatusInternalServerError)
 		}
-		exists, err := models.UserDevices(qm.Where("user_id = ?", userID), qm.And("device_definition_id = ?", dd.ID)).Exists(c.Context(), tx)
-		if err != nil {
-			return errorResponseHandler(c, errors.Wrap(err, "error checking duplicate user device"), fiber.StatusInternalServerError)
-		}
-		if exists {
-			return errorResponseHandler(c, errors.Wrap(err, "user already has this device registered"), fiber.StatusBadRequest)
-		}
 		if !dd.ImageURL.Valid && reg.ImageURL != nil {
 			dd.ImageURL = null.StringFromPtr(reg.ImageURL)
 			if _, err = dd.Update(c.Context(), tx, boil.Infer()); err != nil {
