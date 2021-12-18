@@ -90,7 +90,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		Next: func(c *fiber.Ctx) bool {
 			return c.Query("refresh") == "true"
 		},
-		Expiration:   30 * time.Minute,
+		Expiration:   1 * time.Minute,
 		CacheControl: true,
 	})
 	app.Get("/", HealthCheck)
