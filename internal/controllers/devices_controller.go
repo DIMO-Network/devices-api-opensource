@@ -67,21 +67,7 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 		if errors.Is(err, sql.ErrNoRows) {
 			decodedVIN, err := d.NHTSASvc.DecodeVIN(vin)
 			if err != nil {
-				dd = &models.DeviceDefinition{
-					ID:         ksuid.New().String(),
-					VinFirst10: null.StringFrom(squishVin),
-					Source:     null.StringFrom("VIN lookup"),
-					Verified:   false,
-				}
-				err = dd.Insert(c.Context(), tx, boil.Infer())
-				if err != nil {
-					return errorResponseHandler(c, err, fiber.StatusInternalServerError)
-				}
-				tx.Commit()
-				rp := NewDeviceDefinitionFromDatabase(dd)
-				return c.JSON(fiber.Map{
-					"device_definition": rp,
-				})
+				return errorResponseHandler(c, err, fiber.StatusNotFound)
 			}
 			rp := NewDeviceDefinitionFromNHTSA(decodedVIN)
 			// save to database, if error just log do not block, execute in go func routine to not block
