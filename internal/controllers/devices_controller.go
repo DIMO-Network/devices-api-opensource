@@ -82,6 +82,7 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 				return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 			}
 			tx.Commit()
+			rp = NewDeviceDefinitionFromDatabase(dbDevice)
 			return c.JSON(fiber.Map{
 				"device_definition": rp,
 			})
