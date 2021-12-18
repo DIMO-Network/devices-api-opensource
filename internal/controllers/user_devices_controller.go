@@ -224,7 +224,7 @@ func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
 					ImageURL: null.StringFromPtr(reg.ImageURL),
 				}
 				if len(reg.VIN) == 17 {
-					dd.VinFirst10 = null.StringFrom(reg.VIN[:10])
+					dd.VinFirst10 = null.StringFrom(strings.ToUpper(reg.VIN[:10]))
 				}
 				err = dd.Insert(c.Context(), tx, boil.Infer())
 				if err != nil {
@@ -251,7 +251,7 @@ func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
 		CreatedAt:          time.Unix(reg.CreatedDate, 0),
 	}
 	if len(reg.VIN) == 17 {
-		ud.VinIdentifier = null.StringFrom(reg.VIN)
+		ud.VinIdentifier = null.StringFrom(strings.ToUpper(reg.VIN))
 	}
 	err = ud.Upsert(c.Context(), tx, true, []string{"id"}, boil.Infer(), boil.Infer())
 	if err != nil {

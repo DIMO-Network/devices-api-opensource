@@ -58,7 +58,7 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 	defer tx.Rollback() //nolint
 
 	dd, err := models.DeviceDefinitions(
-		qm.Where("vin_first_10 = ?", squishVin),
+		qm.Where("vin_first_10 = ?", strings.ToUpper(squishVin)),
 		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
 		qm.Load("DeviceIntegrations.Integration")).
 		One(c.Context(), tx)
