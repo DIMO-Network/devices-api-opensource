@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"strconv"
@@ -52,38 +51,58 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 		})
 	}
 	squishVin := vin[:10]
+	tx, err := d.DBS().Writer.BeginTx(c.Context(), nil)
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+	defer tx.Rollback() //nolint
+
 	dd, err := models.DeviceDefinitions(
 		qm.Where("vin_first_10 = ?", squishVin),
-		qm.Where("verified = true"),
 		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
 		qm.Load("DeviceIntegrations.Integration")).
-		One(c.Context(), d.DBS().Reader)
+		One(c.Context(), tx)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			decodedVIN, err := d.NHTSASvc.DecodeVIN(vin)
 			if err != nil {
-				return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+				dd = &models.DeviceDefinition{
+					ID:         ksuid.New().String(),
+					VinFirst10: null.StringFrom(squishVin),
+					Source:     null.StringFrom("VIN lookup"),
+					Verified:   false,
+				}
+				err = dd.Insert(c.Context(), tx, boil.Infer())
+				if err != nil {
+					return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+				}
+				tx.Commit()
+				rp := NewDeviceDefinitionFromDatabase(dd)
+				return c.JSON(fiber.Map{
+					"device_definition": rp,
+				})
 			}
 			rp := NewDeviceDefinitionFromNHTSA(decodedVIN)
 			// save to database, if error just log do not block, execute in go func routine to not block
-			go func() {
-				src := "NHTSA"
-				dbDevice := NewDbModelFromDeviceDefinition(rp, &squishVin, &src)
-				dbDevice.Verified = true
-				dbDevice.Source = null.StringFrom("NHTSA")
+			src := "NHTSA"
+			dbDevice := NewDbModelFromDeviceDefinition(rp, &squishVin, &src)
+			dbDevice.Verified = true
+			dbDevice.Source = null.StringFrom("NHTSA")
 
-				err = dbDevice.Insert(context.Background(), d.DBS().Writer, boil.Infer())
-				if err != nil {
-					d.log.Error().Err(err).Msg("error inserting device definition to db")
-				}
-			}()
+			err = dbDevice.Insert(c.Context(), tx, boil.Infer())
+			if err != nil {
+				d.log.Error().Err(err).Msg("error inserting device definition to db")
+				return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+			}
+			tx.Commit()
 			return c.JSON(fiber.Map{
 				"device_definition": rp,
 			})
 		}
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
+	tx.Commit()
 	rp := NewDeviceDefinitionFromDatabase(dd)
 	return c.JSON(fiber.Map{
 		"device_definition": rp,

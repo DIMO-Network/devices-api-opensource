@@ -43,6 +43,15 @@ func (ns *NHTSAService) DecodeVIN(vin string) (*NHTSADecodeVINResponse, error) {
 		return nil, errors.Wrap(err, "failed to read response body from nhtsa api")
 	}
 
+	for _, r := range decodedVin.Results {
+		if r.Variable == "Error Code" {
+			if r.Value != "0" && r.Value != "" {
+				return nil, fmt.Errorf("nhtsa api responded with error code %s", r.Value)
+			}
+			break
+		}
+	}
+
 	return &decodedVin, nil
 }
 
