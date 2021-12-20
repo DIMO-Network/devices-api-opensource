@@ -117,7 +117,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1.Patch("/user/devices/:user_device_id/country_code", jwtAuth, userDeviceControllers.UpdateCountryCode)
 	v1.Post("/user/integrations/smartcar", jwtAuth, userDeviceControllers.RegisterSmartCarIntegration)
 	// admin / internal operations paths
-	v1.Post("/admin/user/:user_id/devices", userDeviceControllers.AdminRegisterUserDevice)
+	// v1.Post("/admin/user/:user_id/devices", userDeviceControllers.AdminRegisterUserDevice)
 
 	// swagger - note could add auth middleware so it is not open
 	sc := swagger.Config{ // custom
