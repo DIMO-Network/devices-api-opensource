@@ -22,6 +22,13 @@ spec:
       labels:
         {{- include "devices-api.selectorLabels" . | nindent 8 }}
     spec:
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            {{- include "devices-api.selectorLabels" . | nindent 12 }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
