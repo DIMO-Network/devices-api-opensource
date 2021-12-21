@@ -2,7 +2,7 @@ replicaCount: 1
 image:
   repository: dimozone/devices-api
   pullPolicy: IfNotPresent
-  tag: 6604cf5
+  tag: 762ffa5
 imagePullSecrets: []
 nameOverride: ''
 fullnameOverride: ''
@@ -23,6 +23,7 @@ env:
   SERVICE_NAME: devices-api
   JWT_KEY_SET_URL: https://auth.dev.dimo.zone/keys
   SWAGGER_BASE_URL: https://devices-api.dev.dimo.zone/v1/swagger
+  TOR_PROXY_URL: socks5://tor-dev:9050
 service:
   type: ClusterIP
   port: 8080
