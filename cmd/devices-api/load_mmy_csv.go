@@ -13,12 +13,12 @@ import (
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
+	"github.com/DIMO-INC/devices-api/internal/services"
 	"github.com/DIMO-INC/devices-api/models"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
-	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
 //go:embed mmy_definitions.csv
@@ -27,6 +27,7 @@ var mmyDefinitions string
 func loadMMYCSVData(ctx context.Context, logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) {
 	// check db ready
 	time.Sleep(time.Second * 3)
+	ddSvc := services.NewDeviceDefinitionService(settings, pdb.DBS, &logger)
 
 	csvReader := csv.NewReader(strings.NewReader(mmyDefinitions))
 	for {
@@ -44,10 +45,7 @@ func loadMMYCSVData(ctx context.Context, logger zerolog.Logger, settings *config
 			logger.Info().Err(err).Msg("can't parse year: " + rec[2])
 			continue
 		}
-		dd, err := models.DeviceDefinitions(
-			qm.Where("make = ?", strings.ToUpper(rec[0])),
-			qm.And("model = ?", strings.ToUpper(rec[1])),
-			qm.And("year = ?", yrInt)).One(ctx, pdb.DBS().Writer)
+		dd, err := ddSvc.FindDeviceDefinitionByMMY(ctx, nil, rec[0], rec[1], yrInt, false)
 		if err != nil && err != sql.ErrNoRows {
 			logger.Fatal().Err(err).Msg("can't read existing definition")
 		}

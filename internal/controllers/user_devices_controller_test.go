@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
+	mock_services "github.com/DIMO-INC/devices-api/internal/services/mocks"
 	"github.com/DIMO-INC/devices-api/models"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/mock/gomock"
@@ -37,10 +38,11 @@ func TestUserDevicesController(t *testing.T) {
 			t.Fatal(err)
 		}
 	}()
+	deviceDefSvc := mock_services.NewMockIDeviceDefinitionService(mockCtrl)
 
 	testUserID := "123123"
 	testUserID2 := "3232451"
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc)
 	app := fiber.New()
 	app.Post("/user/devices", authInjectorTestHandler(testUserID), c.RegisterDeviceForUser)
 	app.Post("/user/devices/second", authInjectorTestHandler(testUserID2), c.RegisterDeviceForUser)
@@ -49,6 +51,9 @@ func TestUserDevicesController(t *testing.T) {
 	app.Patch("/user/devices/:user_device_id/vin", authInjectorTestHandler(testUserID), c.UpdateVIN)
 	app.Patch("/user/devices/:user_device_id/name", authInjectorTestHandler(testUserID), c.UpdateName)
 
+	deviceDefSvc.EXPECT().CheckAndSetImage(gomock.Any()).Return(nil)
+	// todo: put this expectation in right place with correct values.
+	deviceDefSvc.EXPECT().FindDeviceDefinitionByMMY(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).Return(nil, nil)
 	createdUserDeviceID := ""
 
 	t.Run("POST - register with existing device_definition_id", func(t *testing.T) {

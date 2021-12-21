@@ -1,12 +1,14 @@
 package controllers
 
 import (
+	"context"
 	"database/sql"
 	"strings"
 	"time"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
+	"github.com/DIMO-INC/devices-api/internal/services"
 	"github.com/DIMO-INC/devices-api/models"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
@@ -20,17 +22,19 @@ import (
 )
 
 type UserDevicesController struct {
-	Settings *config.Settings
-	DBS      func() *database.DBReaderWriter
-	log      *zerolog.Logger
+	Settings     *config.Settings
+	DBS          func() *database.DBReaderWriter
+	DeviceDefSvc services.IDeviceDefinitionService
+	log          *zerolog.Logger
 }
 
 // NewUserDevicesController constructor
-func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger) UserDevicesController {
+func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService) UserDevicesController {
 	return UserDevicesController{
-		Settings: settings,
-		DBS:      dbs,
-		log:      logger,
+		Settings:     settings,
+		DBS:          dbs,
+		log:          logger,
+		DeviceDefSvc: ddSvc,
 	}
 }
 
@@ -107,11 +111,7 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		}
 	} else {
 		// check for existing MMY
-		dd, err = models.DeviceDefinitions(
-			qm.Where("make = ?", strings.ToUpper(*reg.Make)),
-			qm.And("model = ?", strings.ToUpper(*reg.Model)),
-			qm.And("year = ?", *reg.Year)).
-			One(c.Context(), tx)
+		dd, err = udc.DeviceDefSvc.FindDeviceDefinitionByMMY(c.Context(), tx, *reg.Make, *reg.Model, *reg.Year, false)
 		if dd == nil {
 			// since Definition does not exist, create one on the fly with userID as source and not verified
 			dd = &models.DeviceDefinition{
@@ -150,6 +150,19 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
+
+	// don't block, as image fetch could take a while
+	go func() {
+		err := udc.DeviceDefSvc.CheckAndSetImage(dd)
+		if err != nil {
+			udc.log.Error().Err(err).Msg("error getting device image upon user_device registration")
+			return
+		}
+		_, err = dd.Update(context.Background(), udc.DBS().Writer, boil.Whitelist("image_url", "updated_at")) // only update image_url https://github.com/volatiletech/sqlboiler#update
+		if err != nil {
+			udc.log.Error().Err(err).Msg("error updating device image in DB for: " + dd.ID)
+		}
+	}()
 
 	return c.Status(fiber.StatusCreated).JSON(
 		RegisterUserDeviceResponse{
@@ -206,11 +219,7 @@ func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
 		}
 	} else {
 		// lookup existing MMY
-		dd, err = models.DeviceDefinitions(
-			qm.Where("make = ?", strings.ToUpper(*reg.Make)),
-			qm.And("model = ?", strings.ToUpper(*reg.Model)),
-			qm.And("year = ?", *reg.Year)).
-			One(c.Context(), tx)
+		dd, err = udc.DeviceDefSvc.FindDeviceDefinitionByMMY(c.Context(), tx, *reg.Make, *reg.Model, *reg.Year, false)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				// since Definition does not exist, create one on the fly with userID as source and not verified

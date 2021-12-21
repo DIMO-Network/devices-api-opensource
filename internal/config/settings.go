@@ -16,6 +16,7 @@ type Settings struct {
 	ServiceName          string `yaml:"SERVICE_NAME"`
 	JwtKeySetURL         string `yaml:"JWT_KEY_SET_URL"`
 	SwaggerBaseURL       string `yaml:"SWAGGER_BASE_URL"`
+	TorProxyURL          string `yaml:"TOR_PROXY_URL"`
 }
 
 // GetWriterDSN builds the connection string to the db writer - for now same as reader

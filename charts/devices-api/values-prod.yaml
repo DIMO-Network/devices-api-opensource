@@ -23,6 +23,7 @@ env:
   SERVICE_NAME: devices-api
   JWT_KEY_SET_URL: https://auth.dimo.zone/keys
   SWAGGER_BASE_URL: https://devices-api.dimo.zone/v1/swagger
+  TOR_PROXY_URL: socks5://tor-prod:9050
 service:
   type: ClusterIP
   port: 8080

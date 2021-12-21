@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strconv"
@@ -20,19 +21,25 @@ import (
 )
 
 type DevicesController struct {
-	Settings *config.Settings
-	DBS      func() *database.DBReaderWriter
-	NHTSASvc services.INHTSAService
-	log      *zerolog.Logger
+	Settings     *config.Settings
+	DBS          func() *database.DBReaderWriter
+	NHTSASvc     services.INHTSAService
+	EdmundsSvc   services.IEdmundsService
+	DeviceDefSvc services.IDeviceDefinitionService
+	log          *zerolog.Logger
 }
 
 // NewDevicesController constructor
-func NewDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, nhtsaSvc services.INHTSAService) DevicesController {
+func NewDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, nhtsaSvc services.INHTSAService, ddSvc services.IDeviceDefinitionService) DevicesController {
+	edmundsSvc := services.NewEdmundsService(settings.TorProxyURL)
+
 	return DevicesController{
-		Settings: settings,
-		DBS:      dbs,
-		NHTSASvc: nhtsaSvc,
-		log:      logger,
+		Settings:     settings,
+		DBS:          dbs,
+		NHTSASvc:     nhtsaSvc,
+		log:          logger,
+		EdmundsSvc:   edmundsSvc,
+		DeviceDefSvc: ddSvc,
 	}
 }
 
@@ -74,14 +81,28 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 			src := "NHTSA"
 			dbDevice := NewDbModelFromDeviceDefinition(rp, &squishVin, &src)
 			dbDevice.Verified = true
-			dbDevice.Source = null.StringFrom("NHTSA")
+			dbDevice.Source = null.StringFrom(src)
 
 			err = dbDevice.Insert(c.Context(), tx, boil.Infer())
 			if err != nil {
 				d.log.Error().Err(err).Msg("error inserting device definition to db")
 				return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 			}
-			tx.Commit()
+			err = tx.Commit()
+			if err != nil {
+				return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+			}
+			go func() {
+				err := d.DeviceDefSvc.CheckAndSetImage(dbDevice)
+				if err != nil {
+					d.log.Error().Err(err).Msg("error getting default device image")
+					return
+				}
+				_, err = dbDevice.Update(context.Background(), d.DBS().Writer, boil.Whitelist("image_url", "updated_at"))
+				if err != nil {
+					d.log.Error().Err(err).Msg("error updating default device image")
+				}
+			}()
 			rp = NewDeviceDefinitionFromDatabase(dbDevice)
 			return c.JSON(fiber.Map{
 				"device_definition": rp,
@@ -89,7 +110,10 @@ func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
 		}
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
-	tx.Commit()
+	err = tx.Commit()
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
 	rp := NewDeviceDefinitionFromDatabase(dd)
 	return c.JSON(fiber.Map{
 		"device_definition": rp,
@@ -234,13 +258,8 @@ func (d *DevicesController) GetDeviceDefinitionByMMY(c *fiber.Ctx) error {
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
-	dd, err := models.DeviceDefinitions(
-		qm.Where("make = ?", strings.ToUpper(mk)),
-		qm.And("model = ?", strings.ToUpper(model)),
-		qm.And("year = ?", yrInt),
-		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
-		qm.Load("DeviceIntegrations.Integration")).
-		One(c.Context(), d.DBS().Reader)
+	dd, err := d.DeviceDefSvc.FindDeviceDefinitionByMMY(c.Context(), nil, mk, model, yrInt, true)
+
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return errorResponseHandler(c, errors.Wrapf(err, "device with %s %s %s not found", mk, model, year), fiber.StatusNotFound)

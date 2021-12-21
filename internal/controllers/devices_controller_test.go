@@ -47,7 +47,8 @@ func TestDevicesController(t *testing.T) {
 		}
 	}()
 	nhtsaSvc := mock_services.NewMockINHTSAService(mockCtrl)
-	c := NewDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, nhtsaSvc)
+	deviceDefSvc := mock_services.NewMockIDeviceDefinitionService(mockCtrl)
+	c := NewDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, nhtsaSvc, deviceDefSvc)
 	// routes
 	app := fiber.New()
 	app.Get("/device-definitions/vin/:vin", c.LookupDeviceDefinitionByVIN)
@@ -63,6 +64,7 @@ func TestDevicesController(t *testing.T) {
 		_ = json.Unmarshal([]byte(testNhtsaDecodedVin), &vinResp)
 		const vin = "5YJYGDEF2LFR00942"
 		nhtsaSvc.EXPECT().DecodeVIN(vin).Times(1).Return(&vinResp, nil)
+		deviceDefSvc.EXPECT().CheckAndSetImage(gomock.Any()).Return(nil)
 		// act
 		request, _ := http.NewRequest("GET", "/device-definitions/vin/"+vin, nil)
 		response, _ := app.Test(request)
