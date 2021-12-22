@@ -86,14 +86,17 @@ var IntegrationWhere = struct {
 
 // IntegrationRels is where relationship names are stored.
 var IntegrationRels = struct {
-	DeviceIntegrations string
+	DeviceIntegrations        string
+	UserDeviceAPIIntegrations string
 }{
-	DeviceIntegrations: "DeviceIntegrations",
+	DeviceIntegrations:        "DeviceIntegrations",
+	UserDeviceAPIIntegrations: "UserDeviceAPIIntegrations",
 }
 
 // integrationR is where relationships are stored.
 type integrationR struct {
-	DeviceIntegrations DeviceIntegrationSlice `boil:"DeviceIntegrations" json:"DeviceIntegrations" toml:"DeviceIntegrations" yaml:"DeviceIntegrations"`
+	DeviceIntegrations        DeviceIntegrationSlice        `boil:"DeviceIntegrations" json:"DeviceIntegrations" toml:"DeviceIntegrations" yaml:"DeviceIntegrations"`
+	UserDeviceAPIIntegrations UserDeviceAPIIntegrationSlice `boil:"UserDeviceAPIIntegrations" json:"UserDeviceAPIIntegrations" toml:"UserDeviceAPIIntegrations" yaml:"UserDeviceAPIIntegrations"`
 }
 
 // NewStruct creates a new relationship struct
@@ -407,6 +410,27 @@ func (o *Integration) DeviceIntegrations(mods ...qm.QueryMod) deviceIntegrationQ
 	return query
 }
 
+// UserDeviceAPIIntegrations retrieves all the user_device_api_integration's UserDeviceAPIIntegrations with an executor.
+func (o *Integration) UserDeviceAPIIntegrations(mods ...qm.QueryMod) userDeviceAPIIntegrationQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"devices_api\".\"user_device_api_integrations\".\"integration_id\"=?", o.ID),
+	)
+
+	query := UserDeviceAPIIntegrations(queryMods...)
+	queries.SetFrom(query.Query, "\"devices_api\".\"user_device_api_integrations\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"devices_api\".\"user_device_api_integrations\".*"})
+	}
+
+	return query
+}
+
 // LoadDeviceIntegrations allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for a 1-M or N-M relationship.
 func (integrationL) LoadDeviceIntegrations(ctx context.Context, e boil.ContextExecutor, singular bool, maybeIntegration interface{}, mods queries.Applicator) error {
@@ -505,6 +529,104 @@ func (integrationL) LoadDeviceIntegrations(ctx context.Context, e boil.ContextEx
 	return nil
 }
 
+// LoadUserDeviceAPIIntegrations allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (integrationL) LoadUserDeviceAPIIntegrations(ctx context.Context, e boil.ContextExecutor, singular bool, maybeIntegration interface{}, mods queries.Applicator) error {
+	var slice []*Integration
+	var object *Integration
+
+	if singular {
+		object = maybeIntegration.(*Integration)
+	} else {
+		slice = *maybeIntegration.(*[]*Integration)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &integrationR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &integrationR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`devices_api.user_device_api_integrations`),
+		qm.WhereIn(`devices_api.user_device_api_integrations.integration_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load user_device_api_integrations")
+	}
+
+	var resultSlice []*UserDeviceAPIIntegration
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice user_device_api_integrations")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on user_device_api_integrations")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for user_device_api_integrations")
+	}
+
+	if len(userDeviceAPIIntegrationAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.UserDeviceAPIIntegrations = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &userDeviceAPIIntegrationR{}
+			}
+			foreign.R.Integration = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.IntegrationID {
+				local.R.UserDeviceAPIIntegrations = append(local.R.UserDeviceAPIIntegrations, foreign)
+				if foreign.R == nil {
+					foreign.R = &userDeviceAPIIntegrationR{}
+				}
+				foreign.R.Integration = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // AddDeviceIntegrations adds the given related objects to the existing relationships
 // of the integration, optionally inserting them as new records.
 // Appends related to o.R.DeviceIntegrations.
@@ -549,6 +671,59 @@ func (o *Integration) AddDeviceIntegrations(ctx context.Context, exec boil.Conte
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &deviceIntegrationR{
+				Integration: o,
+			}
+		} else {
+			rel.R.Integration = o
+		}
+	}
+	return nil
+}
+
+// AddUserDeviceAPIIntegrations adds the given related objects to the existing relationships
+// of the integration, optionally inserting them as new records.
+// Appends related to o.R.UserDeviceAPIIntegrations.
+// Sets related.R.Integration appropriately.
+func (o *Integration) AddUserDeviceAPIIntegrations(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*UserDeviceAPIIntegration) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.IntegrationID = o.ID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"devices_api\".\"user_device_api_integrations\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"integration_id"}),
+				strmangle.WhereClause("\"", "\"", 2, userDeviceAPIIntegrationPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.UserDeviceID, rel.IntegrationID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.IntegrationID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &integrationR{
+			UserDeviceAPIIntegrations: related,
+		}
+	} else {
+		o.R.UserDeviceAPIIntegrations = append(o.R.UserDeviceAPIIntegrations, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &userDeviceAPIIntegrationR{
 				Integration: o,
 			}
 		} else {

@@ -17,6 +17,8 @@ type Settings struct {
 	JwtKeySetURL         string `yaml:"JWT_KEY_SET_URL"`
 	SwaggerBaseURL       string `yaml:"SWAGGER_BASE_URL"`
 	TorProxyURL          string `yaml:"TOR_PROXY_URL"`
+	SmartcarClientID     string `yaml:"SMARTCAR_CLIENT_ID"`
+	SmartcarClientSecret string `yaml:"SMARTCAR_CLIENT_SECRET"`
 }
 
 // GetWriterDSN builds the connection string to the db writer - for now same as reader

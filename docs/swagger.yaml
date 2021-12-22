@@ -9,6 +9,9 @@ definitions:
         type: integer
       device_definition_id:
         type: string
+      id:
+        description: KSUID from client,
+        type: string
       image_url:
         type: string
       make:
@@ -100,6 +103,19 @@ definitions:
         type: string
       year:
         type: integer
+    type: object
+  controllers.GetUserDeviceIntegrationResponse:
+    properties:
+      status:
+        description: Status is one of "Pending", "PendingFirstData", "Active"
+        type: string
+    type: object
+  controllers.RegisterSmartcarRequest:
+    properties:
+      code:
+        type: string
+      redirectURI:
+        type: string
     type: object
   controllers.RegisterUserDevice:
     properties:
@@ -384,6 +400,34 @@ paths:
           description: ""
       security:
       - BearerAuth: []
+      tags:
+      - user-devices
+  /user/devices/:user_device_id/integrations/:integration_id:
+    get:
+      description: Receive status updates about a Smartcar integration
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.GetUserDeviceIntegrationResponse'
+      tags:
+      - user-devices
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Use a Smartcar auth code to connect to Smartcar and obtain access and refresh
+        tokens for use by the app.
+      parameters:
+      - description: Authorization code from Smartcar
+        in: body
+        name: userDeviceIntegrationRegistration
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.RegisterSmartcarRequest'
+      responses:
+        "204":
+          description: ""
       tags:
       - user-devices
   /user/devices/:user_device_id/name:

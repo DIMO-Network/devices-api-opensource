@@ -325,6 +325,47 @@
                 }
             }
         },
+        "/user/devices/:user_device_id/integrations/:integration_id": {
+            "get": {
+                "description": "Receive status updates about a Smartcar integration",
+                "tags": [
+                    "user-devices"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.GetUserDeviceIntegrationResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Use a Smartcar auth code to connect to Smartcar and obtain access and refresh\ntokens for use by the app.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user-devices"
+                ],
+                "parameters": [
+                    {
+                        "description": "Authorization code from Smartcar",
+                        "name": "userDeviceIntegrationRegistration",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.RegisterSmartcarRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/user/devices/:user_device_id/name": {
             "patch": {
                 "security": [
@@ -449,6 +490,10 @@
                     "type": "integer"
                 },
                 "device_definition_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "description": "KSUID from client,",
                     "type": "string"
                 },
                 "image_url": {
@@ -586,6 +631,26 @@
                 },
                 "year": {
                     "type": "integer"
+                }
+            }
+        },
+        "controllers.GetUserDeviceIntegrationResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "description": "Status is one of \"Pending\", \"PendingFirstData\", \"Active\"",
+                    "type": "string"
+                }
+            }
+        },
+        "controllers.RegisterSmartcarRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "redirectURI": {
+                    "type": "string"
                 }
             }
         },
