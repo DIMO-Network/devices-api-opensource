@@ -51,7 +51,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		qm.Load(models.UserDeviceRels.DeviceDefinition),
 		qm.Load("DeviceDefinition.DeviceIntegrations"),
 		qm.Load("DeviceDefinition.DeviceIntegrations.Integration"),
-		qm.OrderBy("created_at desc"),
+		qm.OrderBy("created_at"),
 	).
 		All(c.Context(), udc.DBS().Reader)
 	if err != nil {
