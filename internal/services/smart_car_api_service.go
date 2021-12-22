@@ -138,7 +138,7 @@ func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, 
 		IntegrationID:      integrationID,
 		DeviceDefinitionID: dbDeviceDef.ID,
 		Capabilities:       null.JSONFrom(icJSON),
-		Country:            strings.ToLower(integrationCountry),
+		Country:            integrationCountry,
 	}
 	return deviceIntegration.Insert(ctx, tx, boil.Infer())
 }
