@@ -2,7 +2,7 @@ replicaCount: 1
 image:
   repository: dimozone/devices-api
   pullPolicy: IfNotPresent
-  tag: f8bd0f9
+  tag: c773536
 imagePullSecrets: []
 nameOverride: ''
 fullnameOverride: ''
@@ -26,6 +26,7 @@ env:
   TOR_PROXY_URL: socks5://tor-dev:9050
   REDIS_USER: default
   REDIS_PORT: '6379'
+  INGEST_SMARTCAR_URL: https://ingest-smartcar-dev:8080
 service:
   type: ClusterIP
   port: 8080
