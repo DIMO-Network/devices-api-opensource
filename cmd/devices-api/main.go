@@ -41,7 +41,7 @@ func main() {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("could not load settings")
 	}
-	pdb := database.NewDbConnectionFromSettings(ctx, settings)
+	pdb := database.NewDbConnectionFromSettings(ctx, settings, true)
 
 	// todo: use flag or other package to handle args
 	arg := ""
