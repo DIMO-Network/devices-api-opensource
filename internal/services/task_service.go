@@ -181,7 +181,8 @@ func (t *TaskService) smartcarGetVehicles(userDeviceID, integrationID string) (e
 
 	pub, err := kafka.NewPublisher(
 		kafka.PublisherConfig{
-			Brokers: strings.Split(t.Settings.KafkaBrokers, ","),
+			Brokers:   strings.Split(t.Settings.KafkaBrokers, ","),
+			Marshaler: kafka.DefaultMarshaler{},
 		},
 		watermill.NewStdLogger(false, false),
 	)
