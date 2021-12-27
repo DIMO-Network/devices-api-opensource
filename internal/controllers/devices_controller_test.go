@@ -4,6 +4,9 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"fmt"
+	"github.com/segmentio/ksuid"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -51,31 +54,22 @@ func TestDevicesController(t *testing.T) {
 	c := NewDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, nhtsaSvc, deviceDefSvc)
 	// routes
 	app := fiber.New()
-	app.Get("/device-definitions/vin/:vin", c.LookupDeviceDefinitionByVIN)
 	app.Get("/device-definitions/all", c.GetAllDeviceMakeModelYears)
 	app.Get("/device-definitions/:id", c.GetDeviceDefinitionByID)
 	app.Get("/device-definitions/:id/integrations", c.GetIntegrationsByID)
 
-	createdID := ""
+	createdID := ksuid.New().String()
+	dbDeviceDef := models.DeviceDefinition{
+		ID:       createdID,
+		Make:     "TESLA",
+		Model:    "MODEL Y",
+		Year:     2020,
+		Verified: true,
+	}
+	dbErr := dbDeviceDef.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+	assert.NoError(t, dbErr)
+	fmt.Println("created device def id: " + createdID)
 
-	t.Run("GET - lookup device definition by VIN", func(t *testing.T) {
-		// arrange mock setup
-		vinResp := services.NHTSADecodeVINResponse{}
-		_ = json.Unmarshal([]byte(testNhtsaDecodedVin), &vinResp)
-		const vin = "5YJYGDEF2LFR00942"
-		nhtsaSvc.EXPECT().DecodeVIN(vin).Times(1).Return(&vinResp, nil)
-		deviceDefSvc.EXPECT().CheckAndSetImage(gomock.Any()).Return(nil)
-		// act
-		request, _ := http.NewRequest("GET", "/device-definitions/vin/"+vin, nil)
-		response, _ := app.Test(request)
-		// assert
-		assert.Equal(t, 200, response.StatusCode)
-		definition, err := models.DeviceDefinitions().One(ctx, pdb.DBS().Writer)
-		assert.NoError(t, err, "expected to find one device def in DB")
-		assert.NotNilf(t, definition, "expected device def not be nil")
-		assert.Equal(t, vin[:10], definition.VinFirst10.String)
-		createdID = definition.ID
-	})
 	t.Run("GET - device definition by id", func(t *testing.T) {
 		request, _ := http.NewRequest("GET", "/device-definitions/"+createdID, nil)
 		response, _ := app.Test(request)
@@ -149,15 +143,13 @@ func TestNewDeviceDefinitionFromNHTSA(t *testing.T) {
 }
 
 func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
-	vin := "1231231231"
 	dbDevice := models.DeviceDefinition{
-		ID:         "123",
-		VinFirst10: null.StringFrom(vin),
-		Make:       "Merc",
-		Model:      "R500",
-		Year:       2020,
-		SubModel:   null.StringFrom("AMG"),
-		Metadata:   null.JSONFrom([]byte(`{"vehicle_info": {"fuel_type": "gas", "driven_wheels": "4", "number_of_doors":"5" } }`)),
+		ID:       "123",
+		Make:     "Merc",
+		Model:    "R500",
+		Year:     2020,
+		SubModel: null.StringFrom("AMG"),
+		Metadata: null.JSONFrom([]byte(`{"vehicle_info": {"fuel_type": "gas", "driven_wheels": "4", "number_of_doors":"5" } }`)),
 	}
 	di := models.DeviceIntegration{
 		DeviceDefinitionID: "123",
@@ -205,10 +197,8 @@ func TestNewDbModelFromDeviceDefinition(t *testing.T) {
 			NumberOfDoors: "5",
 		},
 	}
-	vin := "1231231"
-	dbDevice := NewDbModelFromDeviceDefinition(dd, &vin, nil)
+	dbDevice := NewDbModelFromDeviceDefinition(dd, nil)
 
-	assert.Equal(t, vin, dbDevice.VinFirst10.String)
 	assert.Equal(t, "R500", dbDevice.Model)
 	assert.Equal(t, "Merc", dbDevice.Make)
 	assert.Equal(t, int16(2020), dbDevice.Year)

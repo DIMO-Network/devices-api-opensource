@@ -24,77 +24,72 @@ import (
 
 // DeviceDefinition is an object representing the database table.
 type DeviceDefinition struct {
-	ID         string      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	VinFirst10 null.String `boil:"vin_first_10" json:"vin_first_10,omitempty" toml:"vin_first_10" yaml:"vin_first_10,omitempty"`
-	Make       string      `boil:"make" json:"make" toml:"make" yaml:"make"`
-	Model      string      `boil:"model" json:"model" toml:"model" yaml:"model"`
-	Year       int16       `boil:"year" json:"year" toml:"year" yaml:"year"`
-	SubModel   null.String `boil:"sub_model" json:"sub_model,omitempty" toml:"sub_model" yaml:"sub_model,omitempty"`
-	ImageURL   null.String `boil:"image_url" json:"image_url,omitempty" toml:"image_url" yaml:"image_url,omitempty"`
-	Metadata   null.JSON   `boil:"metadata" json:"metadata,omitempty" toml:"metadata" yaml:"metadata,omitempty"`
-	CreatedAt  time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt  time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	Source     null.String `boil:"source" json:"source,omitempty" toml:"source" yaml:"source,omitempty"`
-	Verified   bool        `boil:"verified" json:"verified" toml:"verified" yaml:"verified"`
+	ID        string      `boil:"id" json:"id" toml:"id" yaml:"id"`
+	Make      string      `boil:"make" json:"make" toml:"make" yaml:"make"`
+	Model     string      `boil:"model" json:"model" toml:"model" yaml:"model"`
+	Year      int16       `boil:"year" json:"year" toml:"year" yaml:"year"`
+	SubModel  null.String `boil:"sub_model" json:"sub_model,omitempty" toml:"sub_model" yaml:"sub_model,omitempty"`
+	ImageURL  null.String `boil:"image_url" json:"image_url,omitempty" toml:"image_url" yaml:"image_url,omitempty"`
+	Metadata  null.JSON   `boil:"metadata" json:"metadata,omitempty" toml:"metadata" yaml:"metadata,omitempty"`
+	CreatedAt time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	Source    null.String `boil:"source" json:"source,omitempty" toml:"source" yaml:"source,omitempty"`
+	Verified  bool        `boil:"verified" json:"verified" toml:"verified" yaml:"verified"`
 
 	R *deviceDefinitionR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L deviceDefinitionL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var DeviceDefinitionColumns = struct {
-	ID         string
-	VinFirst10 string
-	Make       string
-	Model      string
-	Year       string
-	SubModel   string
-	ImageURL   string
-	Metadata   string
-	CreatedAt  string
-	UpdatedAt  string
-	Source     string
-	Verified   string
+	ID        string
+	Make      string
+	Model     string
+	Year      string
+	SubModel  string
+	ImageURL  string
+	Metadata  string
+	CreatedAt string
+	UpdatedAt string
+	Source    string
+	Verified  string
 }{
-	ID:         "id",
-	VinFirst10: "vin_first_10",
-	Make:       "make",
-	Model:      "model",
-	Year:       "year",
-	SubModel:   "sub_model",
-	ImageURL:   "image_url",
-	Metadata:   "metadata",
-	CreatedAt:  "created_at",
-	UpdatedAt:  "updated_at",
-	Source:     "source",
-	Verified:   "verified",
+	ID:        "id",
+	Make:      "make",
+	Model:     "model",
+	Year:      "year",
+	SubModel:  "sub_model",
+	ImageURL:  "image_url",
+	Metadata:  "metadata",
+	CreatedAt: "created_at",
+	UpdatedAt: "updated_at",
+	Source:    "source",
+	Verified:  "verified",
 }
 
 var DeviceDefinitionTableColumns = struct {
-	ID         string
-	VinFirst10 string
-	Make       string
-	Model      string
-	Year       string
-	SubModel   string
-	ImageURL   string
-	Metadata   string
-	CreatedAt  string
-	UpdatedAt  string
-	Source     string
-	Verified   string
+	ID        string
+	Make      string
+	Model     string
+	Year      string
+	SubModel  string
+	ImageURL  string
+	Metadata  string
+	CreatedAt string
+	UpdatedAt string
+	Source    string
+	Verified  string
 }{
-	ID:         "device_definitions.id",
-	VinFirst10: "device_definitions.vin_first_10",
-	Make:       "device_definitions.make",
-	Model:      "device_definitions.model",
-	Year:       "device_definitions.year",
-	SubModel:   "device_definitions.sub_model",
-	ImageURL:   "device_definitions.image_url",
-	Metadata:   "device_definitions.metadata",
-	CreatedAt:  "device_definitions.created_at",
-	UpdatedAt:  "device_definitions.updated_at",
-	Source:     "device_definitions.source",
-	Verified:   "device_definitions.verified",
+	ID:        "device_definitions.id",
+	Make:      "device_definitions.make",
+	Model:     "device_definitions.model",
+	Year:      "device_definitions.year",
+	SubModel:  "device_definitions.sub_model",
+	ImageURL:  "device_definitions.image_url",
+	Metadata:  "device_definitions.metadata",
+	CreatedAt: "device_definitions.created_at",
+	UpdatedAt: "device_definitions.updated_at",
+	Source:    "device_definitions.source",
+	Verified:  "device_definitions.verified",
 }
 
 // Generated where
@@ -115,6 +110,29 @@ func (w whereHelperstring) IN(slice []string) qm.QueryMod {
 	return qm.WhereIn(fmt.Sprintf("%s IN ?", w.field), values...)
 }
 func (w whereHelperstring) NIN(slice []string) qm.QueryMod {
+	values := make([]interface{}, 0, len(slice))
+	for _, value := range slice {
+		values = append(values, value)
+	}
+	return qm.WhereNotIn(fmt.Sprintf("%s NOT IN ?", w.field), values...)
+}
+
+type whereHelperint16 struct{ field string }
+
+func (w whereHelperint16) EQ(x int16) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.EQ, x) }
+func (w whereHelperint16) NEQ(x int16) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.NEQ, x) }
+func (w whereHelperint16) LT(x int16) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.LT, x) }
+func (w whereHelperint16) LTE(x int16) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LTE, x) }
+func (w whereHelperint16) GT(x int16) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.GT, x) }
+func (w whereHelperint16) GTE(x int16) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
+func (w whereHelperint16) IN(slice []int16) qm.QueryMod {
+	values := make([]interface{}, 0, len(slice))
+	for _, value := range slice {
+		values = append(values, value)
+	}
+	return qm.WhereIn(fmt.Sprintf("%s IN ?", w.field), values...)
+}
+func (w whereHelperint16) NIN(slice []int16) qm.QueryMod {
 	values := make([]interface{}, 0, len(slice))
 	for _, value := range slice {
 		values = append(values, value)
@@ -145,29 +163,6 @@ func (w whereHelpernull_String) GTE(x null.String) qm.QueryMod {
 
 func (w whereHelpernull_String) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
 func (w whereHelpernull_String) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
-
-type whereHelperint16 struct{ field string }
-
-func (w whereHelperint16) EQ(x int16) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.EQ, x) }
-func (w whereHelperint16) NEQ(x int16) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.NEQ, x) }
-func (w whereHelperint16) LT(x int16) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.LT, x) }
-func (w whereHelperint16) LTE(x int16) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LTE, x) }
-func (w whereHelperint16) GT(x int16) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.GT, x) }
-func (w whereHelperint16) GTE(x int16) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
-func (w whereHelperint16) IN(slice []int16) qm.QueryMod {
-	values := make([]interface{}, 0, len(slice))
-	for _, value := range slice {
-		values = append(values, value)
-	}
-	return qm.WhereIn(fmt.Sprintf("%s IN ?", w.field), values...)
-}
-func (w whereHelperint16) NIN(slice []int16) qm.QueryMod {
-	values := make([]interface{}, 0, len(slice))
-	for _, value := range slice {
-		values = append(values, value)
-	}
-	return qm.WhereNotIn(fmt.Sprintf("%s NOT IN ?", w.field), values...)
-}
 
 type whereHelpernull_JSON struct{ field string }
 
@@ -224,31 +219,29 @@ func (w whereHelperbool) GT(x bool) qm.QueryMod  { return qmhelper.Where(w.field
 func (w whereHelperbool) GTE(x bool) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
 
 var DeviceDefinitionWhere = struct {
-	ID         whereHelperstring
-	VinFirst10 whereHelpernull_String
-	Make       whereHelperstring
-	Model      whereHelperstring
-	Year       whereHelperint16
-	SubModel   whereHelpernull_String
-	ImageURL   whereHelpernull_String
-	Metadata   whereHelpernull_JSON
-	CreatedAt  whereHelpertime_Time
-	UpdatedAt  whereHelpertime_Time
-	Source     whereHelpernull_String
-	Verified   whereHelperbool
+	ID        whereHelperstring
+	Make      whereHelperstring
+	Model     whereHelperstring
+	Year      whereHelperint16
+	SubModel  whereHelpernull_String
+	ImageURL  whereHelpernull_String
+	Metadata  whereHelpernull_JSON
+	CreatedAt whereHelpertime_Time
+	UpdatedAt whereHelpertime_Time
+	Source    whereHelpernull_String
+	Verified  whereHelperbool
 }{
-	ID:         whereHelperstring{field: "\"devices_api\".\"device_definitions\".\"id\""},
-	VinFirst10: whereHelpernull_String{field: "\"devices_api\".\"device_definitions\".\"vin_first_10\""},
-	Make:       whereHelperstring{field: "\"devices_api\".\"device_definitions\".\"make\""},
-	Model:      whereHelperstring{field: "\"devices_api\".\"device_definitions\".\"model\""},
-	Year:       whereHelperint16{field: "\"devices_api\".\"device_definitions\".\"year\""},
-	SubModel:   whereHelpernull_String{field: "\"devices_api\".\"device_definitions\".\"sub_model\""},
-	ImageURL:   whereHelpernull_String{field: "\"devices_api\".\"device_definitions\".\"image_url\""},
-	Metadata:   whereHelpernull_JSON{field: "\"devices_api\".\"device_definitions\".\"metadata\""},
-	CreatedAt:  whereHelpertime_Time{field: "\"devices_api\".\"device_definitions\".\"created_at\""},
-	UpdatedAt:  whereHelpertime_Time{field: "\"devices_api\".\"device_definitions\".\"updated_at\""},
-	Source:     whereHelpernull_String{field: "\"devices_api\".\"device_definitions\".\"source\""},
-	Verified:   whereHelperbool{field: "\"devices_api\".\"device_definitions\".\"verified\""},
+	ID:        whereHelperstring{field: "\"devices_api\".\"device_definitions\".\"id\""},
+	Make:      whereHelperstring{field: "\"devices_api\".\"device_definitions\".\"make\""},
+	Model:     whereHelperstring{field: "\"devices_api\".\"device_definitions\".\"model\""},
+	Year:      whereHelperint16{field: "\"devices_api\".\"device_definitions\".\"year\""},
+	SubModel:  whereHelpernull_String{field: "\"devices_api\".\"device_definitions\".\"sub_model\""},
+	ImageURL:  whereHelpernull_String{field: "\"devices_api\".\"device_definitions\".\"image_url\""},
+	Metadata:  whereHelpernull_JSON{field: "\"devices_api\".\"device_definitions\".\"metadata\""},
+	CreatedAt: whereHelpertime_Time{field: "\"devices_api\".\"device_definitions\".\"created_at\""},
+	UpdatedAt: whereHelpertime_Time{field: "\"devices_api\".\"device_definitions\".\"updated_at\""},
+	Source:    whereHelpernull_String{field: "\"devices_api\".\"device_definitions\".\"source\""},
+	Verified:  whereHelperbool{field: "\"devices_api\".\"device_definitions\".\"verified\""},
 }
 
 // DeviceDefinitionRels is where relationship names are stored.
@@ -275,8 +268,8 @@ func (*deviceDefinitionR) NewStruct() *deviceDefinitionR {
 type deviceDefinitionL struct{}
 
 var (
-	deviceDefinitionAllColumns            = []string{"id", "vin_first_10", "make", "model", "year", "sub_model", "image_url", "metadata", "created_at", "updated_at", "source", "verified"}
-	deviceDefinitionColumnsWithoutDefault = []string{"id", "vin_first_10", "make", "model", "year", "sub_model", "image_url", "metadata", "source"}
+	deviceDefinitionAllColumns            = []string{"id", "make", "model", "year", "sub_model", "image_url", "metadata", "created_at", "updated_at", "source", "verified"}
+	deviceDefinitionColumnsWithoutDefault = []string{"id", "make", "model", "year", "sub_model", "image_url", "metadata", "source"}
 	deviceDefinitionColumnsWithDefault    = []string{"created_at", "updated_at", "verified"}
 	deviceDefinitionPrimaryKeyColumns     = []string{"id"}
 )

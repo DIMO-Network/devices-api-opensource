@@ -65,7 +65,7 @@ Add a migrations:
 `$ goose -dir migrations create <migration_name> sql`
 
 Migrate DB to latest:
-`$ go run ./cmd/db_migrate`
+`$ go run ./cmd/devices-api migrate`
 
 Clear DB to start over:
 ```bash
