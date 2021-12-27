@@ -63,6 +63,11 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 			years := row[0].Subtext                                                       // eg. 2017+ or 2012-2017
 			vehicleType := strings.ToUpper(null.StringFromPtr(row[1].VehicleType).String) // ICE, PHEV, BEV
 
+			if years == nil {
+				s.log.Warn().Msg("Skipping row as years is nil")
+				continue
+			}
+
 			ic := IntegrationCapabilities{
 				Location:          getCapability("Location", usData.Headers, row),
 				Odometer:          getCapability("Odometer", usData.Headers, row),
