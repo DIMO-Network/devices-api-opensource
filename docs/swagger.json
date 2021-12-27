@@ -135,34 +135,6 @@
                 }
             }
         },
-        "/device-definitions/vin/{vin}": {
-            "get": {
-                "description": "decodes a VIN by first looking it up on our DB, and then calling out to external sources. If it does call out, it will backfill our DB",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "device-definitions"
-                ],
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "VIN eg. 5YJ3E1EA6MF873863",
-                        "name": "vin",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.DeviceDefinition"
-                        }
-                    }
-                }
-            }
-        },
         "/device-definitions/{id}": {
             "get": {
                 "description": "gets a specific device definition by id",
