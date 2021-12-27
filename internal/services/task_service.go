@@ -74,7 +74,7 @@ func (t *TaskService) subscribeVehicle(vehicleID, accessToken string) (err error
 		return
 	}
 	if resp.StatusCode >= 400 {
-		err = fmt.Errorf("error from Smartcar, status code %d", resp.StatusCode)
+		err = fmt.Errorf("error from Smartcar attaching vehicle %s to webhook %s, status code %d", vehicleID, t.Settings.SmartcarWebhookID, resp.StatusCode)
 	}
 	return
 }
@@ -93,7 +93,7 @@ func (t *TaskService) vinRequest(vehicleID, accessToken string) (vin string, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		err = fmt.Errorf("error from Smartcar, status code %d", resp.StatusCode)
+		err = fmt.Errorf("error from Smartcar requesting VIN for %s, status code %d", vehicleID, resp.StatusCode)
 		return
 	}
 	var richResp struct {
