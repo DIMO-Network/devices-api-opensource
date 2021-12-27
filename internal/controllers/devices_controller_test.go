@@ -5,8 +5,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"github.com/segmentio/ksuid"
-	"github.com/volatiletech/sqlboiler/v4/boil"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -22,8 +20,10 @@ import (
 	"github.com/golang/mock/gomock"
 	_ "github.com/lib/pq"
 	"github.com/rs/zerolog"
+	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
 //go:embed test_nhtsa_decoded_vin.json
