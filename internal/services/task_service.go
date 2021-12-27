@@ -224,6 +224,9 @@ func (t *TaskService) smartcarBatchRequest(userDeviceID, integrationID string) (
 	}
 
 	resp, err := t.batchRequest(integ.ExternalID.String, integ.AccessToken)
+	if err != nil {
+		return
+	}
 
 	req, err := http.NewRequest("POST", t.Settings.IngestSmartcarURL, bytes.NewReader(resp))
 	req.Header.Set("Content-Type", "application/json")
