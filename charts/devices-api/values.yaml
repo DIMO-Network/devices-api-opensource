@@ -2,7 +2,7 @@ replicaCount: 1
 image:
   repository: dimozone/devices-api
   pullPolicy: IfNotPresent
-  tag: 5b5b342
+  tag: b889344
 imagePullSecrets: []
 nameOverride: ''
 fullnameOverride: ''
@@ -26,7 +26,9 @@ env:
   TOR_PROXY_URL: socks5://tor-dev:9050
   REDIS_USER: default
   REDIS_PORT: '6379'
+  REDIS_TLS: true
   INGEST_SMARTCAR_URL: https://ingest-smartcar-dev:8080
+  KAFKA_BROKERS: kafka-dev-dimo-kafka-kafka-brokers
 service:
   type: ClusterIP
   port: 8080
