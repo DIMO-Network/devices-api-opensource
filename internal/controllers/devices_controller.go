@@ -1,11 +1,9 @@
 package controllers
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
@@ -16,7 +14,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
 	"github.com/volatiletech/null/v8"
-	"github.com/volatiletech/sqlboiler/v4/boil"
 	qm "github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
@@ -41,83 +38,6 @@ func NewDevicesController(settings *config.Settings, dbs func() *database.DBRead
 		EdmundsSvc:   edmundsSvc,
 		DeviceDefSvc: ddSvc,
 	}
-}
-
-// LookupDeviceDefinitionByVIN godoc
-// @Description decodes a VIN by first looking it up on our DB, and then calling out to external sources. If it does call out, it will backfill our DB
-// @Tags 	device-definitions
-// @Produce json
-// @Param 	vin path string true "VIN eg. 5YJ3E1EA6MF873863"
-// @Success 200 {object} controllers.DeviceDefinition
-// @Router  /device-definitions/vin/{vin} [get]
-func (d *DevicesController) LookupDeviceDefinitionByVIN(c *fiber.Ctx) error {
-	vin := c.Params("vin")
-	if len(vin) != 17 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error_message": "vin is not 17 characters",
-		})
-	}
-	squishVin := vin[:10]
-	tx, err := d.DBS().Writer.BeginTx(c.Context(), nil)
-	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
-	}
-	defer tx.Rollback() //nolint
-
-	dd, err := models.DeviceDefinitions(
-		qm.Where("vin_first_10 = ?", strings.ToUpper(squishVin)),
-		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
-		qm.Load("DeviceIntegrations.Integration")).
-		One(c.Context(), tx)
-
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			decodedVIN, err := d.NHTSASvc.DecodeVIN(vin)
-			if err != nil {
-				return errorResponseHandler(c, err, fiber.StatusNotFound)
-			}
-			rp := NewDeviceDefinitionFromNHTSA(decodedVIN)
-			// save to database, if error just log do not block, execute in go func routine to not block
-			src := "NHTSA"
-			dbDevice := NewDbModelFromDeviceDefinition(rp, &squishVin, &src)
-			dbDevice.Verified = true
-			dbDevice.Source = null.StringFrom(src)
-
-			err = dbDevice.Insert(c.Context(), tx, boil.Infer())
-			if err != nil {
-				d.log.Error().Err(err).Msg("error inserting device definition to db")
-				return errorResponseHandler(c, err, fiber.StatusInternalServerError)
-			}
-			err = tx.Commit()
-			if err != nil {
-				return errorResponseHandler(c, err, fiber.StatusInternalServerError)
-			}
-			go func() {
-				err := d.DeviceDefSvc.CheckAndSetImage(dbDevice)
-				if err != nil {
-					d.log.Error().Err(err).Msg("error getting default device image")
-					return
-				}
-				_, err = dbDevice.Update(context.Background(), d.DBS().Writer, boil.Whitelist("image_url", "updated_at"))
-				if err != nil {
-					d.log.Error().Err(err).Msg("error updating default device image")
-				}
-			}()
-			rp = NewDeviceDefinitionFromDatabase(dbDevice)
-			return c.JSON(fiber.Map{
-				"device_definition": rp,
-			})
-		}
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
-	}
-	err = tx.Commit()
-	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
-	}
-	rp := NewDeviceDefinitionFromDatabase(dd)
-	return c.JSON(fiber.Map{
-		"device_definition": rp,
-	})
 }
 
 // GetAllDeviceMakeModelYears godoc
@@ -330,16 +250,15 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 }
 
 // NewDbModelFromDeviceDefinition converts a DeviceDefinition response object to a new database model for the given squishVin. source is NHTSA, edmunds, smartcar, etc
-func NewDbModelFromDeviceDefinition(dd DeviceDefinition, squishVin *string, source *string) *models.DeviceDefinition {
+func NewDbModelFromDeviceDefinition(dd DeviceDefinition, source *string) *models.DeviceDefinition {
 	dbDevice := models.DeviceDefinition{
-		ID:         ksuid.New().String(),
-		VinFirst10: null.StringFromPtr(squishVin),
-		Make:       dd.Type.Make,
-		Model:      dd.Type.Model,
-		Year:       int16(dd.Type.Year),
-		SubModel:   null.StringFrom(dd.Type.SubModel),
-		Verified:   true,
-		Source:     null.StringFromPtr(source),
+		ID:       ksuid.New().String(),
+		Make:     dd.Type.Make,
+		Model:    dd.Type.Model,
+		Year:     int16(dd.Type.Year),
+		SubModel: null.StringFrom(dd.Type.SubModel),
+		Verified: true,
+		Source:   null.StringFromPtr(source),
 	}
 	_ = dbDevice.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dd.VehicleInfo})
 

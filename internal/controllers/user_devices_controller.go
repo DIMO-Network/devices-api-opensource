@@ -424,9 +424,6 @@ func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
 					Verified: reg.Verified,
 					ImageURL: null.StringFromPtr(reg.ImageURL),
 				}
-				if len(reg.VIN) == 17 {
-					dd.VinFirst10 = null.StringFrom(strings.ToUpper(reg.VIN[:10]))
-				}
 				err = dd.Insert(c.Context(), tx, boil.Infer())
 				if err != nil {
 					return errorResponseHandler(c, err, fiber.StatusInternalServerError)

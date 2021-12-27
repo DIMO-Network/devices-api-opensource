@@ -321,25 +321,6 @@ paths:
             type: array
       tags:
       - device-definitions
-  /device-definitions/vin/{vin}:
-    get:
-      description: decodes a VIN by first looking it up on our DB, and then calling
-        out to external sources. If it does call out, it will backfill our DB
-      parameters:
-      - description: VIN eg. 5YJ3E1EA6MF873863
-        in: path
-        name: vin
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/controllers.DeviceDefinition'
-      tags:
-      - device-definitions
   /user/devices:
     post:
       consumes:

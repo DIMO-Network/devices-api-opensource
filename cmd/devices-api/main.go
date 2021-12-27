@@ -98,7 +98,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	app.Get("/", HealthCheck)
 	v1 := app.Group("/v1")
 
-	v1.Get("/device-definitions/vin/:vin", deviceControllers.LookupDeviceDefinitionByVIN) // generic response, specific for vehicle lookup
 	v1.Get("/device-definitions/all", cacheHandler, deviceControllers.GetAllDeviceMakeModelYears)
 	v1.Get("/device-definitions/:id", deviceControllers.GetDeviceDefinitionByID)
 	v1.Get("/device-definitions/:id/integrations", deviceControllers.GetIntegrationsByID)
