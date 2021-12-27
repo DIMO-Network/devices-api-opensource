@@ -140,9 +140,9 @@ func TestUserDevicesController(t *testing.T) {
 		mk := "Ford"
 		model := "Mach E"
 		year := 2021
-		existingDeviceDefinitionId := ksuid.New().String()
+		existingDeviceDefinitionID := ksuid.New().String()
 		dd := &models.DeviceDefinition{
-			ID:    existingDeviceDefinitionId,
+			ID:    existingDeviceDefinitionID,
 			Make:  mk,
 			Model: model,
 			Year:  int16(year),
@@ -168,7 +168,7 @@ func TestUserDevicesController(t *testing.T) {
 		_ = json.Unmarshal(body, &regUserResp)
 		assert.Len(t, regUserResp.UserDeviceID, 27)
 		assert.NotEqual(t, createdUserDeviceID, regUserResp.UserDeviceID, "expected user_device_id not to be equal to previous")
-		assert.Equal(t, existingDeviceDefinitionId, regUserResp.DeviceDefinitionID)
+		assert.Equal(t, existingDeviceDefinitionID, regUserResp.DeviceDefinitionID)
 	})
 	t.Run("POST - bad payload", func(t *testing.T) {
 		request := buildRequest("POST", "/user/devices", "{}")
