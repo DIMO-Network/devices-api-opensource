@@ -23,6 +23,6 @@ CREATE TABLE user_device_api_integrations (
 -- +goose StatementBegin
 SET search_path = devices_api, public;
 
-DROP TABLE user_device_integrations_api;
-DROP TYPE user_device_api_integration_status;
+DROP TABLE user_device_api_integrations;
+DROP TYPE IF EXISTS user_device_api_integration_status;
 -- +goose StatementEnd
