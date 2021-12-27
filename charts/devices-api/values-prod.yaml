@@ -26,6 +26,9 @@ env:
   TOR_PROXY_URL: socks5://tor-prod:9050
   REDIS_USER: default
   REDIS_CLUSTER_MODE: true
+  REDIS_TLS: true
+  INGEST_SMARTCAR_URL: https://ingest-smartcar-prod:8080
+  KAFKA_BROKERS: kafka-prod-dimo-kafka-kafka-brokers
 service:
   type: ClusterIP
   port: 8080

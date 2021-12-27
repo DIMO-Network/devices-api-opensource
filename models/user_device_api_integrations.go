@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/friendsofgo/errors"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -23,13 +24,14 @@ import (
 
 // UserDeviceAPIIntegration is an object representing the database table.
 type UserDeviceAPIIntegration struct {
-	UserDeviceID     string    `boil:"user_device_id" json:"user_device_id" toml:"user_device_id" yaml:"user_device_id"`
-	IntegrationID    string    `boil:"integration_id" json:"integration_id" toml:"integration_id" yaml:"integration_id"`
-	Status           string    `boil:"status" json:"status" toml:"status" yaml:"status"`
-	AccessToken      string    `boil:"access_token" json:"access_token" toml:"access_token" yaml:"access_token"`
-	AccessExpiresAt  time.Time `boil:"access_expires_at" json:"access_expires_at" toml:"access_expires_at" yaml:"access_expires_at"`
-	RefreshToken     string    `boil:"refresh_token" json:"refresh_token" toml:"refresh_token" yaml:"refresh_token"`
-	RefreshExpiresAt time.Time `boil:"refresh_expires_at" json:"refresh_expires_at" toml:"refresh_expires_at" yaml:"refresh_expires_at"`
+	UserDeviceID     string      `boil:"user_device_id" json:"user_device_id" toml:"user_device_id" yaml:"user_device_id"`
+	IntegrationID    string      `boil:"integration_id" json:"integration_id" toml:"integration_id" yaml:"integration_id"`
+	Status           string      `boil:"status" json:"status" toml:"status" yaml:"status"`
+	AccessToken      string      `boil:"access_token" json:"access_token" toml:"access_token" yaml:"access_token"`
+	AccessExpiresAt  time.Time   `boil:"access_expires_at" json:"access_expires_at" toml:"access_expires_at" yaml:"access_expires_at"`
+	RefreshToken     string      `boil:"refresh_token" json:"refresh_token" toml:"refresh_token" yaml:"refresh_token"`
+	RefreshExpiresAt time.Time   `boil:"refresh_expires_at" json:"refresh_expires_at" toml:"refresh_expires_at" yaml:"refresh_expires_at"`
+	ExternalID       null.String `boil:"external_id" json:"external_id,omitempty" toml:"external_id" yaml:"external_id,omitempty"`
 
 	R *userDeviceAPIIntegrationR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userDeviceAPIIntegrationL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -43,6 +45,7 @@ var UserDeviceAPIIntegrationColumns = struct {
 	AccessExpiresAt  string
 	RefreshToken     string
 	RefreshExpiresAt string
+	ExternalID       string
 }{
 	UserDeviceID:     "user_device_id",
 	IntegrationID:    "integration_id",
@@ -51,6 +54,7 @@ var UserDeviceAPIIntegrationColumns = struct {
 	AccessExpiresAt:  "access_expires_at",
 	RefreshToken:     "refresh_token",
 	RefreshExpiresAt: "refresh_expires_at",
+	ExternalID:       "external_id",
 }
 
 var UserDeviceAPIIntegrationTableColumns = struct {
@@ -61,6 +65,7 @@ var UserDeviceAPIIntegrationTableColumns = struct {
 	AccessExpiresAt  string
 	RefreshToken     string
 	RefreshExpiresAt string
+	ExternalID       string
 }{
 	UserDeviceID:     "user_device_api_integrations.user_device_id",
 	IntegrationID:    "user_device_api_integrations.integration_id",
@@ -69,6 +74,7 @@ var UserDeviceAPIIntegrationTableColumns = struct {
 	AccessExpiresAt:  "user_device_api_integrations.access_expires_at",
 	RefreshToken:     "user_device_api_integrations.refresh_token",
 	RefreshExpiresAt: "user_device_api_integrations.refresh_expires_at",
+	ExternalID:       "user_device_api_integrations.external_id",
 }
 
 // Generated where
@@ -81,6 +87,7 @@ var UserDeviceAPIIntegrationWhere = struct {
 	AccessExpiresAt  whereHelpertime_Time
 	RefreshToken     whereHelperstring
 	RefreshExpiresAt whereHelpertime_Time
+	ExternalID       whereHelpernull_String
 }{
 	UserDeviceID:     whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"user_device_id\""},
 	IntegrationID:    whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"integration_id\""},
@@ -89,6 +96,7 @@ var UserDeviceAPIIntegrationWhere = struct {
 	AccessExpiresAt:  whereHelpertime_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"access_expires_at\""},
 	RefreshToken:     whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"refresh_token\""},
 	RefreshExpiresAt: whereHelpertime_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"refresh_expires_at\""},
+	ExternalID:       whereHelpernull_String{field: "\"devices_api\".\"user_device_api_integrations\".\"external_id\""},
 }
 
 // UserDeviceAPIIntegrationRels is where relationship names are stored.
@@ -115,8 +123,8 @@ func (*userDeviceAPIIntegrationR) NewStruct() *userDeviceAPIIntegrationR {
 type userDeviceAPIIntegrationL struct{}
 
 var (
-	userDeviceAPIIntegrationAllColumns            = []string{"user_device_id", "integration_id", "status", "access_token", "access_expires_at", "refresh_token", "refresh_expires_at"}
-	userDeviceAPIIntegrationColumnsWithoutDefault = []string{"user_device_id", "integration_id", "status", "access_token", "access_expires_at", "refresh_token", "refresh_expires_at"}
+	userDeviceAPIIntegrationAllColumns            = []string{"user_device_id", "integration_id", "status", "access_token", "access_expires_at", "refresh_token", "refresh_expires_at", "external_id"}
+	userDeviceAPIIntegrationColumnsWithoutDefault = []string{"user_device_id", "integration_id", "status", "access_token", "access_expires_at", "refresh_token", "refresh_expires_at", "external_id"}
 	userDeviceAPIIntegrationColumnsWithDefault    = []string{}
 	userDeviceAPIIntegrationPrimaryKeyColumns     = []string{"user_device_id", "integration_id"}
 )

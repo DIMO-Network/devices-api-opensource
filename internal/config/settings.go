@@ -19,6 +19,14 @@ type Settings struct {
 	TorProxyURL          string `yaml:"TOR_PROXY_URL"`
 	SmartcarClientID     string `yaml:"SMARTCAR_CLIENT_ID"`
 	SmartcarClientSecret string `yaml:"SMARTCAR_CLIENT_SECRET"`
+	SmartcarTestMode     bool   `yaml:"SMARTCAR_TEST_MODE"`
+	SmartcarWebhookID    string `yaml:"SMARTCAR_WEBHOOK_ID"`
+	RedisHost            string `yaml:"REDIS_HOST"`
+	RedisPort            string `yaml:"REDIS_PORT"`
+	RedisPassword        string `yaml:"REDIS_PASSWORD"`
+	RedisTLS             bool   `yaml:"REDIS_TLS"`
+	IngestSmartcarURL    string `yaml:"INGEST_SMARTCAR_URL"`
+	KafkaBrokers         string `yaml:"KAFKA_BROKERS"`
 }
 
 // GetWriterDSN builds the connection string to the db writer - for now same as reader

@@ -28,15 +28,17 @@ type UserDevicesController struct {
 	DBS          func() *database.DBReaderWriter
 	DeviceDefSvc services.IDeviceDefinitionService
 	log          *zerolog.Logger
+	taskSvc      *services.TaskService
 }
 
 // NewUserDevicesController constructor
-func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService) UserDevicesController {
+func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc *services.TaskService) UserDevicesController {
 	return UserDevicesController{
 		Settings:     settings,
 		DBS:          dbs,
 		log:          logger,
 		DeviceDefSvc: ddSvc,
+		taskSvc:      taskSvc,
 	}
 }
 
@@ -242,10 +244,24 @@ func (udc *UserDevicesController) RegisterSmartcarIntegration(c *fiber.Ctx) erro
 		ClientSecret: udc.Settings.SmartcarClientSecret,
 		RedirectURI:  reqBody.RedirectURI,
 		Scope:        smartcarScopes,
+		TestMode:     udc.Settings.SmartcarTestMode,
 	})
 	token, err := auth.ExchangeCode(c.Context(), &smartcar.ExchangeCodeParams{Code: reqBody.Code})
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+	}
+
+	temp, err := models.FindUserDeviceAPIIntegration(c.Context(), udc.DBS().Writer, userDeviceID, integrationID)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		}
+	} else {
+		// This is mostly helpful for testing
+		_, err := temp.Delete(c.Context(), udc.DBS().Writer)
+		if err != nil {
+			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		}
 	}
 
 	// TODO: Encrypt the tokens. Note that you need the client id, client secret, and redirect
@@ -265,12 +281,20 @@ func (udc *UserDevicesController) RegisterSmartcarIntegration(c *fiber.Ctx) erro
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
+	err = udc.taskSvc.BeginSmartcar(userDeviceID, integrationID)
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
 type GetUserDeviceIntegrationResponse struct {
 	// Status is one of "Pending", "PendingFirstData", "Active"
 	Status string `json:"status"`
+	// ExternalID is the identifier used by the third party for the device. It may be absent if we
+	// haven't authorized yet.
+	ExternalID null.String `json:"externalId"`
 }
 
 // GetUserDeviceIntegration godoc
@@ -303,7 +327,45 @@ func (udc *UserDevicesController) GetUserDeviceIntegration(c *fiber.Ctx) error {
 		}
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
-	return c.JSON(GetUserDeviceIntegrationResponse{Status: apiIntegration.Status})
+	return c.JSON(GetUserDeviceIntegrationResponse{Status: apiIntegration.Status, ExternalID: apiIntegration.ExternalID})
+}
+
+// DeleteUserDeviceIntegration godoc
+// @Description Remove an user device's integration
+// @Tags user-devices
+// @Success 204
+// @Router /user/devices/:user_device_id/integrations/:integration_id [delete]
+func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) error {
+	userID := getUserID(c)
+	userDeviceID := c.Params("user_device_id")
+	integrationID := c.Params("integration_id")
+	deviceExists, err := models.UserDevices(
+		qm.Where("user_id = ?", userID),
+		qm.And("id = ?", userDeviceID),
+	).Exists(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+	if !deviceExists {
+		return errorResponseHandler(c, fmt.Errorf("no user device with ID %s", userDeviceID), fiber.StatusBadRequest)
+	}
+
+	apiIntegration, err := models.UserDeviceAPIIntegrations(
+		qm.Where("user_device_id = ?", userDeviceID),
+		qm.Where("integration_id = ?", integrationID),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, fmt.Errorf("user device %s does not have integration %s", userDeviceID, integrationID), fiber.StatusBadRequest)
+		}
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	_, err = apiIntegration.Delete(c.Context(), udc.DBS().Writer)
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+	return c.SendStatus(fiber.StatusNoContent)
 }
 
 // AdminRegisterUserDevice godoc
