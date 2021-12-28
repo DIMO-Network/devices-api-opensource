@@ -69,13 +69,15 @@ podDisruptionBudget:
 kafka:
   clusterName: kafka-dev-dimo-kafka
   topics:
-    - name: topic.device.status
-      config:
-        segment.ms: '3600000'
-        compression.type: producer
-        cleanup.policy: compact,delete
-        min.compaction.lag.ms: '3600000'
-    - name: topic.device.integration.ingest.smartcar
-      config:
-        compression.type: producer
-        cleanup.policy: delete
+  - name: topic.device.status
+    config: 
+      segment.ms: "3600000"
+      compression.type: producer
+      cleanup.policy: compact,delete
+      min.compaction.lag.ms: "3600000"
+  - name: table.device.integration.smartcar
+    config: 
+      segment.ms: "3600000"
+      compression.type: producer
+      cleanup.policy: compact
+      min.compaction.lag.ms: "3600000"
