@@ -33,6 +33,7 @@ type TaskService struct {
 	DBS       func() *database.DBReaderWriter
 	Log       *zerolog.Logger
 	Machinery *machinery.Server
+	Publisher *kafka.Publisher
 }
 
 const smartcarWebhookURL = "https://api.smartcar.com/v2.0/vehicles/%s/webhooks/%s"
@@ -186,13 +187,6 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 		return
 	}
 
-	pub, err := kafka.NewPublisher(
-		kafka.PublisherConfig{
-			Brokers:   strings.Split(t.Settings.KafkaBrokers, ","),
-			Marshaler: kafka.DefaultMarshaler{},
-		},
-		watermill.NewStdLogger(false, false),
-	)
 	if err != nil {
 		return
 	}
@@ -213,7 +207,7 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 		return
 	}
 	message := message.NewMessage(msg.ID, msgBytes)
-	err = pub.Publish("table.device.integration.smartcar", message)
+	err = t.Publisher.Publish("table.device.integration.smartcar", message)
 	if err != nil {
 		return
 	}
@@ -271,6 +265,7 @@ func (t *TaskService) BeginSmartcar(userDeviceID, integrationID string) (err err
 			{Type: "string", Value: userDeviceID},
 			{Type: "string", Value: integrationID},
 		},
+		RetryCount: 3, // Somewhat random
 	}
 	sig2 := tasks.Signature{
 		Name: smartcarGetInitialDataTask,
@@ -278,6 +273,7 @@ func (t *TaskService) BeginSmartcar(userDeviceID, integrationID string) (err err
 			{Type: "string", Value: userDeviceID},
 			{Type: "string", Value: integrationID},
 		},
+		RetryCount: 3,
 	}
 	chain, err := tasks.NewChain(&sig1, &sig2)
 	if err != nil {
@@ -308,10 +304,23 @@ func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWrit
 	if err != nil {
 		panic(err)
 	}
+
+	pub, err := kafka.NewPublisher(
+		kafka.PublisherConfig{
+			Brokers:   strings.Split(settings.KafkaBrokers, ","),
+			Marshaler: kafka.DefaultMarshaler{},
+		},
+		watermill.NewStdLogger(false, false),
+	)
+	if err != nil {
+		panic(err)
+	}
+
 	t := &TaskService{
 		Settings:  settings,
 		DBS:       dbs,
 		Machinery: server,
+		Publisher: pub,
 	}
 	err = server.RegisterTasks(map[string]interface{}{
 		smartcarConnectVehicleTask: t.smartcarConnectVehicle,
