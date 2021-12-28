@@ -204,8 +204,8 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 		Time:        time.Now(),
 		Type:        "zone.dimo.device.integration.smartcar.register",
 		Data: struct {
-			ID         string `json:"id"`
-			ExternalID string `json:"externalID"`
+			UserDeviceID string `json:"userDeviceID"`
+			SmartcarID   string `json:"smartcarID"`
 		}{ud.ID, integ.ExternalID.String},
 	}
 	msgBytes, err := json.Marshal(msg)
