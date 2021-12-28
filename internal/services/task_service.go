@@ -11,21 +11,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DIMO-INC/devices-api/internal/config"
-	"github.com/DIMO-INC/devices-api/internal/database"
-	"github.com/DIMO-INC/devices-api/models"
 	"github.com/RichardKnop/machinery/v1"
 	machinery_config "github.com/RichardKnop/machinery/v1/config"
 	"github.com/RichardKnop/machinery/v1/tasks"
-	"github.com/ThreeDotsLabs/watermill"
-	"github.com/ThreeDotsLabs/watermill-kafka/v2/pkg/kafka"
-	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/Shopify/sarama"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
 	smartcar "github.com/smartcar/go-sdk"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+
+	"github.com/DIMO-INC/devices-api/internal/config"
+	"github.com/DIMO-INC/devices-api/internal/database"
+	"github.com/DIMO-INC/devices-api/models"
 )
 
 type TaskService struct {
@@ -33,7 +32,7 @@ type TaskService struct {
 	DBS       func() *database.DBReaderWriter
 	Log       *zerolog.Logger
 	Machinery *machinery.Server
-	Publisher *kafka.Publisher
+	Producer  sarama.SyncProducer
 }
 
 const smartcarWebhookURL = "https://api.smartcar.com/v2.0/vehicles/%s/webhooks/%s"
@@ -42,6 +41,8 @@ const smartcarVINURL = "https://api.smartcar.com/v2.0/vehicles/%s/vin"
 
 const smartcarConnectVehicleTask = "smartcar_connect_vehicle"
 const smartcarGetInitialDataTask = "smartcar_get_initial_data"
+
+const ingestSmartcarRegistrationTopic = "table.device.integration.smartcar"
 
 type batchRequest struct {
 	Requests []batchRequestRequest `json:"requests"`
@@ -206,8 +207,12 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 	if err != nil {
 		return
 	}
-	message := message.NewMessage(msg.ID, msgBytes)
-	err = t.Publisher.Publish("table.device.integration.smartcar", message)
+	message := &sarama.ProducerMessage{
+		Topic: ingestSmartcarRegistrationTopic,
+		Key:   sarama.StringEncoder(ud.ID),
+		Value: sarama.ByteEncoder(msgBytes),
+	}
+	_, _, err = t.Producer.SendMessage(message)
 	if err != nil {
 		return
 	}
@@ -241,7 +246,7 @@ func formatBatchAsWebhook(batchBytes []byte, vehicleID string) (hookBytes []byte
 		Data      json.RawMessage `json:"data"`
 		RequestID string          `json:"requestId"`
 		Timestamp time.Time       `json:"timestamp"`
-		VehicleId string          `json:"vehicleId"`
+		VehicleID string          `json:"vehicleId"`
 	}
 
 	hook := struct {
@@ -260,7 +265,7 @@ func formatBatchAsWebhook(batchBytes []byte, vehicleID string) (hookBytes []byte
 			Data:      batch.Responses,
 			RequestID: "", // Not needed
 			Timestamp: time.Now(),
-			VehicleId: vehicleID,
+			VehicleID: vehicleID,
 		},
 	}
 
@@ -354,13 +359,9 @@ func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWrit
 		panic(err)
 	}
 
-	pub, err := kafka.NewPublisher(
-		kafka.PublisherConfig{
-			Brokers:   strings.Split(settings.KafkaBrokers, ","),
-			Marshaler: kafka.DefaultMarshaler{},
-		},
-		watermill.NewStdLogger(false, false),
-	)
+	kafkaConfig := sarama.NewConfig()
+	kafkaConfig.Producer.Return.Successes = true
+	producer, err := sarama.NewSyncProducer(strings.Split(settings.KafkaBrokers, ","), kafkaConfig)
 	if err != nil {
 		panic(err)
 	}
@@ -369,7 +370,7 @@ func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWrit
 		Settings:  settings,
 		DBS:       dbs,
 		Machinery: server,
-		Publisher: pub,
+		Producer:  producer,
 	}
 	err = server.RegisterTasks(map[string]interface{}{
 		smartcarConnectVehicleTask: t.smartcarConnectVehicle,
