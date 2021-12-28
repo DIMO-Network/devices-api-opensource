@@ -2,7 +2,7 @@ replicaCount: 1
 image:
   repository: dimozone/devices-api
   pullPolicy: IfNotPresent
-  tag: c060f94
+  tag: df2e2d0
 imagePullSecrets: []
 nameOverride: ''
 fullnameOverride: ''
@@ -69,15 +69,15 @@ podDisruptionBudget:
 kafka:
   clusterName: kafka-dev-dimo-kafka
   topics:
-  - name: topic.device.status
-    config: 
-      segment.ms: "3600000"
-      compression.type: producer
-      cleanup.policy: compact,delete
-      min.compaction.lag.ms: "3600000"
-  - name: table.device.integration.smartcar
-    config: 
-      segment.ms: "3600000"
-      compression.type: producer
-      cleanup.policy: compact
-      min.compaction.lag.ms: "3600000"
+    - name: topic.device.status
+      config:
+        segment.ms: '3600000'
+        compression.type: producer
+        cleanup.policy: compact,delete
+        min.compaction.lag.ms: '3600000'
+    - name: table.device.integration.smartcar
+      config:
+        segment.ms: '3600000'
+        compression.type: producer
+        cleanup.policy: compact
+        min.compaction.lag.ms: '3600000'
