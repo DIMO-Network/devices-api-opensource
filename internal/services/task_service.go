@@ -227,6 +227,50 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 	return
 }
 
+func formatBatchAsWebhook(batchBytes []byte, vehicleID string) (hookBytes []byte, err error) {
+	var batch struct {
+		Responses json.RawMessage `json:"responses"`
+	}
+	err = json.Unmarshal(batchBytes, &batch)
+	if err != nil {
+		err = fmt.Errorf("couldn't unmarshal batch response: %w", err)
+		return
+	}
+
+	type webhookVehicle struct {
+		Data      json.RawMessage `json:"data"`
+		RequestID string          `json:"requestId"`
+		Timestamp time.Time       `json:"timestamp"`
+		VehicleId string          `json:"vehicleId"`
+	}
+
+	hook := struct {
+		EventName string `json:"eventName"`
+		Mode      string `json:"mode"`
+		Payload   struct {
+			Vehicles []webhookVehicle `json:"vehicles"` // Will only ever have one element
+		} `json:"payload"`
+	}{
+		EventName: "schedule",
+		Mode:      "live",
+	}
+
+	hook.Payload.Vehicles = []webhookVehicle{
+		{
+			Data:      batch.Responses,
+			RequestID: "", // Not needed
+			Timestamp: time.Now(),
+			VehicleId: vehicleID,
+		},
+	}
+
+	hookBytes, err = json.Marshal(hook)
+	if err != nil {
+		err = fmt.Errorf("couldn't marshal webhook: %w", err)
+	}
+	return
+}
+
 func (t *TaskService) smartcarGetInitialData(userDeviceID, integrationID string) (err error) {
 	db := t.DBS().Writer
 	integ, err := models.UserDeviceAPIIntegrations(
@@ -236,12 +280,17 @@ func (t *TaskService) smartcarGetInitialData(userDeviceID, integrationID string)
 		return
 	}
 
-	resp, err := t.batchRequest(integ.ExternalID.String, integ.AccessToken)
+	batchBytes, err := t.batchRequest(integ.ExternalID.String, integ.AccessToken)
 	if err != nil {
 		return
 	}
 
-	req, err := http.NewRequest("POST", t.Settings.IngestSmartcarURL, bytes.NewReader(resp))
+	hookBytes, err := formatBatchAsWebhook(batchBytes, integ.ExternalID.String)
+	if err != nil {
+		return
+	}
+
+	req, err := http.NewRequest("POST", t.Settings.IngestSmartcarURL, bytes.NewReader(hookBytes))
 	req.Header.Set("Content-Type", "application/json")
 	benthResp, err := http.DefaultClient.Do(req)
 	if err != nil {
