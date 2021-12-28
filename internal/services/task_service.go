@@ -198,14 +198,14 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 	}
 	msg := cloudEventMessage{
 		ID:          ksuid.New().String(),
-		Source:      integrationID,
+		Source:      "dimo/integration/" + integrationID,
 		Subject:     ud.ID,
 		SpecVersion: "1.0",
 		Time:        time.Now(),
 		Type:        "zone.dimo.device.integration.smartcar.register",
 		Data: struct {
-			UserDeviceID string `json:"userDeviceID"`
-			ExternalID   string `json:"externalID"`
+			DeviceID   string `json:"deviceId"`
+			ExternalID string `json:"externalId"`
 		}{ud.ID, integ.ExternalID.String},
 	}
 	msgBytes, err := json.Marshal(msg)
