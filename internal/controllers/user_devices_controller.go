@@ -55,6 +55,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		qm.Load(models.UserDeviceRels.DeviceDefinition),
 		qm.Load("DeviceDefinition.DeviceIntegrations"),
 		qm.Load("DeviceDefinition.DeviceIntegrations.Integration"),
+		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
 		qm.OrderBy("created_at"),
 	).
 		All(c.Context(), udc.DBS().Reader)
@@ -70,12 +71,26 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 			CustomImageURL:   d.CustomImageURL.String,
 			CountryCode:      d.CountryCode.String,
 			DeviceDefinition: NewDeviceDefinitionFromDatabase(d.R.DeviceDefinition),
+			Integrations:     NewUserDeviceIntegrationStatusesFromDatabase(d.R.UserDeviceAPIIntegrations),
 		}
 	}
 
 	return c.JSON(fiber.Map{
 		"user_devices": rp,
 	})
+}
+
+func NewUserDeviceIntegrationStatusesFromDatabase(udis []*models.UserDeviceAPIIntegration) []UserDeviceIntegrationStatus {
+	out := make([]UserDeviceIntegrationStatus, len(udis))
+
+	for i, udi := range udis {
+		out[i] = UserDeviceIntegrationStatus{
+			IntegrationID: udi.IntegrationID,
+			Status:        udi.Status,
+		}
+	}
+
+	return out
 }
 
 // RegisterDeviceForUser godoc
@@ -270,7 +285,7 @@ func (udc *UserDevicesController) RegisterSmartcarIntegration(c *fiber.Ctx) erro
 	integration := models.UserDeviceAPIIntegration{
 		UserDeviceID:     userDeviceID,
 		IntegrationID:    integrationID,
-		Status:           "Pending",
+		Status:           models.UserDeviceAPIIntegrationStatusPending,
 		AccessToken:      token.Access,
 		AccessExpiresAt:  token.AccessExpiry,
 		RefreshToken:     token.Refresh,
@@ -671,10 +686,16 @@ func (u *UpdateVINReq) validate() error {
 
 // UserDeviceFull represents object user's see on frontend for listing of their devices
 type UserDeviceFull struct {
-	ID               string           `json:"id"`
-	VIN              string           `json:"vin"`
-	Name             string           `json:"name"`
-	CustomImageURL   string           `json:"custom_image_url"`
-	DeviceDefinition DeviceDefinition `json:"device_definition"`
-	CountryCode      string           `json:"country_code"`
+	ID               string                        `json:"id"`
+	VIN              string                        `json:"vin"`
+	Name             string                        `json:"name"`
+	CustomImageURL   string                        `json:"custom_image_url"`
+	DeviceDefinition DeviceDefinition              `json:"device_definition"`
+	CountryCode      string                        `json:"country_code"`
+	Integrations     []UserDeviceIntegrationStatus `json:"integrations"`
+}
+
+type UserDeviceIntegrationStatus struct {
+	IntegrationID string `json:"integrationID"`
+	Status        string `json:"status"`
 }

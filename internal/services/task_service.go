@@ -39,6 +39,9 @@ const smartcarWebhookURL = "https://api.smartcar.com/v2.0/vehicles/%s/webhooks/%
 const smartcarBatchURL = "https://api.smartcar.com/v2.0/vehicles/%s/batch"
 const smartcarVINURL = "https://api.smartcar.com/v2.0/vehicles/%s/vin"
 
+const smartcarConnectVehicleTask = "smartcar_connect_vehicle"
+const smartcarGetInitialDataTask = "smartcar_get_initial_data"
+
 type batchRequest struct {
 	Requests []batchRequestRequest `json:"requests"`
 }
@@ -140,13 +143,17 @@ type cloudEventMessage struct {
 	Data        interface{} `json:"data"`
 }
 
-func (t *TaskService) smartcarGetVehicles(userDeviceID, integrationID string) (err error) {
+func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string) (err error) {
 	client := smartcar.NewClient()
-	db := t.DBS().Writer
+	tx, err := t.DBS().Writer.BeginTx(context.Background(), nil)
+	if err != nil {
+		return
+	}
+	defer tx.Rollback() //nolint
 	integ, err := models.UserDeviceAPIIntegrations(
 		qm.Where("user_device_id = ?", userDeviceID),
 		qm.And("integration_id = ?", integrationID),
-		qm.Load("UserDevice")).One(context.Background(), db)
+		qm.Load("UserDevice")).One(context.Background(), tx)
 	if err != nil {
 		return
 	}
@@ -162,7 +169,7 @@ func (t *TaskService) smartcarGetVehicles(userDeviceID, integrationID string) (e
 	}
 	vehicleID := (*vehicleIDs)[0]
 	integ.ExternalID = null.StringFrom(vehicleID)
-	_, err = integ.Update(context.Background(), db, boil.Infer())
+	_, err = integ.Update(context.Background(), tx, boil.Infer())
 	if err != nil {
 		return
 	}
@@ -174,7 +181,7 @@ func (t *TaskService) smartcarGetVehicles(userDeviceID, integrationID string) (e
 
 	ud := integ.R.UserDevice
 	ud.VinIdentifier = null.StringFrom(vin)
-	_, err = ud.Update(context.Background(), db, boil.Infer())
+	_, err = ud.Update(context.Background(), tx, boil.Infer())
 	if err != nil {
 		return
 	}
@@ -191,11 +198,11 @@ func (t *TaskService) smartcarGetVehicles(userDeviceID, integrationID string) (e
 	}
 	msg := cloudEventMessage{
 		ID:          ksuid.New().String(),
-		Source:      "whocares",
+		Source:      integrationID,
 		Subject:     ud.ID,
 		SpecVersion: "1.0",
 		Time:        time.Now(),
-		Type:        "zone.dimo.device.register",
+		Type:        "zone.dimo.device.integration.smartcar.register",
 		Data: struct {
 			ID         string `json:"id"`
 			ExternalID string `json:"externalID"`
@@ -212,10 +219,21 @@ func (t *TaskService) smartcarGetVehicles(userDeviceID, integrationID string) (e
 	}
 
 	err = t.subscribeVehicle(vehicleID, integ.AccessToken)
+	if err != nil {
+		return
+	}
+
+	integ.Status = models.UserDeviceAPIIntegrationStatusPendingFirstData
+	_, err = integ.Update(context.Background(), tx, boil.Whitelist("status"))
+	if err != nil {
+		return
+	}
+
+	err = tx.Commit()
 	return
 }
 
-func (t *TaskService) smartcarBatchRequest(userDeviceID, integrationID string) (err error) {
+func (t *TaskService) smartcarGetInitialData(userDeviceID, integrationID string) (err error) {
 	db := t.DBS().Writer
 	integ, err := models.UserDeviceAPIIntegrations(
 		qm.Where("user_device_id = ?", userDeviceID),
@@ -241,21 +259,21 @@ func (t *TaskService) smartcarBatchRequest(userDeviceID, integrationID string) (
 		return
 	}
 
-	integ.Status = "Active"
+	integ.Status = models.UserDeviceAPIIntegrationStatusActive
 	_, err = integ.Update(context.Background(), db, boil.Whitelist("status"))
 	return
 }
 
 func (t *TaskService) BeginSmartcar(userDeviceID, integrationID string) (err error) {
 	sig1 := tasks.Signature{
-		Name: "smartcar_get_vehicle",
+		Name: smartcarConnectVehicleTask,
 		Args: []tasks.Arg{
 			{Type: "string", Value: userDeviceID},
 			{Type: "string", Value: integrationID},
 		},
 	}
 	sig2 := tasks.Signature{
-		Name: "smartcar_batch_request",
+		Name: smartcarGetInitialDataTask,
 		Args: []tasks.Arg{
 			{Type: "string", Value: userDeviceID},
 			{Type: "string", Value: integrationID},
@@ -296,8 +314,8 @@ func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWrit
 		Machinery: server,
 	}
 	err = server.RegisterTasks(map[string]interface{}{
-		"smartcar_get_vehicle":   t.smartcarGetVehicles,
-		"smartcar_batch_request": t.smartcarBatchRequest,
+		smartcarConnectVehicleTask: t.smartcarConnectVehicle,
+		smartcarGetInitialDataTask: t.smartcarGetInitialData,
 	})
 	if err != nil {
 		panic(err)
