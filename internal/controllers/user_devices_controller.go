@@ -310,7 +310,7 @@ type GetUserDeviceIntegrationResponse struct {
 	Status string `json:"status"`
 	// ExternalID is the identifier used by the third party for the device. It may be absent if we
 	// haven't authorized yet.
-	ExternalID null.String `json:"externalId"`
+	ExternalID null.String `json:"externalId" swaggertype:"string"`
 }
 
 // GetUserDeviceIntegration godoc

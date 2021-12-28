@@ -352,6 +352,17 @@ var doc = `{
                         "description": ""
                     }
                 }
+            },
+            "delete": {
+                "description": "Remove an user device's integration",
+                "tags": [
+                    "user-devices"
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
             }
         },
         "/user/devices/:user_device_id/name": {
@@ -625,6 +636,10 @@ var doc = `{
         "controllers.GetUserDeviceIntegrationResponse": {
             "type": "object",
             "properties": {
+                "externalId": {
+                    "description": "ExternalID is the identifier used by the third party for the device. It may be absent if we\nhaven't authorized yet.",
+                    "type": "string"
+                },
                 "status": {
                     "description": "Status is one of \"Pending\", \"PendingFirstData\", \"Active\"",
                     "type": "string"
@@ -718,10 +733,27 @@ var doc = `{
                 "id": {
                     "type": "string"
                 },
+                "integrations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.UserDeviceIntegrationStatus"
+                    }
+                },
                 "name": {
                     "type": "string"
                 },
                 "vin": {
+                    "type": "string"
+                }
+            }
+        },
+        "controllers.UserDeviceIntegrationStatus": {
+            "type": "object",
+            "properties": {
+                "integrationID": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }
