@@ -9,6 +9,8 @@ cp settings.sample.yaml settings.yaml
 mkdir ./resources/data
 docker compose up -d
 go run ./cmd/devices-api migrate
+brew services start zookeeper
+brew services start kafka
 go run ./cmd/devices-api
 ```
 
@@ -24,10 +26,13 @@ You can connect to db eg: `psql -h localhost -p 5432 -U dimo` or with your favor
 
 3. Migrate DB to latest: `$ go run ./cmd/devices-api migrate`
 
-4. Run application
+4. Install kafka with brew
+`$ brew install kafka`
+
+5. Run application
 `$ go run ./cmd/devices-api`
 
-5. Seed data from SmartCar:
+6. Seed data from SmartCar:
 `$ go run ./cmd/devices-api seed-smartcar`
 
 ### Linting
@@ -78,6 +83,13 @@ docker compose up -d
 If we have code base migrations in the migrations folder, we must import `_ "github.com/DIMO-INC/devices-api/migrations"` in the runner so that
 it can find the migrations, otherwise get error.
 
+### Managing migrations from k8s
+```bash
+kc get pods -n dev
+kc exec devices-api-dev-65f8f47ff5-94dp4 -n dev -it -- /bin/sh
+./devices-api migrate down # brings a migration down
+```
+
 ## Mocks
 
 To regenerate a mock, you can use go gen since the files that are mocked have a `//go:generate mockgen ...` at the top. For example:
@@ -98,7 +110,6 @@ To regenerate a mock, you can use go gen since the files that are mocked have a 
 Endpoints as curl commands:
 ```bash
 curl http://localhost:3000/v1/device-definitions/all -w '\n%{time_starttransfer}\n' -v
-curl http://localhost:3000/v1/device-definitions/vin/:vin
 curl 'http://localhost:3000/v1/device-definitions?make=TESLA&model=MODEL%20Y&year=2021'
 curl http://localhost:3000/v1/device-definitions/:id
 curl http://localhost:3000/v1/device-definitions/:id/integrations

@@ -2,14 +2,18 @@ package main
 
 import (
 	"context"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	_ "github.com/DIMO-INC/devices-api/docs"
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/controllers"
 	"github.com/DIMO-INC/devices-api/internal/database"
+	"github.com/DIMO-INC/devices-api/internal/kafka"
 	"github.com/DIMO-INC/devices-api/internal/services"
+	"github.com/Shopify/sarama"
 	"github.com/ansrivas/fiberprometheus/v2"
 	swagger "github.com/arsmn/fiber-swagger/v2"
 	"github.com/gofiber/fiber/v2"
@@ -18,6 +22,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	jwtware "github.com/gofiber/jwt/v3"
 	_ "github.com/lib/pq"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 	_ "go.uber.org/automaxprocs"
 )
@@ -65,6 +70,8 @@ func main() {
 	case "seed-mmy-csv":
 		loadMMYCSVData(ctx, logger, settings, pdb)
 	default:
+		startPrometheus(logger)
+		startDeviceStatusConsumer(logger, settings, pdb)
 		startWebAPI(logger, settings, pdb)
 	}
 }
@@ -179,4 +186,37 @@ func ErrorHandler(c *fiber.Ctx, err error, logger zerolog.Logger) error {
 		"error": true,
 		"msg":   err.Error(),
 	})
+}
+
+func startDeviceStatusConsumer(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) {
+	clusterConfig := sarama.NewConfig()
+	clusterConfig.Version = sarama.V2_6_0_0
+	clusterConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
+
+	cfg := &kafka.Config{
+		ClusterConfig:   clusterConfig,
+		BrokerAddresses: strings.Split(settings.KafkaBrokers, ","),
+		Topic:           settings.DeviceStatusTopic,
+		GroupID:         "user-devices",
+		MaxInFlight:     int64(5),
+	}
+	consumer, err := kafka.NewConsumer(cfg, &logger)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("could not start consumer")
+	}
+	ingestSvc := services.NewIngestService(pdb.DBS, &logger)
+	consumer.Start(context.Background(), ingestSvc.ProcessDeviceStatusMessages)
+
+	logger.Info().Msg("kafka consumer started")
+}
+
+func startPrometheus(logger zerolog.Logger) {
+	http.Handle("/metrics", promhttp.Handler())
+	go func() {
+		err := http.ListenAndServe(":2112", nil)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("could not start consumer")
+		}
+	}()
+	logger.Info().Msg("prometheus metrics at :2112/metrics")
 }

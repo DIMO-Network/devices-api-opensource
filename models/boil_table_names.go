@@ -8,11 +8,13 @@ var TableNames = struct {
 	DeviceIntegrations        string
 	Integrations              string
 	UserDeviceAPIIntegrations string
+	UserDeviceData            string
 	UserDevices               string
 }{
 	DeviceDefinitions:         "device_definitions",
 	DeviceIntegrations:        "device_integrations",
 	Integrations:              "integrations",
 	UserDeviceAPIIntegrations: "user_device_api_integrations",
+	UserDeviceData:            "user_device_data",
 	UserDevices:               "user_devices",
 }

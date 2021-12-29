@@ -86,7 +86,10 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 				return err
 			}
 			dvi := DeviceVehicleInfo{VehicleType: "PASSENGER CAR", FuelType: smartCarVehicleTypeToNhtsaFuelType(vehicleType)}
-
+			if years == nil {
+				s.log.Info().Msg("skipping row since years are nil")
+				continue
+			}
 			yearRange, err := parseSmartCarYears(years)
 			if err != nil {
 				return errors.Wrapf(err, "could not parse years: %s", *years)

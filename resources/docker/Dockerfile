@@ -28,5 +28,6 @@ COPY --from=build /go/src/github.com/DIMO-INC/devices-api/migrations /migrations
 USER dimo
 
 EXPOSE 8080
+EXPOSE 2112
 
 CMD /devices-api

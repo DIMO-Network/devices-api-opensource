@@ -20,3 +20,15 @@ services:
       - "6379:6379"
     volumes:
       - ./resources/redis:/data:delegated
+## issue with ports, could not get app to connect to kafka, using brew services instead
+#  kafka:
+#    container_name: devices-api-kafka
+#    image: johnnypark/kafka-zookeeper
+#    ports:
+#      - "9092:9092"
+#    volumes:
+#      - /var/run/docker.sock:/var/run/docker.sock
+#    environment:
+#      ADVERTISED_HOST: 127.0.0.1
+#      NUM_PARTITIONS: 5
+#      TOPICS: "topic.interface.ingest.smartcar, topic.device.status"

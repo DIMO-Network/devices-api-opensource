@@ -26,7 +26,9 @@ type Settings struct {
 	RedisPassword        string `yaml:"REDIS_PASSWORD"`
 	RedisTLS             bool   `yaml:"REDIS_TLS"`
 	IngestSmartcarURL    string `yaml:"INGEST_SMARTCAR_URL"`
+	IngestSmartcarTopic  string `yaml:"INGEST_SMARTCAR_TOPIC"`
 	KafkaBrokers         string `yaml:"KAFKA_BROKERS"`
+	DeviceStatusTopic    string `yaml:"DEVICE_STATUS_TOPIC"`
 }
 
 // GetWriterDSN builds the connection string to the db writer - for now same as reader

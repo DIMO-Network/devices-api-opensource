@@ -28,7 +28,9 @@ env:
   REDIS_PORT: '6379'
   REDIS_TLS: true
   INGEST_SMARTCAR_URL: http://ingest-smartcar-dev:8080
+  INGEST_SMARTCAR_TOPIC: topic.interface.ingest.smartcar
   KAFKA_BROKERS: kafka-dev-dimo-kafka-kafka-brokers:9092
+  DEVICE_STATUS_TOPIC: topic.device.status
 service:
   type: ClusterIP
   port: 8080
