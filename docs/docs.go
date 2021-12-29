@@ -278,6 +278,33 @@ var doc = `{
                 }
             }
         },
+        "/user/devices/:user_device_id/commands/refresh": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Starts the process of refreshing device status from Smartcar",
+                "tags": [
+                    "user-devices"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user device ID",
+                        "name": "user_device_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/user/devices/:user_device_id/country_code": {
             "patch": {
                 "security": [

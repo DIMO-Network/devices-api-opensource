@@ -617,6 +617,44 @@ func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 	return c.Send(userDevice.R.UserDeviceDatum.Data.JSON)
 }
 
+// RefreshUserDeviceStatus godoc
+// @Description Starts the process of refreshing device status from Smartcar
+// @Tags user-devices
+// @Param user_device_id path string true "user device ID"
+// @Success 204
+// @Security BearerAuth
+// @Router  /user/devices/:user_device_id/commands/refresh [post]
+func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
+	udi := c.Params("user_device_id")
+	userID := getUserID(c)
+	// We could probably do a smarter join here, but it's unclear to me how to handle that
+	// in SQLBoiler.
+	ud, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(udi),
+		models.UserDeviceWhere.UserID.EQ(userID),
+		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
+		qm.Load(models.UserDeviceAPIIntegrationRels.Integration),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, err, fiber.StatusNotFound)
+		}
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	for _, devInteg := range ud.R.UserDeviceAPIIntegrations {
+		if devInteg.R.Integration.Type == "API" && devInteg.R.Integration.Vendor == "SmartCar" && devInteg.Status == models.UserDeviceAPIIntegrationStatusActive {
+			err = udc.taskSvc.StartSmartcarRefresh(udi, devInteg.R.Integration.ID)
+			if err != nil {
+				return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+			}
+			return c.SendStatus(204)
+		}
+	}
+
+	return errorResponseHandler(c, errors.New("no active Smartcar integration found for this device"), fiber.StatusBadRequest)
+}
+
 // UpdateCountryCode godoc
 // @Description updates the CountryCode on the user device record
 // @Tags 	user-devices

@@ -378,6 +378,22 @@ paths:
       - BearerAuth: []
       tags:
       - user-devices
+  /user/devices/:user_device_id/commands/refresh:
+    post:
+      description: Starts the process of refreshing device status from Smartcar
+      parameters:
+      - description: user device ID
+        in: path
+        name: user_device_id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: ""
+      security:
+      - BearerAuth: []
+      tags:
+      - user-devices
   /user/devices/:user_device_id/country_code:
     patch:
       consumes:

@@ -370,6 +370,19 @@ func (t *TaskService) StartSmartcarRegistrationTasks(userDeviceID, integrationID
 	return
 }
 
+func (t *TaskService) StartSmartcarRefresh(userDeviceID, integrationID string) (err error) {
+	sig := tasks.Signature{
+		Name: smartcarGetInitialDataTask, // This name probably needs to change
+		Args: []tasks.Arg{
+			{Type: "string", Value: userDeviceID},
+			{Type: "string", Value: integrationID},
+		},
+		RetryCount: 3,
+	}
+	_, err = t.Machinery.SendTask(&sig)
+	return
+}
+
 func (t *TaskService) StartSmartcarDeregistrationTasks(userDeviceID, integrationID string) (err error) {
 	sig := tasks.Signature{
 		Name: smartcarDisconnectVehicleTask,
