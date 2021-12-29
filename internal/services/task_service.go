@@ -42,6 +42,7 @@ const smartcarVINURL = "https://api.smartcar.com/v2.0/vehicles/%s/vin"
 const smartcarConnectVehicleTask = "smartcar_connect_vehicle"
 const smartcarGetInitialDataTask = "smartcar_get_initial_data"
 const smartcarDisconnectVehicleTask = "smartcar_disconnect_vehicle"
+const failIntegrationTask = "fail_integration"
 
 const ingestSmartcarRegistrationTopic = "table.device.integration.smartcar"
 const smartcarRegistrationEventType = "zone.dimo.device.integration.smartcar.register"
@@ -345,7 +346,29 @@ func (t *TaskService) smartcarGetInitialData(userDeviceID, integrationID string)
 	return
 }
 
+func (t *TaskService) failIntegration(errString, userDeviceID, integrationID string) (err error) {
+	db := t.DBS().Writer
+	integ, err := models.UserDeviceAPIIntegrations(
+		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(userDeviceID),
+		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID),
+	).One(context.Background(), db)
+	if err != nil {
+		return
+	}
+	integ.Status = models.UserDeviceAPIIntegrationStatusFailed
+	_, err = integ.Update(context.Background(), db, boil.Whitelist("status"))
+	return
+}
+
 func (t *TaskService) StartSmartcarRegistrationTasks(userDeviceID, integrationID string) (err error) {
+	errSig := tasks.Signature{
+		Name: failIntegrationTask,
+		Args: []tasks.Arg{
+			{Type: "string", Value: userDeviceID},
+			{Type: "string", Value: integrationID},
+		},
+		RetryCount: 3, // Somewhat random
+	}
 	sig1 := tasks.Signature{
 		Name: smartcarConnectVehicleTask,
 		Args: []tasks.Arg{
@@ -353,6 +376,7 @@ func (t *TaskService) StartSmartcarRegistrationTasks(userDeviceID, integrationID
 			{Type: "string", Value: integrationID},
 		},
 		RetryCount: 3, // Somewhat random
+		OnError:    []*tasks.Signature{&errSig},
 	}
 	sig2 := tasks.Signature{
 		Name: smartcarGetInitialDataTask,
@@ -361,6 +385,7 @@ func (t *TaskService) StartSmartcarRegistrationTasks(userDeviceID, integrationID
 			{Type: "string", Value: integrationID},
 		},
 		RetryCount: 3,
+		OnError:    []*tasks.Signature{&errSig}, // We might want to rethink this. Failing here isn't so bad
 	}
 	chain, err := tasks.NewChain(&sig1, &sig2)
 	if err != nil {
@@ -435,6 +460,7 @@ func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWrit
 		smartcarConnectVehicleTask:    t.smartcarConnectVehicle,
 		smartcarGetInitialDataTask:    t.smartcarGetInitialData,
 		smartcarDisconnectVehicleTask: t.smartcarDisconnectVehicle,
+		failIntegrationTask:           t.failIntegration,
 	})
 	if err != nil {
 		panic(err)

@@ -69,4 +69,5 @@ const (
 	UserDeviceAPIIntegrationStatusPending          = "Pending"
 	UserDeviceAPIIntegrationStatusPendingFirstData = "PendingFirstData"
 	UserDeviceAPIIntegrationStatusActive           = "Active"
+	UserDeviceAPIIntegrationStatusFailed           = "Failed"
 )
