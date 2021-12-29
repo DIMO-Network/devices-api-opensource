@@ -10,6 +10,7 @@ import (
 	"github.com/DIMO-INC/devices-api/internal/controllers"
 	"github.com/DIMO-INC/devices-api/internal/database"
 	"github.com/DIMO-INC/devices-api/internal/services"
+	"github.com/ansrivas/fiberprometheus/v2"
 	swagger "github.com/arsmn/fiber-swagger/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
@@ -82,12 +83,18 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc)
 	userDeviceControllers := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc)
 
+	prometheus := fiberprometheus.New("devices-api")
+	prometheus.RegisterAt(app, "/metrics")
+	app.Use(prometheus.Middleware)
+
 	app.Use(recover.New(recover.Config{
 		Next:              nil,
 		EnableStackTrace:  true,
 		StackTraceHandler: nil,
 	}))
+	//cors
 	app.Use(cors.New())
+	//cache
 	cacheHandler := cache.New(cache.Config{
 		Next: func(c *fiber.Ctx) bool {
 			return c.Query("refresh") == "true"
@@ -95,6 +102,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		Expiration:   1 * time.Minute,
 		CacheControl: true,
 	})
+	//healthcheck
 	app.Get("/", HealthCheck)
 	v1 := app.Group("/v1")
 
