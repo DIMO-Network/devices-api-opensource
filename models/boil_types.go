@@ -63,3 +63,10 @@ const (
 	IntegrationStyleOEM     = "OEM"
 	IntegrationStyleWebhook = "Webhook"
 )
+
+// Enum values for UserDeviceAPIIntegrationStatus
+const (
+	UserDeviceAPIIntegrationStatusPending          = "Pending"
+	UserDeviceAPIIntegrationStatusPendingFirstData = "PendingFirstData"
+	UserDeviceAPIIntegrationStatusActive           = "Active"
+)

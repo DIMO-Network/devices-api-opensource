@@ -25,6 +25,6 @@ func TestNHTSAService_DecodeVIN(t *testing.T) {
 	assert.NoError(t, err, "no error expected")
 	assert.Len(t, got.Results, 138)
 	assert.Equal(t, "TESLA", got.LookupValue("Make"))
-	assert.Equal(t, "Model Y", got.LookupValue("Model"))
+	assert.Equal(t, "MODEL Y", got.LookupValue("Model"))
 	assert.Equal(t, "2020", got.LookupValue("Model Year"))
 }

@@ -37,7 +37,8 @@ func setupDatabase(ctx context.Context, t *testing.T, migrationsDirRelPath strin
 		DBMaxIdleConnections: 2,
 		ServiceName:          "devices-api",
 	}
-	pdb := database.NewDbConnectionFromSettings(ctx, &settings)
+	// note the DBName will be used as the search path for the connection string
+	pdb := database.NewDbConnectionFromSettings(ctx, &settings, false)
 	time.Sleep(3 * time.Second) // get panic if don't have this here
 
 	// run migrations at this point. need to do some pre-setup due to embedded db
@@ -45,11 +46,12 @@ func setupDatabase(ctx context.Context, t *testing.T, migrationsDirRelPath strin
 		grant usage on schema public to public;
 		grant create on schema public to public;
 		CREATE SCHEMA IF NOT EXISTS devices_api;
-		SET search_path = devices_api, public;
 		ALTER USER postgres SET search_path = devices_api, public;
+		SET search_path = devices_api, public;
 		`)
 	assert.Nil(t, err, "did not expect error connecting and executing query to embedded DB for schema stuff")
-	if err := goose.Run("up", pdb.DBS().Writer.DB, migrationsDirRelPath, "-table devices_api.migrations"); err != nil {
+	goose.SetTableName("devices_api.migrations")
+	if err := goose.Run("up", pdb.DBS().Writer.DB, migrationsDirRelPath); err != nil {
 		_ = edb.Stop()
 		log.Fatalf("failed to apply goose migrations for test: %v\n", err)
 	}

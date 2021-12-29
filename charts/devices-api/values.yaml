@@ -2,7 +2,7 @@ replicaCount: 1
 image:
   repository: dimozone/devices-api
   pullPolicy: IfNotPresent
-  tag: bbc9a50
+  tag: 5ff4749
 imagePullSecrets: []
 nameOverride: ''
 fullnameOverride: ''
@@ -23,6 +23,12 @@ env:
   SERVICE_NAME: devices-api
   JWT_KEY_SET_URL: https://auth.dev.dimo.zone/keys
   SWAGGER_BASE_URL: https://devices-api.dev.dimo.zone/v1/swagger
+  TOR_PROXY_URL: socks5://tor-dev:9050
+  REDIS_USER: default
+  REDIS_PORT: '6379'
+  REDIS_TLS: true
+  INGEST_SMARTCAR_URL: http://ingest-smartcar-dev:8080
+  KAFKA_BROKERS: kafka-dev-dimo-kafka-kafka-brokers:9092
 service:
   type: ClusterIP
   port: 8080
@@ -60,3 +66,23 @@ tolerations: []
 affinity: {}
 podDisruptionBudget:
   minAvailable: 0
+kafka:
+  clusterName: kafka-dev-dimo-kafka
+  topics:
+    - name: topic.device.status
+      config:
+        segment.ms: '3600000'
+        compression.type: producer
+        cleanup.policy: compact,delete
+        min.compaction.lag.ms: '3600000'
+    - name: table.device.integration.smartcar
+      config:
+        segment.ms: '3600000'
+        compression.type: producer
+        cleanup.policy: compact
+        min.compaction.lag.ms: '3600000'
+serviceMonitor:
+  enabled: true
+  path: /metrics
+  port: http
+  interval: 30s

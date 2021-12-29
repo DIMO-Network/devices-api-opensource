@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
+	mock_services "github.com/DIMO-INC/devices-api/internal/services/mocks"
 	"github.com/DIMO-INC/devices-api/models"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/mock/gomock"
@@ -37,21 +39,24 @@ func TestUserDevicesController(t *testing.T) {
 			t.Fatal(err)
 		}
 	}()
+	deviceDefSvc := mock_services.NewMockIDeviceDefinitionService(mockCtrl)
 
 	testUserID := "123123"
 	testUserID2 := "3232451"
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, nil)
 	app := fiber.New()
 	app.Post("/user/devices", authInjectorTestHandler(testUserID), c.RegisterDeviceForUser)
-	app.Post("/user/devices/second", authInjectorTestHandler(testUserID2), c.RegisterDeviceForUser)
+	app.Post("/user/devices/second", authInjectorTestHandler(testUserID2), c.RegisterDeviceForUser) // for different test user
 	app.Post("/admin/user/:user_id/devices", c.AdminRegisterUserDevice)
 	app.Get("/user/devices/me", authInjectorTestHandler(testUserID), c.GetUserDevices)
 	app.Patch("/user/devices/:user_device_id/vin", authInjectorTestHandler(testUserID), c.UpdateVIN)
 	app.Patch("/user/devices/:user_device_id/name", authInjectorTestHandler(testUserID), c.UpdateName)
 
+	deviceDefSvc.EXPECT().CheckAndSetImage(gomock.Any()).AnyTimes().Return(nil)
 	createdUserDeviceID := ""
 
 	t.Run("POST - register with existing device_definition_id", func(t *testing.T) {
+
 		// arrange DB
 		ddID := ksuid.New().String()
 		dd := models.DeviceDefinition{
@@ -105,10 +110,13 @@ func TestUserDevicesController(t *testing.T) {
 		assert.Equal(t, integration.ID, regUserResp.IntegrationCapabilities[0].ID)
 		createdUserDeviceID = regUserResp.UserDeviceID
 	})
-	t.Run("POST - register with MMY, twice don't duplicate definition", func(t *testing.T) {
+	t.Run("POST - register with MMY, create definition on the fly", func(t *testing.T) {
 		mk := "Tesla"
 		model := "Model Z"
 		year := 2021
+		deviceDefSvc.EXPECT().FindDeviceDefinitionByMMY(gomock.Any(), gomock.Any(), mk, model, year, false).
+			Return(nil, nil)
+
 		reg := RegisterUserDevice{
 			Make:  &mk,
 			Model: &model,
@@ -126,19 +134,41 @@ func TestUserDevicesController(t *testing.T) {
 		_ = json.Unmarshal(body, &regUserResp)
 		assert.Len(t, regUserResp.UserDeviceID, 27)
 		assert.Len(t, regUserResp.DeviceDefinitionID, 27)
-
-		// second pass, assert get same device_definition_id
-		request = buildRequest("POST", "/user/devices/second", string(j))
-		response, _ = app.Test(request)
-		body, _ = ioutil.ReadAll(response.Body)
+		assert.NotEqual(t, createdUserDeviceID, regUserResp.UserDeviceID, "expected user_device_id not to be equal to previous")
+	})
+	t.Run("POST - register with MMY when definition exists - still works and does not duplicate definition", func(t *testing.T) {
+		mk := "Ford"
+		model := "Mach E"
+		year := 2021
+		existingDeviceDefinitionID := ksuid.New().String()
+		dd := &models.DeviceDefinition{
+			ID:    existingDeviceDefinitionID,
+			Make:  mk,
+			Model: model,
+			Year:  int16(year),
+		}
+		deviceDefSvc.EXPECT().FindDeviceDefinitionByMMY(gomock.Any(), gomock.Any(), mk, model, year, false).
+			Return(dd, nil)
+		err := dd.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+		assert.NoError(t, err, "database error")
+		reg := RegisterUserDevice{
+			Make:  &mk,
+			Model: &model,
+			Year:  &year,
+		}
+		j, _ := json.Marshal(reg)
+		request := buildRequest("POST", "/user/devices/second", string(j))
+		response, _ := app.Test(request)
+		body, _ := ioutil.ReadAll(response.Body)
 		// assert
 		if assert.Equal(t, fiber.StatusCreated, response.StatusCode) == false {
 			fmt.Println("message: " + string(body))
 		}
-		regUserResp2 := RegisterUserDeviceResponse{}
-		_ = json.Unmarshal(body, &regUserResp2)
-		assert.Equal(t, regUserResp.DeviceDefinitionID, regUserResp2.DeviceDefinitionID)
-		assert.NotEqual(t, regUserResp.UserDeviceID, regUserResp2.UserDeviceID)
+		regUserResp := RegisterUserDeviceResponse{}
+		_ = json.Unmarshal(body, &regUserResp)
+		assert.Len(t, regUserResp.UserDeviceID, 27)
+		assert.NotEqual(t, createdUserDeviceID, regUserResp.UserDeviceID, "expected user_device_id not to be equal to previous")
+		assert.Equal(t, existingDeviceDefinitionID, regUserResp.DeviceDefinitionID)
 	})
 	t.Run("POST - bad payload", func(t *testing.T) {
 		request := buildRequest("POST", "/user/devices", "{}")
@@ -177,6 +207,8 @@ func TestUserDevicesController(t *testing.T) {
 		}
 	})
 	t.Run("POST - admin register with MMY", func(t *testing.T) {
+		deviceDefSvc.EXPECT().FindDeviceDefinitionByMMY(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).
+			Return(nil, sql.ErrNoRows)
 		payload := `{
   "country_code": "USA",
   "created_date": 1634835455,
@@ -187,7 +219,8 @@ func TestUserDevicesController(t *testing.T) {
   "vehicle_name": "Test Name",
   "verified": false,
   "vin": null,
-  "year": 2020
+  "year": 2020,
+  "id": "22fLadEgLgoyBwF7Hnovs9C2Z8O"
 }`
 		request := buildRequest("POST", "/admin/user/1234/devices", payload)
 		response, _ := app.Test(request)

@@ -1,12 +1,15 @@
 package controllers
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
+	"github.com/DIMO-INC/devices-api/internal/services"
 	"github.com/DIMO-INC/devices-api/models"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
@@ -14,23 +17,28 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
+	smartcar "github.com/smartcar/go-sdk"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
 type UserDevicesController struct {
-	Settings *config.Settings
-	DBS      func() *database.DBReaderWriter
-	log      *zerolog.Logger
+	Settings     *config.Settings
+	DBS          func() *database.DBReaderWriter
+	DeviceDefSvc services.IDeviceDefinitionService
+	log          *zerolog.Logger
+	taskSvc      *services.TaskService
 }
 
 // NewUserDevicesController constructor
-func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger) UserDevicesController {
+func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc *services.TaskService) UserDevicesController {
 	return UserDevicesController{
-		Settings: settings,
-		DBS:      dbs,
-		log:      logger,
+		Settings:     settings,
+		DBS:          dbs,
+		log:          logger,
+		DeviceDefSvc: ddSvc,
+		taskSvc:      taskSvc,
 	}
 }
 
@@ -47,7 +55,8 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		qm.Load(models.UserDeviceRels.DeviceDefinition),
 		qm.Load("DeviceDefinition.DeviceIntegrations"),
 		qm.Load("DeviceDefinition.DeviceIntegrations.Integration"),
-		qm.OrderBy("created_at desc"),
+		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
+		qm.OrderBy("created_at"),
 	).
 		All(c.Context(), udc.DBS().Reader)
 	if err != nil {
@@ -62,12 +71,26 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 			CustomImageURL:   d.CustomImageURL.String,
 			CountryCode:      d.CountryCode.String,
 			DeviceDefinition: NewDeviceDefinitionFromDatabase(d.R.DeviceDefinition),
+			Integrations:     NewUserDeviceIntegrationStatusesFromDatabase(d.R.UserDeviceAPIIntegrations),
 		}
 	}
 
 	return c.JSON(fiber.Map{
 		"user_devices": rp,
 	})
+}
+
+func NewUserDeviceIntegrationStatusesFromDatabase(udis []*models.UserDeviceAPIIntegration) []UserDeviceIntegrationStatus {
+	out := make([]UserDeviceIntegrationStatus, len(udis))
+
+	for i, udi := range udis {
+		out[i] = UserDeviceIntegrationStatus{
+			IntegrationID: udi.IntegrationID,
+			Status:        udi.Status,
+		}
+	}
+
+	return out
 }
 
 // RegisterDeviceForUser godoc
@@ -107,11 +130,7 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		}
 	} else {
 		// check for existing MMY
-		dd, err = models.DeviceDefinitions(
-			qm.Where("make = ?", strings.ToUpper(*reg.Make)),
-			qm.And("model = ?", strings.ToUpper(*reg.Model)),
-			qm.And("year = ?", *reg.Year)).
-			One(c.Context(), tx)
+		dd, err = udc.DeviceDefSvc.FindDeviceDefinitionByMMY(c.Context(), tx, *reg.Make, *reg.Model, *reg.Year, false)
 		if dd == nil {
 			// since Definition does not exist, create one on the fly with userID as source and not verified
 			dd = &models.DeviceDefinition{
@@ -151,6 +170,19 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
+	// don't block, as image fetch could take a while
+	go func() {
+		err := udc.DeviceDefSvc.CheckAndSetImage(dd)
+		if err != nil {
+			udc.log.Error().Err(err).Msg("error getting device image upon user_device registration")
+			return
+		}
+		_, err = dd.Update(context.Background(), udc.DBS().Writer, boil.Whitelist("image_url", "updated_at")) // only update image_url https://github.com/volatiletech/sqlboiler#update
+		if err != nil {
+			udc.log.Error().Err(err).Msg("error updating device image in DB for: " + dd.ID)
+		}
+	}()
+
 	return c.Status(fiber.StatusCreated).JSON(
 		RegisterUserDeviceResponse{
 			UserDeviceID:            ud.ID,
@@ -159,8 +191,197 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		})
 }
 
-func (udc *UserDevicesController) RegisterSmartCarIntegration(c *fiber.Ctx) error {
-	return nil
+type RegisterSmartcarRequest struct {
+	Code        string `json:"code"`
+	RedirectURI string `json:"redirectURI"`
+}
+
+var smartcarScopes = []string{
+	"read_engine_oil",
+	"read_battery",
+	"read_charge",
+	"control_charge",
+	"read_fuel",
+	"read_location",
+	"read_odometer",
+	"read_tires",
+	"read_vehicle_info",
+	"read_vin",
+}
+
+// RegisterSmartcarIntegration godoc
+// @Description Use a Smartcar auth code to connect to Smartcar and obtain access and refresh
+// @Description tokens for use by the app.
+// @Tags user-devices
+// @Accept json
+// @Param userDeviceIntegrationRegistration body controllers.RegisterSmartcarRequest true "Authorization code from Smartcar"
+// @Success 204
+// @Router /user/devices/:user_device_id/integrations/:integration_id [post]
+func (udc *UserDevicesController) RegisterSmartcarIntegration(c *fiber.Ctx) error {
+	userID := getUserID(c)
+	userDeviceID := c.Params("user_device_id")
+	integrationID := c.Params("integration_id")
+
+	reqBody := RegisterSmartcarRequest{}
+	if err := c.BodyParser(&reqBody); err != nil {
+		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+	}
+
+	ud, err := models.UserDevices(qm.Where("id = ?", userDeviceID), qm.Where("user_id = ?", userID)).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, errors.Wrapf(err, "could not find user_device with id %s for user %s", userDeviceID, userID), fiber.StatusBadRequest)
+		}
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	integ, err := models.DeviceIntegrations(
+		qm.Where("device_definition_id = ?", ud.DeviceDefinitionID),
+		qm.And("integration_id = ?", integrationID),
+		qm.And("country = ?", ud.CountryCode),
+		qm.Load("Integration")).One(c.Context(), udc.DBS().Writer)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c,
+				errors.Wrapf(err, "could not find device_integrations with device_definition_id %s, integration_id %s and country %s", ud.DeviceDefinitionID, integrationID, ud.CountryCode.String), fiber.StatusBadRequest)
+		}
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	// This is the only integration we currently support. It is generated by the sync script in
+	// /cmd/devices-api/load_smartcar.go with a random identifier.
+	if integ.R.Integration.Type != "API" || integ.R.Integration.Vendor != "SmartCar" {
+		return errorResponseHandler(c, errors.New("could not find SmartCar integration relation"), fiber.StatusBadRequest)
+	}
+
+	client := smartcar.NewClient() // Unclear whether we need one of these at the top level
+	auth := client.NewAuth(&smartcar.AuthParams{
+		ClientID:     udc.Settings.SmartcarClientID,
+		ClientSecret: udc.Settings.SmartcarClientSecret,
+		RedirectURI:  reqBody.RedirectURI,
+		Scope:        smartcarScopes,
+		TestMode:     udc.Settings.SmartcarTestMode,
+	})
+	token, err := auth.ExchangeCode(c.Context(), &smartcar.ExchangeCodeParams{Code: reqBody.Code})
+	if err != nil {
+		return errorResponseHandler(c, errors.Wrap(err, "failure exchanging code with SmartCar"), fiber.StatusBadRequest)
+	}
+
+	temp, err := models.FindUserDeviceAPIIntegration(c.Context(), udc.DBS().Writer, userDeviceID, integrationID)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		}
+	} else {
+		// This is mostly helpful for testing
+		_, err := temp.Delete(c.Context(), udc.DBS().Writer)
+		if err != nil {
+			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		}
+	}
+
+	// TODO: Encrypt the tokens. Note that you need the client id, client secret, and redirect
+	// URL to make use of the tokens, but plain text is still a bad idea.
+	integration := models.UserDeviceAPIIntegration{
+		UserDeviceID:     userDeviceID,
+		IntegrationID:    integrationID,
+		Status:           models.UserDeviceAPIIntegrationStatusPending,
+		AccessToken:      token.Access,
+		AccessExpiresAt:  token.AccessExpiry,
+		RefreshToken:     token.Refresh,
+		RefreshExpiresAt: token.RefreshExpiry,
+	}
+
+	err = integration.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	err = udc.taskSvc.BeginSmartcar(userDeviceID, integrationID)
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+type GetUserDeviceIntegrationResponse struct {
+	// Status is one of "Pending", "PendingFirstData", "Active"
+	Status string `json:"status"`
+	// ExternalID is the identifier used by the third party for the device. It may be absent if we
+	// haven't authorized yet.
+	ExternalID null.String `json:"externalId" swaggertype:"string"`
+}
+
+// GetUserDeviceIntegration godoc
+// @Description Receive status updates about a Smartcar integration
+// @Tags user-devices
+// @Success 200 {object} controllers.GetUserDeviceIntegrationResponse
+// @Router /user/devices/:user_device_id/integrations/:integration_id [get]
+func (udc *UserDevicesController) GetUserDeviceIntegration(c *fiber.Ctx) error {
+	userID := getUserID(c)
+	userDeviceID := c.Params("user_device_id")
+	integrationID := c.Params("integration_id")
+	deviceExists, err := models.UserDevices(
+		qm.Where("user_id = ?", userID),
+		qm.And("id = ?", userDeviceID),
+	).Exists(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+	if !deviceExists {
+		return errorResponseHandler(c, fmt.Errorf("no user device with ID %s", userDeviceID), fiber.StatusBadRequest)
+	}
+
+	apiIntegration, err := models.UserDeviceAPIIntegrations(
+		qm.Where("user_device_id = ?", userDeviceID),
+		qm.Where("integration_id = ?", integrationID),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, fmt.Errorf("user device %s does not have integration %s", userDeviceID, integrationID), fiber.StatusBadRequest)
+		}
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+	return c.JSON(GetUserDeviceIntegrationResponse{Status: apiIntegration.Status, ExternalID: apiIntegration.ExternalID})
+}
+
+// DeleteUserDeviceIntegration godoc
+// @Description Remove an user device's integration
+// @Tags user-devices
+// @Success 204
+// @Router /user/devices/:user_device_id/integrations/:integration_id [delete]
+func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) error {
+	userID := getUserID(c)
+	userDeviceID := c.Params("user_device_id")
+	integrationID := c.Params("integration_id")
+	deviceExists, err := models.UserDevices(
+		qm.Where("user_id = ?", userID),
+		qm.And("id = ?", userDeviceID),
+	).Exists(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+	if !deviceExists {
+		return errorResponseHandler(c, fmt.Errorf("no user device with ID %s", userDeviceID), fiber.StatusBadRequest)
+	}
+
+	apiIntegration, err := models.UserDeviceAPIIntegrations(
+		qm.Where("user_device_id = ?", userDeviceID),
+		qm.Where("integration_id = ?", integrationID),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, fmt.Errorf("user device %s does not have integration %s", userDeviceID, integrationID), fiber.StatusBadRequest)
+		}
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	_, err = apiIntegration.Delete(c.Context(), udc.DBS().Writer)
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+	return c.SendStatus(fiber.StatusNoContent)
 }
 
 // AdminRegisterUserDevice godoc
@@ -206,11 +427,7 @@ func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
 		}
 	} else {
 		// lookup existing MMY
-		dd, err = models.DeviceDefinitions(
-			qm.Where("make = ?", strings.ToUpper(*reg.Make)),
-			qm.And("model = ?", strings.ToUpper(*reg.Model)),
-			qm.And("year = ?", *reg.Year)).
-			One(c.Context(), tx)
+		dd, err = udc.DeviceDefSvc.FindDeviceDefinitionByMMY(c.Context(), tx, *reg.Make, *reg.Model, *reg.Year, false)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				// since Definition does not exist, create one on the fly with userID as source and not verified
@@ -222,9 +439,6 @@ func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
 					Source:   null.StringFrom("userID:" + userID),
 					Verified: reg.Verified,
 					ImageURL: null.StringFromPtr(reg.ImageURL),
-				}
-				if len(reg.VIN) == 17 {
-					dd.VinFirst10 = null.StringFrom(strings.ToUpper(reg.VIN[:10]))
 				}
 				err = dd.Insert(c.Context(), tx, boil.Infer())
 				if err != nil {
@@ -472,10 +686,16 @@ func (u *UpdateVINReq) validate() error {
 
 // UserDeviceFull represents object user's see on frontend for listing of their devices
 type UserDeviceFull struct {
-	ID               string           `json:"id"`
-	VIN              string           `json:"vin"`
-	Name             string           `json:"name"`
-	CustomImageURL   string           `json:"custom_image_url"`
-	DeviceDefinition DeviceDefinition `json:"device_definition"`
-	CountryCode      string           `json:"country_code"`
+	ID               string                        `json:"id"`
+	VIN              string                        `json:"vin"`
+	Name             string                        `json:"name"`
+	CustomImageURL   string                        `json:"custom_image_url"`
+	DeviceDefinition DeviceDefinition              `json:"device_definition"`
+	CountryCode      string                        `json:"country_code"`
+	Integrations     []UserDeviceIntegrationStatus `json:"integrations"`
+}
+
+type UserDeviceIntegrationStatus struct {
+	IntegrationID string `json:"integrationID"`
+	Status        string `json:"status"`
 }

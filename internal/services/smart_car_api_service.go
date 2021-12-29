@@ -63,6 +63,11 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 			years := row[0].Subtext                                                       // eg. 2017+ or 2012-2017
 			vehicleType := strings.ToUpper(null.StringFromPtr(row[1].VehicleType).String) // ICE, PHEV, BEV
 
+			if years == nil {
+				s.log.Warn().Msg("Skipping row as years is nil")
+				continue
+			}
+
 			ic := IntegrationCapabilities{
 				Location:          getCapability("Location", usData.Headers, row),
 				Odometer:          getCapability("Odometer", usData.Headers, row),
@@ -94,7 +99,7 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 			// future: put below code in own function so we can defer tx.rollback here https://manse.cloud/posts/go-footuns-go-defer-rust-drop
 			// loop over each year and insert into device definition same stuff just changing year
 			for _, yr := range yearRange {
-				err := s.saveDeviceDefinition(ctx, tx, vehicleMake, vehicleModel, yr, dvi, icJSON, scIntegrationID, "us")
+				err := s.saveDeviceDefinition(ctx, tx, vehicleMake, vehicleModel, yr, dvi, icJSON, scIntegrationID, "USA")
 				if err != nil {
 					_ = tx.Rollback()
 					return errors.Wrapf(err, "could not save device definition to db for mmy: %s %s %d", vehicleMake, vehicleModel, yr)
@@ -138,7 +143,7 @@ func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, 
 		IntegrationID:      integrationID,
 		DeviceDefinitionID: dbDeviceDef.ID,
 		Capabilities:       null.JSONFrom(icJSON),
-		Country:            strings.ToLower(integrationCountry),
+		Country:            integrationCountry,
 	}
 	return deviceIntegration.Insert(ctx, tx, boil.Infer())
 }

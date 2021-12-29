@@ -151,34 +151,6 @@ var doc = `{
                 }
             }
         },
-        "/device-definitions/vin/{vin}": {
-            "get": {
-                "description": "decodes a VIN by first looking it up on our DB, and then calling out to external sources. If it does call out, it will backfill our DB",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "device-definitions"
-                ],
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "VIN eg. 5YJ3E1EA6MF873863",
-                        "name": "vin",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.DeviceDefinition"
-                        }
-                    }
-                }
-            }
-        },
         "/device-definitions/{id}": {
             "get": {
                 "description": "gets a specific device definition by id",
@@ -341,6 +313,58 @@ var doc = `{
                 }
             }
         },
+        "/user/devices/:user_device_id/integrations/:integration_id": {
+            "get": {
+                "description": "Receive status updates about a Smartcar integration",
+                "tags": [
+                    "user-devices"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.GetUserDeviceIntegrationResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Use a Smartcar auth code to connect to Smartcar and obtain access and refresh\ntokens for use by the app.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user-devices"
+                ],
+                "parameters": [
+                    {
+                        "description": "Authorization code from Smartcar",
+                        "name": "userDeviceIntegrationRegistration",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.RegisterSmartcarRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove an user device's integration",
+                "tags": [
+                    "user-devices"
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/user/devices/:user_device_id/name": {
             "patch": {
                 "security": [
@@ -465,6 +489,10 @@ var doc = `{
                     "type": "integer"
                 },
                 "device_definition_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "description": "KSUID from client,",
                     "type": "string"
                 },
                 "image_url": {
@@ -605,6 +633,30 @@ var doc = `{
                 }
             }
         },
+        "controllers.GetUserDeviceIntegrationResponse": {
+            "type": "object",
+            "properties": {
+                "externalId": {
+                    "description": "ExternalID is the identifier used by the third party for the device. It may be absent if we\nhaven't authorized yet.",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status is one of \"Pending\", \"PendingFirstData\", \"Active\"",
+                    "type": "string"
+                }
+            }
+        },
+        "controllers.RegisterSmartcarRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "redirectURI": {
+                    "type": "string"
+                }
+            }
+        },
         "controllers.RegisterUserDevice": {
             "type": "object",
             "properties": {
@@ -681,10 +733,27 @@ var doc = `{
                 "id": {
                     "type": "string"
                 },
+                "integrations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.UserDeviceIntegrationStatus"
+                    }
+                },
                 "name": {
                     "type": "string"
                 },
                 "vin": {
+                    "type": "string"
+                }
+            }
+        },
+        "controllers.UserDeviceIntegrationStatus": {
+            "type": "object",
+            "properties": {
+                "integrationID": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }
