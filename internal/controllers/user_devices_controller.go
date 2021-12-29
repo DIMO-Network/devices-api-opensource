@@ -585,6 +585,38 @@ func (udc *UserDevicesController) UpdateName(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+// GetUserDeviceStatus godoc
+// @Description Returns the latest status update for the device. May return 404 if the
+// @Description user does not have a device with the ID, or if no status updates have come
+// @Tags user-devices
+// @Produce json
+// @Param user_device_id path string true "user device ID"
+// @Success 200
+// @Security BearerAuth
+// @Router  /user/devices/:user_device_id/status [get]
+func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
+	udi := c.Params("user_device_id")
+	userID := getUserID(c)
+	userDevice, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(udi),
+		models.UserDeviceWhere.UserID.EQ(userID),
+		qm.Load(models.UserDeviceRels.UserDeviceDatum),
+	).One(c.Context(), udc.DBS().Writer)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, err, fiber.StatusNotFound)
+		}
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	if userDevice.R.UserDeviceDatum == nil || !userDevice.R.UserDeviceDatum.Data.Valid {
+		return errorResponseHandler(c, errors.New("no status updates yet"), fiber.StatusNotFound)
+	}
+
+	c.Set("Content-Type", "application/json")
+	return c.Send(userDevice.R.UserDeviceDatum.Data.JSON)
+}
+
 // UpdateCountryCode godoc
 // @Description updates the CountryCode on the user device record
 // @Tags 	user-devices

@@ -407,6 +407,36 @@ var doc = `{
                 }
             }
         },
+        "/user/devices/:user_device_id/status": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the latest status update for the device. May return 404 if the\nuser does not have a device with the ID, or if no status updates have come",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user-devices"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user device ID",
+                        "name": "user_device_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/user/devices/:user_device_id/vin": {
             "patch": {
                 "security": [

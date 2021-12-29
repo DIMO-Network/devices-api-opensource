@@ -134,6 +134,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1.Get("/user/devices/:user_device_id/integrations/:integration_id", jwtAuth, userDeviceControllers.GetUserDeviceIntegration)
 	v1.Delete("/user/devices/:user_device_id/integrations/:integration_id", jwtAuth, userDeviceControllers.DeleteUserDeviceIntegration)
 	v1.Post("/user/devices/:user_device_id/integrations/:integration_id", jwtAuth, userDeviceControllers.RegisterSmartcarIntegration)
+	v1.Get("/user/devices/:user_device_id/status", jwtAuth, userDeviceControllers.GetUserDeviceStatus)
 	// admin / internal operations paths
 	// v1.Post("/admin/user/:user_id/devices", userDeviceControllers.AdminRegisterUserDevice)
 

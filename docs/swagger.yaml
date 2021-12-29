@@ -460,6 +460,26 @@ paths:
       - BearerAuth: []
       tags:
       - user-devices
+  /user/devices/:user_device_id/status:
+    get:
+      description: |-
+        Returns the latest status update for the device. May return 404 if the
+        user does not have a device with the ID, or if no status updates have come
+      parameters:
+      - description: user device ID
+        in: path
+        name: user_device_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+      security:
+      - BearerAuth: []
+      tags:
+      - user-devices
   /user/devices/:user_device_id/vin:
     patch:
       consumes:
