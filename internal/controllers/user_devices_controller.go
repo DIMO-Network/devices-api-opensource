@@ -297,7 +297,7 @@ func (udc *UserDevicesController) RegisterSmartcarIntegration(c *fiber.Ctx) erro
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
-	err = udc.taskSvc.BeginSmartcar(userDeviceID, integrationID)
+	err = udc.taskSvc.StartSmartcarRegistrationTasks(userDeviceID, integrationID)
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
@@ -355,21 +355,29 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 	userID := getUserID(c)
 	userDeviceID := c.Params("user_device_id")
 	integrationID := c.Params("integration_id")
+
+	tx, err := udc.DBS().Writer.BeginTx(c.Context(), nil)
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+	defer tx.Rollback() //nolint
+
 	deviceExists, err := models.UserDevices(
 		qm.Where("user_id = ?", userID),
 		qm.And("id = ?", userDeviceID),
-	).Exists(c.Context(), udc.DBS().Reader)
+	).Exists(c.Context(), tx)
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 	if !deviceExists {
-		return errorResponseHandler(c, fmt.Errorf("no user device with ID %s", userDeviceID), fiber.StatusBadRequest)
+		return errorResponseHandler(c, fmt.Errorf("no user device with ID %s", userDeviceID), fiber.StatusNotFound)
 	}
 
+	// Probably don't need two queries if you're smart
 	apiIntegration, err := models.UserDeviceAPIIntegrations(
 		qm.Where("user_device_id = ?", userDeviceID),
 		qm.Where("integration_id = ?", integrationID),
-	).One(c.Context(), udc.DBS().Reader)
+	).One(c.Context(), tx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return errorResponseHandler(c, fmt.Errorf("user device %s does not have integration %s", userDeviceID, integrationID), fiber.StatusBadRequest)
@@ -377,10 +385,21 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
-	_, err = apiIntegration.Delete(c.Context(), udc.DBS().Writer)
+	err = udc.taskSvc.StartSmartcarDeregistrationTasks(userDeviceID, integrationID)
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
+
+	_, err = apiIntegration.Delete(c.Context(), tx)
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
@@ -610,7 +629,17 @@ func (udc *UserDevicesController) UpdateCountryCode(c *fiber.Ctx) error {
 func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	udi := c.Params("user_device_id")
 	userID := getUserID(c)
-	userDevice, err := models.UserDevices(qm.Where("id = ?", udi), qm.And("user_id = ?", userID)).One(c.Context(), udc.DBS().Writer)
+
+	tx, err := udc.DBS().Writer.BeginTx(c.Context(), nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint
+	userDevice, err := models.UserDevices(
+		qm.Where("id = ?", udi),
+		qm.And("user_id = ?", userID),
+		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
+	).One(c.Context(), tx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return errorResponseHandler(c, err, fiber.StatusNotFound)
@@ -618,7 +647,21 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
-	_, err = userDevice.Delete(c.Context(), udc.DBS().Writer)
+	for _, apiInteg := range userDevice.R.UserDeviceAPIIntegrations {
+		// For now, there are only Smartcar integrations. We will probably regret this
+		// line later.
+		err = udc.taskSvc.StartSmartcarDeregistrationTasks(udi, apiInteg.IntegrationID)
+		if err != nil {
+			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		}
+	}
+
+	_, err = userDevice.Delete(c.Context(), tx)
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	err = tx.Commit()
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}

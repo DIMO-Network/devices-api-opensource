@@ -41,8 +41,10 @@ const smartcarVINURL = "https://api.smartcar.com/v2.0/vehicles/%s/vin"
 
 const smartcarConnectVehicleTask = "smartcar_connect_vehicle"
 const smartcarGetInitialDataTask = "smartcar_get_initial_data"
+const smartcarDisconnectVehicleTask = "smartcar_disconnect_vehicle"
 
 const ingestSmartcarRegistrationTopic = "table.device.integration.smartcar"
+const smartcarRegistrationEventType = "zone.dimo.device.integration.smartcar.register"
 
 type batchRequest struct {
 	Requests []batchRequestRequest `json:"requests"`
@@ -145,6 +147,11 @@ type cloudEventMessage struct {
 	Data        interface{} `json:"data"`
 }
 
+type registrationData struct {
+	DeviceID   string      `json:"deviceId"`
+	ExternalID null.String `json:"externalId"`
+}
+
 func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string) (err error) {
 	client := smartcar.NewClient()
 	tx, err := t.DBS().Writer.BeginTx(context.Background(), nil)
@@ -194,14 +201,14 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 	msg := cloudEventMessage{
 		ID:          ksuid.New().String(),
 		Source:      "dimo/integration/" + integrationID,
-		Subject:     ud.ID,
+		Subject:     userDeviceID,
 		SpecVersion: "1.0",
 		Time:        time.Now(),
-		Type:        "zone.dimo.device.integration.smartcar.register",
-		Data: struct {
-			DeviceID   string `json:"deviceId"`
-			ExternalID string `json:"externalId"`
-		}{ud.ID, integ.ExternalID.String},
+		Type:        smartcarRegistrationEventType,
+		Data: registrationData{
+			DeviceID:   userDeviceID,
+			ExternalID: integ.ExternalID,
+		},
 	}
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
@@ -229,6 +236,32 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 	}
 
 	err = tx.Commit()
+	return
+}
+
+func (t *TaskService) smartcarDisconnectVehicle(userDeviceID, integrationID string) (err error) {
+	msg := cloudEventMessage{
+		ID:          ksuid.New().String(),
+		Source:      "dimo/integration/" + integrationID,
+		Subject:     userDeviceID,
+		SpecVersion: "1.0",
+		Time:        time.Now(),
+		Type:        smartcarRegistrationEventType,
+		Data: registrationData{
+			DeviceID:   userDeviceID,
+			ExternalID: null.StringFromPtr(nil),
+		},
+	}
+	msgBytes, err := json.Marshal(msg)
+	if err != nil {
+		return
+	}
+	message := &sarama.ProducerMessage{
+		Topic: ingestSmartcarRegistrationTopic,
+		Key:   sarama.StringEncoder(userDeviceID),
+		Value: sarama.ByteEncoder(msgBytes),
+	}
+	_, _, err = t.Producer.SendMessage(message)
 	return
 }
 
@@ -312,7 +345,7 @@ func (t *TaskService) smartcarGetInitialData(userDeviceID, integrationID string)
 	return
 }
 
-func (t *TaskService) BeginSmartcar(userDeviceID, integrationID string) (err error) {
+func (t *TaskService) StartSmartcarRegistrationTasks(userDeviceID, integrationID string) (err error) {
 	sig1 := tasks.Signature{
 		Name: smartcarConnectVehicleTask,
 		Args: []tasks.Arg{
@@ -334,6 +367,19 @@ func (t *TaskService) BeginSmartcar(userDeviceID, integrationID string) (err err
 		return
 	}
 	_, err = t.Machinery.SendChain(chain)
+	return
+}
+
+func (t *TaskService) StartSmartcarDeregistrationTasks(userDeviceID, integrationID string) (err error) {
+	sig := tasks.Signature{
+		Name: smartcarDisconnectVehicleTask,
+		Args: []tasks.Arg{
+			{Type: "string", Value: userDeviceID},
+			{Type: "string", Value: integrationID},
+		},
+		RetryCount: 3, // Somewhat random
+	}
+	_, err = t.Machinery.SendTask(&sig)
 	return
 }
 
@@ -373,8 +419,9 @@ func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWrit
 		Producer:  producer,
 	}
 	err = server.RegisterTasks(map[string]interface{}{
-		smartcarConnectVehicleTask: t.smartcarConnectVehicle,
-		smartcarGetInitialDataTask: t.smartcarGetInitialData,
+		smartcarConnectVehicleTask:    t.smartcarConnectVehicle,
+		smartcarGetInitialDataTask:    t.smartcarGetInitialData,
+		smartcarDisconnectVehicleTask: t.smartcarDisconnectVehicle,
 	})
 	if err != nil {
 		panic(err)
