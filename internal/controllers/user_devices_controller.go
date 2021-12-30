@@ -720,7 +720,7 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	for _, apiInteg := range userDevice.R.UserDeviceAPIIntegrations {
 		// For now, there are only Smartcar integrations. We will probably regret this
 		// line later.
-		err = udc.taskSvc.StartSmartcarDeregistrationTasks(udi, apiInteg.IntegrationID, apiInteg.ExternalID.String)
+		err = udc.taskSvc.StartSmartcarDeregistrationTasks(udi, apiInteg.IntegrationID, apiInteg.ExternalID.String, apiInteg.AccessToken)
 		if err != nil {
 			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 		}
