@@ -28,11 +28,11 @@ type UserDevicesController struct {
 	DBS          func() *database.DBReaderWriter
 	DeviceDefSvc services.IDeviceDefinitionService
 	log          *zerolog.Logger
-	taskSvc      *services.TaskService
+	taskSvc      services.ITaskService
 }
 
 // NewUserDevicesController constructor
-func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc *services.TaskService) UserDevicesController {
+func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc services.ITaskService) UserDevicesController {
 	return UserDevicesController{
 		Settings:     settings,
 		DBS:          dbs,
@@ -646,10 +646,12 @@ func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
 	// note: the UserDeviceDatum is not tied to the integration table
 
 	for _, devInteg := range ud.R.UserDeviceAPIIntegrations {
-		if devInteg.R.Integration.Type == "API" && devInteg.R.Integration.Vendor == "SmartCar" && devInteg.Status == models.UserDeviceAPIIntegrationStatusActive {
-			nextAvailableTime := ud.R.UserDeviceDatum.UpdatedAt.Add(time.Second * time.Duration(devInteg.R.Integration.RefreshLimitSecs))
-			if time.Now().Before(nextAvailableTime) {
-				return errorResponseHandler(c, errors.New("rate limit for integration refresh hit"), fiber.StatusTooManyRequests)
+		if devInteg.R.Integration.Type == models.IntegrationTypeAPI && devInteg.R.Integration.Vendor == "SmartCar" && devInteg.Status == models.UserDeviceAPIIntegrationStatusActive {
+			if ud.R.UserDeviceDatum != nil {
+				nextAvailableTime := ud.R.UserDeviceDatum.UpdatedAt.Add(time.Second * time.Duration(devInteg.R.Integration.RefreshLimitSecs))
+				if time.Now().Before(nextAvailableTime) {
+					return errorResponseHandler(c, errors.New("rate limit for integration refresh hit"), fiber.StatusTooManyRequests)
+				}
 			}
 			err = udc.taskSvc.StartSmartcarRefresh(udi, devInteg.R.Integration.ID)
 			if err != nil {

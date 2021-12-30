@@ -27,6 +27,14 @@ import (
 	"github.com/DIMO-INC/devices-api/models"
 )
 
+//go:generate mockgen -source task_service.go -destination mocks/task_service_mock.go
+
+type ITaskService interface {
+	StartSmartcarRegistrationTasks(userDeviceID, integrationID string) (err error)
+	StartSmartcarRefresh(userDeviceID, integrationID string) (err error)
+	StartSmartcarDeregistrationTasks(userDeviceID, integrationID, externalID, accessToken string) (err error)
+}
+
 type TaskService struct {
 	Settings  *config.Settings
 	DBS       func() *database.DBReaderWriter

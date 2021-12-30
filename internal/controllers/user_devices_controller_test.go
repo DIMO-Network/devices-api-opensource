@@ -5,9 +5,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/volatiletech/null/v8"
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	mock_services "github.com/DIMO-INC/devices-api/internal/services/mocks"
@@ -40,10 +42,11 @@ func TestUserDevicesController(t *testing.T) {
 		}
 	}()
 	deviceDefSvc := mock_services.NewMockIDeviceDefinitionService(mockCtrl)
+	taskSvc := mock_services.NewMockITaskService(mockCtrl)
 
 	testUserID := "123123"
 	testUserID2 := "3232451"
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, nil)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, taskSvc)
 	app := fiber.New()
 	app.Post("/user/devices", authInjectorTestHandler(testUserID), c.RegisterDeviceForUser)
 	app.Post("/user/devices/second", authInjectorTestHandler(testUserID2), c.RegisterDeviceForUser) // for different test user
@@ -51,6 +54,7 @@ func TestUserDevicesController(t *testing.T) {
 	app.Get("/user/devices/me", authInjectorTestHandler(testUserID), c.GetUserDevices)
 	app.Patch("/user/devices/:user_device_id/vin", authInjectorTestHandler(testUserID), c.UpdateVIN)
 	app.Patch("/user/devices/:user_device_id/name", authInjectorTestHandler(testUserID), c.UpdateName)
+	app.Post("/user/devices/:user_device_id/commands/refresh", authInjectorTestHandler(testUserID), c.RefreshUserDeviceStatus)
 
 	deviceDefSvc.EXPECT().CheckAndSetImage(gomock.Any()).AnyTimes().Return(nil)
 	createdUserDeviceID := ""
@@ -249,6 +253,54 @@ func TestUserDevicesController(t *testing.T) {
 		if assert.Equal(t, fiber.StatusNoContent, response.StatusCode) == false {
 			body, _ := ioutil.ReadAll(response.Body)
 			fmt.Println("message: " + string(body))
+		}
+	})
+	t.Run("POST - refresh smartcar data", func(t *testing.T) {
+		// arrange some additional data for this to work
+		smartCarInt := models.Integration{
+			ID:               ksuid.New().String(),
+			Type:             models.IntegrationTypeAPI,
+			Style:            models.IntegrationStyleWebhook,
+			Vendor:           "SmartCar",
+			RefreshLimitSecs: 60,
+		}
+		_ = smartCarInt.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+		udiai := models.UserDeviceAPIIntegration{
+			UserDeviceID:     createdUserDeviceID,
+			IntegrationID:    smartCarInt.ID,
+			Status:           models.UserDeviceAPIIntegrationStatusActive,
+			AccessToken:      "caca-token",
+			AccessExpiresAt:  time.Now().Add(time.Duration(10) * time.Hour),
+			RefreshToken:     "caca-refresh",
+			RefreshExpiresAt: time.Now().Add(time.Duration(100) * time.Hour),
+			ExternalID:       null.StringFrom("caca-external-id"),
+		}
+		_ = udiai.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+		// arrange mock
+		taskSvc.EXPECT().StartSmartcarRefresh(createdUserDeviceID, smartCarInt.ID).Return(nil)
+		payload := `{}`
+		request := buildRequest("POST", "/user/devices/"+createdUserDeviceID+"/commands/refresh", payload)
+		response, _ := app.Test(request)
+		if assert.Equal(t, fiber.StatusNoContent, response.StatusCode) == false {
+			body, _ := ioutil.ReadAll(response.Body)
+			fmt.Println("unexpected response: " + string(body))
+		}
+	})
+	t.Run("POST - refresh smartcar data rate limited", func(t *testing.T) {
+		// arrange data to cause condition
+		udd := models.UserDeviceDatum{
+			UserDeviceID: createdUserDeviceID,
+			Data:         null.JSON{},
+			CreatedAt:    time.Now(),
+			UpdatedAt:    time.Now(),
+		}
+		_ = udd.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+		payload := `{}`
+		request := buildRequest("POST", "/user/devices/"+createdUserDeviceID+"/commands/refresh", payload)
+		response, _ := app.Test(request)
+		if assert.Equal(t, fiber.StatusTooManyRequests, response.StatusCode) == false {
+			body, _ := ioutil.ReadAll(response.Body)
+			fmt.Println("unexpected response: " + string(body))
 		}
 	})
 }
