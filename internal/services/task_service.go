@@ -57,6 +57,7 @@ type batchRequestRequest struct {
 
 var batchRequestFixed = batchRequest{
 	Requests: []batchRequestRequest{
+		{"/"},
 		{"/battery"},
 		{"/battery/capacity"},
 		{"/charge"},
@@ -83,6 +84,23 @@ func (t *TaskService) subscribeVehicle(vehicleID, accessToken string) (err error
 	}
 	if resp.StatusCode >= 400 {
 		err = fmt.Errorf("error from Smartcar attaching vehicle %s to webhook %s, status code %d", vehicleID, t.Settings.SmartcarWebhookID, resp.StatusCode)
+	}
+	return
+}
+
+func (t *TaskService) unsubscribeVehicle(vehicleID, accessToken string) (err error) {
+	url := fmt.Sprintf(smartcarWebhookURL, vehicleID, t.Settings.SmartcarWebhookID)
+	req, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		return
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return
+	}
+	if resp.StatusCode >= 400 {
+		err = fmt.Errorf("error from Smartcar detaching vehicle %s from webhook %s, status code %d", vehicleID, t.Settings.SmartcarWebhookID, resp.StatusCode)
 	}
 	return
 }
@@ -240,7 +258,7 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 	return
 }
 
-func (t *TaskService) smartcarDisconnectVehicle(userDeviceID, integrationID string) (err error) {
+func (t *TaskService) smartcarDisconnectVehicle(userDeviceID, integrationID, externalID, accessToken string) (err error) {
 	msg := cloudEventMessage{
 		ID:          ksuid.New().String(),
 		Source:      "dimo/integration/" + integrationID,
@@ -263,6 +281,11 @@ func (t *TaskService) smartcarDisconnectVehicle(userDeviceID, integrationID stri
 		Value: sarama.ByteEncoder(msgBytes),
 	}
 	_, _, err = t.Producer.SendMessage(message)
+	if err != nil {
+		return
+	}
+
+	err = t.unsubscribeVehicle(externalID, accessToken)
 	return
 }
 
@@ -408,12 +431,14 @@ func (t *TaskService) StartSmartcarRefresh(userDeviceID, integrationID string) (
 	return
 }
 
-func (t *TaskService) StartSmartcarDeregistrationTasks(userDeviceID, integrationID string) (err error) {
+func (t *TaskService) StartSmartcarDeregistrationTasks(userDeviceID, integrationID, externalID, accessToken string) (err error) {
 	sig := tasks.Signature{
 		Name: smartcarDisconnectVehicleTask,
 		Args: []tasks.Arg{
 			{Type: "string", Value: userDeviceID},
 			{Type: "string", Value: integrationID},
+			{Type: "string", Value: externalID},
+			{Type: "string", Value: accessToken},
 		},
 		RetryCount: 3, // Somewhat random
 	}
