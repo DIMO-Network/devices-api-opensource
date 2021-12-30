@@ -7,11 +7,11 @@ import (
 
 var (
 	SmartcarIngestTotalOps = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "devices_api_smartcar_ingest_success_ops_total",
+		Name: "devices_api_smartcar_ingest_ops_total",
 		Help: "Total successful smartcar ingest events processed",
 	})
 	SmartcarIngestSuccessOps = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "devices_api_smartcar_ingest_failure_ops_total",
+		Name: "devices_api_smartcar_ingest_success_ops_total",
 		Help: "Total failure smartcar ingest events processed",
 	})
 )
