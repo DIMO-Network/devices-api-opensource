@@ -622,6 +622,7 @@ func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 // @Tags user-devices
 // @Param user_device_id path string true "user device ID"
 // @Success 204
+// @Failure 429 "rate limit hit for integration"
 // @Security BearerAuth
 // @Router  /user/devices/:user_device_id/commands/refresh [post]
 func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
@@ -633,6 +634,7 @@ func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
 		models.UserDeviceWhere.ID.EQ(udi),
 		models.UserDeviceWhere.UserID.EQ(userID),
 		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
+		qm.Load(models.UserDeviceRels.UserDeviceDatum),
 		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
 	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
@@ -641,9 +643,14 @@ func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
 		}
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
+	// todo issue: the UserDeviceDatum is not tied to the integration table
 
 	for _, devInteg := range ud.R.UserDeviceAPIIntegrations {
 		if devInteg.R.Integration.Type == "API" && devInteg.R.Integration.Vendor == "SmartCar" && devInteg.Status == models.UserDeviceAPIIntegrationStatusActive {
+			nextAvailableTime := ud.R.UserDeviceDatum.UpdatedAt.Add(time.Second * time.Duration(devInteg.R.Integration.RefreshLimitSecs))
+			if time.Now().UTC().Second() <= nextAvailableTime.Second() {
+				return errorResponseHandler(c, errors.New("rate limit for integration refresh hit"), fiber.StatusTooManyRequests)
+			}
 			err = udc.taskSvc.StartSmartcarRefresh(udi, devInteg.R.Integration.ID)
 			if err != nil {
 				return errorResponseHandler(c, err, fiber.StatusInternalServerError)

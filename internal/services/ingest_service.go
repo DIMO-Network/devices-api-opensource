@@ -76,7 +76,6 @@ func (i *IngestService) processDeviceStatus(msg *message.Message) error {
 		if !errors.As(err, &pqErr) || pqErr.Code != "23503" {
 			ack = false
 		}
-		i.log.Err(err).Msg("error upserting vehicle status event data")
 		return fmt.Errorf("error upserting vehicle status event data: %w", err)
 	}
 	appmetrics.SmartcarIngestSuccessOps.Inc()

@@ -301,6 +301,9 @@ var doc = `{
                 "responses": {
                     "204": {
                         "description": ""
+                    },
+                    "429": {
+                        "description": "rate limit hit for integration"
                     }
                 }
             }

@@ -29,59 +29,90 @@ type Integration struct {
 	Vendor    string    `boil:"vendor" json:"vendor" toml:"vendor" yaml:"vendor"`
 	CreatedAt time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	// How often can integration be called in seconds
+	RefreshLimitSecs int `boil:"refresh_limit_secs" json:"refresh_limit_secs" toml:"refresh_limit_secs" yaml:"refresh_limit_secs"`
 
 	R *integrationR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L integrationL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var IntegrationColumns = struct {
-	ID        string
-	Type      string
-	Style     string
-	Vendor    string
-	CreatedAt string
-	UpdatedAt string
+	ID               string
+	Type             string
+	Style            string
+	Vendor           string
+	CreatedAt        string
+	UpdatedAt        string
+	RefreshLimitSecs string
 }{
-	ID:        "id",
-	Type:      "type",
-	Style:     "style",
-	Vendor:    "vendor",
-	CreatedAt: "created_at",
-	UpdatedAt: "updated_at",
+	ID:               "id",
+	Type:             "type",
+	Style:            "style",
+	Vendor:           "vendor",
+	CreatedAt:        "created_at",
+	UpdatedAt:        "updated_at",
+	RefreshLimitSecs: "refresh_limit_secs",
 }
 
 var IntegrationTableColumns = struct {
-	ID        string
-	Type      string
-	Style     string
-	Vendor    string
-	CreatedAt string
-	UpdatedAt string
+	ID               string
+	Type             string
+	Style            string
+	Vendor           string
+	CreatedAt        string
+	UpdatedAt        string
+	RefreshLimitSecs string
 }{
-	ID:        "integrations.id",
-	Type:      "integrations.type",
-	Style:     "integrations.style",
-	Vendor:    "integrations.vendor",
-	CreatedAt: "integrations.created_at",
-	UpdatedAt: "integrations.updated_at",
+	ID:               "integrations.id",
+	Type:             "integrations.type",
+	Style:            "integrations.style",
+	Vendor:           "integrations.vendor",
+	CreatedAt:        "integrations.created_at",
+	UpdatedAt:        "integrations.updated_at",
+	RefreshLimitSecs: "integrations.refresh_limit_secs",
 }
 
 // Generated where
 
+type whereHelperint struct{ field string }
+
+func (w whereHelperint) EQ(x int) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.EQ, x) }
+func (w whereHelperint) NEQ(x int) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.NEQ, x) }
+func (w whereHelperint) LT(x int) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.LT, x) }
+func (w whereHelperint) LTE(x int) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LTE, x) }
+func (w whereHelperint) GT(x int) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.GT, x) }
+func (w whereHelperint) GTE(x int) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
+func (w whereHelperint) IN(slice []int) qm.QueryMod {
+	values := make([]interface{}, 0, len(slice))
+	for _, value := range slice {
+		values = append(values, value)
+	}
+	return qm.WhereIn(fmt.Sprintf("%s IN ?", w.field), values...)
+}
+func (w whereHelperint) NIN(slice []int) qm.QueryMod {
+	values := make([]interface{}, 0, len(slice))
+	for _, value := range slice {
+		values = append(values, value)
+	}
+	return qm.WhereNotIn(fmt.Sprintf("%s NOT IN ?", w.field), values...)
+}
+
 var IntegrationWhere = struct {
-	ID        whereHelperstring
-	Type      whereHelperstring
-	Style     whereHelperstring
-	Vendor    whereHelperstring
-	CreatedAt whereHelpertime_Time
-	UpdatedAt whereHelpertime_Time
+	ID               whereHelperstring
+	Type             whereHelperstring
+	Style            whereHelperstring
+	Vendor           whereHelperstring
+	CreatedAt        whereHelpertime_Time
+	UpdatedAt        whereHelpertime_Time
+	RefreshLimitSecs whereHelperint
 }{
-	ID:        whereHelperstring{field: "\"devices_api\".\"integrations\".\"id\""},
-	Type:      whereHelperstring{field: "\"devices_api\".\"integrations\".\"type\""},
-	Style:     whereHelperstring{field: "\"devices_api\".\"integrations\".\"style\""},
-	Vendor:    whereHelperstring{field: "\"devices_api\".\"integrations\".\"vendor\""},
-	CreatedAt: whereHelpertime_Time{field: "\"devices_api\".\"integrations\".\"created_at\""},
-	UpdatedAt: whereHelpertime_Time{field: "\"devices_api\".\"integrations\".\"updated_at\""},
+	ID:               whereHelperstring{field: "\"devices_api\".\"integrations\".\"id\""},
+	Type:             whereHelperstring{field: "\"devices_api\".\"integrations\".\"type\""},
+	Style:            whereHelperstring{field: "\"devices_api\".\"integrations\".\"style\""},
+	Vendor:           whereHelperstring{field: "\"devices_api\".\"integrations\".\"vendor\""},
+	CreatedAt:        whereHelpertime_Time{field: "\"devices_api\".\"integrations\".\"created_at\""},
+	UpdatedAt:        whereHelpertime_Time{field: "\"devices_api\".\"integrations\".\"updated_at\""},
+	RefreshLimitSecs: whereHelperint{field: "\"devices_api\".\"integrations\".\"refresh_limit_secs\""},
 }
 
 // IntegrationRels is where relationship names are stored.
@@ -108,9 +139,9 @@ func (*integrationR) NewStruct() *integrationR {
 type integrationL struct{}
 
 var (
-	integrationAllColumns            = []string{"id", "type", "style", "vendor", "created_at", "updated_at"}
+	integrationAllColumns            = []string{"id", "type", "style", "vendor", "created_at", "updated_at", "refresh_limit_secs"}
 	integrationColumnsWithoutDefault = []string{"id", "type", "style", "vendor"}
-	integrationColumnsWithDefault    = []string{"created_at", "updated_at"}
+	integrationColumnsWithDefault    = []string{"created_at", "updated_at", "refresh_limit_secs"}
 	integrationPrimaryKeyColumns     = []string{"id"}
 )
 
