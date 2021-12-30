@@ -343,6 +343,34 @@ func (t *TaskService) smartcarGetInitialData(userDeviceID, integrationID string)
 		return
 	}
 
+	// We are ignoring the possiblity of the refresh token also being expired. Those last for
+	// 60 days, so it shouldn't happen much.
+	if time.Now().Add(5 * time.Minute).After(integ.AccessExpiresAt) {
+		client := smartcar.NewClient()
+		auth := client.NewAuth(&smartcar.AuthParams{
+			ClientID:     t.Settings.SmartcarClientID,
+			ClientSecret: t.Settings.SmartcarClientSecret,
+		})
+
+		var token *smartcar.Token
+		token, err = auth.ExchangeRefreshToken(context.Background(), &smartcar.ExchangeRefreshTokenParams{
+			Token: integ.RefreshToken,
+		})
+		if err != nil {
+			return
+		}
+
+		integ.AccessToken = token.Access
+		integ.AccessExpiresAt = token.AccessExpiry
+		integ.RefreshToken = token.Refresh
+		integ.RefreshExpiresAt = token.RefreshExpiry
+
+		_, err = integ.Update(context.Background(), db, boil.Infer())
+		if err != nil {
+			return
+		}
+	}
+
 	batchBytes, err := t.batchRequest(integ.ExternalID.String, integ.AccessToken)
 	if err != nil {
 		return
