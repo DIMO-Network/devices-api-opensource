@@ -151,6 +151,7 @@ func (t *TaskService) batchRequest(vehicleID, accessToken string) (response []by
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
 		err = fmt.Errorf("error from Smartcar, status code %d", resp.StatusCode)
+		return
 	}
 	response, err = ioutil.ReadAll(resp.Body)
 	return
