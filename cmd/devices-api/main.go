@@ -91,7 +91,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	userDeviceControllers := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc)
 
 	prometheus := fiberprometheus.New("devices-api")
-	prometheus.RegisterAt(app, "/metrics")
 	app.Use(prometheus.Middleware)
 
 	app.Use(recover.New(recover.Config{
