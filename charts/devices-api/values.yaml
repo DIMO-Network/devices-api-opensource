@@ -31,9 +31,27 @@ env:
   INGEST_SMARTCAR_TOPIC: topic.interface.ingest.smartcar
   KAFKA_BROKERS: kafka-dev-dimo-kafka-kafka-brokers:9092
   DEVICE_STATUS_TOPIC: topic.device.status
+
 service:
   type: ClusterIP
-  port: 8080
+  ports:
+    mon-http:
+      port: 8888
+      targetPort: mon-http
+      protocol: TCP
+    http:
+      port: 8080
+      targetPort: http
+      protocol: TCP
+
+ports:
+  - name: mon-http
+    containerPort: 8888
+    protocol: TCP
+  - name: http
+    containerPort: 8080
+    protocol: TCP
+
 ingress:
   enabled: true
   className: nginx
@@ -86,5 +104,5 @@ kafka:
 serviceMonitor:
   enabled: true
   path: /metrics
-  port: http
+  port: mon-http
   interval: 30s

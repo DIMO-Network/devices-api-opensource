@@ -215,10 +215,10 @@ func startDeviceStatusConsumer(logger zerolog.Logger, settings *config.Settings,
 func startPrometheus(logger zerolog.Logger) {
 	http.Handle("/metrics", promhttp.Handler())
 	go func() {
-		err := http.ListenAndServe(":2112", nil)
+		err := http.ListenAndServe(":8888", nil)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("could not start consumer")
 		}
 	}()
-	logger.Info().Msg("prometheus metrics at :2112/metrics")
+	logger.Info().Msg("prometheus metrics at :8888/metrics")
 }

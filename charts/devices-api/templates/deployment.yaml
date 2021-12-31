@@ -59,9 +59,7 @@ spec:
           - secretRef:
               name: {{ include "devices-api.fullname" . }}-secret
           ports:
-            - name: http
-              containerPort: 8080
-              protocol: TCP
+{{ toYaml .Values.ports | indent 12 }}
           livenessProbe:
             httpGet:
               path: /
