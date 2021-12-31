@@ -2,7 +2,7 @@ replicaCount: 1
 image:
   repository: dimozone/devices-api
   pullPolicy: IfNotPresent
-  tag: 74f88f9
+  tag: 66692fa
 imagePullSecrets: []
 nameOverride: ''
 fullnameOverride: ''
@@ -31,7 +31,6 @@ env:
   INGEST_SMARTCAR_TOPIC: topic.interface.ingest.smartcar
   KAFKA_BROKERS: kafka-dev-dimo-kafka-kafka-brokers:9092
   DEVICE_STATUS_TOPIC: topic.device.status
-
 service:
   type: ClusterIP
   ports:
@@ -43,7 +42,6 @@ service:
       port: 8080
       targetPort: http
       protocol: TCP
-
 ports:
   - name: mon-http
     containerPort: 8888
@@ -51,7 +49,6 @@ ports:
   - name: http
     containerPort: 8080
     protocol: TCP
-
 ingress:
   enabled: true
   className: nginx
