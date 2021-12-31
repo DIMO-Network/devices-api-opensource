@@ -51,7 +51,7 @@ spec:
               service:
                 name: {{ $fullName }}
                 port:
-                  number: {{ $svcPort }}
+                  number: 8080
               {{- else }}
               serviceName: {{ $fullName }}
               servicePort: {{ $svcPort }}
