@@ -67,6 +67,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		rp[i] = UserDeviceFull{
 			ID:               d.ID,
 			VIN:              d.VinIdentifier.String,
+			VINConfirmed:     d.VinConfirmed,
 			Name:             d.Name.String,
 			CustomImageURL:   d.CustomImageURL.String,
 			CountryCode:      d.CountryCode.String,
@@ -530,7 +531,7 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 		}
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
-	if userDevice.VinIdentifier.Ptr() != nil && userDevice.CountryCode.String == "USA" {
+	if userDevice.VinConfirmed || userDevice.VinIdentifier.Ptr() != nil && userDevice.CountryCode.String == "USA" {
 		return errorResponseHandler(c, errors.New("VIN cannot be changed at this point"), fiber.StatusBadRequest)
 	}
 	vin := &UpdateVINReq{}
@@ -810,6 +811,7 @@ func (u *UpdateVINReq) validate() error {
 type UserDeviceFull struct {
 	ID               string                        `json:"id"`
 	VIN              string                        `json:"vin"`
+	VINConfirmed     bool                          `json:"vin_confirmed"`
 	Name             string                        `json:"name"`
 	CustomImageURL   string                        `json:"custom_image_url"`
 	DeviceDefinition DeviceDefinition              `json:"device_definition"`

@@ -33,6 +33,7 @@ type UserDevice struct {
 	CountryCode        null.String `boil:"country_code" json:"country_code,omitempty" toml:"country_code" yaml:"country_code,omitempty"`
 	CreatedAt          time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt          time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	VinConfirmed       bool        `boil:"vin_confirmed" json:"vin_confirmed" toml:"vin_confirmed" yaml:"vin_confirmed"`
 
 	R *userDeviceR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userDeviceL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -48,6 +49,7 @@ var UserDeviceColumns = struct {
 	CountryCode        string
 	CreatedAt          string
 	UpdatedAt          string
+	VinConfirmed       string
 }{
 	ID:                 "id",
 	UserID:             "user_id",
@@ -58,6 +60,7 @@ var UserDeviceColumns = struct {
 	CountryCode:        "country_code",
 	CreatedAt:          "created_at",
 	UpdatedAt:          "updated_at",
+	VinConfirmed:       "vin_confirmed",
 }
 
 var UserDeviceTableColumns = struct {
@@ -70,6 +73,7 @@ var UserDeviceTableColumns = struct {
 	CountryCode        string
 	CreatedAt          string
 	UpdatedAt          string
+	VinConfirmed       string
 }{
 	ID:                 "user_devices.id",
 	UserID:             "user_devices.user_id",
@@ -80,6 +84,7 @@ var UserDeviceTableColumns = struct {
 	CountryCode:        "user_devices.country_code",
 	CreatedAt:          "user_devices.created_at",
 	UpdatedAt:          "user_devices.updated_at",
+	VinConfirmed:       "user_devices.vin_confirmed",
 }
 
 // Generated where
@@ -94,6 +99,7 @@ var UserDeviceWhere = struct {
 	CountryCode        whereHelpernull_String
 	CreatedAt          whereHelpertime_Time
 	UpdatedAt          whereHelpertime_Time
+	VinConfirmed       whereHelperbool
 }{
 	ID:                 whereHelperstring{field: "\"devices_api\".\"user_devices\".\"id\""},
 	UserID:             whereHelperstring{field: "\"devices_api\".\"user_devices\".\"user_id\""},
@@ -104,6 +110,7 @@ var UserDeviceWhere = struct {
 	CountryCode:        whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"country_code\""},
 	CreatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"user_devices\".\"created_at\""},
 	UpdatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"user_devices\".\"updated_at\""},
+	VinConfirmed:       whereHelperbool{field: "\"devices_api\".\"user_devices\".\"vin_confirmed\""},
 }
 
 // UserDeviceRels is where relationship names are stored.
@@ -133,9 +140,9 @@ func (*userDeviceR) NewStruct() *userDeviceR {
 type userDeviceL struct{}
 
 var (
-	userDeviceAllColumns            = []string{"id", "user_id", "device_definition_id", "vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at"}
+	userDeviceAllColumns            = []string{"id", "user_id", "device_definition_id", "vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed"}
 	userDeviceColumnsWithoutDefault = []string{"id", "user_id", "device_definition_id", "vin_identifier", "name", "custom_image_url", "country_code"}
-	userDeviceColumnsWithDefault    = []string{"created_at", "updated_at"}
+	userDeviceColumnsWithDefault    = []string{"created_at", "updated_at", "vin_confirmed"}
 	userDevicePrimaryKeyColumns     = []string{"id"}
 )
 

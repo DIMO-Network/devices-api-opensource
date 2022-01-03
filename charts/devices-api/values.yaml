@@ -14,6 +14,7 @@ podAnnotations: {}
 podSecurityContext: {}
 securityContext: {}
 env:
+  ENVIRONMENT: dev
   PORT: '8080'
   LOG_LEVEL: info
   DB_PORT: '5432'

@@ -4,6 +4,7 @@ import "fmt"
 
 // Settings contains the application config
 type Settings struct {
+	Environment          string `yaml:"ENVIRONMENT"`
 	Port                 string `yaml:"PORT"`
 	LogLevel             string `yaml:"LOG_LEVEL"`
 	DBUser               string `yaml:"DB_USER"`

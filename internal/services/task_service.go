@@ -203,7 +203,7 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 		return
 	}
 	if len(*vehicleIDs) != 1 {
-		err = fmt.Errorf("expected only one vehicle id, but got %d", len(*vehicleIDs))
+		err = fmt.Errorf("expected only one vehicle id from Smartcar, but got %d", len(*vehicleIDs))
 		return
 	}
 	vehicleID := (*vehicleIDs)[0]
@@ -218,16 +218,42 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 		return
 	}
 
+	// Prevent users from connecting a vehicle if it's already connected through another user
+	// device object. Disabled outside of prod for ease of testing.
+	if t.Settings.Environment == "prod" {
+		// Probably a race condition here.
+		var conflict bool
+		conflict, err = models.UserDevices(
+			models.UserDeviceWhere.ID.NEQ(userDeviceID), // If you want to re-register, that's okay.
+			models.UserDeviceWhere.VinIdentifier.EQ(null.StringFrom(vin)),
+			models.UserDeviceWhere.VinConfirmed.EQ(true),
+		).Exists(context.Background(), tx)
+		if err != nil {
+			return
+		}
+
+		if conflict {
+			integ.Status = models.UserDeviceAPIIntegrationStatusDuplicateIntegration
+			_, err = integ.Update(context.Background(), tx, boil.Whitelist("status"))
+			if err != nil {
+				return
+			}
+			err = tx.Commit()
+			if err == nil {
+				err = fmt.Errorf("VIN is already confirmed and attached to another device")
+			}
+			return
+		}
+	}
+
 	ud := integ.R.UserDevice
 	ud.VinIdentifier = null.StringFrom(vin)
+	ud.VinConfirmed = true
 	_, err = ud.Update(context.Background(), tx, boil.Infer())
 	if err != nil {
 		return
 	}
 
-	if err != nil {
-		return
-	}
 	msg := cloudEventMessage{
 		ID:          ksuid.New().String(),
 		Source:      "dimo/integration/" + integrationID,

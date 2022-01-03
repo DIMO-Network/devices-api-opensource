@@ -66,8 +66,9 @@ const (
 
 // Enum values for UserDeviceAPIIntegrationStatus
 const (
-	UserDeviceAPIIntegrationStatusPending          = "Pending"
-	UserDeviceAPIIntegrationStatusPendingFirstData = "PendingFirstData"
-	UserDeviceAPIIntegrationStatusActive           = "Active"
-	UserDeviceAPIIntegrationStatusFailed           = "Failed"
+	UserDeviceAPIIntegrationStatusPending              = "Pending"
+	UserDeviceAPIIntegrationStatusPendingFirstData     = "PendingFirstData"
+	UserDeviceAPIIntegrationStatusActive               = "Active"
+	UserDeviceAPIIntegrationStatusFailed               = "Failed"
+	UserDeviceAPIIntegrationStatusDuplicateIntegration = "DuplicateIntegration"
 )
