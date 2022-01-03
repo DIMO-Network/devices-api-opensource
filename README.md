@@ -35,6 +35,13 @@ You can connect to db eg: `psql -h localhost -p 5432 -U dimo` or with your favor
 6. Seed data from SmartCar:
 `$ go run ./cmd/devices-api seed-smartcar`
 
+### Kafka test producer
+
+This tool can be useful to test the consumer when running locally.
+`$ go run ./cmd/test-producer <integrationID> <userDeviceID>`
+
+Above integration and vehicle ID's aka userDeviceID should exist in your local DB. 
+
 ### Linting
 
 `brew install golangci-lint`

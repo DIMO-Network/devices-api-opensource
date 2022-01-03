@@ -1,15 +1,16 @@
-package test_producer
+package main
 
 import (
 	"encoding/json"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/services"
 	"github.com/Shopify/sarama"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
-	"os"
-	"strings"
-	"time"
 )
 
 func main() {
@@ -28,7 +29,7 @@ func main() {
 	}
 
 	// todo: learn better way to do flags
-	if len(os.Args) != 2 {
+	if len(os.Args) != 3 {
 		logger.Fatal().Msg("must pass int integrationId and vehicleId as parameters, eg. test-producer <iid> <vid>")
 	}
 	integrationID = os.Args[1]
@@ -36,13 +37,15 @@ func main() {
 
 	clusterConfig := sarama.NewConfig()
 	clusterConfig.Version = sarama.V2_6_0_0
+	clusterConfig.Producer.Return.Successes = true
+	clusterConfig.Producer.Return.Errors = true
 
 	syncProducer, err := sarama.NewSyncProducer(strings.Split(settings.KafkaBrokers, ","), clusterConfig)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("could not start test sync producer")
 	}
-	msgId := ksuid.New().String()
-	testMessage := buildTestMessage(msgId, integrationID, vehicleID)
+	msgID := ksuid.New().String()
+	testMessage := buildTestMessage(msgID, integrationID, vehicleID)
 	bytes, err := json.Marshal(testMessage)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("error marshalling test event to json")
@@ -50,7 +53,7 @@ func main() {
 	message := &sarama.ProducerMessage{
 		Topic: settings.DeviceStatusTopic,
 		Value: sarama.StringEncoder(bytes),
-		Key:   sarama.StringEncoder(msgId),
+		Key:   sarama.StringEncoder(msgID),
 	}
 
 	partition, offset, err := syncProducer.SendMessage(message)
@@ -60,14 +63,14 @@ func main() {
 	logger.Info().Msgf("succesfully published message on topic. partition: %d offset: %d", partition, offset)
 }
 
-func buildTestMessage(id, sourceIntegrationId, subjectVehicleId string) services.DeviceStatusEvent {
+func buildTestMessage(id, sourceIntegrationID, subjectVehicleID string) services.DeviceStatusEvent {
 	j := json.RawMessage{}
 	_ = j.UnmarshalJSON(testVehicleData())
 	e := services.DeviceStatusEvent{
 		ID:          id,
-		Source:      sourceIntegrationId,
+		Source:      sourceIntegrationID,
 		Specversion: "1.0",
-		Subject:     subjectVehicleId,
+		Subject:     subjectVehicleID,
 		Time:        time.Now().UTC(),
 		Type:        "zone.dimo.device.status.update",
 		Data:        j,
