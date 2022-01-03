@@ -86,6 +86,7 @@ func (t *TaskService) subscribeVehicle(vehicleID, accessToken string) (err error
 		return
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("SC-Unit-System", "metric")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return
@@ -152,6 +153,7 @@ func (t *TaskService) batchRequest(vehicleID, accessToken string) (response []by
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("SC-Unit-System", "metric")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return
