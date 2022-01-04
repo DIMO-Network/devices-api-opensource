@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/DIMO-Network/zflogger"
 	"net/http"
 	"os"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"github.com/DIMO-INC/devices-api/internal/database"
 	"github.com/DIMO-INC/devices-api/internal/kafka"
 	"github.com/DIMO-INC/devices-api/internal/services"
+	"github.com/DIMO-Network/zflogger"
 	"github.com/Shopify/sarama"
 	"github.com/ansrivas/fiberprometheus/v2"
 	swagger "github.com/arsmn/fiber-swagger/v2"
@@ -117,10 +117,11 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		Expiration:   1 * time.Minute,
 		CacheControl: true,
 	})
-	//healthcheck
-	app.Get("/", HealthCheck)
-	v1 := app.Group("/v1")
+	// application routes
+	app.Get("/", healthCheck)
+	app.Put("/loglevel", changeLogLevel)
 
+	v1 := app.Group("/v1")
 	v1.Get("/device-definitions/all", cacheHandler, deviceControllers.GetAllDeviceMakeModelYears)
 	v1.Get("/device-definitions/:id", deviceControllers.GetDeviceDefinitionByID)
 	v1.Get("/device-definitions/:id/integrations", deviceControllers.GetIntegrationsByID)
@@ -162,7 +163,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	}
 }
 
-// HealthCheck godoc
+// healthCheck godoc
 // @Summary Show the status of server.
 // @Description get the status of server.
 // @Tags root
@@ -170,7 +171,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 // @Produce json
 // @Success 200 {object} map[string]interface{}
 // @Router / [get]
-func HealthCheck(c *fiber.Ctx) error {
+func healthCheck(c *fiber.Ctx) error {
 	res := map[string]interface{}{
 		"data": "Server is up and running",
 	}
@@ -180,6 +181,21 @@ func HealthCheck(c *fiber.Ctx) error {
 	}
 
 	return nil
+}
+
+func changeLogLevel(c *fiber.Ctx) error {
+	payload := struct {
+		LogLevel string `json:"logLevel"`
+	}{}
+	if err := c.BodyParser(&payload); err != nil {
+		return err
+	}
+	level, err := zerolog.ParseLevel(payload.LogLevel)
+	if err != nil {
+		return err
+	}
+	zerolog.SetGlobalLevel(level)
+	return c.Status(fiber.StatusOK).SendString("log level set to: " + level.String())
 }
 
 // ErrorHandler custom handler to log recovered errors using our logger and return json instead of string
