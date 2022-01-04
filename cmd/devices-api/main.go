@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/DIMO-Network/zflogger"
 	"net/http"
 	"os"
 	"strings"
@@ -47,6 +48,12 @@ func main() {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("could not load settings")
 	}
+	level, err := zerolog.ParseLevel(settings.LogLevel)
+	if err != nil {
+		logger.Fatal().Err(err).Msgf("could not parse LOG_LEVEL: %s", settings.LogLevel)
+	}
+	zerolog.SetGlobalLevel(level)
+
 	pdb := database.NewDbConnectionFromSettings(ctx, settings, true)
 
 	// todo: use flag or other package to handle args
@@ -100,6 +107,8 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	}))
 	//cors
 	app.Use(cors.New())
+	// request logging
+	app.Use(zflogger.New(logger, nil))
 	//cache
 	cacheHandler := cache.New(cache.Config{
 		Next: func(c *fiber.Ctx) bool {

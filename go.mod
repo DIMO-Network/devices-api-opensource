@@ -3,6 +3,7 @@ module github.com/DIMO-INC/devices-api
 go 1.17
 
 require (
+	github.com/DIMO-Network/zflogger v1.0.0-beta
 	github.com/Shopify/sarama v1.30.1
 	github.com/ThreeDotsLabs/watermill v1.1.1
 	github.com/ThreeDotsLabs/watermill-kafka/v2 v2.2.1
