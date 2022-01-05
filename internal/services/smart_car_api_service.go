@@ -119,36 +119,76 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 	return nil
 }
 
-// saveDeviceDefinition does not commit or rollback the transaction, just operates the insert
+// saveDeviceDefinition does not commit or rollback the transaction, just operates the insert or update if existing device definition with same MMY is found
 func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, make, model string, year int, dvi DeviceVehicleInfo, icJSON []byte, integrationID string, integrationCountry string) error {
-	// todo: idempotency - read all info from DB singleton and then compare MMY, but integration capabilities vary by country
+	make = strings.ToUpper(make)
+	model = strings.ToUpper(model)
+	isUpdate := false
 
-	// db operation, note we are not setting vin
-	dbDeviceDef := models.DeviceDefinition{
-		ID:       ksuid.New().String(),
-		Make:     strings.ToUpper(make),
-		Model:    strings.ToUpper(model),
-		Year:     int16(year),
-		Verified: true,
-		Source:   null.StringFrom("SmartCar"),
+	dbDeviceDef, err := models.DeviceDefinitions(models.DeviceDefinitionWhere.Make.EQ(make),
+		models.DeviceDefinitionWhere.Model.EQ(model), models.DeviceDefinitionWhere.Year.EQ(int16(year)),
+		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations)).
+		One(ctx, tx)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return errors.Wrapf(err, "unable to query for existing device definition")
 	}
-	err := dbDeviceDef.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dvi})
+
+	if dbDeviceDef != nil {
+		isUpdate = true
+		dbDeviceDef.Verified = true
+		dbDeviceDef.Source = null.StringFrom("SmartCar")
+	} else {
+		// insert
+		dbDeviceDef = &models.DeviceDefinition{
+			ID:       ksuid.New().String(),
+			Make:     make,
+			Model:    model,
+			Year:     int16(year),
+			Verified: true,
+			Source:   null.StringFrom("SmartCar"),
+		}
+	}
+	err = dbDeviceDef.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dvi})
 	if err != nil {
 		s.log.Warn().Err(err).Msg("could not marshal DeviceVehicleInfo for DeviceDefinition metadata")
 	}
 
-	err = dbDeviceDef.Insert(ctx, tx, boil.Infer())
+	if isUpdate {
+		_, err = dbDeviceDef.Update(ctx, tx, boil.Infer())
+	} else {
+		err = dbDeviceDef.Insert(ctx, tx, boil.Infer())
+	}
 	if err != nil {
 		return err
 	}
-	// attach smart car integration in intermediary table
-	deviceIntegration := &models.DeviceIntegration{
-		IntegrationID:      integrationID,
-		DeviceDefinitionID: dbDeviceDef.ID,
-		Capabilities:       null.JSONFrom(icJSON),
-		Country:            integrationCountry,
+	// lookup existing integration, if not exists attach smart car integration in intermediary table
+	deviceIntegrationExists := false
+
+	if dbDeviceDef.R != nil {
+		for _, integration := range dbDeviceDef.R.DeviceIntegrations {
+			if integration.IntegrationID == integrationID {
+				deviceIntegrationExists = true
+				integration.Capabilities = null.JSONFrom(icJSON)
+				integration.Country = integrationCountry
+				_, err = integration.Update(ctx, tx, boil.Infer())
+				if err != nil {
+					return err
+				}
+				break
+			}
+		}
 	}
-	return deviceIntegration.Insert(ctx, tx, boil.Infer())
+
+	if !deviceIntegrationExists {
+		deviceIntegration := &models.DeviceIntegration{
+			IntegrationID:      integrationID,
+			DeviceDefinitionID: dbDeviceDef.ID,
+			Capabilities:       null.JSONFrom(icJSON),
+			Country:            integrationCountry,
+		}
+		return deviceIntegration.Insert(ctx, tx, boil.Infer())
+	}
+	return nil
 }
 
 // getHdrIdxForCapability gets the column index based on matching header name, so you can get a row value

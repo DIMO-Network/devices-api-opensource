@@ -54,7 +54,7 @@ func Test_parseSmartCarYears(t *testing.T) {
 		{
 			name:     "parse year plus",
 			yearsPtr: &plusYears,
-			want:     []int{2019, 2020, 2021},
+			want:     []int{2019, 2020, 2021, 2022},
 			wantErr:  false,
 		},
 		{
