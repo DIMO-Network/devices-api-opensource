@@ -514,9 +514,9 @@ func (t *TaskService) StartSmartcarDeregistrationTasks(userDeviceID, integration
 func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWriter) *TaskService {
 	var redisConn string
 	if settings.RedisPassword == "" {
-		redisConn = fmt.Sprintf("redis://%s:%s", settings.RedisHost, settings.RedisPort)
+		redisConn = fmt.Sprintf("redis://%s", settings.RedisURL)
 	} else {
-		redisConn = fmt.Sprintf("redis://%s@%s:%s", settings.RedisPassword, settings.RedisHost, settings.RedisPort)
+		redisConn = fmt.Sprintf("redis://%s@%s", settings.RedisPassword, settings.RedisURL)
 	}
 
 	var tlsConfig *tls.Config

@@ -22,8 +22,7 @@ type Settings struct {
 	SmartcarClientSecret string `yaml:"SMARTCAR_CLIENT_SECRET"`
 	SmartcarTestMode     bool   `yaml:"SMARTCAR_TEST_MODE"`
 	SmartcarWebhookID    string `yaml:"SMARTCAR_WEBHOOK_ID"`
-	RedisHost            string `yaml:"REDIS_HOST"`
-	RedisPort            string `yaml:"REDIS_PORT"`
+	RedisURL             string `yaml:"REDIS_URL"`
 	RedisPassword        string `yaml:"REDIS_PASSWORD"`
 	RedisTLS             bool   `yaml:"REDIS_TLS"`
 	IngestSmartcarURL    string `yaml:"INGEST_SMARTCAR_URL"`
