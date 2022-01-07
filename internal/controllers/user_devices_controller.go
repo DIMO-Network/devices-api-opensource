@@ -66,11 +66,11 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 	for i, d := range devices {
 		rp[i] = UserDeviceFull{
 			ID:               d.ID,
-			VIN:              d.VinIdentifier.String,
+			VIN:              d.VinIdentifier.Ptr(),
 			VINConfirmed:     d.VinConfirmed,
-			Name:             d.Name.String,
-			CustomImageURL:   d.CustomImageURL.String,
-			CountryCode:      d.CountryCode.String,
+			Name:             d.Name.Ptr(),
+			CustomImageURL:   d.CustomImageURL.Ptr(),
+			CountryCode:      d.CountryCode.Ptr(),
 			DeviceDefinition: NewDeviceDefinitionFromDatabase(d.R.DeviceDefinition),
 			Integrations:     NewUserDeviceIntegrationStatusesFromDatabase(d.R.UserDeviceAPIIntegrations),
 		}
@@ -810,12 +810,12 @@ func (u *UpdateVINReq) validate() error {
 // UserDeviceFull represents object user's see on frontend for listing of their devices
 type UserDeviceFull struct {
 	ID               string                        `json:"id"`
-	VIN              string                        `json:"vin"`
+	VIN              *string                       `json:"vin"`
 	VINConfirmed     bool                          `json:"vin_confirmed"`
-	Name             string                        `json:"name"`
-	CustomImageURL   string                        `json:"custom_image_url"`
+	Name             *string                       `json:"name"`
+	CustomImageURL   *string                       `json:"custom_image_url"`
 	DeviceDefinition services.DeviceDefinition     `json:"device_definition"`
-	CountryCode      string                        `json:"country_code"`
+	CountryCode      *string                       `json:"country_code"`
 	Integrations     []UserDeviceIntegrationStatus `json:"integrations"`
 }
 

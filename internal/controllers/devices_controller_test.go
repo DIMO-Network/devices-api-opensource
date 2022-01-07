@@ -154,20 +154,21 @@ func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
 	assert.Equal(t, 2020, dd.Type.Year)
 	assert.Equal(t, "Merc", dd.Type.Make)
 	assert.Equal(t, "R500", dd.Type.Model)
-	assert.Equal(t, "AMG", dd.Type.SubModel)
+	assert.Equal(t, "AMG", *dd.Type.SubModel)
 
 	assert.Len(t, dd.CompatibleIntegrations, 1)
 	assert.Equal(t, "Autopi", dd.CompatibleIntegrations[0].Vendor)
 }
 
 func TestNewDbModelFromDeviceDefinition(t *testing.T) {
+	submodel := "AMG"
 	dd := services.DeviceDefinition{
 		Type: services.DeviceType{
 			Type:     "Vehicle",
 			Make:     "Merc",
 			Model:    "R500",
 			Year:     2020,
-			SubModel: "AMG",
+			SubModel: &submodel,
 		},
 		VehicleInfo: services.DeviceVehicleInfo{
 			FuelType:      "gas",

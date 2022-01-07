@@ -216,14 +216,14 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) services.Devic
 	rp := services.DeviceDefinition{
 		DeviceDefinitionID:     dd.ID,
 		Name:                   fmt.Sprintf("%d %s %s", dd.Year, dd.Make, dd.Model),
-		ImageURL:               dd.ImageURL.String,
+		ImageURL:               dd.ImageURL.Ptr(),
 		CompatibleIntegrations: []services.DeviceCompatibility{},
 		Type: services.DeviceType{
 			Type:     "Vehicle",
 			Make:     dd.Make,
 			Model:    dd.Model,
 			Year:     int(dd.Year),
-			SubModel: dd.SubModel.String,
+			SubModel: dd.SubModel.Ptr(),
 		},
 		Metadata: string(dd.Metadata.JSON),
 		Verified: dd.Verified,
@@ -256,7 +256,7 @@ func NewDbModelFromDeviceDefinition(dd services.DeviceDefinition, source *string
 		Make:     dd.Type.Make,
 		Model:    dd.Type.Model,
 		Year:     int16(dd.Type.Year),
-		SubModel: null.StringFrom(dd.Type.SubModel),
+		SubModel: null.StringFromPtr(dd.Type.SubModel),
 		Verified: true,
 		Source:   null.StringFromPtr(source),
 	}
