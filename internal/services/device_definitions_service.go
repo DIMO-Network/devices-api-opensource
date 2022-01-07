@@ -15,22 +15,26 @@ import (
 
 //go:generate mockgen -source device_definitions_service.go -destination mocks/device_definitions_service_mock.go
 
+const vehicleInfoJSONNode = "vehicle_info"
+
 type IDeviceDefinitionService interface {
 	FindDeviceDefinitionByMMY(ctx context.Context, db boil.ContextExecutor, mk, model string, year int, loadIntegrations bool) (*models.DeviceDefinition, error)
 	CheckAndSetImage(dd *models.DeviceDefinition) error
+	UpdateDeviceDefinitionFromNHTSA(ctx context.Context, deviceDefinitionID string, vin string) error
 }
 
 type DeviceDefinitionService struct {
 	DBS        func() *database.DBReaderWriter
 	EdmundsSvc IEdmundsService
 	log        *zerolog.Logger
+	nhtsaSvc   INHTSAService
 }
 
-func NewDeviceDefinitionService(settings *config.Settings, DBS func() *database.DBReaderWriter, log *zerolog.Logger) *DeviceDefinitionService {
-	return &DeviceDefinitionService{DBS: DBS, log: log, EdmundsSvc: NewEdmundsService(settings.TorProxyURL)}
+func NewDeviceDefinitionService(settings *config.Settings, DBS func() *database.DBReaderWriter, log *zerolog.Logger, nhtsaService INHTSAService) *DeviceDefinitionService {
+	return &DeviceDefinitionService{DBS: DBS, log: log, EdmundsSvc: NewEdmundsService(settings.TorProxyURL), nhtsaSvc: nhtsaService}
 }
 
-// FindDeviceDefinitionByMMY builds and execs query to find device definition for MMY, returns db object and db error if occurs. if db is nil, just uses one from service, useful for tx
+// FindDeviceDefinitionByMMY builds and execs query to find device definition for MMY, returns db object and db error if occurs. if db tx is nil, just uses one from service, useful for tx
 func (d *DeviceDefinitionService) FindDeviceDefinitionByMMY(ctx context.Context, tx boil.ContextExecutor, mk, model string, year int, loadIntegrations bool) (*models.DeviceDefinition, error) {
 	qms := []qm.QueryMod{
 		qm.Where("make = ?", strings.ToUpper(mk)),
@@ -67,6 +71,35 @@ func (d *DeviceDefinitionService) CheckAndSetImage(dd *models.DeviceDefinition) 
 	return nil
 }
 
-// todo: refactor lookups that use above logic
+// UpdateDeviceDefinitionFromNHTSA pulls vin info from nhtsa, and updates the device definition metadata if the MMY from nhtsa matches ours, and the Source is not NHTSA verified
+func (d *DeviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Context, deviceDefinitionID string, vin string) error {
+	dbDeviceDef, err := models.FindDeviceDefinition(ctx, d.DBS().Reader, deviceDefinitionID)
+	if err != nil {
+		return err
+	}
+	nhtsaDecode, err := d.nhtsaSvc.DecodeVIN(vin)
+	if err != nil {
+		return err
+	}
+	dd := NewDeviceDefinitionFromNHTSA(nhtsaDecode)
+	if dd.Type.Make == dbDeviceDef.Make && dd.Type.Model == dbDeviceDef.Model && int16(dd.Type.Year) == dbDeviceDef.Year {
+		if !(dbDeviceDef.Verified && dbDeviceDef.Source.String == "NHTSA") {
+			// update our device definition metadata `vehicle_info` with latest from nhtsa
+			err = dbDeviceDef.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dd.VehicleInfo})
+			if err != nil {
+				return err
+			}
+			dbDeviceDef.Verified = true
+			dbDeviceDef.Source = null.StringFrom("NHTSA")
+			_, err = dbDeviceDef.Update(ctx, d.DBS().Writer, boil.Infer())
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		// just log for now if no MMY match.
+		d.log.Warn().Msgf("No MMY match between deviceDefinitionID: %s and NHTSA for VIN: %s, %s", deviceDefinitionID, vin, dd.Name)
+	}
 
-// todo: update image if not set on device def, new method for use cases with setting DD default image.
+	return nil
+}

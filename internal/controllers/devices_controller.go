@@ -140,10 +140,10 @@ func (d *DevicesController) GetIntegrationsByID(c *fiber.Ctx) error {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 	// build object for integrations that have all the info
-	var integrations []DeviceCompatibility
+	var integrations []services.DeviceCompatibility
 	if dd.R != nil {
 		for _, di := range dd.R.DeviceIntegrations {
-			integrations = append(integrations, DeviceCompatibility{
+			integrations = append(integrations, services.DeviceCompatibility{
 				ID:           di.R.Integration.ID,
 				Type:         di.R.Integration.Type,
 				Style:        di.R.Integration.Style,
@@ -212,13 +212,13 @@ func indexOfModel(models []DeviceModels, model string) int {
 
 const vehicleInfoJSONNode = "vehicle_info"
 
-func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefinition {
-	rp := DeviceDefinition{
+func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) services.DeviceDefinition {
+	rp := services.DeviceDefinition{
 		DeviceDefinitionID:     dd.ID,
 		Name:                   fmt.Sprintf("%d %s %s", dd.Year, dd.Make, dd.Model),
 		ImageURL:               dd.ImageURL.String,
-		CompatibleIntegrations: []DeviceCompatibility{},
-		Type: DeviceType{
+		CompatibleIntegrations: []services.DeviceCompatibility{},
+		Type: services.DeviceType{
 			Type:     "Vehicle",
 			Make:     dd.Make,
 			Model:    dd.Model,
@@ -236,7 +236,7 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 	// compatible integrations
 	if dd.R != nil {
 		for _, di := range dd.R.DeviceIntegrations {
-			rp.CompatibleIntegrations = append(rp.CompatibleIntegrations, DeviceCompatibility{
+			rp.CompatibleIntegrations = append(rp.CompatibleIntegrations, services.DeviceCompatibility{
 				ID:      di.R.Integration.ID,
 				Type:    di.R.Integration.Type,
 				Style:   di.R.Integration.Style,
@@ -250,7 +250,7 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) DeviceDefiniti
 }
 
 // NewDbModelFromDeviceDefinition converts a DeviceDefinition response object to a new database model for the given squishVin. source is NHTSA, edmunds, smartcar, etc
-func NewDbModelFromDeviceDefinition(dd DeviceDefinition, source *string) *models.DeviceDefinition {
+func NewDbModelFromDeviceDefinition(dd services.DeviceDefinition, source *string) *models.DeviceDefinition {
 	dbDevice := models.DeviceDefinition{
 		ID:       ksuid.New().String(),
 		Make:     dd.Type.Make,
@@ -270,35 +270,14 @@ type DeviceRp struct {
 	Name     string `json:"name"`
 }
 
-func NewDeviceDefinitionFromNHTSA(decodedVin *services.NHTSADecodeVINResponse) DeviceDefinition {
-	dd := DeviceDefinition{}
-	yr, _ := strconv.Atoi(decodedVin.LookupValue("Model Year"))
-	msrp, _ := strconv.Atoi(decodedVin.LookupValue("Base Price ($)"))
-	dd.Type = DeviceType{
-		Type:  "Vehicle",
-		Make:  decodedVin.LookupValue("Make"),
-		Model: decodedVin.LookupValue("Model"),
-		Year:  yr,
-	}
-	dd.Name = fmt.Sprintf("%d %s %s", dd.Type.Year, dd.Type.Make, dd.Type.Model)
-	dd.VehicleInfo = services.DeviceVehicleInfo{
-		FuelType:      decodedVin.LookupValue("Fuel Type - Primary"),
-		NumberOfDoors: decodedVin.LookupValue("Doors"),
-		BaseMSRP:      msrp,
-		VehicleType:   decodedVin.LookupValue("Vehicle Type"),
-	}
-
-	return dd
-}
-
 // DeviceCompatibilityFromDB returns list of compatibility representation from device integrations db slice, assumes integration relation loaded
-func DeviceCompatibilityFromDB(dbDIS models.DeviceIntegrationSlice) []DeviceCompatibility {
+func DeviceCompatibilityFromDB(dbDIS models.DeviceIntegrationSlice) []services.DeviceCompatibility {
 	if len(dbDIS) == 0 {
-		return []DeviceCompatibility{}
+		return []services.DeviceCompatibility{}
 	}
-	compatibilities := make([]DeviceCompatibility, len(dbDIS))
+	compatibilities := make([]services.DeviceCompatibility, len(dbDIS))
 	for i, di := range dbDIS {
-		compatibilities[i] = DeviceCompatibility{
+		compatibilities[i] = services.DeviceCompatibility{
 			ID:           di.IntegrationID,
 			Type:         di.R.Integration.Type,
 			Style:        di.R.Integration.Style,
@@ -308,39 +287,6 @@ func DeviceCompatibilityFromDB(dbDIS models.DeviceIntegrationSlice) []DeviceComp
 		}
 	}
 	return compatibilities
-}
-
-type DeviceDefinition struct {
-	DeviceDefinitionID string `json:"device_definition_id"`
-	Name               string `json:"name"`
-	ImageURL           string `json:"image_url"`
-	// CompatibleIntegrations has systems this vehicle can integrate with
-	CompatibleIntegrations []DeviceCompatibility `json:"compatible_integrations"`
-	Type                   DeviceType            `json:"type"`
-	// VehicleInfo will be empty if not a vehicle type
-	VehicleInfo services.DeviceVehicleInfo `json:"vehicle_data,omitempty"`
-	Metadata    interface{}                `json:"metadata"`
-	Verified    bool                       `json:"verified"`
-}
-
-// DeviceCompatibility represents what systems we know this is compatible with
-type DeviceCompatibility struct {
-	ID           string `json:"id"`
-	Type         string `json:"type"`
-	Style        string `json:"style"`
-	Vendor       string `json:"vendor"`
-	Country      string `json:"country"`
-	Capabilities string `json:"capabilities,omitempty"`
-}
-
-// DeviceType whether it is a vehicle or other type and basic information
-type DeviceType struct {
-	// Type is eg. Vehicle, E-bike, roomba
-	Type     string `json:"type"`
-	Make     string `json:"make"`
-	Model    string `json:"model"`
-	Year     int    `json:"year"`
-	SubModel string `json:"sub_model"`
 }
 
 type DeviceMMYRoot struct {

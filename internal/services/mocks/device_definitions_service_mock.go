@@ -64,3 +64,17 @@ func (mr *MockIDeviceDefinitionServiceMockRecorder) FindDeviceDefinitionByMMY(ct
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindDeviceDefinitionByMMY", reflect.TypeOf((*MockIDeviceDefinitionService)(nil).FindDeviceDefinitionByMMY), ctx, db, mk, model, year, loadIntegrations)
 }
+
+// UpdateDeviceDefinitionFromNHTSA mocks base method.
+func (m *MockIDeviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Context, deviceDefinitionId, vin string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateDeviceDefinitionFromNHTSA", ctx, deviceDefinitionId, vin)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateDeviceDefinitionFromNHTSA indicates an expected call of UpdateDeviceDefinitionFromNHTSA.
+func (mr *MockIDeviceDefinitionServiceMockRecorder) UpdateDeviceDefinitionFromNHTSA(ctx, deviceDefinitionId, vin interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateDeviceDefinitionFromNHTSA", reflect.TypeOf((*MockIDeviceDefinitionService)(nil).UpdateDeviceDefinitionFromNHTSA), ctx, deviceDefinitionId, vin)
+}

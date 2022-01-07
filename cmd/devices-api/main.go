@@ -92,8 +92,8 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		ReadBufferSize:        16000,
 	})
 	nhtsaSvc := services.NewNHTSAService()
-	ddSvc := services.NewDeviceDefinitionService(settings, pdb.DBS, &logger)
-	taskSvc := services.NewTaskService(settings, pdb.DBS)
+	ddSvc := services.NewDeviceDefinitionService(settings, pdb.DBS, &logger, nhtsaSvc)
+	taskSvc := services.NewTaskService(settings, pdb.DBS, ddSvc)
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc)
 	userDeviceControllers := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc)
 

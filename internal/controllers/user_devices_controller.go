@@ -758,9 +758,9 @@ type RegisterUserDevice struct {
 }
 
 type RegisterUserDeviceResponse struct {
-	UserDeviceID            string                `json:"user_device_id"`
-	DeviceDefinitionID      string                `json:"device_definition_id"`
-	IntegrationCapabilities []DeviceCompatibility `json:"integration_capabilities"`
+	UserDeviceID            string                         `json:"user_device_id"`
+	DeviceDefinitionID      string                         `json:"device_definition_id"`
+	IntegrationCapabilities []services.DeviceCompatibility `json:"integration_capabilities"`
 }
 
 type AdminRegisterUserDevice struct {
@@ -814,7 +814,7 @@ type UserDeviceFull struct {
 	VINConfirmed     bool                          `json:"vin_confirmed"`
 	Name             string                        `json:"name"`
 	CustomImageURL   string                        `json:"custom_image_url"`
-	DeviceDefinition DeviceDefinition              `json:"device_definition"`
+	DeviceDefinition services.DeviceDefinition     `json:"device_definition"`
 	CountryCode      string                        `json:"country_code"`
 	Integrations     []UserDeviceIntegrationStatus `json:"integrations"`
 }

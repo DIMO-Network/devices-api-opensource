@@ -26,9 +26,6 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
-//go:embed test_nhtsa_decoded_vin.json
-var testNhtsaDecodedVin string
-
 const migrationsDirRelPath = "../../migrations"
 
 // integration tests using embedded pgsql, must be run in order
@@ -77,7 +74,7 @@ func TestDevicesController(t *testing.T) {
 		// assert
 		assert.Equal(t, 200, response.StatusCode)
 		v, _, _, _ := jsonparser.Get(body, "device_definition")
-		var dd DeviceDefinition
+		var dd services.DeviceDefinition
 		err := json.Unmarshal(v, &dd)
 		assert.NoError(t, err)
 		assert.Equal(t, createdID, dd.DeviceDefinitionID)
@@ -89,7 +86,7 @@ func TestDevicesController(t *testing.T) {
 		// assert
 		assert.Equal(t, 200, response.StatusCode)
 		v, _, _, _ := jsonparser.Get(body, "compatible_integrations")
-		var dc []DeviceCompatibility
+		var dc []services.DeviceCompatibility
 		err := json.Unmarshal(v, &dc)
 		assert.NoError(t, err)
 	})
@@ -121,25 +118,6 @@ func TestDevicesController(t *testing.T) {
 		assert.Equal(t, int16(2020), mmy[0].Models[0].Years[0].Year)
 		assert.Equal(t, createdID, mmy[0].Models[0].Years[0].DeviceDefinitionID)
 	})
-}
-
-func TestNewDeviceDefinitionFromNHTSA(t *testing.T) {
-	vinResp := services.NHTSADecodeVINResponse{}
-	_ = json.Unmarshal([]byte(testNhtsaDecodedVin), &vinResp)
-
-	deviceDefinition := NewDeviceDefinitionFromNHTSA(&vinResp)
-
-	assert.Equal(t, "", deviceDefinition.DeviceDefinitionID)
-	assert.Equal(t, "2020 TESLA MODEL Y", deviceDefinition.Name)
-	assert.Equal(t, "Vehicle", deviceDefinition.Type.Type)
-	assert.Equal(t, 2020, deviceDefinition.Type.Year)
-	assert.Equal(t, "TESLA", deviceDefinition.Type.Make)
-	assert.Equal(t, "MODEL Y", deviceDefinition.Type.Model)
-	assert.Equal(t, "", deviceDefinition.Type.SubModel)
-	assert.Equal(t, "PASSENGER CAR", deviceDefinition.VehicleInfo.VehicleType)
-	assert.Equal(t, 48000, deviceDefinition.VehicleInfo.BaseMSRP)
-	assert.Equal(t, "5", deviceDefinition.VehicleInfo.NumberOfDoors)
-	assert.Equal(t, "ELECTRIC", deviceDefinition.VehicleInfo.FuelType)
 }
 
 func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
@@ -183,8 +161,8 @@ func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
 }
 
 func TestNewDbModelFromDeviceDefinition(t *testing.T) {
-	dd := DeviceDefinition{
-		Type: DeviceType{
+	dd := services.DeviceDefinition{
+		Type: services.DeviceType{
 			Type:     "Vehicle",
 			Make:     "Merc",
 			Model:    "R500",

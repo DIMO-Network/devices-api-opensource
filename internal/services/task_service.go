@@ -36,11 +36,12 @@ type ITaskService interface {
 }
 
 type TaskService struct {
-	Settings  *config.Settings
-	DBS       func() *database.DBReaderWriter
-	Log       *zerolog.Logger
-	Machinery *machinery.Server
-	Producer  sarama.SyncProducer
+	Settings     *config.Settings
+	DBS          func() *database.DBReaderWriter
+	Log          *zerolog.Logger
+	Machinery    *machinery.Server
+	Producer     sarama.SyncProducer
+	DeviceDefSvc IDeviceDefinitionService
 }
 
 const smartcarWebhookURL = "https://api.smartcar.com/v2.0/vehicles/%s/webhooks/%s"
@@ -253,6 +254,12 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 	if err != nil {
 		return
 	}
+	go func() {
+		err := t.DeviceDefSvc.UpdateDeviceDefinitionFromNHTSA(context.Background(), ud.DeviceDefinitionID, vin)
+		if err != nil {
+			t.Log.Err(err).Msgf("error when trying to update deviceDefinitionID: %s from NHTSA for vin: %s", ud.DeviceDefinitionID, vin)
+		}
+	}()
 
 	msg := cloudEventMessage{
 		ID:          ksuid.New().String(),
@@ -511,7 +518,7 @@ func (t *TaskService) StartSmartcarDeregistrationTasks(userDeviceID, integration
 	return
 }
 
-func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWriter) *TaskService {
+func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWriter, deviceDefSvc *DeviceDefinitionService) *TaskService {
 	var redisConn string
 	if settings.RedisPassword == "" {
 		redisConn = fmt.Sprintf("redis://%s", settings.RedisURL)
@@ -541,10 +548,11 @@ func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWrit
 	}
 
 	t := &TaskService{
-		Settings:  settings,
-		DBS:       dbs,
-		Machinery: server,
-		Producer:  producer,
+		Settings:     settings,
+		DBS:          dbs,
+		Machinery:    server,
+		Producer:     producer,
+		DeviceDefSvc: deviceDefSvc,
 	}
 	err = server.RegisterTasks(map[string]interface{}{
 		smartcarConnectVehicleTask:    t.smartcarConnectVehicle,

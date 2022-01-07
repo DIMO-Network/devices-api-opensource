@@ -34,8 +34,6 @@ func NewSmartCarService(apiBaseURL string, dbs func() *database.DBReaderWriter, 
 	}
 }
 
-const vehicleInfoJSONNode = "vehicle_info"
-
 func (s *SmartCarService) SeedDeviceDefinitionsFromSmartCar(ctx context.Context) error {
 	smartCarVehicleData, err := getSmartCarVehicleData()
 	if err != nil {

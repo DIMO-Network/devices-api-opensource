@@ -27,7 +27,7 @@ var mmyDefinitions string
 func loadMMYCSVData(ctx context.Context, logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) {
 	// check db ready
 	time.Sleep(time.Second * 3)
-	ddSvc := services.NewDeviceDefinitionService(settings, pdb.DBS, &logger)
+	ddSvc := services.NewDeviceDefinitionService(settings, pdb.DBS, &logger, services.NewNHTSAService())
 
 	csvReader := csv.NewReader(strings.NewReader(mmyDefinitions))
 	for {
