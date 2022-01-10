@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ahmetb/go-linq/v3"
 	"github.com/pkg/errors"
 )
 
@@ -22,17 +23,22 @@ type EdmundsService struct {
 }
 
 func NewEdmundsService(torProxyURL string) *EdmundsService {
-	return &EdmundsService{torProxyURL: torProxyURL, baseAPIURL: "https://www.edmunds.com/gateway/api", baseMediaURL: "https://media.ed.edmunds-media.com"}
+	return &EdmundsService{torProxyURL: torProxyURL, baseAPIURL: "https://www.edmunds.com/gateway", baseMediaURL: "https://media.ed.edmunds-media.com"}
 }
 
 var ErrVehicleNotFound = errors.New("vehicle not found")
 
-func (e EdmundsService) getAllPhotosForMMY(make, model, year string) (*photosResponse, error) {
+func (e EdmundsService) getAllPhotosForMMY(make, model, year string, overridePath *string) (*photosResponse, error) {
 	make = strings.ReplaceAll(make, " ", "_")
 	model = strings.ReplaceAll(model, " ", "_")
-	listURL := fmt.Sprintf("%s/media/v2/%s/%s/%s/photos?format=json", e.baseAPIURL, strings.ToLower(make), strings.ToLower(model), year)
+	var photosURL string
+	if overridePath != nil {
+		photosURL = e.baseAPIURL + *overridePath
+	} else {
+		photosURL = fmt.Sprintf("%s/api/media/v2/%s/%s/%s/photos?format=json&pageSize=50", e.baseAPIURL, strings.ToLower(make), strings.ToLower(model), year)
+	}
 
-	req, err := http.NewRequest("GET", listURL, nil)
+	req, err := http.NewRequest("GET", photosURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -80,30 +86,61 @@ func (e EdmundsService) getAllPhotosForMMY(make, model, year string) (*photosRes
 
 // GetDefaultImageForMMY call edmunds photos api and finds the first Frontal image, returning it in size 600
 func (e EdmundsService) GetDefaultImageForMMY(make, model string, year int) (*string, error) {
-	photos, err := e.getAllPhotosForMMY(make, model, strconv.Itoa(year))
+	const maxWidth = 900
+	const shotType = "FQ"
+	photos, err := e.getAllPhotosForMMY(make, model, strconv.Itoa(year), nil)
 	if err != nil {
 		return nil, err
 	}
-	for _, photo := range photos.Photos {
-		// find the first Front image https://developer.edmunds.com/api-documentation/media/photos/v2/
-		if len(photo.ShotTypeAbbreviation) > 0 && photo.ShotTypeAbbreviation[:1] == "F" {
-			return e.buildImageURL(photo.Sources), nil
+	best := findPhotoByShotType(photos, shotType)
+	cont := len(best) == 0
+	// keep looping to find desired image
+	for cont {
+		relNextFound := false
+		for _, link := range photos.Links {
+			if link.Rel == "next" {
+				relNextFound = true
+				photos, err = e.getAllPhotosForMMY(make, model, strconv.Itoa(year), &link.Href)
+				if err != nil {
+					return nil, err
+				}
+				best = findPhotoByShotType(photos, shotType)
+				break
+			}
 		}
+		cont = len(best) == 0 && relNextFound
 	}
-	// if no F photo found, just return the first Exterior image
-	for _, photo := range photos.Photos {
-		// find the first exterior photo
-		if photo.Category == "EXTERIOR" {
-			return e.buildImageURL(photo.Sources), nil
+	if len(best) == 0 {
+		if len(photos.Photos) > 0 {
+			best = photos.Photos[0].Sources
+		} else {
+			return nil, nil
 		}
 	}
 
-	return nil, nil
+	return e.findImageURLByMaxWidth(best, maxWidth), nil
 }
 
-func (e *EdmundsService) buildImageURL(sources []photosResponseSource) *string {
-	if len(sources) > 3 {
-		img := e.baseMediaURL + sources[3].Link.Href
+// findPhotoByShotType looks for shot types of shotType, usually want FQ
+func findPhotoByShotType(photos *photosResponse, shotType string) []photosResponseSource {
+	// find the first Front image https://developer.edmunds.com/api-documentation/media/photos/v2/
+	for _, photo := range photos.Photos {
+		if strings.ToUpper(photo.ShotTypeAbbreviation) == shotType {
+			return photo.Sources
+		}
+	}
+	return nil
+}
+
+func (e *EdmundsService) findImageURLByMaxWidth(sources []photosResponseSource, maxWidth int) *string {
+	source := linq.From(sources).WhereT(func(p photosResponseSource) bool {
+		return maxWidth >= p.Size.Width
+	}).OrderByDescendingT(func(p photosResponseSource) int {
+		return p.Size.Width
+	}).First()
+
+	if source != nil {
+		img := e.baseMediaURL + source.(photosResponseSource).Link.Href
 		return &img
 	}
 	return nil
