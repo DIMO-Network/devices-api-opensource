@@ -7,6 +7,7 @@ require (
 	github.com/Shopify/sarama v1.30.1
 	github.com/ThreeDotsLabs/watermill v1.1.1
 	github.com/ThreeDotsLabs/watermill-kafka/v2 v2.2.1
+	github.com/ahmetb/go-linq/v3 v3.2.0
 	github.com/ansrivas/fiberprometheus/v2 v2.1.2
 	github.com/arsmn/fiber-swagger/v2 v2.20.0
 	github.com/buger/jsonparser v1.1.1
@@ -34,10 +35,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
 
-require (
-	github.com/ahmetb/go-linq/v3 v3.2.0 // indirect
-	github.com/oklog/ulid v1.3.1 // indirect
-)
+require github.com/oklog/ulid v1.3.1 // indirect
 
 require (
 	cloud.google.com/go v0.97.0 // indirect
