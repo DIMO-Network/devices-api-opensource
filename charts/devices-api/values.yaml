@@ -54,8 +54,8 @@ ingress:
   enabled: true
   className: nginx
   annotations:
-    nginx.ingress.kubernetes.io/enable-modsecurity: 'true'
-    nginx.ingress.kubernetes.io/enable-owasp-core-rules: 'true'
+    # nginx.ingress.kubernetes.io/enable-modsecurity: 'true'
+    # nginx.ingress.kubernetes.io/enable-owasp-core-rules: 'true'
     nginx.ingress.kubernetes.io/auth-tls-secret: ingress/cf-origin-ca
     nginx.ingress.kubernetes.io/auth-tls-verify-client: 'on'
     nginx.ingress.kubernetes.io/enable-cors: 'true'
