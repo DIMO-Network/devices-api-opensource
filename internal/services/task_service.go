@@ -593,6 +593,15 @@ func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWrit
 		Broker:        redisConn,
 		ResultBackend: redisConn,
 		TLSConfig:     tlsConfig,
+		Redis: &machinery_config.RedisConfig{ // Defaults from config.go, not sure if this is necessary
+			MaxIdle:                3,
+			IdleTimeout:            240,
+			ReadTimeout:            15,
+			WriteTimeout:           15,
+			ConnectTimeout:         15,
+			NormalTasksPollPeriod:  1000,
+			DelayedTasksPollPeriod: 500,
+		},
 	})
 	if err != nil {
 		panic(err)
