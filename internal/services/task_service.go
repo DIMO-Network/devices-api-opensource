@@ -38,12 +38,12 @@ type ITaskService interface {
 }
 
 type TaskService struct {
-	Settings     *config.Settings
-	DBS          func() *database.DBReaderWriter
-	Log          *zerolog.Logger
-	Machinery    *machinery.Server
-	Producer     sarama.SyncProducer
-	DeviceDefSvc IDeviceDefinitionService
+	Settings        *config.Settings
+	DBS             func() *database.DBReaderWriter
+	Log             *zerolog.Logger
+	Machinery       *machinery.Server
+	DeviceDefSvc    IDeviceDefinitionService
+	IngestRegistrar SmartcarIngestRegistrar
 }
 
 const smartcarWebhookURL = "https://api.smartcar.com/v2.0/vehicles/%s/webhooks/%s"
@@ -82,6 +82,68 @@ var batchRequestFixed = batchRequest{
 	},
 }
 
+type cloudEventMessage struct {
+	ID          string      `json:"id"`
+	Source      string      `json:"source"`
+	SpecVersion string      `json:"specversion"`
+	Subject     string      `json:"subject"`
+	Time        time.Time   `json:"time"`
+	Type        string      `json:"type"`
+	Data        interface{} `json:"data"`
+}
+
+// SmartcarIngestRegistrar is an interface to the table.device.integration.smartcar topic, a
+// compacted Kafka topic keyed by Smartcar vehicle ID. The ingest service needs to match
+// these IDs to our device IDs.
+type SmartcarIngestRegistrar struct {
+	Producer sarama.SyncProducer
+}
+
+func (s *SmartcarIngestRegistrar) Register(smartcarID, userDeviceID, integrationID string) error {
+	data := struct {
+		DeviceID   string `json:"deviceId"`
+		ExternalID string `json:"externalId"`
+	}{userDeviceID, smartcarID}
+	value := cloudEventMessage{
+		ID:          ksuid.New().String(),
+		Source:      "dimo/integration/" + integrationID,
+		Subject:     userDeviceID,
+		SpecVersion: "1.0",
+		Time:        time.Now(),
+		Type:        smartcarRegistrationEventType,
+		Data:        data,
+	}
+	valueb, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("failed to serialize JSON body: %w", err)
+	}
+	message := &sarama.ProducerMessage{
+		Topic: ingestSmartcarRegistrationTopic,
+		Key:   sarama.StringEncoder(smartcarID),
+		Value: sarama.ByteEncoder(valueb),
+	}
+	_, _, err = s.Producer.SendMessage(message)
+	if err != nil {
+		return fmt.Errorf("failed sending to Kafka: %w", err)
+	}
+
+	return nil
+}
+
+func (s *SmartcarIngestRegistrar) Deregister(smartcarID, userDeviceID, integrationID string) error {
+	message := &sarama.ProducerMessage{
+		Topic: ingestSmartcarRegistrationTopic,
+		Key:   sarama.StringEncoder(smartcarID),
+		Value: nil, // Delete from compacted topic.
+	}
+	_, _, err := s.Producer.SendMessage(message)
+	if err != nil {
+		return fmt.Errorf("failed sending to Kafka: %w", err)
+	}
+
+	return nil
+}
+
 func (t *TaskService) subscribeVehicle(vehicleID, accessToken string) error {
 	url := fmt.Sprintf(smartcarWebhookURL, vehicleID, t.Settings.SmartcarWebhookID)
 	req, err := http.NewRequest("POST", url, nil)
@@ -103,21 +165,21 @@ func (t *TaskService) subscribeVehicle(vehicleID, accessToken string) error {
 	return nil
 }
 
-func (t *TaskService) unsubscribeVehicle(vehicleID, accessToken string) (err error) {
+func (t *TaskService) unsubscribeVehicle(vehicleID, accessToken string) error {
 	url := fmt.Sprintf(smartcarWebhookURL, vehicleID, t.Settings.SmartcarWebhookID)
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
-		return
+		return fmt.Errorf("failed to construct webhook deletion request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return
+		return fmt.Errorf("failed sending webhook deletion request: %w", err)
 	}
 	if resp.StatusCode >= 400 {
-		err = fmt.Errorf("error from Smartcar detaching vehicle %s from webhook %s, status code %d", vehicleID, t.Settings.SmartcarWebhookID, resp.StatusCode)
+		return fmt.Errorf("webhook deletion request returned status code %d", resp.StatusCode)
 	}
-	return
+	return nil
 }
 
 func (t *TaskService) vinRequest(vehicleID, accessToken string) (string, error) {
@@ -181,21 +243,6 @@ func (t *TaskService) batchRequest(vehicleID, accessToken string) ([]byte, error
 	}
 
 	return respBody, nil
-}
-
-type cloudEventMessage struct {
-	ID          string      `json:"id"`
-	Source      string      `json:"source"`
-	SpecVersion string      `json:"specversion"`
-	Subject     string      `json:"subject"`
-	Time        time.Time   `json:"time"`
-	Type        string      `json:"type"`
-	Data        interface{} `json:"data"`
-}
-
-type registrationData struct {
-	DeviceID   string      `json:"deviceId"`
-	ExternalID null.String `json:"externalId"`
 }
 
 func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string) (err error) {
@@ -283,28 +330,7 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 		}
 	}()
 
-	msg := cloudEventMessage{
-		ID:          ksuid.New().String(),
-		Source:      "dimo/integration/" + integrationID,
-		Subject:     userDeviceID,
-		SpecVersion: "1.0",
-		Time:        time.Now(),
-		Type:        smartcarRegistrationEventType,
-		Data: registrationData{
-			DeviceID:   userDeviceID,
-			ExternalID: integ.ExternalID,
-		},
-	}
-	msgBytes, err := json.Marshal(msg)
-	if err != nil {
-		return fmt.Errorf("failed to create JSON body for Smartcar registration event: %w", err)
-	}
-	message := &sarama.ProducerMessage{
-		Topic: ingestSmartcarRegistrationTopic,
-		Key:   sarama.StringEncoder(ud.ID),
-		Value: sarama.ByteEncoder(msgBytes),
-	}
-	_, _, err = t.Producer.SendMessage(message)
+	err = t.IngestRegistrar.Register(integ.ExternalID.String, userDeviceID, integrationID)
 	if err != nil {
 		return fmt.Errorf("failed to emit Smartcar registration event: %w", err)
 	}
@@ -327,35 +353,18 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 	return nil
 }
 
-func (t *TaskService) smartcarDisconnectVehicle(userDeviceID, integrationID, externalID, accessToken string) (err error) {
-	msg := cloudEventMessage{
-		ID:          ksuid.New().String(),
-		Source:      "dimo/integration/" + integrationID,
-		Subject:     userDeviceID,
-		SpecVersion: "1.0",
-		Time:        time.Now(),
-		Type:        smartcarRegistrationEventType,
-		Data: registrationData{
-			DeviceID:   userDeviceID,
-			ExternalID: null.StringFromPtr(nil),
-		},
-	}
-	msgBytes, err := json.Marshal(msg)
+func (t *TaskService) smartcarDisconnectVehicle(userDeviceID, integrationID, externalID, accessToken string) error {
+	err := t.IngestRegistrar.Deregister(externalID, userDeviceID, integrationID)
 	if err != nil {
-		return
-	}
-	message := &sarama.ProducerMessage{
-		Topic: ingestSmartcarRegistrationTopic,
-		Key:   sarama.StringEncoder(userDeviceID),
-		Value: sarama.ByteEncoder(msgBytes),
-	}
-	_, _, err = t.Producer.SendMessage(message)
-	if err != nil {
-		return
+		return fmt.Errorf("failed to send deregistration to ingest: %w", err)
 	}
 
 	err = t.unsubscribeVehicle(externalID, accessToken)
-	return
+	if err != nil {
+		return fmt.Errorf("failed to send deletion request to Smartcar: %w", err)
+	}
+
+	return nil
 }
 
 func formatBatchAsWebhook(batchBytes []byte, vehicleID string) ([]byte, error) {
@@ -597,12 +606,12 @@ func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWrit
 	}
 
 	t := &TaskService{
-		Settings:     settings,
-		DBS:          dbs,
-		Machinery:    server,
-		Log:          logger,
-		Producer:     producer,
-		DeviceDefSvc: deviceDefSvc,
+		Settings:        settings,
+		DBS:             dbs,
+		Machinery:       server,
+		Log:             logger,
+		DeviceDefSvc:    deviceDefSvc,
+		IngestRegistrar: SmartcarIngestRegistrar{Producer: producer},
 	}
 	err = server.RegisterTasks(map[string]interface{}{
 		smartcarConnectVehicleTask:    t.smartcarConnectVehicle,

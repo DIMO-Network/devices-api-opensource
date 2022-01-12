@@ -93,6 +93,11 @@ func main() {
 		}
 		logger.Info().Msgf("Loading edmunds images for device definitions with overwrite: %v", overwrite)
 		loadEdmundsImages(ctx, logger, settings, pdb, overwrite)
+	case "remake-smartcar-topic":
+		err = remakeSmartcarTopic(&logger, settings, pdb)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error running Smartcar Kafka re-registration")
+		}
 	default:
 		startPrometheus(logger)
 		startDeviceStatusConsumer(logger, settings, pdb)
