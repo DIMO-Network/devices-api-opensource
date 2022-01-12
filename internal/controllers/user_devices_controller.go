@@ -173,7 +173,7 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 
 	// don't block, as image fetch could take a while
 	go func() {
-		err := udc.DeviceDefSvc.CheckAndSetImage(dd)
+		err := udc.DeviceDefSvc.CheckAndSetImage(dd, false)
 		if err != nil {
 			udc.log.Error().Err(err).Msg("error getting device image upon user_device registration")
 			return

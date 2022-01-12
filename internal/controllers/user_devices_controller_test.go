@@ -56,7 +56,7 @@ func TestUserDevicesController(t *testing.T) {
 	app.Patch("/user/devices/:user_device_id/name", authInjectorTestHandler(testUserID), c.UpdateName)
 	app.Post("/user/devices/:user_device_id/commands/refresh", authInjectorTestHandler(testUserID), c.RefreshUserDeviceStatus)
 
-	deviceDefSvc.EXPECT().CheckAndSetImage(gomock.Any()).AnyTimes().Return(nil)
+	deviceDefSvc.EXPECT().CheckAndSetImage(gomock.Any(), false).AnyTimes().Return(nil)
 	createdUserDeviceID := ""
 
 	t.Run("POST - register with existing device_definition_id", func(t *testing.T) {

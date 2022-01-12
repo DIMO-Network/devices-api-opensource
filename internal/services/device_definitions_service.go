@@ -19,7 +19,7 @@ const vehicleInfoJSONNode = "vehicle_info"
 
 type IDeviceDefinitionService interface {
 	FindDeviceDefinitionByMMY(ctx context.Context, db boil.ContextExecutor, mk, model string, year int, loadIntegrations bool) (*models.DeviceDefinition, error)
-	CheckAndSetImage(dd *models.DeviceDefinition) error
+	CheckAndSetImage(dd *models.DeviceDefinition, overwrite bool) error
 	UpdateDeviceDefinitionFromNHTSA(ctx context.Context, deviceDefinitionID string, vin string) error
 }
 
@@ -59,15 +59,17 @@ func (d *DeviceDefinitionService) FindDeviceDefinitionByMMY(ctx context.Context,
 }
 
 // CheckAndSetImage just checks if the device definitions has an image set, and if not gets it from edmunds and sets it. does not update DB. This process could take a few seconds.
-func (d *DeviceDefinitionService) CheckAndSetImage(dd *models.DeviceDefinition) error {
-	if dd.ImageURL.Valid {
+func (d *DeviceDefinitionService) CheckAndSetImage(dd *models.DeviceDefinition, overwrite bool) error {
+	if !overwrite && dd.ImageURL.Valid {
 		return nil
 	}
 	img, err := d.EdmundsSvc.GetDefaultImageForMMY(dd.Make, dd.Model, int(dd.Year))
 	if err != nil {
 		return err
 	}
-	dd.ImageURL = null.StringFromPtr(img)
+	if img != nil {
+		dd.ImageURL = null.StringFromPtr(img)
+	}
 	return nil
 }
 

@@ -57,6 +57,15 @@ func main() {
 	zerolog.SetGlobalLevel(level)
 
 	pdb := database.NewDbConnectionFromSettings(ctx, settings, true)
+	// check db ready, this is not ideal btw, the db connection handler would be nicer if it did this.
+	totalTime := 0
+	for !pdb.IsReady() {
+		if totalTime > 30 {
+			logger.Fatal().Msg("could not connect to postgres after 30 seconds")
+		}
+		time.Sleep(time.Second)
+		totalTime++
+	}
 
 	// todo: use flag or other package to handle args
 	arg := ""
@@ -72,12 +81,18 @@ func main() {
 				command = command + " " + os.Args[3]
 			}
 		}
-
 		migrateDatabase(logger, settings, command)
 	case "seed-smartcar":
 		loadSmartCarData(ctx, logger, settings, pdb)
 	case "seed-mmy-csv":
 		loadMMYCSVData(ctx, logger, settings, pdb)
+	case "edmunds-images":
+		overwrite := false
+		if len(os.Args) > 2 {
+			overwrite = os.Args[2] == "--overwrite"
+		}
+		logger.Info().Msgf("Loading edmunds images for device definitions with overwrite: %v", overwrite)
+		loadEdmundsImages(ctx, logger, settings, pdb, overwrite)
 	default:
 		startPrometheus(logger)
 		startDeviceStatusConsumer(logger, settings, pdb)

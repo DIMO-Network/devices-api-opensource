@@ -9,7 +9,6 @@ import (
 	"io"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
@@ -25,8 +24,6 @@ import (
 var mmyDefinitions string
 
 func loadMMYCSVData(ctx context.Context, logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) {
-	// check db ready
-	time.Sleep(time.Second * 3)
 	ddSvc := services.NewDeviceDefinitionService(settings, pdb.DBS, &logger, services.NewNHTSAService())
 
 	csvReader := csv.NewReader(strings.NewReader(mmyDefinitions))

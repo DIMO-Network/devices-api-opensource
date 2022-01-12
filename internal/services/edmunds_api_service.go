@@ -26,7 +26,7 @@ func NewEdmundsService(torProxyURL string) *EdmundsService {
 	return &EdmundsService{torProxyURL: torProxyURL, baseAPIURL: "https://www.edmunds.com/gateway", baseMediaURL: "https://media.ed.edmunds-media.com"}
 }
 
-var ErrVehicleNotFound = errors.New("vehicle not found")
+var ErrVehicleNotFound = errors.New("vehicle not found in Edmunds")
 
 func (e EdmundsService) getAllPhotosForMMY(make, model, year string, overridePath *string) (*photosResponse, error) {
 	make = strings.ReplaceAll(make, " ", "_")
