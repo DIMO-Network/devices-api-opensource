@@ -35,6 +35,9 @@ You can connect to db eg: `psql -h localhost -p 5432 -U dimo` or with your favor
 6. Seed data from SmartCar:
 `$ go run ./cmd/devices-api seed-smartcar`
 
+7. Set some vehicle images from edmunds:
+`$ go run ./cmd/devices-api edmunds-images [--overwrite]`
+
 ### Kafka test producer
 
 This tool can be useful to test the consumer when running locally.
