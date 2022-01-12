@@ -2,7 +2,7 @@ replicaCount: 2
 image:
   repository: dimozone/devices-api
   pullPolicy: IfNotPresent
-  tag: 0.2.0
+  tag: 0.2.1
 imagePullSecrets: []
 nameOverride: ''
 fullnameOverride: ''
@@ -32,7 +32,6 @@ env:
   INGEST_SMARTCAR_TOPIC: topic.interface.ingest.smartcar
   KAFKA_BROKERS: kafka-prod-dimo-kafka-kafka-brokers:9092
   DEVICE_STATUS_TOPIC: topic.device.status
-  
 service:
   type: ClusterIP
   ports:
@@ -44,7 +43,6 @@ service:
       port: 8080
       targetPort: http
       protocol: TCP
-
 ports:
   - name: mon-http
     containerPort: 8888
@@ -52,13 +50,10 @@ ports:
   - name: http
     containerPort: 8080
     protocol: TCP
-
 ingress:
   enabled: true
   className: nginx
   annotations:
-    # nginx.ingress.kubernetes.io/enable-modsecurity: 'true'
-    # nginx.ingress.kubernetes.io/enable-owasp-core-rules: 'true'
     nginx.ingress.kubernetes.io/auth-tls-secret: ingress/cf-origin-ca
     nginx.ingress.kubernetes.io/auth-tls-verify-client: 'on'
     nginx.ingress.kubernetes.io/enable-cors: 'true'
@@ -87,7 +82,5 @@ tolerations: []
 affinity: {}
 podDisruptionBudget:
   minAvailable: 1
-
-
 kafka:
   clusterName: kafka-prod-dimo-kafka
