@@ -18,6 +18,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
 	smartcar "github.com/smartcar/go-sdk"
+	"github.com/tidwall/sjson"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -632,9 +633,12 @@ func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 	if userDevice.R.UserDeviceDatum == nil || !userDevice.R.UserDeviceDatum.Data.Valid {
 		return errorResponseHandler(c, errors.New("no status updates yet"), fiber.StatusNotFound)
 	}
+	// date formatting defaults to encoding/json
+	json, _ := sjson.Set(string(userDevice.R.UserDeviceDatum.Data.JSON), "recordUpdatedAt", userDevice.R.UserDeviceDatum.UpdatedAt)
+	json, _ = sjson.Set(json, "recordCreatedAt", userDevice.R.UserDeviceDatum.CreatedAt)
 
 	c.Set("Content-Type", "application/json")
-	return c.Send(userDevice.R.UserDeviceDatum.Data.JSON)
+	return c.Send([]byte(json))
 }
 
 // RefreshUserDeviceStatus godoc

@@ -35,7 +35,10 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
 
-require github.com/oklog/ulid v1.3.1 // indirect
+require (
+	github.com/oklog/ulid v1.3.1 // indirect
+	github.com/tidwall/sjson v1.2.4 // indirect
+)
 
 require (
 	cloud.google.com/go v0.97.0 // indirect
