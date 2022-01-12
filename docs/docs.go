@@ -47,7 +47,7 @@ var doc = `{
                 }
             }
         },
-        "/admin/user/:user_id/devices": {
+        "/admin/user/:userID/devices": {
             "post": {
                 "description": "meant for internal admin use - adds a device to a user. can add with only device_definition_id or with MMY, which will create a device_definition on the fly",
                 "consumes": [
@@ -72,7 +72,7 @@ var doc = `{
                     {
                         "type": "string",
                         "description": "user id",
-                        "name": "user_id",
+                        "name": "userID",
                         "in": "path",
                         "required": true
                     }
@@ -123,7 +123,7 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/controllers.DeviceDefinition"
+                            "$ref": "#/definitions/services.DeviceDefinition"
                         }
                     }
                 }
@@ -173,7 +173,7 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/controllers.DeviceDefinition"
+                            "$ref": "#/definitions/services.DeviceDefinition"
                         }
                     }
                 }
@@ -203,7 +203,7 @@ var doc = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/controllers.DeviceCompatibility"
+                                "$ref": "#/definitions/services.DeviceCompatibility"
                             }
                         }
                     }
@@ -251,7 +251,7 @@ var doc = `{
                 }
             }
         },
-        "/user/devices/:user_device_id": {
+        "/user/devices/:userDeviceID": {
             "delete": {
                 "security": [
                     {
@@ -266,7 +266,7 @@ var doc = `{
                     {
                         "type": "string",
                         "description": "user id",
-                        "name": "user_device_id",
+                        "name": "userDeviceID",
                         "in": "path",
                         "required": true
                     }
@@ -278,7 +278,7 @@ var doc = `{
                 }
             }
         },
-        "/user/devices/:user_device_id/commands/refresh": {
+        "/user/devices/:userDeviceID/commands/refresh": {
             "post": {
                 "security": [
                     {
@@ -308,7 +308,7 @@ var doc = `{
                 }
             }
         },
-        "/user/devices/:user_device_id/country_code": {
+        "/user/devices/:userDeviceID/country_code": {
             "patch": {
                 "security": [
                     {
@@ -343,7 +343,7 @@ var doc = `{
                 }
             }
         },
-        "/user/devices/:user_device_id/integrations/:integration_id": {
+        "/user/devices/:userDeviceID/integrations/:integrationID": {
             "get": {
                 "description": "Receive status updates about a Smartcar integration",
                 "tags": [
@@ -395,7 +395,7 @@ var doc = `{
                 }
             }
         },
-        "/user/devices/:user_device_id/name": {
+        "/user/devices/:userDeviceID/name": {
             "patch": {
                 "security": [
                     {
@@ -437,7 +437,7 @@ var doc = `{
                 }
             }
         },
-        "/user/devices/:user_device_id/status": {
+        "/user/devices/:userDeviceID/status": {
             "get": {
                 "security": [
                     {
@@ -467,7 +467,7 @@ var doc = `{
                 }
             }
         },
-        "/user/devices/:user_device_id/vin": {
+        "/user/devices/:userDeviceID/vin": {
             "patch": {
                 "security": [
                     {
@@ -497,7 +497,7 @@ var doc = `{
                     {
                         "type": "string",
                         "description": "user id",
-                        "name": "user_device_id",
+                        "name": "userDeviceID",
                         "in": "path",
                         "required": true
                     }
@@ -541,21 +541,21 @@ var doc = `{
         "controllers.AdminRegisterUserDevice": {
             "type": "object",
             "properties": {
-                "country_code": {
+                "countryCode": {
                     "type": "string"
                 },
-                "created_date": {
+                "createdDate": {
                     "description": "unix timestamp",
                     "type": "integer"
                 },
-                "device_definition_id": {
+                "deviceDefinitionId": {
                     "type": "string"
                 },
-                "id": {
+                "imageUrl": {
+                    "type": "string"
+                },
+                "is": {
                     "description": "KSUID from client,",
-                    "type": "string"
-                },
-                "image_url": {
                     "type": "string"
                 },
                 "make": {
@@ -564,7 +564,7 @@ var doc = `{
                 "model": {
                     "type": "string"
                 },
-                "vehicle_name": {
+                "vehicleName": {
                     "type": "string"
                 },
                 "verified": {
@@ -575,61 +575,6 @@ var doc = `{
                 },
                 "year": {
                     "type": "integer"
-                }
-            }
-        },
-        "controllers.DeviceCompatibility": {
-            "type": "object",
-            "properties": {
-                "capabilities": {
-                    "type": "string"
-                },
-                "country": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "style": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "vendor": {
-                    "type": "string"
-                }
-            }
-        },
-        "controllers.DeviceDefinition": {
-            "type": "object",
-            "properties": {
-                "compatible_integrations": {
-                    "description": "CompatibleIntegrations has systems this vehicle can integrate with",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/controllers.DeviceCompatibility"
-                    }
-                },
-                "device_definition_id": {
-                    "type": "string"
-                },
-                "image_url": {
-                    "type": "string"
-                },
-                "metadata": {},
-                "name": {
-                    "type": "string"
-                },
-                "type": {
-                    "$ref": "#/definitions/controllers.DeviceType"
-                },
-                "vehicle_data": {
-                    "description": "VehicleInfo will be empty if not a vehicle type",
-                    "$ref": "#/definitions/services.DeviceVehicleInfo"
-                },
-                "verified": {
-                    "type": "boolean"
                 }
             }
         },
@@ -672,27 +617,6 @@ var doc = `{
                 }
             }
         },
-        "controllers.DeviceType": {
-            "type": "object",
-            "properties": {
-                "make": {
-                    "type": "string"
-                },
-                "model": {
-                    "type": "string"
-                },
-                "sub_model": {
-                    "type": "string"
-                },
-                "type": {
-                    "description": "Type is eg. Vehicle, E-bike, roomba",
-                    "type": "string"
-                },
-                "year": {
-                    "type": "integer"
-                }
-            }
-        },
         "controllers.GetUserDeviceIntegrationResponse": {
             "type": "object",
             "properties": {
@@ -720,10 +644,10 @@ var doc = `{
         "controllers.RegisterUserDevice": {
             "type": "object",
             "properties": {
-                "country_code": {
+                "countryCode": {
                     "type": "string"
                 },
-                "device_definition_id": {
+                "deviceDefinitionId": {
                     "type": "string"
                 },
                 "make": {
@@ -740,16 +664,16 @@ var doc = `{
         "controllers.RegisterUserDeviceResponse": {
             "type": "object",
             "properties": {
-                "device_definition_id": {
+                "deviceDefinitionId": {
                     "type": "string"
                 },
-                "integration_capabilities": {
+                "integrationCapabilities": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/controllers.DeviceCompatibility"
+                        "$ref": "#/definitions/services.DeviceCompatibility"
                     }
                 },
-                "user_device_id": {
+                "userDeviceId": {
                     "type": "string"
                 }
             }
@@ -781,14 +705,14 @@ var doc = `{
         "controllers.UserDeviceFull": {
             "type": "object",
             "properties": {
-                "country_code": {
+                "countryCode": {
                     "type": "string"
                 },
-                "custom_image_url": {
+                "customImageUrl": {
                     "type": "string"
                 },
-                "device_definition": {
-                    "$ref": "#/definitions/controllers.DeviceDefinition"
+                "deviceDefinition": {
+                    "$ref": "#/definitions/services.DeviceDefinition"
                 },
                 "id": {
                     "type": "string"
@@ -804,17 +728,96 @@ var doc = `{
                 },
                 "vin": {
                     "type": "string"
+                },
+                "vinConfirmed": {
+                    "type": "boolean"
                 }
             }
         },
         "controllers.UserDeviceIntegrationStatus": {
             "type": "object",
             "properties": {
-                "integrationID": {
+                "integrationId": {
                     "type": "string"
                 },
                 "status": {
                     "type": "string"
+                }
+            }
+        },
+        "services.DeviceCompatibility": {
+            "type": "object",
+            "properties": {
+                "capabilities": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "style": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "vendor": {
+                    "type": "string"
+                }
+            }
+        },
+        "services.DeviceDefinition": {
+            "type": "object",
+            "properties": {
+                "compatibleIntegrations": {
+                    "description": "CompatibleIntegrations has systems this vehicle can integrate with",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.DeviceCompatibility"
+                    }
+                },
+                "deviceDefinitionId": {
+                    "type": "string"
+                },
+                "imageUrl": {
+                    "type": "string"
+                },
+                "metadata": {},
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/services.DeviceType"
+                },
+                "vehicleData": {
+                    "description": "VehicleInfo will be empty if not a vehicle type",
+                    "$ref": "#/definitions/services.DeviceVehicleInfo"
+                },
+                "verified": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "services.DeviceType": {
+            "type": "object",
+            "properties": {
+                "make": {
+                    "type": "string"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "subModel": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "Type is eg. Vehicle, E-bike, roomba",
+                    "type": "string"
+                },
+                "year": {
+                    "type": "integer"
                 }
             }
         },

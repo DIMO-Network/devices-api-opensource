@@ -7,14 +7,14 @@ import (
 
 // DeviceDefinition represents a device for to clients in generic form, ie. not specific to a user
 type DeviceDefinition struct {
-	DeviceDefinitionID string  `json:"device_definition_id"`
+	DeviceDefinitionID string  `json:"deviceDefinitionId"`
 	Name               string  `json:"name"`
-	ImageURL           *string `json:"image_url"`
+	ImageURL           *string `json:"imageUrl"`
 	// CompatibleIntegrations has systems this vehicle can integrate with
-	CompatibleIntegrations []DeviceCompatibility `json:"compatible_integrations"`
+	CompatibleIntegrations []DeviceCompatibility `json:"compatibleIntegrations"`
 	Type                   DeviceType            `json:"type"`
 	// VehicleInfo will be empty if not a vehicle type
-	VehicleInfo DeviceVehicleInfo `json:"vehicle_data,omitempty"`
+	VehicleInfo DeviceVehicleInfo `json:"vehicleData,omitempty"`
 	Metadata    interface{}       `json:"metadata"`
 	Verified    bool              `json:"verified"`
 }
@@ -36,7 +36,7 @@ type DeviceType struct {
 	Make     string  `json:"make"`
 	Model    string  `json:"model"`
 	Year     int     `json:"year"`
-	SubModel *string `json:"sub_model"`
+	SubModel *string `json:"subModel"`
 }
 
 // DeviceVehicleInfo represents some standard vehicle specific properties stored in the metadata json field in DB

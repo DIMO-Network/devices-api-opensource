@@ -77,7 +77,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"user_devices": rp,
+		"userDevices": rp,
 	})
 }
 
@@ -217,11 +217,11 @@ var smartcarScopes = []string{
 // @Accept json
 // @Param userDeviceIntegrationRegistration body controllers.RegisterSmartcarRequest true "Authorization code from Smartcar"
 // @Success 204
-// @Router /user/devices/:user_device_id/integrations/:integration_id [post]
+// @Router /user/devices/:userDeviceID/integrations/:integrationID [post]
 func (udc *UserDevicesController) RegisterSmartcarIntegration(c *fiber.Ctx) error {
 	userID := getUserID(c)
-	userDeviceID := c.Params("user_device_id")
-	integrationID := c.Params("integration_id")
+	userDeviceID := c.Params("userDeviceID")
+	integrationID := c.Params("integrationID")
 
 	logger := udc.log.With().
 		Str("userId", userID).
@@ -337,11 +337,11 @@ type GetUserDeviceIntegrationResponse struct {
 // @Description Receive status updates about a Smartcar integration
 // @Tags user-devices
 // @Success 200 {object} controllers.GetUserDeviceIntegrationResponse
-// @Router /user/devices/:user_device_id/integrations/:integration_id [get]
+// @Router /user/devices/:userDeviceID/integrations/:integrationID [get]
 func (udc *UserDevicesController) GetUserDeviceIntegration(c *fiber.Ctx) error {
 	userID := getUserID(c)
-	userDeviceID := c.Params("user_device_id")
-	integrationID := c.Params("integration_id")
+	userDeviceID := c.Params("userDeviceID")
+	integrationID := c.Params("integrationID")
 	deviceExists, err := models.UserDevices(
 		qm.Where("user_id = ?", userID),
 		qm.And("id = ?", userDeviceID),
@@ -370,11 +370,11 @@ func (udc *UserDevicesController) GetUserDeviceIntegration(c *fiber.Ctx) error {
 // @Description Remove an user device's integration
 // @Tags user-devices
 // @Success 204
-// @Router /user/devices/:user_device_id/integrations/:integration_id [delete]
+// @Router /user/devices/:userDeviceID/integrations/:integrationID [delete]
 func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) error {
 	userID := getUserID(c)
-	userDeviceID := c.Params("user_device_id")
-	integrationID := c.Params("integration_id")
+	userDeviceID := c.Params("userDeviceID")
+	integrationID := c.Params("integrationID")
 
 	tx, err := udc.DBS().Writer.BeginTx(c.Context(), nil)
 	if err != nil {
@@ -429,11 +429,11 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 // @Produce json
 // @Accept json
 // @Param user_device body controllers.AdminRegisterUserDevice true "add device to user. either MMY or id are required"
-// @Param user_id path string true "user id"
+// @Param userID path string true "user id"
 // @Success 201 {object} controllers.RegisterUserDeviceResponse
-// @Router  /admin/user/:user_id/devices [post]
+// @Router  /admin/user/:userID/devices [post]
 func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
-	userID := c.Params("user_id")
+	userID := c.Params("userID")
 	reg := &AdminRegisterUserDevice{}
 	if err := c.BodyParser(reg); err != nil {
 		// Return status 400 and error message.
@@ -536,12 +536,12 @@ func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
 // @Produce json
 // @Accept json
 // @Param vin body controllers.UpdateVINReq true "VIN"
-// @Param user_device_id path string true "user id"
+// @Param userDeviceID path string true "user id"
 // @Success 204
 // @Security BearerAuth
-// @Router  /user/devices/:user_device_id/vin [patch]
+// @Router  /user/devices/:userDeviceID/vin [patch]
 func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
-	udi := c.Params("user_device_id")
+	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
 	userDevice, err := models.UserDevices(qm.Where("id = ?", udi), qm.And("user_id = ?", userID)).One(c.Context(), udc.DBS().Writer)
 	if err != nil {
@@ -579,9 +579,9 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 // @Param user_device_id path string true "user id"
 // @Success 204
 // @Security BearerAuth
-// @Router  /user/devices/:user_device_id/name [patch]
+// @Router  /user/devices/:userDeviceID/name [patch]
 func (udc *UserDevicesController) UpdateName(c *fiber.Ctx) error {
-	udi := c.Params("user_device_id")
+	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
 	userDevice, err := models.UserDevices(qm.Where("id = ?", udi), qm.And("user_id = ?", userID)).One(c.Context(), udc.DBS().Writer)
 	if err != nil {
@@ -613,9 +613,9 @@ func (udc *UserDevicesController) UpdateName(c *fiber.Ctx) error {
 // @Param user_device_id path string true "user device ID"
 // @Success 200
 // @Security BearerAuth
-// @Router  /user/devices/:user_device_id/status [get]
+// @Router  /user/devices/:userDeviceID/status [get]
 func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
-	udi := c.Params("user_device_id")
+	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
 	userDevice, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(udi),
@@ -644,9 +644,9 @@ func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 // @Success 204
 // @Failure 429 "rate limit hit for integration"
 // @Security BearerAuth
-// @Router  /user/devices/:user_device_id/commands/refresh [post]
+// @Router  /user/devices/:userDeviceID/commands/refresh [post]
 func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
-	udi := c.Params("user_device_id")
+	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
 	// We could probably do a smarter join here, but it's unclear to me how to handle that
 	// in SQLBoiler.
@@ -692,9 +692,9 @@ func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
 // @Param name body controllers.UpdateCountryCodeReq true "Country code"
 // @Success 204
 // @Security BearerAuth
-// @Router  /user/devices/:user_device_id/country_code [patch]
+// @Router  /user/devices/:userDeviceID/country_code [patch]
 func (udc *UserDevicesController) UpdateCountryCode(c *fiber.Ctx) error {
-	udi := c.Params("user_device_id")
+	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
 	userDevice, err := models.UserDevices(qm.Where("id = ?", udi), qm.And("user_id = ?", userID)).One(c.Context(), udc.DBS().Writer)
 	if err != nil {
@@ -721,12 +721,12 @@ func (udc *UserDevicesController) UpdateCountryCode(c *fiber.Ctx) error {
 // DeleteUserDevice godoc
 // @Description delete the user device record (hard delete)
 // @Tags 	user-devices
-// @Param user_device_id path string true "user id"
+// @Param userDeviceID path string true "user id"
 // @Success 204
 // @Security BearerAuth
-// @Router  /user/devices/:user_device_id [delete]
+// @Router  /user/devices/:userDeviceID [delete]
 func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
-	udi := c.Params("user_device_id")
+	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
 
 	tx, err := udc.DBS().Writer.BeginTx(c.Context(), nil)
@@ -772,23 +772,23 @@ type RegisterUserDevice struct {
 	Make               *string `json:"make"`
 	Model              *string `json:"model"`
 	Year               *int    `json:"year"`
-	DeviceDefinitionID *string `json:"device_definition_id"`
-	CountryCode        *string `json:"country_code"`
+	DeviceDefinitionID *string `json:"deviceDefinitionId"`
+	CountryCode        *string `json:"countryCode"`
 }
 
 type RegisterUserDeviceResponse struct {
-	UserDeviceID            string                         `json:"user_device_id"`
-	DeviceDefinitionID      string                         `json:"device_definition_id"`
-	IntegrationCapabilities []services.DeviceCompatibility `json:"integration_capabilities"`
+	UserDeviceID            string                         `json:"userDeviceId"`
+	DeviceDefinitionID      string                         `json:"deviceDefinitionId"`
+	IntegrationCapabilities []services.DeviceCompatibility `json:"integrationCapabilities"`
 }
 
 type AdminRegisterUserDevice struct {
 	RegisterUserDevice
-	ID          string  `json:"id"`           // KSUID from client,
-	CreatedDate int64   `json:"created_date"` // unix timestamp
-	VehicleName *string `json:"vehicle_name"`
+	ID          string  `json:"id"`          // KSUID from client,
+	CreatedDate int64   `json:"createdDate"` // unix timestamp
+	VehicleName *string `json:"vehicleName"`
 	VIN         string  `json:"vin"`
-	ImageURL    *string `json:"image_url"`
+	ImageURL    *string `json:"imageUrl"`
 	Verified    bool    `json:"verified"`
 }
 
@@ -830,15 +830,15 @@ func (u *UpdateVINReq) validate() error {
 type UserDeviceFull struct {
 	ID               string                        `json:"id"`
 	VIN              *string                       `json:"vin"`
-	VINConfirmed     bool                          `json:"vin_confirmed"`
+	VINConfirmed     bool                          `json:"vinConfirmed"`
 	Name             *string                       `json:"name"`
-	CustomImageURL   *string                       `json:"custom_image_url"`
-	DeviceDefinition services.DeviceDefinition     `json:"device_definition"`
-	CountryCode      *string                       `json:"country_code"`
+	CustomImageURL   *string                       `json:"customImageUrl"`
+	DeviceDefinition services.DeviceDefinition     `json:"deviceDefinition"`
+	CountryCode      *string                       `json:"countryCode"`
 	Integrations     []UserDeviceIntegrationStatus `json:"integrations"`
 }
 
 type UserDeviceIntegrationStatus struct {
-	IntegrationID string `json:"integrationID"`
+	IntegrationID string `json:"integrationId"`
 	Status        string `json:"status"`
 }

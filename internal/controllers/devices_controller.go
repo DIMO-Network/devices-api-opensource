@@ -87,13 +87,13 @@ func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
 // @Tags 	device-definitions
 // @Produce json
 // @Param 	id path string true "device definition id, KSUID format"
-// @Success 200 {object} controllers.DeviceDefinition
+// @Success 200 {object} services.DeviceDefinition
 // @Router  /device-definitions/{id} [get]
 func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if len(id) != 27 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error_message": "invalid device_definition_id",
+			"errorMessage": "invalid device_definition_id",
 		})
 	}
 	dd, err := models.DeviceDefinitions(
@@ -110,7 +110,7 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 
 	rp := NewDeviceDefinitionFromDatabase(dd)
 	return c.JSON(fiber.Map{
-		"device_definition": rp,
+		"deviceDefinition": rp,
 	})
 }
 
@@ -119,13 +119,13 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 // @Tags 	device-definitions
 // @Produce json
 // @Param 	id path string true "device definition id, KSUID format"
-// @Success 200 {object} []controllers.DeviceCompatibility
+// @Success 200 {object} []services.DeviceCompatibility
 // @Router  /device-definitions/{id}/integrations [get]
 func (d *DevicesController) GetIntegrationsByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if len(id) != 27 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error_message": "invalid dvice definition id",
+			"errorMessage": "invalid device definition id",
 		})
 	}
 	dd, err := models.DeviceDefinitions(
@@ -154,7 +154,7 @@ func (d *DevicesController) GetIntegrationsByID(c *fiber.Ctx) error {
 		}
 	}
 	return c.JSON(fiber.Map{
-		"compatible_integrations": integrations,
+		"compatibleIntegrations": integrations,
 	})
 }
 
@@ -165,7 +165,7 @@ func (d *DevicesController) GetIntegrationsByID(c *fiber.Ctx) error {
 // @Param 	make query string true "make eg TESLA"
 // @Param 	model query string true "model eg MODEL Y"
 // @Param 	year query string true "year eg 2021"
-// @Success 200 {object} controllers.DeviceDefinition
+// @Success 200 {object} services.DeviceDefinition
 // @Router  /device-definitions [get]
 func (d *DevicesController) GetDeviceDefinitionByMMY(c *fiber.Ctx) error {
 	mk := c.Query("make")
@@ -189,7 +189,7 @@ func (d *DevicesController) GetDeviceDefinitionByMMY(c *fiber.Ctx) error {
 
 	rp := NewDeviceDefinitionFromDatabase(dd)
 	return c.JSON(fiber.Map{
-		"device_definition": rp,
+		"deviceDefinition": rp,
 	})
 }
 

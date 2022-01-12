@@ -73,7 +73,7 @@ func TestDevicesController(t *testing.T) {
 		body, _ := ioutil.ReadAll(response.Body)
 		// assert
 		assert.Equal(t, 200, response.StatusCode)
-		v, _, _, _ := jsonparser.Get(body, "device_definition")
+		v, _, _, _ := jsonparser.Get(body, "deviceDefinition")
 		var dd services.DeviceDefinition
 		err := json.Unmarshal(v, &dd)
 		assert.NoError(t, err)
@@ -85,7 +85,7 @@ func TestDevicesController(t *testing.T) {
 		body, _ := ioutil.ReadAll(response.Body)
 		// assert
 		assert.Equal(t, 200, response.StatusCode)
-		v, _, _, _ := jsonparser.Get(body, "compatible_integrations")
+		v, _, _, _ := jsonparser.Get(body, "compatibleIntegrations")
 		var dc []services.DeviceCompatibility
 		err := json.Unmarshal(v, &dc)
 		assert.NoError(t, err)

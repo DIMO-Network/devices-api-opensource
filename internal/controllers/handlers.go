@@ -11,7 +11,7 @@ func errorResponseHandler(c *fiber.Ctx, err error, status int) error {
 		msg = err.Error()
 	}
 	return c.Status(status).JSON(fiber.Map{
-		"error_message": msg,
+		"errorMessage": msg,
 	})
 }
 

@@ -50,11 +50,11 @@ func TestUserDevicesController(t *testing.T) {
 	app := fiber.New()
 	app.Post("/user/devices", authInjectorTestHandler(testUserID), c.RegisterDeviceForUser)
 	app.Post("/user/devices/second", authInjectorTestHandler(testUserID2), c.RegisterDeviceForUser) // for different test user
-	app.Post("/admin/user/:user_id/devices", c.AdminRegisterUserDevice)
+	app.Post("/admin/user/:userID/devices", c.AdminRegisterUserDevice)
 	app.Get("/user/devices/me", authInjectorTestHandler(testUserID), c.GetUserDevices)
-	app.Patch("/user/devices/:user_device_id/vin", authInjectorTestHandler(testUserID), c.UpdateVIN)
-	app.Patch("/user/devices/:user_device_id/name", authInjectorTestHandler(testUserID), c.UpdateName)
-	app.Post("/user/devices/:user_device_id/commands/refresh", authInjectorTestHandler(testUserID), c.RefreshUserDeviceStatus)
+	app.Patch("/user/devices/:userDeviceID/vin", authInjectorTestHandler(testUserID), c.UpdateVIN)
+	app.Patch("/user/devices/:userDeviceID/name", authInjectorTestHandler(testUserID), c.UpdateName)
+	app.Post("/user/devices/:userDeviceID/commands/refresh", authInjectorTestHandler(testUserID), c.RefreshUserDeviceStatus)
 
 	deviceDefSvc.EXPECT().CheckAndSetImage(gomock.Any(), false).AnyTimes().Return(nil)
 	createdUserDeviceID := ""
@@ -179,7 +179,7 @@ func TestUserDevicesController(t *testing.T) {
 		response, _ := app.Test(request)
 		body, _ := ioutil.ReadAll(response.Body)
 		assert.Equal(t, fiber.StatusBadRequest, response.StatusCode)
-		msg := gjson.Get(string(body), "error_message").String()
+		msg := gjson.Get(string(body), "errorMessage").String()
 		assert.Contains(t, msg, "cannot be blank")
 	})
 	t.Run("POST - bad device_definition_id", func(t *testing.T) {
@@ -192,7 +192,7 @@ func TestUserDevicesController(t *testing.T) {
 		response, _ := app.Test(request)
 		body, _ := ioutil.ReadAll(response.Body)
 		assert.Equal(t, fiber.StatusBadRequest, response.StatusCode)
-		msg := gjson.Get(string(body), "error_message").String()
+		msg := gjson.Get(string(body), "errorMessage").String()
 		fmt.Println("message: " + msg)
 		assert.Contains(t, msg, "caca")
 	})
@@ -203,7 +203,7 @@ func TestUserDevicesController(t *testing.T) {
 
 		assert.Equal(t, fiber.StatusOK, response.StatusCode)
 
-		result := gjson.Get(string(body), "user_devices.#.id")
+		result := gjson.Get(string(body), "userDevices.#.id")
 		fmt.Println(string(body))
 		assert.Len(t, result.Array(), 2)
 		for _, id := range result.Array() {
@@ -214,13 +214,13 @@ func TestUserDevicesController(t *testing.T) {
 		deviceDefSvc.EXPECT().FindDeviceDefinitionByMMY(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).
 			Return(nil, sql.ErrNoRows)
 		payload := `{
-  "country_code": "USA",
-  "created_date": 1634835455,
-  "device_definition_id": null,
-  "image_url": null,
+  "countryCode": "USA",
+  "createdDate": 1634835455,
+  "deviceDefinitionId": null,
+  "imageUrl": null,
   "make": "HYUNDAI",
   "model": "KONA ELECTRIC",
-  "vehicle_name": "Test Name",
+  "vehicleName": "Test Name",
   "verified": false,
   "vin": null,
   "year": 2020,
@@ -233,7 +233,7 @@ func TestUserDevicesController(t *testing.T) {
 		if assert.Equal(t, fiber.StatusCreated, response.StatusCode) == false {
 			fmt.Println("message: " + string(body))
 		}
-		udi := gjson.Get(string(body), "user_device_id")
+		udi := gjson.Get(string(body), "userDeviceId")
 		fmt.Println("MMY user_device_id created: " + udi.String())
 		assert.True(t, udi.Exists(), "expected to find user_device_id")
 	})
