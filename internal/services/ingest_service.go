@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -16,17 +17,19 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
 const deviceStatusEventType = "zone.dimo.device.status.update"
 
 type IngestService struct {
-	db  func() *database.DBReaderWriter
-	log *zerolog.Logger
+	db           func() *database.DBReaderWriter
+	log          *zerolog.Logger
+	eventService EventService
 }
 
-func NewIngestService(db func() *database.DBReaderWriter, log *zerolog.Logger) *IngestService {
-	return &IngestService{db: db, log: log}
+func NewIngestService(db func() *database.DBReaderWriter, log *zerolog.Logger, eventService EventService) *IngestService {
+	return &IngestService{db: db, log: log, eventService: eventService}
 }
 
 // ProcessDeviceStatusMessages works on channel stream of messages from watermill kafka consumer
@@ -66,6 +69,27 @@ func (i *IngestService) processDeviceStatus(msg *message.Message) error {
 		UserDeviceID: userDeviceID,
 		Data:         null.JSONFrom(e.Data),
 	}
+
+	tx, err := i.db().Writer.BeginTx(ctx, nil)
+	if err != nil {
+		ack = false
+		return fmt.Errorf("error starting transaction: %w", err)
+	}
+	defer tx.Rollback() //nolint
+
+	// Horribly inefficient
+	device, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		qm.Load(models.UserDeviceRels.DeviceDefinition),
+	).One(ctx, tx)
+	if err != nil {
+		// Same exception as below.
+		if !errors.Is(err, sql.ErrNoRows) {
+			ack = false
+		}
+		return fmt.Errorf("couldn't find device for status update: %w", err)
+	}
+
 	err = udd.Upsert(ctx, i.db().Writer, true, []string{"user_device_id"}, boil.Whitelist("data", "created_at", "updated_at"), boil.Infer())
 	if err != nil {
 		var pqErr *pq.Error
@@ -78,8 +102,57 @@ func (i *IngestService) processDeviceStatus(msg *message.Message) error {
 		}
 		return fmt.Errorf("error upserting vehicle status event data: %w", err)
 	}
+
+	err = tx.Commit()
+	if err != nil {
+		ack = false
+		return fmt.Errorf("error committing transaction: %w", err)
+	}
+
+	extractOd := struct {
+		Odometer float64 `json:"odometer"`
+	}{}
+	err = json.Unmarshal(e.Data, &extractOd)
+	if err != nil {
+		i.log.Err(err).Msg("Failed to grab odometer from status update")
+	} else {
+		err = i.eventService.Emit(&Event{
+			Type:    "com.dimo.zone.device.odometer.update",
+			Subject: userDeviceID,
+			Source:  e.Source, // Should be the integration
+			Data: OdometerEvent{
+				Timestamp: time.Now(),
+				UserID:    device.UserID,
+				Device: odometerEventDevice{
+					ID:    userDeviceID,
+					Make:  device.R.DeviceDefinition.Make,
+					Model: device.R.DeviceDefinition.Model,
+					Year:  int(device.R.DeviceDefinition.Year),
+				},
+				Odometer: extractOd.Odometer,
+			},
+		})
+		if err != nil {
+			i.log.Err(err).Msg("Failed to emit odometer event")
+		}
+	}
+
 	appmetrics.SmartcarIngestSuccessOps.Inc()
 	return nil
+}
+
+type odometerEventDevice struct {
+	ID    string `json:"id"`
+	Make  string `json:"make"`
+	Model string `json:"model"`
+	Year  int    `json:"year"`
+}
+
+type OdometerEvent struct {
+	Timestamp time.Time           `json:"timestamp"`
+	UserID    string              `json:"userId"`
+	Device    odometerEventDevice `json:"device"`
+	Odometer  float64             `json:"odometer"`
 }
 
 type DeviceStatusEvent struct {

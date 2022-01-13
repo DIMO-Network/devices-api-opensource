@@ -502,7 +502,7 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 	}
 
 	err = udc.eventService.Emit(&services.Event{
-		Type:    "com.dimo.zone.device.integration.create",
+		Type:    "com.dimo.zone.device.integration.delete",
 		Source:  "devices-api",
 		Subject: userDeviceID,
 		Data: userDeviceIntegrationEvent{
@@ -523,7 +523,6 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 		},
 	})
 	if err != nil {
-		udc.log.Err(err).Msg("Failed sending device integration deletion event")
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)

@@ -100,12 +100,13 @@ func main() {
 		}
 	default:
 		startPrometheus(logger)
-		startDeviceStatusConsumer(logger, settings, pdb)
-		startWebAPI(logger, settings, pdb)
+		eventService := services.NewEventService(&logger, settings)
+		startDeviceStatusConsumer(logger, settings, pdb, eventService)
+		startWebAPI(logger, settings, pdb, eventService)
 	}
 }
 
-func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) {
+func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore, eventService services.EventService) {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return ErrorHandler(c, err, logger)
@@ -117,8 +118,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	ddSvc := services.NewDeviceDefinitionService(settings, pdb.DBS, &logger, nhtsaSvc)
 	taskSvc := services.NewTaskService(settings, pdb.DBS, ddSvc, &logger)
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc)
-
-	eventService := services.NewEventService(&logger, settings)
 	userDeviceControllers := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService)
 
 	prometheus := fiberprometheus.New("devices-api")
@@ -239,7 +238,7 @@ func ErrorHandler(c *fiber.Ctx, err error, logger zerolog.Logger) error {
 	})
 }
 
-func startDeviceStatusConsumer(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) {
+func startDeviceStatusConsumer(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore, eventService services.EventService) {
 	clusterConfig := sarama.NewConfig()
 	clusterConfig.Version = sarama.V2_6_0_0
 	clusterConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
@@ -255,7 +254,7 @@ func startDeviceStatusConsumer(logger zerolog.Logger, settings *config.Settings,
 	if err != nil {
 		logger.Fatal().Err(err).Msg("could not start consumer")
 	}
-	ingestSvc := services.NewIngestService(pdb.DBS, &logger)
+	ingestSvc := services.NewIngestService(pdb.DBS, &logger, eventService)
 	consumer.Start(context.Background(), ingestSvc.ProcessDeviceStatusMessages)
 
 	logger.Info().Msg("kafka consumer started")
