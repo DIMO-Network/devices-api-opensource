@@ -48,7 +48,6 @@ type TaskService struct {
 
 const smartcarWebhookURL = "https://api.smartcar.com/v2.0/vehicles/%s/webhooks/%s"
 const smartcarBatchURL = "https://api.smartcar.com/v2.0/vehicles/%s/batch"
-const smartcarVINURL = "https://api.smartcar.com/v2.0/vehicles/%s/vin"
 
 const smartcarConnectVehicleTask = "smartcar_connect_vehicle"
 const smartcarGetInitialDataTask = "smartcar_get_initial_data"
@@ -182,34 +181,6 @@ func (t *TaskService) unsubscribeVehicle(vehicleID, accessToken string) error {
 	return nil
 }
 
-func (t *TaskService) vinRequest(vehicleID, accessToken string) (string, error) {
-	url := fmt.Sprintf(smartcarVINURL, vehicleID)
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to construct VIN request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("VIN request failed: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return "", fmt.Errorf("VIN request returned status code %d", resp.StatusCode)
-	}
-
-	var richResp struct {
-		VIN string `json:"vin"`
-	}
-	err = json.NewDecoder(resp.Body).Decode(&richResp)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse VIN response body: %w", err)
-	}
-
-	return richResp.VIN, nil
-}
-
 // batchRequest makes a batch information request to Smartcar using the given Smartcar vehicle ID.
 // If this is successful, returns the raw response body.
 func (t *TaskService) batchRequest(vehicleID, accessToken string) ([]byte, error) {
@@ -282,10 +253,17 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 		return fmt.Errorf("failed updating API integration with Smartcar vehicle ID: %w", err)
 	}
 
-	vin, err := t.vinRequest(vehicleID, integ.AccessToken)
+	scVeh := client.NewVehicle(&smartcar.VehicleParams{
+		ID:          vehicleID,
+		AccessToken: integ.AccessToken,
+		UnitSystem:  smartcar.Metric,
+	})
+	scVIN, err := scVeh.GetVIN(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to obtain vehicle VIN from Smartcar: %w", err)
 	}
+
+	vin := scVIN.VIN
 
 	// Prevent users from connecting a vehicle if it's already connected through another user
 	// device object. Disabled outside of prod for ease of testing.
