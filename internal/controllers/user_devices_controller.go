@@ -523,6 +523,7 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 		},
 	})
 	if err != nil {
+		udc.log.Err(err).Msg("Failed to emit integration deletion")
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
