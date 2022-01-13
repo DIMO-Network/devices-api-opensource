@@ -99,7 +99,7 @@ func NewUserDeviceIntegrationStatusesFromDatabase(udis []*models.UserDeviceAPIIn
 
 type userDeviceEvent struct {
 	Timestamp time.Time             `json:"timestamp"`
-	UserID    string                `json:"userID"`
+	UserID    string                `json:"userId"`
 	Device    userDeviceEventDevice `json:"device"`
 }
 
