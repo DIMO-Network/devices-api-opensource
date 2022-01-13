@@ -303,7 +303,7 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 
 		if conflict {
 			integ.Status = models.UserDeviceAPIIntegrationStatusDuplicateIntegration
-			_, err = integ.Update(context.Background(), tx, boil.Whitelist("status"))
+			_, err = integ.Update(context.Background(), tx, boil.Whitelist("status", "updated_at"))
 			if err != nil {
 				return fmt.Errorf("database error marking API integration as duplicate: %w", err)
 			}
@@ -341,7 +341,7 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 	}
 
 	integ.Status = models.UserDeviceAPIIntegrationStatusPendingFirstData
-	_, err = integ.Update(context.Background(), tx, boil.Whitelist("status"))
+	_, err = integ.Update(context.Background(), tx, boil.Whitelist("status", "updated_at"))
 	if err != nil {
 		return fmt.Errorf("database failure setting integration status to \"pending data\": %w", err)
 	}
@@ -482,7 +482,7 @@ func (t *TaskService) smartcarGetInitialData(userDeviceID, integrationID string)
 	}
 
 	integ.Status = models.UserDeviceAPIIntegrationStatusActive
-	_, err = integ.Update(context.Background(), tx, boil.Whitelist("status"))
+	_, err = integ.Update(context.Background(), tx, boil.Whitelist("status", "updated_at"))
 	if err != nil {
 		return fmt.Errorf("failed to set integration's status to active: %w", err)
 	}
@@ -504,7 +504,7 @@ func (t *TaskService) failIntegration(errString, userDeviceID, integrationID str
 		return
 	}
 	integ.Status = models.UserDeviceAPIIntegrationStatusFailed
-	_, err = integ.Update(context.Background(), db, boil.Whitelist("status"))
+	_, err = integ.Update(context.Background(), db, boil.Whitelist("status", "updated_at"))
 	return
 }
 

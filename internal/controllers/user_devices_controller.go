@@ -110,6 +110,20 @@ type userDeviceEventDevice struct {
 	Year  int    `json:"year"`
 }
 
+type userDeviceEventIntegration struct {
+	ID     string `json:"id"`
+	Type   string `json:"type"`
+	Style  string `json:"style"`
+	Vendor string `json:"vendor"`
+}
+
+type userDeviceIntegrationEvent struct {
+	Timestamp   time.Time                  `json:"timestamp"`
+	UserID      string                     `json:"userId"`
+	Device      userDeviceEventDevice      `json:"device"`
+	Integration userDeviceEventIntegration `json:"integration"`
+}
+
 // RegisterDeviceForUser godoc
 // @Description adds a device to a user. can add with only device_definition_id or with MMY, which will create a device_definition on the fly
 // @Tags 	user-devices
@@ -272,7 +286,11 @@ func (udc *UserDevicesController) RegisterSmartcarIntegration(c *fiber.Ctx) erro
 		return errorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
 
-	ud, err := models.UserDevices(qm.Where("id = ?", userDeviceID), qm.Where("user_id = ?", userID)).One(c.Context(), udc.DBS().Reader)
+	ud, err := models.UserDevices(
+		qm.Where("id = ?", userDeviceID),
+		qm.Where("user_id = ?", userID),
+		qm.Load(models.UserDeviceRels.DeviceDefinition),
+	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return errorResponseHandler(c, errors.Wrapf(err, "could not find user_device with id %s for user %s", userDeviceID, userID), fiber.StatusBadRequest)
@@ -357,6 +375,31 @@ func (udc *UserDevicesController) RegisterSmartcarIntegration(c *fiber.Ctx) erro
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
+	err = udc.eventService.Emit(&services.Event{
+		Type:    "com.dimo.zone.device.integration.create",
+		Source:  "devices-api",
+		Subject: userDeviceID,
+		Data: userDeviceIntegrationEvent{
+			Timestamp: time.Now(),
+			UserID:    userID,
+			Device: userDeviceEventDevice{
+				ID:    userDeviceID,
+				Make:  ud.R.DeviceDefinition.Make,
+				Model: ud.R.DeviceDefinition.Model,
+				Year:  int(ud.R.DeviceDefinition.Year),
+			},
+			Integration: userDeviceEventIntegration{
+				ID:     integ.R.Integration.ID,
+				Type:   integ.R.Integration.Type,
+				Style:  integ.R.Integration.Style,
+				Vendor: integ.R.Integration.Vendor,
+			},
+		},
+	})
+	if err != nil {
+		logger.Err(err).Msg("Failed sending device integration creation event")
+	}
+
 	logger.Info().Msg("Finished registering Smartcar integration")
 	return c.SendStatus(fiber.StatusNoContent)
 }
@@ -418,21 +461,23 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 	}
 	defer tx.Rollback() //nolint
 
-	deviceExists, err := models.UserDevices(
+	device, err := models.UserDevices(
 		qm.Where("user_id = ?", userID),
 		qm.And("id = ?", userDeviceID),
-	).Exists(c.Context(), tx)
+		qm.Load(models.UserDeviceRels.DeviceDefinition),
+	).One(c.Context(), tx)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, fmt.Errorf("no user device with ID %s", userDeviceID), fiber.StatusNotFound)
+		}
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
-	}
-	if !deviceExists {
-		return errorResponseHandler(c, fmt.Errorf("no user device with ID %s", userDeviceID), fiber.StatusNotFound)
 	}
 
 	// Probably don't need two queries if you're smart
 	apiIntegration, err := models.UserDeviceAPIIntegrations(
 		qm.Where("user_device_id = ?", userDeviceID),
 		qm.Where("integration_id = ?", integrationID),
+		qm.Load(models.UserDeviceAPIIntegrationRels.Integration),
 	).One(c.Context(), tx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -454,6 +499,31 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 	err = tx.Commit()
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	err = udc.eventService.Emit(&services.Event{
+		Type:    "com.dimo.zone.device.integration.create",
+		Source:  "devices-api",
+		Subject: userDeviceID,
+		Data: userDeviceIntegrationEvent{
+			Timestamp: time.Now(),
+			UserID:    userID,
+			Device: userDeviceEventDevice{
+				ID:    userDeviceID,
+				Make:  device.R.DeviceDefinition.Make,
+				Model: device.R.DeviceDefinition.Model,
+				Year:  int(device.R.DeviceDefinition.Year),
+			},
+			Integration: userDeviceEventIntegration{
+				ID:     apiIntegration.R.Integration.ID,
+				Type:   apiIntegration.R.Integration.Type,
+				Style:  apiIntegration.R.Integration.Style,
+				Vendor: apiIntegration.R.Integration.Vendor,
+			},
+		},
+	})
+	if err != nil {
+		udc.log.Err(err).Msg("Failed sending device integration deletion event")
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)

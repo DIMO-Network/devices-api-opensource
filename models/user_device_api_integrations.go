@@ -32,6 +32,8 @@ type UserDeviceAPIIntegration struct {
 	RefreshToken     string      `boil:"refresh_token" json:"refresh_token" toml:"refresh_token" yaml:"refresh_token"`
 	RefreshExpiresAt time.Time   `boil:"refresh_expires_at" json:"refresh_expires_at" toml:"refresh_expires_at" yaml:"refresh_expires_at"`
 	ExternalID       null.String `boil:"external_id" json:"external_id,omitempty" toml:"external_id" yaml:"external_id,omitempty"`
+	CreatedAt        time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt        time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 
 	R *userDeviceAPIIntegrationR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userDeviceAPIIntegrationL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -46,6 +48,8 @@ var UserDeviceAPIIntegrationColumns = struct {
 	RefreshToken     string
 	RefreshExpiresAt string
 	ExternalID       string
+	CreatedAt        string
+	UpdatedAt        string
 }{
 	UserDeviceID:     "user_device_id",
 	IntegrationID:    "integration_id",
@@ -55,6 +59,8 @@ var UserDeviceAPIIntegrationColumns = struct {
 	RefreshToken:     "refresh_token",
 	RefreshExpiresAt: "refresh_expires_at",
 	ExternalID:       "external_id",
+	CreatedAt:        "created_at",
+	UpdatedAt:        "updated_at",
 }
 
 var UserDeviceAPIIntegrationTableColumns = struct {
@@ -66,6 +72,8 @@ var UserDeviceAPIIntegrationTableColumns = struct {
 	RefreshToken     string
 	RefreshExpiresAt string
 	ExternalID       string
+	CreatedAt        string
+	UpdatedAt        string
 }{
 	UserDeviceID:     "user_device_api_integrations.user_device_id",
 	IntegrationID:    "user_device_api_integrations.integration_id",
@@ -75,6 +83,8 @@ var UserDeviceAPIIntegrationTableColumns = struct {
 	RefreshToken:     "user_device_api_integrations.refresh_token",
 	RefreshExpiresAt: "user_device_api_integrations.refresh_expires_at",
 	ExternalID:       "user_device_api_integrations.external_id",
+	CreatedAt:        "user_device_api_integrations.created_at",
+	UpdatedAt:        "user_device_api_integrations.updated_at",
 }
 
 // Generated where
@@ -88,6 +98,8 @@ var UserDeviceAPIIntegrationWhere = struct {
 	RefreshToken     whereHelperstring
 	RefreshExpiresAt whereHelpertime_Time
 	ExternalID       whereHelpernull_String
+	CreatedAt        whereHelpertime_Time
+	UpdatedAt        whereHelpertime_Time
 }{
 	UserDeviceID:     whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"user_device_id\""},
 	IntegrationID:    whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"integration_id\""},
@@ -97,6 +109,8 @@ var UserDeviceAPIIntegrationWhere = struct {
 	RefreshToken:     whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"refresh_token\""},
 	RefreshExpiresAt: whereHelpertime_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"refresh_expires_at\""},
 	ExternalID:       whereHelpernull_String{field: "\"devices_api\".\"user_device_api_integrations\".\"external_id\""},
+	CreatedAt:        whereHelpertime_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"created_at\""},
+	UpdatedAt:        whereHelpertime_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"updated_at\""},
 }
 
 // UserDeviceAPIIntegrationRels is where relationship names are stored.
@@ -123,9 +137,9 @@ func (*userDeviceAPIIntegrationR) NewStruct() *userDeviceAPIIntegrationR {
 type userDeviceAPIIntegrationL struct{}
 
 var (
-	userDeviceAPIIntegrationAllColumns            = []string{"user_device_id", "integration_id", "status", "access_token", "access_expires_at", "refresh_token", "refresh_expires_at", "external_id"}
+	userDeviceAPIIntegrationAllColumns            = []string{"user_device_id", "integration_id", "status", "access_token", "access_expires_at", "refresh_token", "refresh_expires_at", "external_id", "created_at", "updated_at"}
 	userDeviceAPIIntegrationColumnsWithoutDefault = []string{"user_device_id", "integration_id", "status", "access_token", "access_expires_at", "refresh_token", "refresh_expires_at", "external_id"}
-	userDeviceAPIIntegrationColumnsWithDefault    = []string{}
+	userDeviceAPIIntegrationColumnsWithDefault    = []string{"created_at", "updated_at"}
 	userDeviceAPIIntegrationPrimaryKeyColumns     = []string{"user_device_id", "integration_id"}
 )
 
@@ -778,6 +792,16 @@ func (o *UserDeviceAPIIntegration) Insert(ctx context.Context, exec boil.Context
 	}
 
 	var err error
+	if !boil.TimestampsAreSkipped(ctx) {
+		currTime := time.Now().In(boil.GetLocation())
+
+		if o.CreatedAt.IsZero() {
+			o.CreatedAt = currTime
+		}
+		if o.UpdatedAt.IsZero() {
+			o.UpdatedAt = currTime
+		}
+	}
 
 	if err := o.doBeforeInsertHooks(ctx, exec); err != nil {
 		return err
@@ -853,6 +877,12 @@ func (o *UserDeviceAPIIntegration) Insert(ctx context.Context, exec boil.Context
 // See boil.Columns.UpdateColumnSet documentation to understand column list inference for updates.
 // Update does not automatically update the record in case of default values. Use .Reload() to refresh the records.
 func (o *UserDeviceAPIIntegration) Update(ctx context.Context, exec boil.ContextExecutor, columns boil.Columns) (int64, error) {
+	if !boil.TimestampsAreSkipped(ctx) {
+		currTime := time.Now().In(boil.GetLocation())
+
+		o.UpdatedAt = currTime
+	}
+
 	var err error
 	if err = o.doBeforeUpdateHooks(ctx, exec); err != nil {
 		return 0, err
@@ -982,6 +1012,14 @@ func (o UserDeviceAPIIntegrationSlice) UpdateAll(ctx context.Context, exec boil.
 func (o *UserDeviceAPIIntegration) Upsert(ctx context.Context, exec boil.ContextExecutor, updateOnConflict bool, conflictColumns []string, updateColumns, insertColumns boil.Columns) error {
 	if o == nil {
 		return errors.New("models: no user_device_api_integrations provided for upsert")
+	}
+	if !boil.TimestampsAreSkipped(ctx) {
+		currTime := time.Now().In(boil.GetLocation())
+
+		if o.CreatedAt.IsZero() {
+			o.CreatedAt = currTime
+		}
+		o.UpdatedAt = currTime
 	}
 
 	if err := o.doBeforeUpsertHooks(ctx, exec); err != nil {
