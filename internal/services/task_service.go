@@ -408,7 +408,7 @@ func (t *TaskService) smartcarGetInitialData(userDeviceID, integrationID string)
 	// Use the refresh token if the access token is expired or about to expire. We are ignoring
 	// the possiblity of the refresh token also being expired. Those last for 60 days, so it
 	// shouldn't happen much.
-	if time.Now().Add(5 * time.Minute).After(integ.AccessExpiresAt) {
+	if time.Until(integ.AccessExpiresAt) < 5*time.Minute {
 		client := smartcar.NewClient()
 		auth := client.NewAuth(&smartcar.AuthParams{
 			ClientID:     t.Settings.SmartcarClientID,
