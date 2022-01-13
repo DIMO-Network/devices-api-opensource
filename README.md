@@ -49,7 +49,9 @@ Above integration and vehicle ID's aka userDeviceID should exist in your local D
 
 `brew install golangci-lint`
 
-`golangci-lint run -E prealloc -E revive -E goimports -E deadcode -E errcheck -E gosimple -E govet -E ineffassign -E staticcheck -E structcheck -E typecheck -E unused -E varcheck --timeout=5m`
+`golangci-lint run`
+
+This should use the settings from `.golangci.yml`, which you can override.
 
 ### Database ORM
 

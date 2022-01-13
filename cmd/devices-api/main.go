@@ -117,7 +117,9 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	ddSvc := services.NewDeviceDefinitionService(settings, pdb.DBS, &logger, nhtsaSvc)
 	taskSvc := services.NewTaskService(settings, pdb.DBS, ddSvc, &logger)
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc)
-	userDeviceControllers := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc)
+
+	eventService := services.NewEventService(&logger, settings)
+	userDeviceControllers := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService)
 
 	prometheus := fiberprometheus.New("devices-api")
 	app.Use(prometheus.Middleware)

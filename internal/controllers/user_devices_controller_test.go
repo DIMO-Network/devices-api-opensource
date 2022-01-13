@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
+	"github.com/DIMO-INC/devices-api/internal/services"
 	mock_services "github.com/DIMO-INC/devices-api/internal/services/mocks"
 	"github.com/DIMO-INC/devices-api/models"
 	"github.com/gofiber/fiber/v2"
@@ -23,6 +23,13 @@ import (
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
+
+type fakeEventService struct{}
+
+func (f *fakeEventService) Emit(event *services.Event) error {
+	fmt.Printf("Emitting %v\n", event)
+	return nil
+}
 
 func TestUserDevicesController(t *testing.T) {
 	// arrange global db and route setup
@@ -46,11 +53,10 @@ func TestUserDevicesController(t *testing.T) {
 
 	testUserID := "123123"
 	testUserID2 := "3232451"
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, taskSvc)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, taskSvc, &fakeEventService{})
 	app := fiber.New()
 	app.Post("/user/devices", authInjectorTestHandler(testUserID), c.RegisterDeviceForUser)
 	app.Post("/user/devices/second", authInjectorTestHandler(testUserID2), c.RegisterDeviceForUser) // for different test user
-	app.Post("/admin/user/:userID/devices", c.AdminRegisterUserDevice)
 	app.Get("/user/devices/me", authInjectorTestHandler(testUserID), c.GetUserDevices)
 	app.Patch("/user/devices/:userDeviceID/vin", authInjectorTestHandler(testUserID), c.UpdateVIN)
 	app.Patch("/user/devices/:userDeviceID/name", authInjectorTestHandler(testUserID), c.UpdateName)
@@ -209,33 +215,6 @@ func TestUserDevicesController(t *testing.T) {
 		for _, id := range result.Array() {
 			assert.True(t, id.Exists(), "expected to find the ID")
 		}
-	})
-	t.Run("POST - admin register with MMY", func(t *testing.T) {
-		deviceDefSvc.EXPECT().FindDeviceDefinitionByMMY(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).
-			Return(nil, sql.ErrNoRows)
-		payload := `{
-  "countryCode": "USA",
-  "createdDate": 1634835455,
-  "deviceDefinitionId": null,
-  "imageUrl": null,
-  "make": "HYUNDAI",
-  "model": "KONA ELECTRIC",
-  "vehicleName": "Test Name",
-  "verified": false,
-  "vin": null,
-  "year": 2020,
-  "id": "22fLadEgLgoyBwF7Hnovs9C2Z8O"
-}`
-		request := buildRequest("POST", "/admin/user/1234/devices", payload)
-		response, _ := app.Test(request)
-		body, _ := ioutil.ReadAll(response.Body)
-		// assert
-		if assert.Equal(t, fiber.StatusCreated, response.StatusCode) == false {
-			fmt.Println("message: " + string(body))
-		}
-		udi := gjson.Get(string(body), "userDeviceId")
-		fmt.Println("MMY user_device_id created: " + udi.String())
-		assert.True(t, udi.Exists(), "expected to find user_device_id")
 	})
 	t.Run("PATCH - update VIN", func(t *testing.T) {
 		payload := `{ "vin": "5YJYGDEE5MF085533" }`

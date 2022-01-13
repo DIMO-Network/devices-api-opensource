@@ -32,6 +32,7 @@ env:
   INGEST_SMARTCAR_TOPIC: topic.interface.ingest.smartcar
   KAFKA_BROKERS: kafka-dev-dimo-kafka-kafka-brokers:9092
   DEVICE_STATUS_TOPIC: topic.device.status
+  EVENTS_TOPIC: topic.event
 service:
   type: ClusterIP
   ports:

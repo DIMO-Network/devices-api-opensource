@@ -17,3 +17,4 @@ DEVICE_STATUS_TOPIC: topic.device.status
 REDIS_URL: localhost:6379
 REDIS_PASSWORD:
 REDIS_TLS: false
+EVENTS_TOPIC: topic.event

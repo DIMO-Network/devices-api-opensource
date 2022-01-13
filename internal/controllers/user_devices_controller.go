@@ -30,16 +30,18 @@ type UserDevicesController struct {
 	DeviceDefSvc services.IDeviceDefinitionService
 	log          *zerolog.Logger
 	taskSvc      services.ITaskService
+	eventService services.EventService
 }
 
 // NewUserDevicesController constructor
-func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc services.ITaskService) UserDevicesController {
+func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc services.ITaskService, eventService services.EventService) UserDevicesController {
 	return UserDevicesController{
 		Settings:     settings,
 		DBS:          dbs,
 		log:          logger,
 		DeviceDefSvc: ddSvc,
 		taskSvc:      taskSvc,
+		eventService: eventService,
 	}
 }
 
@@ -93,6 +95,19 @@ func NewUserDeviceIntegrationStatusesFromDatabase(udis []*models.UserDeviceAPIIn
 	}
 
 	return out
+}
+
+type userDeviceEvent struct {
+	Timestamp time.Time             `json:"timestamp"`
+	UserID    string                `json:"userID"`
+	Device    userDeviceEventDevice `json:"device"`
+}
+
+type userDeviceEventDevice struct {
+	ID    string `json:"id"`
+	Make  string `json:"make"`
+	Model string `json:"model"`
+	Year  int    `json:"year"`
 }
 
 // RegisterDeviceForUser godoc
@@ -149,9 +164,10 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 		}
 	}
+	userDeviceID := ksuid.New().String()
 	// register device for the user
 	ud := models.UserDevice{
-		ID:                 ksuid.New().String(),
+		ID:                 userDeviceID,
 		UserID:             userID,
 		DeviceDefinitionID: dd.ID,
 		CountryCode:        null.StringFromPtr(reg.CountryCode),
@@ -184,6 +200,25 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 			udc.log.Error().Err(err).Msg("error updating device image in DB for: " + dd.ID)
 		}
 	}()
+
+	err = udc.eventService.Emit(&services.Event{
+		Type:    "com.dimo.zone.device.create",
+		Subject: userID,
+		Source:  "devices-api",
+		Data: userDeviceEvent{
+			Timestamp: time.Now(),
+			UserID:    userID,
+			Device: userDeviceEventDevice{
+				ID:    userDeviceID,
+				Make:  dd.Make,
+				Model: dd.Model,
+				Year:  int(dd.Year), // Odd.
+			},
+		},
+	})
+	if err != nil {
+		udc.log.Err(err).Msg("Failed emitting device creation event")
+	}
 
 	return c.Status(fiber.StatusCreated).JSON(
 		RegisterUserDeviceResponse{
@@ -424,113 +459,6 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-// AdminRegisterUserDevice godoc
-// @Description meant for internal admin use - adds a device to a user. can add with only device_definition_id or with MMY, which will create a device_definition on the fly
-// @Tags 	user-devices
-// @Produce json
-// @Accept json
-// @Param user_device body controllers.AdminRegisterUserDevice true "add device to user. either MMY or id are required"
-// @Param userID path string true "user id"
-// @Success 201 {object} controllers.RegisterUserDeviceResponse
-// @Router  /admin/user/:userID/devices [post]
-func (udc *UserDevicesController) AdminRegisterUserDevice(c *fiber.Ctx) error {
-	userID := c.Params("userID")
-	reg := &AdminRegisterUserDevice{}
-	if err := c.BodyParser(reg); err != nil {
-		// Return status 400 and error message.
-		return errorResponseHandler(c, err, fiber.StatusBadRequest)
-	}
-	if err := reg.Validate(); err != nil {
-		return errorResponseHandler(c, err, fiber.StatusBadRequest)
-	}
-	tx, err := udc.DBS().Writer.DB.BeginTx(c.Context(), nil)
-	defer tx.Rollback() //nolint
-	if err != nil {
-		return err
-	}
-	var dd *models.DeviceDefinition
-
-	if reg.DeviceDefinitionID != nil {
-		// attach device def to user
-		dd, err = models.FindDeviceDefinition(c.Context(), tx, *reg.DeviceDefinitionID)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return errorResponseHandler(c, errors.Wrapf(err, "could not find device definition id: %s", *reg.DeviceDefinitionID), fiber.StatusBadRequest)
-			}
-			return errorResponseHandler(c, errors.Wrapf(err, "error querying for device definition id: %s", *reg.DeviceDefinitionID), fiber.StatusInternalServerError)
-		}
-		if !dd.ImageURL.Valid && reg.ImageURL != nil {
-			dd.ImageURL = null.StringFromPtr(reg.ImageURL)
-			if _, err = dd.Update(c.Context(), tx, boil.Infer()); err != nil {
-				return errorResponseHandler(c, errors.Wrap(err, "couldn't update device definition"), fiber.StatusInternalServerError)
-			}
-		}
-	} else {
-		// lookup existing MMY
-		dd, err = udc.DeviceDefSvc.FindDeviceDefinitionByMMY(c.Context(), tx, *reg.Make, *reg.Model, *reg.Year, false)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				// since Definition does not exist, create one on the fly with userID as source and not verified
-				dd = &models.DeviceDefinition{
-					ID:       ksuid.New().String(),
-					Make:     strings.ToUpper(*reg.Make),
-					Model:    strings.ToUpper(*reg.Model),
-					Year:     int16(*reg.Year),
-					Source:   null.StringFrom("userID:" + userID),
-					Verified: reg.Verified,
-					ImageURL: null.StringFromPtr(reg.ImageURL),
-				}
-				err = dd.Insert(c.Context(), tx, boil.Infer())
-				if err != nil {
-					return errorResponseHandler(c, err, fiber.StatusInternalServerError)
-				}
-			} else {
-				return errorResponseHandler(c, err, fiber.StatusInternalServerError)
-			}
-		} else if !dd.ImageURL.Valid && reg.ImageURL != nil {
-			// We found a DD, maybe we can give it an image
-			dd.ImageURL = null.StringFromPtr(reg.ImageURL)
-			if _, err = dd.Update(c.Context(), tx, boil.Infer()); err != nil {
-				return errorResponseHandler(c, errors.Wrap(err, "couldn't update device definition"), fiber.StatusInternalServerError)
-			}
-		}
-	}
-	// register device for the user
-	ud := models.UserDevice{
-		ID:                 reg.ID,
-		UserID:             userID,
-		DeviceDefinitionID: dd.ID,
-		CountryCode:        null.StringFromPtr(reg.CountryCode),
-		Name:               null.StringFromPtr(reg.VehicleName),
-		CreatedAt:          time.Unix(reg.CreatedDate, 0),
-	}
-	if len(reg.VIN) == 17 {
-		ud.VinIdentifier = null.StringFrom(strings.ToUpper(reg.VIN))
-	}
-	err = ud.Upsert(c.Context(), tx, true, []string{"id"}, boil.Infer(), boil.Infer())
-	if err != nil {
-		return errorResponseHandler(c, errors.Wrapf(err, "could not create user/update device for def_id: %s", dd.ID), fiber.StatusInternalServerError)
-	}
-	// get device integrations to return in payload - helps frontend
-	deviceInts, err := models.DeviceIntegrations(qm.Load(models.DeviceIntegrationRels.Integration),
-		qm.Where("device_definition_id = ?", dd.ID)).
-		All(c.Context(), tx)
-	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
-	}
-	err = tx.Commit()
-	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
-	}
-
-	return c.Status(fiber.StatusCreated).JSON(
-		RegisterUserDeviceResponse{
-			UserDeviceID:            ud.ID,
-			DeviceDefinitionID:      dd.ID,
-			IntegrationCapabilities: DeviceCompatibilityFromDB(deviceInts),
-		})
-}
-
 // UpdateVIN godoc
 // @Description updates the VIN on the user device record
 // @Tags 	user-devices
@@ -741,6 +669,7 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	userDevice, err := models.UserDevices(
 		qm.Where("id = ?", udi),
 		qm.And("user_id = ?", userID),
+		qm.Load(models.UserDeviceRels.DeviceDefinition),
 		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
 	).One(c.Context(), tx)
 	if err != nil {
@@ -767,6 +696,26 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	err = tx.Commit()
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	dd := userDevice.R.DeviceDefinition
+	err = udc.eventService.Emit(&services.Event{
+		Type:    "com.dimo.zone.device.delete",
+		Subject: userID,
+		Source:  "devices-api",
+		Data: userDeviceEvent{
+			Timestamp: time.Now(),
+			UserID:    userID,
+			Device: userDeviceEventDevice{
+				ID:    udi,
+				Make:  dd.Make,
+				Model: dd.Model,
+				Year:  int(dd.Year), // Odd.
+			},
+		},
+	})
+	if err != nil {
+		udc.log.Err(err).Msg("Failed emitting device deletion event")
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)

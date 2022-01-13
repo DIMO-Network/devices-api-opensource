@@ -29,6 +29,7 @@ type Settings struct {
 	IngestSmartcarTopic  string `yaml:"INGEST_SMARTCAR_TOPIC"`
 	KafkaBrokers         string `yaml:"KAFKA_BROKERS"`
 	DeviceStatusTopic    string `yaml:"DEVICE_STATUS_TOPIC"`
+	EventsTopic          string `yaml:"EVENTS_TOPIC"`
 }
 
 // GetWriterDSN builds the connection string to the db writer - for now same as reader
