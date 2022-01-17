@@ -28,6 +28,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/swaggo/swag v1.7.6
 	github.com/tidwall/gjson v1.12.1
+	github.com/tidwall/sjson v1.2.4
 	github.com/volatiletech/null/v8 v8.1.2
 	github.com/volatiletech/sqlboiler/v4 v4.8.3
 	github.com/volatiletech/strmangle v0.0.1
@@ -35,10 +36,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
 
-require (
-	github.com/oklog/ulid v1.3.1 // indirect
-	github.com/tidwall/sjson v1.2.4 // indirect
-)
+require github.com/oklog/ulid v1.3.1 // indirect
 
 require (
 	cloud.google.com/go v0.97.0 // indirect

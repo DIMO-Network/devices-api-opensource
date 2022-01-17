@@ -47,46 +47,6 @@ var doc = `{
                 }
             }
         },
-        "/admin/user/:userID/devices": {
-            "post": {
-                "description": "meant for internal admin use - adds a device to a user. can add with only device_definition_id or with MMY, which will create a device_definition on the fly",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "user-devices"
-                ],
-                "parameters": [
-                    {
-                        "description": "add device to user. either MMY or id are required",
-                        "name": "user_device",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controllers.AdminRegisterUserDevice"
-                        }
-                    },
-                    {
-                        "type": "string",
-                        "description": "user id",
-                        "name": "userID",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.RegisterUserDeviceResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/device-definitions": {
             "get": {
                 "description": "gets a specific device definition by make model and year",
@@ -538,46 +498,6 @@ var doc = `{
         }
     },
     "definitions": {
-        "controllers.AdminRegisterUserDevice": {
-            "type": "object",
-            "properties": {
-                "countryCode": {
-                    "type": "string"
-                },
-                "createdDate": {
-                    "description": "unix timestamp",
-                    "type": "integer"
-                },
-                "deviceDefinitionId": {
-                    "type": "string"
-                },
-                "imageUrl": {
-                    "type": "string"
-                },
-                "is": {
-                    "description": "KSUID from client,",
-                    "type": "string"
-                },
-                "make": {
-                    "type": "string"
-                },
-                "model": {
-                    "type": "string"
-                },
-                "vehicleName": {
-                    "type": "string"
-                },
-                "verified": {
-                    "type": "boolean"
-                },
-                "vin": {
-                    "type": "string"
-                },
-                "year": {
-                    "type": "integer"
-                }
-            }
-        },
         "controllers.DeviceMMYRoot": {
             "type": "object",
             "properties": {

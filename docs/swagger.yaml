@@ -1,32 +1,5 @@
 basePath: /v1
 definitions:
-  controllers.AdminRegisterUserDevice:
-    properties:
-      countryCode:
-        type: string
-      createdDate:
-        description: unix timestamp
-        type: integer
-      deviceDefinitionId:
-        type: string
-      imageUrl:
-        type: string
-      is:
-        description: KSUID from client,
-        type: string
-      make:
-        type: string
-      model:
-        type: string
-      vehicleName:
-        type: string
-      verified:
-        type: boolean
-      vin:
-        type: string
-      year:
-        type: integer
-    type: object
   controllers.DeviceMMYRoot:
     properties:
       make:
@@ -230,34 +203,6 @@ paths:
       summary: Show the status of server.
       tags:
       - root
-  /admin/user/:userID/devices:
-    post:
-      consumes:
-      - application/json
-      description: meant for internal admin use - adds a device to a user. can add
-        with only device_definition_id or with MMY, which will create a device_definition
-        on the fly
-      parameters:
-      - description: add device to user. either MMY or id are required
-        in: body
-        name: user_device
-        required: true
-        schema:
-          $ref: '#/definitions/controllers.AdminRegisterUserDevice'
-      - description: user id
-        in: path
-        name: userID
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/controllers.RegisterUserDeviceResponse'
-      tags:
-      - user-devices
   /device-definitions:
     get:
       description: gets a specific device definition by make model and year

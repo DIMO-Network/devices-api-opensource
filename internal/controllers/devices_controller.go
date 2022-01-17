@@ -235,15 +235,7 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) services.Devic
 	}
 	// compatible integrations
 	if dd.R != nil {
-		for _, di := range dd.R.DeviceIntegrations {
-			rp.CompatibleIntegrations = append(rp.CompatibleIntegrations, services.DeviceCompatibility{
-				ID:      di.R.Integration.ID,
-				Type:    di.R.Integration.Type,
-				Style:   di.R.Integration.Style,
-				Vendor:  di.R.Integration.Vendor,
-				Country: di.Country,
-			})
-		}
+		rp.CompatibleIntegrations = DeviceCompatibilityFromDB(dd.R.DeviceIntegrations)
 	}
 
 	return rp

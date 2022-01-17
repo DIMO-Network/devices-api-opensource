@@ -94,10 +94,9 @@ func TestUserDevicesController(t *testing.T) {
 		err = deviceInt.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 		assert.NoError(t, err, "database error")
 		// act request
-		cc := "USA"
 		reg := RegisterUserDevice{
 			DeviceDefinitionID: &ddID,
-			CountryCode:        &cc,
+			CountryCode:        "USA",
 		}
 		j, _ := json.Marshal(reg)
 		request := buildRequest("POST", "/user/devices", string(j))
@@ -107,18 +106,20 @@ func TestUserDevicesController(t *testing.T) {
 		if assert.Equal(t, fiber.StatusCreated, response.StatusCode) == false {
 			fmt.Println("message: " + string(body))
 		}
-		regUserResp := RegisterUserDeviceResponse{}
-		_ = json.Unmarshal(body, &regUserResp)
-		assert.Len(t, regUserResp.UserDeviceID, 27)
-		assert.Len(t, regUserResp.DeviceDefinitionID, 27)
-		assert.Equal(t, ddID, regUserResp.DeviceDefinitionID)
-		if assert.Len(t, regUserResp.IntegrationCapabilities, 1) == false {
+		regUserResp := UserDeviceFull{}
+		jsonUD := gjson.Get(string(body), "userDevice")
+		_ = json.Unmarshal([]byte(jsonUD.String()), &regUserResp)
+
+		assert.Len(t, regUserResp.ID, 27)
+		assert.Len(t, regUserResp.DeviceDefinition.DeviceDefinitionID, 27)
+		assert.Equal(t, ddID, regUserResp.DeviceDefinition.DeviceDefinitionID)
+		if assert.Len(t, regUserResp.DeviceDefinition.CompatibleIntegrations, 1) == false {
 			fmt.Println("resp body: " + string(body))
 		}
-		assert.Equal(t, integration.Vendor, regUserResp.IntegrationCapabilities[0].Vendor)
-		assert.Equal(t, integration.Type, regUserResp.IntegrationCapabilities[0].Type)
-		assert.Equal(t, integration.ID, regUserResp.IntegrationCapabilities[0].ID)
-		createdUserDeviceID = regUserResp.UserDeviceID
+		assert.Equal(t, integration.Vendor, regUserResp.DeviceDefinition.CompatibleIntegrations[0].Vendor)
+		assert.Equal(t, integration.Type, regUserResp.DeviceDefinition.CompatibleIntegrations[0].Type)
+		assert.Equal(t, integration.ID, regUserResp.DeviceDefinition.CompatibleIntegrations[0].ID)
+		createdUserDeviceID = regUserResp.ID
 	})
 	t.Run("POST - register with MMY, create definition on the fly", func(t *testing.T) {
 		mk := "Tesla"
@@ -128,9 +129,10 @@ func TestUserDevicesController(t *testing.T) {
 			Return(nil, nil)
 
 		reg := RegisterUserDevice{
-			Make:  &mk,
-			Model: &model,
-			Year:  &year,
+			Make:        &mk,
+			Model:       &model,
+			Year:        &year,
+			CountryCode: "USA",
 		}
 		j, _ := json.Marshal(reg)
 		request := buildRequest("POST", "/user/devices", string(j))
@@ -140,11 +142,13 @@ func TestUserDevicesController(t *testing.T) {
 		if assert.Equal(t, fiber.StatusCreated, response.StatusCode) == false {
 			fmt.Println("message: " + string(body))
 		}
-		regUserResp := RegisterUserDeviceResponse{}
-		_ = json.Unmarshal(body, &regUserResp)
-		assert.Len(t, regUserResp.UserDeviceID, 27)
-		assert.Len(t, regUserResp.DeviceDefinitionID, 27)
-		assert.NotEqual(t, createdUserDeviceID, regUserResp.UserDeviceID, "expected user_device_id not to be equal to previous")
+		regUserResp := UserDeviceFull{}
+		jsonUD := gjson.Get(string(body), "userDevice")
+		_ = json.Unmarshal([]byte(jsonUD.String()), &regUserResp)
+
+		assert.Len(t, regUserResp.ID, 27)
+		assert.Len(t, regUserResp.DeviceDefinition.DeviceDefinitionID, 27)
+		assert.NotEqual(t, createdUserDeviceID, regUserResp.ID, "expected user_device_id not to be equal to previous")
 	})
 	t.Run("POST - register with MMY when definition exists - still works and does not duplicate definition", func(t *testing.T) {
 		mk := "Ford"
@@ -162,9 +166,10 @@ func TestUserDevicesController(t *testing.T) {
 		err := dd.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 		assert.NoError(t, err, "database error")
 		reg := RegisterUserDevice{
-			Make:  &mk,
-			Model: &model,
-			Year:  &year,
+			Make:        &mk,
+			Model:       &model,
+			Year:        &year,
+			CountryCode: "USA",
 		}
 		j, _ := json.Marshal(reg)
 		request := buildRequest("POST", "/user/devices/second", string(j))
@@ -174,11 +179,13 @@ func TestUserDevicesController(t *testing.T) {
 		if assert.Equal(t, fiber.StatusCreated, response.StatusCode) == false {
 			fmt.Println("message: " + string(body))
 		}
-		regUserResp := RegisterUserDeviceResponse{}
-		_ = json.Unmarshal(body, &regUserResp)
-		assert.Len(t, regUserResp.UserDeviceID, 27)
-		assert.NotEqual(t, createdUserDeviceID, regUserResp.UserDeviceID, "expected user_device_id not to be equal to previous")
-		assert.Equal(t, existingDeviceDefinitionID, regUserResp.DeviceDefinitionID)
+		regUserResp := UserDeviceFull{}
+		jsonUD := gjson.Get(string(body), "userDevice")
+		_ = json.Unmarshal([]byte(jsonUD.String()), &regUserResp)
+
+		assert.Len(t, regUserResp.ID, 27)
+		assert.NotEqual(t, createdUserDeviceID, regUserResp.ID, "expected user_device_id not to be equal to previous")
+		assert.Equal(t, existingDeviceDefinitionID, regUserResp.DeviceDefinition.DeviceDefinitionID)
 	})
 	t.Run("POST - bad payload", func(t *testing.T) {
 		request := buildRequest("POST", "/user/devices", "{}")
@@ -192,6 +199,7 @@ func TestUserDevicesController(t *testing.T) {
 		ddID := "caca"
 		reg := RegisterUserDevice{
 			DeviceDefinitionID: &ddID,
+			CountryCode:        "USA",
 		}
 		j, _ := json.Marshal(reg)
 		request := buildRequest("POST", "/user/devices", string(j))

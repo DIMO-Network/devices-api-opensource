@@ -184,7 +184,7 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		ID:                 userDeviceID,
 		UserID:             userID,
 		DeviceDefinitionID: dd.ID,
-		CountryCode:        null.StringFromPtr(reg.CountryCode),
+		CountryCode:        null.StringFrom(reg.CountryCode),
 	}
 	err = ud.Insert(c.Context(), tx, boil.Infer())
 	if err != nil {
@@ -192,7 +192,7 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	}
 	// get device integrations to return in payload - helps frontend
 	deviceInts, err := models.DeviceIntegrations(qm.Load(models.DeviceIntegrationRels.Integration),
-		qm.Where("device_definition_id = ?", dd.ID)).
+		qm.Where("device_definition_id = ?", dd.ID), qm.And("country = ?", reg.CountryCode)).
 		All(c.Context(), tx)
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
@@ -201,6 +201,11 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
+
+	if dd.R == nil {
+		dd.R = dd.R.NewStruct()
+	}
+	dd.R.DeviceIntegrations = deviceInts
 
 	// don't block, as image fetch could take a while
 	go func() {
@@ -214,7 +219,6 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 			udc.log.Error().Err(err).Msg("error updating device image in DB for: " + dd.ID)
 		}
 	}()
-
 	err = udc.eventService.Emit(&services.Event{
 		Type:    "com.dimo.zone.device.create",
 		Subject: userID,
@@ -234,12 +238,18 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		udc.log.Err(err).Msg("Failed emitting device creation event")
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(
-		RegisterUserDeviceResponse{
-			UserDeviceID:            ud.ID,
-			DeviceDefinitionID:      dd.ID,
-			IntegrationCapabilities: DeviceCompatibilityFromDB(deviceInts),
-		})
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"userDevice": UserDeviceFull{
+			ID:               ud.ID,
+			VIN:              ud.VinIdentifier.Ptr(),
+			VINConfirmed:     ud.VinConfirmed,
+			Name:             ud.Name.Ptr(),
+			CustomImageURL:   ud.CustomImageURL.Ptr(),
+			DeviceDefinition: NewDeviceDefinitionFromDatabase(dd),
+			CountryCode:      ud.CountryCode.Ptr(),
+			Integrations:     nil, // userDevice just created, there would never be any integrations setup
+		},
+	})
 }
 
 type RegisterSmartcarRequest struct {
@@ -796,7 +806,7 @@ type RegisterUserDevice struct {
 	Model              *string `json:"model"`
 	Year               *int    `json:"year"`
 	DeviceDefinitionID *string `json:"deviceDefinitionId"`
-	CountryCode        *string `json:"countryCode"`
+	CountryCode        string  `json:"countryCode"`
 }
 
 type RegisterUserDeviceResponse struct {
@@ -833,7 +843,7 @@ func (reg *RegisterUserDevice) Validate() error {
 		validation.Field(&reg.Model, validation.When(reg.DeviceDefinitionID == nil, validation.Required)),
 		validation.Field(&reg.Year, validation.When(reg.DeviceDefinitionID == nil, validation.Required)),
 		validation.Field(&reg.DeviceDefinitionID, validation.When(reg.Make == nil && reg.Model == nil && reg.Year == nil, validation.Required)),
-		validation.Field(&reg.CountryCode, validation.When(reg.CountryCode != nil, validation.Length(3, 3))),
+		validation.Field(&reg.CountryCode, validation.Required, validation.Length(3, 3)),
 	)
 }
 

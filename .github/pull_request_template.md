@@ -1,8 +1,5 @@
 # Proposed Changes
 
-# Jira Link
-https://dimo.atlassian.net/browse/XXXX
-
 ### Impacted Routes
 <!-- Will this pull request change or implement any new API Routes? -->
 
