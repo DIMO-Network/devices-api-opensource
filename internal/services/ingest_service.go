@@ -110,12 +110,13 @@ func (i *IngestService) processDeviceStatus(msg *message.Message) error {
 	}
 
 	extractOd := struct {
-		Odometer float64 `json:"odometer"`
+		Odometer *float64 `json:"odometer"`
 	}{}
 	err = json.Unmarshal(e.Data, &extractOd)
 	if err != nil {
 		i.log.Err(err).Msg("Failed to grab odometer from status update")
-	} else {
+	} else if extractOd.Odometer != nil {
+		// If the Smartcar /odometer endpoint returned an error, we won't have a value.
 		err = i.eventService.Emit(&Event{
 			Type:    "com.dimo.zone.device.odometer.update",
 			Subject: userDeviceID,
@@ -129,7 +130,7 @@ func (i *IngestService) processDeviceStatus(msg *message.Message) error {
 					Model: device.R.DeviceDefinition.Model,
 					Year:  int(device.R.DeviceDefinition.Year),
 				},
-				Odometer: extractOd.Odometer,
+				Odometer: *extractOd.Odometer,
 			},
 		})
 		if err != nil {
