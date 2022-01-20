@@ -32,11 +32,11 @@ type DeviceCompatibility struct {
 // DeviceType whether it is a vehicle or other type and basic information
 type DeviceType struct {
 	// Type is eg. Vehicle, E-bike, roomba
-	Type     string  `json:"type"`
-	Make     string  `json:"make"`
-	Model    string  `json:"model"`
-	Year     int     `json:"year"`
-	SubModel *string `json:"subModel"`
+	Type      string   `json:"type"`
+	Make      string   `json:"make"`
+	Model     string   `json:"model"`
+	Year      int      `json:"year"`
+	SubModels []string `json:"subModels"`
 }
 
 // DeviceVehicleInfo represents some standard vehicle specific properties stored in the metadata json field in DB

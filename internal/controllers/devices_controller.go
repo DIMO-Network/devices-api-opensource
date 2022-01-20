@@ -219,11 +219,11 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) services.Devic
 		ImageURL:               dd.ImageURL.Ptr(),
 		CompatibleIntegrations: []services.DeviceCompatibility{},
 		Type: services.DeviceType{
-			Type:     "Vehicle",
-			Make:     dd.Make,
-			Model:    dd.Model,
-			Year:     int(dd.Year),
-			SubModel: dd.SubModel.Ptr(),
+			Type:      "Vehicle",
+			Make:      dd.Make,
+			Model:     dd.Model,
+			Year:      int(dd.Year),
+			SubModels: dd.SubModels,
 		},
 		Metadata: string(dd.Metadata.JSON),
 		Verified: dd.Verified,
@@ -244,13 +244,13 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) services.Devic
 // NewDbModelFromDeviceDefinition converts a DeviceDefinition response object to a new database model for the given squishVin. source is NHTSA, edmunds, smartcar, etc
 func NewDbModelFromDeviceDefinition(dd services.DeviceDefinition, source *string) *models.DeviceDefinition {
 	dbDevice := models.DeviceDefinition{
-		ID:       ksuid.New().String(),
-		Make:     dd.Type.Make,
-		Model:    dd.Type.Model,
-		Year:     int16(dd.Type.Year),
-		SubModel: null.StringFromPtr(dd.Type.SubModel),
-		Verified: true,
-		Source:   null.StringFromPtr(source),
+		ID:        ksuid.New().String(),
+		Make:      dd.Type.Make,
+		Model:     dd.Type.Model,
+		Year:      int16(dd.Type.Year),
+		Verified:  true,
+		SubModels: dd.Type.SubModels,
+		Source:    null.StringFromPtr(source),
 	}
 	_ = dbDevice.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dd.VehicleInfo})
 

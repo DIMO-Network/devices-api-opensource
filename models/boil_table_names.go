@@ -6,6 +6,7 @@ package models
 var TableNames = struct {
 	DeviceDefinitions         string
 	DeviceIntegrations        string
+	DeviceStyles              string
 	Integrations              string
 	UserDeviceAPIIntegrations string
 	UserDeviceData            string
@@ -13,6 +14,7 @@ var TableNames = struct {
 }{
 	DeviceDefinitions:         "device_definitions",
 	DeviceIntegrations:        "device_integrations",
+	DeviceStyles:              "device_styles",
 	Integrations:              "integrations",
 	UserDeviceAPIIntegrations: "user_device_api_integrations",
 	UserDeviceData:            "user_device_data",

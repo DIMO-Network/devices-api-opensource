@@ -19,77 +19,83 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"github.com/volatiletech/sqlboiler/v4/queries/qmhelper"
+	"github.com/volatiletech/sqlboiler/v4/types"
 	"github.com/volatiletech/strmangle"
 )
 
 // DeviceDefinition is an object representing the database table.
 type DeviceDefinition struct {
-	ID        string      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Make      string      `boil:"make" json:"make" toml:"make" yaml:"make"`
-	Model     string      `boil:"model" json:"model" toml:"model" yaml:"model"`
-	Year      int16       `boil:"year" json:"year" toml:"year" yaml:"year"`
-	SubModel  null.String `boil:"sub_model" json:"sub_model,omitempty" toml:"sub_model" yaml:"sub_model,omitempty"`
-	ImageURL  null.String `boil:"image_url" json:"image_url,omitempty" toml:"image_url" yaml:"image_url,omitempty"`
-	Metadata  null.JSON   `boil:"metadata" json:"metadata,omitempty" toml:"metadata" yaml:"metadata,omitempty"`
-	CreatedAt time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	Source    null.String `boil:"source" json:"source,omitempty" toml:"source" yaml:"source,omitempty"`
-	Verified  bool        `boil:"verified" json:"verified" toml:"verified" yaml:"verified"`
+	ID         string            `boil:"id" json:"id" toml:"id" yaml:"id"`
+	Make       string            `boil:"make" json:"make" toml:"make" yaml:"make"`
+	Model      string            `boil:"model" json:"model" toml:"model" yaml:"model"`
+	Year       int16             `boil:"year" json:"year" toml:"year" yaml:"year"`
+	ImageURL   null.String       `boil:"image_url" json:"image_url,omitempty" toml:"image_url" yaml:"image_url,omitempty"`
+	Metadata   null.JSON         `boil:"metadata" json:"metadata,omitempty" toml:"metadata" yaml:"metadata,omitempty"`
+	CreatedAt  time.Time         `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt  time.Time         `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	Source     null.String       `boil:"source" json:"source,omitempty" toml:"source" yaml:"source,omitempty"`
+	Verified   bool              `boil:"verified" json:"verified" toml:"verified" yaml:"verified"`
+	SubModels  types.StringArray `boil:"sub_models" json:"sub_models,omitempty" toml:"sub_models" yaml:"sub_models,omitempty"`
+	ExternalID null.String       `boil:"external_id" json:"external_id,omitempty" toml:"external_id" yaml:"external_id,omitempty"`
 
 	R *deviceDefinitionR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L deviceDefinitionL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var DeviceDefinitionColumns = struct {
-	ID        string
-	Make      string
-	Model     string
-	Year      string
-	SubModel  string
-	ImageURL  string
-	Metadata  string
-	CreatedAt string
-	UpdatedAt string
-	Source    string
-	Verified  string
+	ID         string
+	Make       string
+	Model      string
+	Year       string
+	ImageURL   string
+	Metadata   string
+	CreatedAt  string
+	UpdatedAt  string
+	Source     string
+	Verified   string
+	SubModels  string
+	ExternalID string
 }{
-	ID:        "id",
-	Make:      "make",
-	Model:     "model",
-	Year:      "year",
-	SubModel:  "sub_model",
-	ImageURL:  "image_url",
-	Metadata:  "metadata",
-	CreatedAt: "created_at",
-	UpdatedAt: "updated_at",
-	Source:    "source",
-	Verified:  "verified",
+	ID:         "id",
+	Make:       "make",
+	Model:      "model",
+	Year:       "year",
+	ImageURL:   "image_url",
+	Metadata:   "metadata",
+	CreatedAt:  "created_at",
+	UpdatedAt:  "updated_at",
+	Source:     "source",
+	Verified:   "verified",
+	SubModels:  "sub_models",
+	ExternalID: "external_id",
 }
 
 var DeviceDefinitionTableColumns = struct {
-	ID        string
-	Make      string
-	Model     string
-	Year      string
-	SubModel  string
-	ImageURL  string
-	Metadata  string
-	CreatedAt string
-	UpdatedAt string
-	Source    string
-	Verified  string
+	ID         string
+	Make       string
+	Model      string
+	Year       string
+	ImageURL   string
+	Metadata   string
+	CreatedAt  string
+	UpdatedAt  string
+	Source     string
+	Verified   string
+	SubModels  string
+	ExternalID string
 }{
-	ID:        "device_definitions.id",
-	Make:      "device_definitions.make",
-	Model:     "device_definitions.model",
-	Year:      "device_definitions.year",
-	SubModel:  "device_definitions.sub_model",
-	ImageURL:  "device_definitions.image_url",
-	Metadata:  "device_definitions.metadata",
-	CreatedAt: "device_definitions.created_at",
-	UpdatedAt: "device_definitions.updated_at",
-	Source:    "device_definitions.source",
-	Verified:  "device_definitions.verified",
+	ID:         "device_definitions.id",
+	Make:       "device_definitions.make",
+	Model:      "device_definitions.model",
+	Year:       "device_definitions.year",
+	ImageURL:   "device_definitions.image_url",
+	Metadata:   "device_definitions.metadata",
+	CreatedAt:  "device_definitions.created_at",
+	UpdatedAt:  "device_definitions.updated_at",
+	Source:     "device_definitions.source",
+	Verified:   "device_definitions.verified",
+	SubModels:  "device_definitions.sub_models",
+	ExternalID: "device_definitions.external_id",
 }
 
 // Generated where
@@ -218,44 +224,75 @@ func (w whereHelperbool) LTE(x bool) qm.QueryMod { return qmhelper.Where(w.field
 func (w whereHelperbool) GT(x bool) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.GT, x) }
 func (w whereHelperbool) GTE(x bool) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
 
+type whereHelpertypes_StringArray struct{ field string }
+
+func (w whereHelpertypes_StringArray) EQ(x types.StringArray) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpertypes_StringArray) NEQ(x types.StringArray) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpertypes_StringArray) LT(x types.StringArray) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpertypes_StringArray) LTE(x types.StringArray) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpertypes_StringArray) GT(x types.StringArray) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpertypes_StringArray) GTE(x types.StringArray) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+
+func (w whereHelpertypes_StringArray) IsNull() qm.QueryMod { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpertypes_StringArray) IsNotNull() qm.QueryMod {
+	return qmhelper.WhereIsNotNull(w.field)
+}
+
 var DeviceDefinitionWhere = struct {
-	ID        whereHelperstring
-	Make      whereHelperstring
-	Model     whereHelperstring
-	Year      whereHelperint16
-	SubModel  whereHelpernull_String
-	ImageURL  whereHelpernull_String
-	Metadata  whereHelpernull_JSON
-	CreatedAt whereHelpertime_Time
-	UpdatedAt whereHelpertime_Time
-	Source    whereHelpernull_String
-	Verified  whereHelperbool
+	ID         whereHelperstring
+	Make       whereHelperstring
+	Model      whereHelperstring
+	Year       whereHelperint16
+	ImageURL   whereHelpernull_String
+	Metadata   whereHelpernull_JSON
+	CreatedAt  whereHelpertime_Time
+	UpdatedAt  whereHelpertime_Time
+	Source     whereHelpernull_String
+	Verified   whereHelperbool
+	SubModels  whereHelpertypes_StringArray
+	ExternalID whereHelpernull_String
 }{
-	ID:        whereHelperstring{field: "\"devices_api\".\"device_definitions\".\"id\""},
-	Make:      whereHelperstring{field: "\"devices_api\".\"device_definitions\".\"make\""},
-	Model:     whereHelperstring{field: "\"devices_api\".\"device_definitions\".\"model\""},
-	Year:      whereHelperint16{field: "\"devices_api\".\"device_definitions\".\"year\""},
-	SubModel:  whereHelpernull_String{field: "\"devices_api\".\"device_definitions\".\"sub_model\""},
-	ImageURL:  whereHelpernull_String{field: "\"devices_api\".\"device_definitions\".\"image_url\""},
-	Metadata:  whereHelpernull_JSON{field: "\"devices_api\".\"device_definitions\".\"metadata\""},
-	CreatedAt: whereHelpertime_Time{field: "\"devices_api\".\"device_definitions\".\"created_at\""},
-	UpdatedAt: whereHelpertime_Time{field: "\"devices_api\".\"device_definitions\".\"updated_at\""},
-	Source:    whereHelpernull_String{field: "\"devices_api\".\"device_definitions\".\"source\""},
-	Verified:  whereHelperbool{field: "\"devices_api\".\"device_definitions\".\"verified\""},
+	ID:         whereHelperstring{field: "\"devices_api\".\"device_definitions\".\"id\""},
+	Make:       whereHelperstring{field: "\"devices_api\".\"device_definitions\".\"make\""},
+	Model:      whereHelperstring{field: "\"devices_api\".\"device_definitions\".\"model\""},
+	Year:       whereHelperint16{field: "\"devices_api\".\"device_definitions\".\"year\""},
+	ImageURL:   whereHelpernull_String{field: "\"devices_api\".\"device_definitions\".\"image_url\""},
+	Metadata:   whereHelpernull_JSON{field: "\"devices_api\".\"device_definitions\".\"metadata\""},
+	CreatedAt:  whereHelpertime_Time{field: "\"devices_api\".\"device_definitions\".\"created_at\""},
+	UpdatedAt:  whereHelpertime_Time{field: "\"devices_api\".\"device_definitions\".\"updated_at\""},
+	Source:     whereHelpernull_String{field: "\"devices_api\".\"device_definitions\".\"source\""},
+	Verified:   whereHelperbool{field: "\"devices_api\".\"device_definitions\".\"verified\""},
+	SubModels:  whereHelpertypes_StringArray{field: "\"devices_api\".\"device_definitions\".\"sub_models\""},
+	ExternalID: whereHelpernull_String{field: "\"devices_api\".\"device_definitions\".\"external_id\""},
 }
 
 // DeviceDefinitionRels is where relationship names are stored.
 var DeviceDefinitionRels = struct {
 	DeviceIntegrations string
+	DeviceStyles       string
 	UserDevices        string
 }{
 	DeviceIntegrations: "DeviceIntegrations",
+	DeviceStyles:       "DeviceStyles",
 	UserDevices:        "UserDevices",
 }
 
 // deviceDefinitionR is where relationships are stored.
 type deviceDefinitionR struct {
 	DeviceIntegrations DeviceIntegrationSlice `boil:"DeviceIntegrations" json:"DeviceIntegrations" toml:"DeviceIntegrations" yaml:"DeviceIntegrations"`
+	DeviceStyles       DeviceStyleSlice       `boil:"DeviceStyles" json:"DeviceStyles" toml:"DeviceStyles" yaml:"DeviceStyles"`
 	UserDevices        UserDeviceSlice        `boil:"UserDevices" json:"UserDevices" toml:"UserDevices" yaml:"UserDevices"`
 }
 
@@ -268,8 +305,8 @@ func (*deviceDefinitionR) NewStruct() *deviceDefinitionR {
 type deviceDefinitionL struct{}
 
 var (
-	deviceDefinitionAllColumns            = []string{"id", "make", "model", "year", "sub_model", "image_url", "metadata", "created_at", "updated_at", "source", "verified"}
-	deviceDefinitionColumnsWithoutDefault = []string{"id", "make", "model", "year", "sub_model", "image_url", "metadata", "source"}
+	deviceDefinitionAllColumns            = []string{"id", "make", "model", "year", "image_url", "metadata", "created_at", "updated_at", "source", "verified", "sub_models", "external_id"}
+	deviceDefinitionColumnsWithoutDefault = []string{"id", "make", "model", "year", "image_url", "metadata", "source", "sub_models", "external_id"}
 	deviceDefinitionColumnsWithDefault    = []string{"created_at", "updated_at", "verified"}
 	deviceDefinitionPrimaryKeyColumns     = []string{"id"}
 )
@@ -570,6 +607,27 @@ func (o *DeviceDefinition) DeviceIntegrations(mods ...qm.QueryMod) deviceIntegra
 	return query
 }
 
+// DeviceStyles retrieves all the device_style's DeviceStyles with an executor.
+func (o *DeviceDefinition) DeviceStyles(mods ...qm.QueryMod) deviceStyleQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"devices_api\".\"device_styles\".\"device_definition_id\"=?", o.ID),
+	)
+
+	query := DeviceStyles(queryMods...)
+	queries.SetFrom(query.Query, "\"devices_api\".\"device_styles\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"devices_api\".\"device_styles\".*"})
+	}
+
+	return query
+}
+
 // UserDevices retrieves all the user_device's UserDevices with an executor.
 func (o *DeviceDefinition) UserDevices(mods ...qm.QueryMod) userDeviceQuery {
 	var queryMods []qm.QueryMod
@@ -679,6 +737,104 @@ func (deviceDefinitionL) LoadDeviceIntegrations(ctx context.Context, e boil.Cont
 				local.R.DeviceIntegrations = append(local.R.DeviceIntegrations, foreign)
 				if foreign.R == nil {
 					foreign.R = &deviceIntegrationR{}
+				}
+				foreign.R.DeviceDefinition = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadDeviceStyles allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (deviceDefinitionL) LoadDeviceStyles(ctx context.Context, e boil.ContextExecutor, singular bool, maybeDeviceDefinition interface{}, mods queries.Applicator) error {
+	var slice []*DeviceDefinition
+	var object *DeviceDefinition
+
+	if singular {
+		object = maybeDeviceDefinition.(*DeviceDefinition)
+	} else {
+		slice = *maybeDeviceDefinition.(*[]*DeviceDefinition)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &deviceDefinitionR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &deviceDefinitionR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`devices_api.device_styles`),
+		qm.WhereIn(`devices_api.device_styles.device_definition_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load device_styles")
+	}
+
+	var resultSlice []*DeviceStyle
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice device_styles")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on device_styles")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for device_styles")
+	}
+
+	if len(deviceStyleAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.DeviceStyles = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &deviceStyleR{}
+			}
+			foreign.R.DeviceDefinition = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.DeviceDefinitionID {
+				local.R.DeviceStyles = append(local.R.DeviceStyles, foreign)
+				if foreign.R == nil {
+					foreign.R = &deviceStyleR{}
 				}
 				foreign.R.DeviceDefinition = local
 				break
@@ -831,6 +987,59 @@ func (o *DeviceDefinition) AddDeviceIntegrations(ctx context.Context, exec boil.
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &deviceIntegrationR{
+				DeviceDefinition: o,
+			}
+		} else {
+			rel.R.DeviceDefinition = o
+		}
+	}
+	return nil
+}
+
+// AddDeviceStyles adds the given related objects to the existing relationships
+// of the device_definition, optionally inserting them as new records.
+// Appends related to o.R.DeviceStyles.
+// Sets related.R.DeviceDefinition appropriately.
+func (o *DeviceDefinition) AddDeviceStyles(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*DeviceStyle) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.DeviceDefinitionID = o.ID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"devices_api\".\"device_styles\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"device_definition_id"}),
+				strmangle.WhereClause("\"", "\"", 2, deviceStylePrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.DeviceDefinitionID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &deviceDefinitionR{
+			DeviceStyles: related,
+		}
+	} else {
+		o.R.DeviceStyles = append(o.R.DeviceStyles, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &deviceStyleR{
 				DeviceDefinition: o,
 			}
 		} else {
