@@ -98,30 +98,9 @@ func NewUserDeviceIntegrationStatusesFromDatabase(udis []*models.UserDeviceAPIIn
 }
 
 type userDeviceEvent struct {
-	Timestamp time.Time             `json:"timestamp"`
-	UserID    string                `json:"userId"`
-	Device    userDeviceEventDevice `json:"device"`
-}
-
-type userDeviceEventDevice struct {
-	ID    string `json:"id"`
-	Make  string `json:"make"`
-	Model string `json:"model"`
-	Year  int    `json:"year"`
-}
-
-type userDeviceEventIntegration struct {
-	ID     string `json:"id"`
-	Type   string `json:"type"`
-	Style  string `json:"style"`
-	Vendor string `json:"vendor"`
-}
-
-type userDeviceIntegrationEvent struct {
-	Timestamp   time.Time                  `json:"timestamp"`
-	UserID      string                     `json:"userId"`
-	Device      userDeviceEventDevice      `json:"device"`
-	Integration userDeviceEventIntegration `json:"integration"`
+	Timestamp time.Time                      `json:"timestamp"`
+	UserID    string                         `json:"userId"`
+	Device    services.UserDeviceEventDevice `json:"device"`
 }
 
 // RegisterDeviceForUser godoc
@@ -226,7 +205,7 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		Data: userDeviceEvent{
 			Timestamp: time.Now(),
 			UserID:    userID,
-			Device: userDeviceEventDevice{
+			Device: services.UserDeviceEventDevice{
 				ID:    userDeviceID,
 				Make:  dd.Make,
 				Model: dd.Model,
@@ -385,31 +364,6 @@ func (udc *UserDevicesController) RegisterSmartcarIntegration(c *fiber.Ctx) erro
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
-	err = udc.eventService.Emit(&services.Event{
-		Type:    "com.dimo.zone.device.integration.create",
-		Source:  "devices-api",
-		Subject: userDeviceID,
-		Data: userDeviceIntegrationEvent{
-			Timestamp: time.Now(),
-			UserID:    userID,
-			Device: userDeviceEventDevice{
-				ID:    userDeviceID,
-				Make:  ud.R.DeviceDefinition.Make,
-				Model: ud.R.DeviceDefinition.Model,
-				Year:  int(ud.R.DeviceDefinition.Year),
-			},
-			Integration: userDeviceEventIntegration{
-				ID:     integ.R.Integration.ID,
-				Type:   integ.R.Integration.Type,
-				Style:  integ.R.Integration.Style,
-				Vendor: integ.R.Integration.Vendor,
-			},
-		},
-	})
-	if err != nil {
-		logger.Err(err).Msg("Failed sending device integration creation event")
-	}
-
 	logger.Info().Msg("Finished registering Smartcar integration")
 	return c.SendStatus(fiber.StatusNoContent)
 }
@@ -515,16 +469,16 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 		Type:    "com.dimo.zone.device.integration.delete",
 		Source:  "devices-api",
 		Subject: userDeviceID,
-		Data: userDeviceIntegrationEvent{
+		Data: services.UserDeviceIntegrationEvent{
 			Timestamp: time.Now(),
 			UserID:    userID,
-			Device: userDeviceEventDevice{
+			Device: services.UserDeviceEventDevice{
 				ID:    userDeviceID,
 				Make:  device.R.DeviceDefinition.Make,
 				Model: device.R.DeviceDefinition.Model,
 				Year:  int(device.R.DeviceDefinition.Year),
 			},
-			Integration: userDeviceEventIntegration{
+			Integration: services.UserDeviceEventIntegration{
 				ID:     apiIntegration.R.Integration.ID,
 				Type:   apiIntegration.R.Integration.Type,
 				Style:  apiIntegration.R.Integration.Style,
@@ -786,7 +740,7 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 		Data: userDeviceEvent{
 			Timestamp: time.Now(),
 			UserID:    userID,
-			Device: userDeviceEventDevice{
+			Device: services.UserDeviceEventDevice{
 				ID:    udi,
 				Make:  dd.Make,
 				Model: dd.Model,

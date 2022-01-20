@@ -68,3 +68,25 @@ func (e *eventService) Emit(event *Event) error {
 	}
 	return nil
 }
+
+type UserDeviceEventDevice struct {
+	ID    string `json:"id"`
+	Make  string `json:"make"`
+	Model string `json:"model"`
+	Year  int    `json:"year"`
+	VIN   string `json:"vin"`
+}
+
+type UserDeviceEventIntegration struct {
+	ID     string `json:"id"`
+	Type   string `json:"type"`
+	Style  string `json:"style"`
+	Vendor string `json:"vendor"`
+}
+
+type UserDeviceIntegrationEvent struct {
+	Timestamp   time.Time                  `json:"timestamp"`
+	UserID      string                     `json:"userId"`
+	Device      UserDeviceEventDevice      `json:"device"`
+	Integration UserDeviceEventIntegration `json:"integration"`
+}

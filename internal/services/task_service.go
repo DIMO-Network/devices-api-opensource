@@ -44,6 +44,7 @@ type TaskService struct {
 	Machinery       *machinery.Server
 	DeviceDefSvc    IDeviceDefinitionService
 	IngestRegistrar SmartcarIngestRegistrar
+	eventService    EventService
 }
 
 const smartcarWebhookURL = "https://api.smartcar.com/v2.0/vehicles/%s/webhooks/%s"
@@ -224,9 +225,11 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 	defer tx.Rollback() //nolint
 
 	integ, err := models.UserDeviceAPIIntegrations(
-		qm.Where("user_device_id = ?", userDeviceID),
-		qm.And("integration_id = ?", integrationID),
-		qm.Load("UserDevice")).One(context.Background(), tx)
+		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(userDeviceID),
+		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID),
+		qm.Load(qm.Rels(models.UserDeviceAPIIntegrationRels.UserDevice, models.UserDeviceRels.DeviceDefinition)),
+		qm.Load(models.UserDeviceAPIIntegrationRels.Integration),
+	).One(context.Background(), tx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return errors.New("could not find API integration")
@@ -328,6 +331,33 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 	if err != nil {
 		return fmt.Errorf("failure committing Smartcar registration to database: %w", err)
 	}
+
+	err = t.eventService.Emit(&Event{
+		Type:    "com.dimo.zone.device.integration.create",
+		Source:  "devices-api",
+		Subject: userDeviceID,
+		Data: UserDeviceIntegrationEvent{
+			Timestamp: time.Now(),
+			UserID:    ud.UserID,
+			Device: UserDeviceEventDevice{
+				ID:    userDeviceID,
+				Make:  ud.R.DeviceDefinition.Make,
+				Model: ud.R.DeviceDefinition.Model,
+				Year:  int(ud.R.DeviceDefinition.Year),
+				VIN:   vin,
+			},
+			Integration: UserDeviceEventIntegration{
+				ID:     integ.R.Integration.ID,
+				Type:   integ.R.Integration.Type,
+				Style:  integ.R.Integration.Style,
+				Vendor: integ.R.Integration.Vendor,
+			},
+		},
+	})
+	if err != nil {
+		t.Log.Err(err).Msg("Failed sending device integration creation event")
+	}
+
 	return nil
 }
 
@@ -554,7 +584,7 @@ func (t *TaskService) StartSmartcarDeregistrationTasks(userDeviceID, integration
 	return
 }
 
-func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWriter, deviceDefSvc *DeviceDefinitionService, logger *zerolog.Logger) *TaskService {
+func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWriter, deviceDefSvc *DeviceDefinitionService, eventService EventService, logger *zerolog.Logger) *TaskService {
 	var redisConn string
 	if settings.RedisPassword == "" {
 		redisConn = fmt.Sprintf("redis://%s", settings.RedisURL)
@@ -599,6 +629,7 @@ func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWrit
 		Log:             logger,
 		DeviceDefSvc:    deviceDefSvc,
 		IngestRegistrar: SmartcarIngestRegistrar{Producer: producer},
+		eventService:    eventService,
 	}
 	err = server.RegisterTasks(map[string]interface{}{
 		smartcarConnectVehicleTask:    t.smartcarConnectVehicle,
