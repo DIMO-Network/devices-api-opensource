@@ -57,8 +57,12 @@ func generateEvents(logger zerolog.Logger, settings *config.Settings, pdb databa
 		logger.Fatal().Err(err).Msg("Failed to retrieve all active integrations")
 	}
 	for _, scint := range scints {
-		if !scint.R.UserDevice.VinIdentifier.Valid || !scint.R.UserDevice.VinConfirmed {
-			logger.Warn().Msgf("Device %s has an active integration but not a confirmed VIN")
+		if !scint.R.UserDevice.VinIdentifier.Valid {
+			logger.Warn().Msgf("Device %s has an active integration but no VIN", scint.UserDeviceID)
+			continue
+		}
+		if !scint.R.UserDevice.VinConfirmed {
+			logger.Warn().Msgf("Device %s has an active integration but the VIN %s is unconfirmed", scint.UserDeviceID, scint.R.UserDevice.VinIdentifier.String)
 			continue
 		}
 		err = eventService.Emit(
