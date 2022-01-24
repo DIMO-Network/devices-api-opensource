@@ -82,6 +82,9 @@ func main() {
 			}
 		}
 		migrateDatabase(logger, settings, command)
+	case "generate-events":
+		eventService := services.NewEventService(&logger, settings)
+		generateEvents(logger, settings, pdb, eventService)
 	case "seed-smartcar":
 		loadSmartCarData(ctx, logger, settings, pdb)
 	case "seed-mmy-csv":

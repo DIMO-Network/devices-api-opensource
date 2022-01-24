@@ -97,7 +97,9 @@ func NewUserDeviceIntegrationStatusesFromDatabase(udis []*models.UserDeviceAPIIn
 	return out
 }
 
-type userDeviceEvent struct {
+const UserDeviceCreationEventType = "com.dimo.zone.device.create"
+
+type UserDeviceEvent struct {
 	Timestamp time.Time                      `json:"timestamp"`
 	UserID    string                         `json:"userId"`
 	Device    services.UserDeviceEventDevice `json:"device"`
@@ -199,10 +201,10 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		}
 	}()
 	err = udc.eventService.Emit(&services.Event{
-		Type:    "com.dimo.zone.device.create",
+		Type:    UserDeviceCreationEventType,
 		Subject: userID,
 		Source:  "devices-api",
-		Data: userDeviceEvent{
+		Data: UserDeviceEvent{
 			Timestamp: time.Now(),
 			UserID:    userID,
 			Device: services.UserDeviceEventDevice{
@@ -737,7 +739,7 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 		Type:    "com.dimo.zone.device.delete",
 		Subject: userID,
 		Source:  "devices-api",
-		Data: userDeviceEvent{
+		Data: UserDeviceEvent{
 			Timestamp: time.Now(),
 			UserID:    userID,
 			Device: services.UserDeviceEventDevice{
