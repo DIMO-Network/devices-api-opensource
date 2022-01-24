@@ -11,7 +11,6 @@ import (
 	"github.com/DIMO-INC/devices-api/internal/database"
 	"github.com/DIMO-INC/devices-api/models"
 	"github.com/ThreeDotsLabs/watermill/message"
-	"github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -43,23 +42,20 @@ func (i *IngestService) ProcessDeviceStatusMessages(messages <-chan *message.Mes
 }
 
 func (i *IngestService) processDeviceStatus(msg *message.Message) error {
-	ack := true
-	defer func() {
-		if ack {
-			msg.Ack()
-		}
-	}()
+	// Keep the pipeline moving no matter what.
+	defer func() { msg.Ack() }()
 
 	defer appmetrics.SmartcarIngestTotalOps.Inc()
 
 	ctx := context.Background() // should this be passed in so can cancel if application shutting down?
-	log.Info().Msgf("received message: %s, payload: %s", msg.UUID, string(msg.Payload))
+	log.Info().Msgf("Received message: %s, payload: %s", msg.UUID, string(msg.Payload))
 	e := DeviceStatusEvent{}
 
 	err := json.Unmarshal(msg.Payload, &e)
 	if err != nil {
 		return errors.Wrap(err, "error parsing device event payload")
 	}
+
 	if e.Type != deviceStatusEventType {
 		return fmt.Errorf("received vehicle status event with unexpected type %s", e.Type)
 	}
@@ -72,7 +68,6 @@ func (i *IngestService) processDeviceStatus(msg *message.Message) error {
 
 	tx, err := i.db().Writer.BeginTx(ctx, nil)
 	if err != nil {
-		ack = false
 		return fmt.Errorf("error starting transaction: %w", err)
 	}
 	defer tx.Rollback() //nolint
@@ -80,42 +75,42 @@ func (i *IngestService) processDeviceStatus(msg *message.Message) error {
 	// Horribly inefficient
 	device, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
-		qm.Load(models.UserDeviceRels.DeviceDefinition),
+		qm.Load(models.UserDeviceRels.DeviceDefinition), // Only needed for the odometer event.
 	).One(ctx, tx)
 	if err != nil {
-		// Same exception as below.
-		if !errors.Is(err, sql.ErrNoRows) {
-			ack = false
-		}
-		return fmt.Errorf("couldn't find device for status update: %w", err)
+		return fmt.Errorf("couldn't find device %s for status update: %w", userDeviceID, err)
 	}
 
-	err = udd.Upsert(ctx, i.db().Writer, true, []string{"user_device_id"}, boil.Whitelist("data", "created_at", "updated_at"), boil.Infer())
+	haveOldOdometer := false
+	var oldOdometer float64
+	oldUDD, err := models.FindUserDeviceDatum(ctx, tx, userDeviceID)
 	if err != nil {
-		var pqErr *pq.Error
-		// See https://www.postgresql.org/docs/current/errcodes-appendix.html for
-		// Postgres error codes. This is foreign_key_violation. We make an exception
-		// for this because a device may have been deleted before we read all of its
-		// status updates.
-		if !errors.As(err, &pqErr) || pqErr.Code != "23503" {
-			ack = false
+		if !errors.Is(err, sql.ErrNoRows) {
+			i.log.Err(err).Msg("Failed to look up old odometer value.")
 		}
+	} else if oldUDD.Data.Valid {
+		oldOdometer, err = extractOdometer(oldUDD.Data.JSON)
+		if err != nil {
+			i.log.Err(err).Msg("Failed to grab odometer from existing status update")
+		} else {
+			haveOldOdometer = true
+		}
+	}
+
+	err = udd.Upsert(ctx, tx, true, []string{"user_device_id"}, boil.Whitelist("data", "created_at", "updated_at"), boil.Infer())
+	if err != nil {
 		return fmt.Errorf("error upserting vehicle status event data: %w", err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		ack = false
 		return fmt.Errorf("error committing transaction: %w", err)
 	}
 
-	extractOd := struct {
-		Odometer *float64 `json:"odometer"`
-	}{}
-	err = json.Unmarshal(e.Data, &extractOd)
+	newOdometer, err := extractOdometer(e.Data)
 	if err != nil {
 		i.log.Err(err).Msg("Failed to grab odometer from status update")
-	} else if extractOd.Odometer != nil {
+	} else if !haveOldOdometer || newOdometer != oldOdometer {
 		// If the Smartcar /odometer endpoint returned an error, we won't have a value.
 		err = i.eventService.Emit(&Event{
 			Type:    "com.dimo.zone.device.odometer.update",
@@ -130,7 +125,7 @@ func (i *IngestService) processDeviceStatus(msg *message.Message) error {
 					Model: device.R.DeviceDefinition.Model,
 					Year:  int(device.R.DeviceDefinition.Year),
 				},
-				Odometer: *extractOd.Odometer,
+				Odometer: newOdometer,
 			},
 		})
 		if err != nil {
@@ -140,6 +135,21 @@ func (i *IngestService) processDeviceStatus(msg *message.Message) error {
 
 	appmetrics.SmartcarIngestSuccessOps.Inc()
 	return nil
+}
+
+func extractOdometer(data []byte) (float64, error) {
+	var partialData struct {
+		Odometer *float64 `json:"odometer"`
+	}
+	err := json.Unmarshal(data, &partialData)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse data payload")
+	}
+	if partialData.Odometer == nil {
+		return 0, fmt.Errorf("data payload did not have an odometer reading")
+	}
+
+	return *partialData.Odometer, nil
 }
 
 type odometerEventDevice struct {
