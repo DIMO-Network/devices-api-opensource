@@ -67,10 +67,13 @@ type NHTSADecodeVINResponse struct {
 	} `json:"Results"`
 }
 
-// LookupValue looks up value in nhtsa object, and uppercase the resulting value
+// LookupValue looks up value in nhtsa object, and uppercase the resulting value if not make or model
 func (n *NHTSADecodeVINResponse) LookupValue(variableName string) string {
 	for _, result := range n.Results {
 		if result.Variable == variableName {
+			if variableName == "Make" || variableName == "Model" {
+				return result.Value
+			}
 			return strings.ToUpper(result.Value)
 		}
 	}

@@ -20,6 +20,8 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
+const SmartCarSource = "SmartCar"
+
 type SmartCarService struct {
 	baseURL string
 	DBS     func() *database.DBReaderWriter
@@ -57,9 +59,9 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 		}
 
 		for _, row := range usData.Rows {
-			vehicleModel := strings.ToUpper(null.StringFromPtr(row[0].Text).String)
-			years := row[0].Subtext                                                       // eg. 2017+ or 2012-2017
-			vehicleType := strings.ToUpper(null.StringFromPtr(row[1].VehicleType).String) // ICE, PHEV, BEV
+			vehicleModel := null.StringFromPtr(row[0].Text).String
+			years := row[0].Subtext                                      // eg. 2017+ or 2012-2017
+			vehicleType := null.StringFromPtr(row[1].VehicleType).String // ICE, PHEV, BEV
 
 			if years == nil {
 				s.log.Warn().Msg("Skipping row as years is nil")
@@ -119,8 +121,6 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 
 // saveDeviceDefinition does not commit or rollback the transaction, just operates the insert or update if existing device definition with same MMY is found
 func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, make, model string, year int, dvi DeviceVehicleInfo, icJSON []byte, integrationID string, integrationCountry string) error {
-	make = strings.ToUpper(make)
-	model = strings.ToUpper(model)
 	isUpdate := false
 
 	dbDeviceDef, err := models.DeviceDefinitions(models.DeviceDefinitionWhere.Make.EQ(make),
@@ -134,7 +134,7 @@ func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, 
 	if dbDeviceDef != nil {
 		isUpdate = true
 		dbDeviceDef.Verified = true
-		dbDeviceDef.Source = null.StringFrom("SmartCar")
+		dbDeviceDef.Source = null.StringFrom(SmartCarSource)
 	} else {
 		// insert
 		dbDeviceDef = &models.DeviceDefinition{
@@ -143,7 +143,7 @@ func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, 
 			Model:    model,
 			Year:     int16(year),
 			Verified: true,
-			Source:   null.StringFrom("SmartCar"),
+			Source:   null.StringFrom(SmartCarSource),
 		}
 	}
 	err = dbDeviceDef.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dvi})

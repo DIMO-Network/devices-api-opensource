@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
@@ -147,8 +146,8 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 			// since Definition does not exist, create one on the fly with userID as source and not verified
 			dd = &models.DeviceDefinition{
 				ID:       ksuid.New().String(),
-				Make:     strings.ToUpper(*reg.Make),
-				Model:    strings.ToUpper(*reg.Model),
+				Make:     *reg.Make,
+				Model:    *reg.Model,
 				Year:     int16(*reg.Year),
 				Source:   null.StringFrom("userID:" + userID),
 				Verified: false,

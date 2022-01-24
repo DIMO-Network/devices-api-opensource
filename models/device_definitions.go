@@ -19,24 +19,22 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"github.com/volatiletech/sqlboiler/v4/queries/qmhelper"
-	"github.com/volatiletech/sqlboiler/v4/types"
 	"github.com/volatiletech/strmangle"
 )
 
 // DeviceDefinition is an object representing the database table.
 type DeviceDefinition struct {
-	ID         string            `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Make       string            `boil:"make" json:"make" toml:"make" yaml:"make"`
-	Model      string            `boil:"model" json:"model" toml:"model" yaml:"model"`
-	Year       int16             `boil:"year" json:"year" toml:"year" yaml:"year"`
-	ImageURL   null.String       `boil:"image_url" json:"image_url,omitempty" toml:"image_url" yaml:"image_url,omitempty"`
-	Metadata   null.JSON         `boil:"metadata" json:"metadata,omitempty" toml:"metadata" yaml:"metadata,omitempty"`
-	CreatedAt  time.Time         `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt  time.Time         `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	Source     null.String       `boil:"source" json:"source,omitempty" toml:"source" yaml:"source,omitempty"`
-	Verified   bool              `boil:"verified" json:"verified" toml:"verified" yaml:"verified"`
-	SubModels  types.StringArray `boil:"sub_models" json:"sub_models,omitempty" toml:"sub_models" yaml:"sub_models,omitempty"`
-	ExternalID null.String       `boil:"external_id" json:"external_id,omitempty" toml:"external_id" yaml:"external_id,omitempty"`
+	ID         string      `boil:"id" json:"id" toml:"id" yaml:"id"`
+	Make       string      `boil:"make" json:"make" toml:"make" yaml:"make"`
+	Model      string      `boil:"model" json:"model" toml:"model" yaml:"model"`
+	Year       int16       `boil:"year" json:"year" toml:"year" yaml:"year"`
+	ImageURL   null.String `boil:"image_url" json:"image_url,omitempty" toml:"image_url" yaml:"image_url,omitempty"`
+	Metadata   null.JSON   `boil:"metadata" json:"metadata,omitempty" toml:"metadata" yaml:"metadata,omitempty"`
+	CreatedAt  time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt  time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	Source     null.String `boil:"source" json:"source,omitempty" toml:"source" yaml:"source,omitempty"`
+	Verified   bool        `boil:"verified" json:"verified" toml:"verified" yaml:"verified"`
+	ExternalID null.String `boil:"external_id" json:"external_id,omitempty" toml:"external_id" yaml:"external_id,omitempty"`
 
 	R *deviceDefinitionR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L deviceDefinitionL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -53,7 +51,6 @@ var DeviceDefinitionColumns = struct {
 	UpdatedAt  string
 	Source     string
 	Verified   string
-	SubModels  string
 	ExternalID string
 }{
 	ID:         "id",
@@ -66,7 +63,6 @@ var DeviceDefinitionColumns = struct {
 	UpdatedAt:  "updated_at",
 	Source:     "source",
 	Verified:   "verified",
-	SubModels:  "sub_models",
 	ExternalID: "external_id",
 }
 
@@ -81,7 +77,6 @@ var DeviceDefinitionTableColumns = struct {
 	UpdatedAt  string
 	Source     string
 	Verified   string
-	SubModels  string
 	ExternalID string
 }{
 	ID:         "device_definitions.id",
@@ -94,7 +89,6 @@ var DeviceDefinitionTableColumns = struct {
 	UpdatedAt:  "device_definitions.updated_at",
 	Source:     "device_definitions.source",
 	Verified:   "device_definitions.verified",
-	SubModels:  "device_definitions.sub_models",
 	ExternalID: "device_definitions.external_id",
 }
 
@@ -224,32 +218,6 @@ func (w whereHelperbool) LTE(x bool) qm.QueryMod { return qmhelper.Where(w.field
 func (w whereHelperbool) GT(x bool) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.GT, x) }
 func (w whereHelperbool) GTE(x bool) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
 
-type whereHelpertypes_StringArray struct{ field string }
-
-func (w whereHelpertypes_StringArray) EQ(x types.StringArray) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, false, x)
-}
-func (w whereHelpertypes_StringArray) NEQ(x types.StringArray) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, true, x)
-}
-func (w whereHelpertypes_StringArray) LT(x types.StringArray) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LT, x)
-}
-func (w whereHelpertypes_StringArray) LTE(x types.StringArray) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LTE, x)
-}
-func (w whereHelpertypes_StringArray) GT(x types.StringArray) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GT, x)
-}
-func (w whereHelpertypes_StringArray) GTE(x types.StringArray) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GTE, x)
-}
-
-func (w whereHelpertypes_StringArray) IsNull() qm.QueryMod { return qmhelper.WhereIsNull(w.field) }
-func (w whereHelpertypes_StringArray) IsNotNull() qm.QueryMod {
-	return qmhelper.WhereIsNotNull(w.field)
-}
-
 var DeviceDefinitionWhere = struct {
 	ID         whereHelperstring
 	Make       whereHelperstring
@@ -261,7 +229,6 @@ var DeviceDefinitionWhere = struct {
 	UpdatedAt  whereHelpertime_Time
 	Source     whereHelpernull_String
 	Verified   whereHelperbool
-	SubModels  whereHelpertypes_StringArray
 	ExternalID whereHelpernull_String
 }{
 	ID:         whereHelperstring{field: "\"devices_api\".\"device_definitions\".\"id\""},
@@ -274,7 +241,6 @@ var DeviceDefinitionWhere = struct {
 	UpdatedAt:  whereHelpertime_Time{field: "\"devices_api\".\"device_definitions\".\"updated_at\""},
 	Source:     whereHelpernull_String{field: "\"devices_api\".\"device_definitions\".\"source\""},
 	Verified:   whereHelperbool{field: "\"devices_api\".\"device_definitions\".\"verified\""},
-	SubModels:  whereHelpertypes_StringArray{field: "\"devices_api\".\"device_definitions\".\"sub_models\""},
 	ExternalID: whereHelpernull_String{field: "\"devices_api\".\"device_definitions\".\"external_id\""},
 }
 
@@ -305,8 +271,8 @@ func (*deviceDefinitionR) NewStruct() *deviceDefinitionR {
 type deviceDefinitionL struct{}
 
 var (
-	deviceDefinitionAllColumns            = []string{"id", "make", "model", "year", "image_url", "metadata", "created_at", "updated_at", "source", "verified", "sub_models", "external_id"}
-	deviceDefinitionColumnsWithoutDefault = []string{"id", "make", "model", "year", "image_url", "metadata", "source", "sub_models", "external_id"}
+	deviceDefinitionAllColumns            = []string{"id", "make", "model", "year", "image_url", "metadata", "created_at", "updated_at", "source", "verified", "external_id"}
+	deviceDefinitionColumnsWithoutDefault = []string{"id", "make", "model", "year", "image_url", "metadata", "source", "external_id"}
 	deviceDefinitionColumnsWithDefault    = []string{"created_at", "updated_at", "verified"}
 	deviceDefinitionPrimaryKeyColumns     = []string{"id"}
 )

@@ -87,8 +87,16 @@ func main() {
 		generateEvents(logger, settings, pdb, eventService)
 	case "seed-smartcar":
 		loadSmartCarData(ctx, logger, settings, pdb)
-	case "seed-mmy-csv":
-		loadMMYCSVData(ctx, logger, settings, pdb)
+	case "edmunds-vehicles-sync":
+		cleanDB := false
+		if len(os.Args) > 2 {
+			cleanDB = os.Args[2] == "--cleandb"
+		}
+		logger.Info().Msgf("Loading edmunds vehicles for device definitions with cleandb: %v", cleanDB)
+		err = loadEdmundsDeviceDefinitions(ctx, &logger, settings, pdb, cleanDB)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("error trying to sync edmunds")
+		}
 	case "edmunds-images":
 		overwrite := false
 		if len(os.Args) > 2 {

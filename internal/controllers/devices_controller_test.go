@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
-	"github.com/volatiletech/sqlboiler/v4/types"
 )
 
 const migrationsDirRelPath = "../../migrations"
@@ -123,12 +122,16 @@ func TestDevicesController(t *testing.T) {
 
 func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
 	dbDevice := models.DeviceDefinition{
-		ID:        "123",
-		Make:      "Merc",
-		Model:     "R500",
-		Year:      2020,
-		SubModels: types.StringArray{"AMG"},
-		Metadata:  null.JSONFrom([]byte(`{"vehicle_info": {"fuel_type": "gas", "driven_wheels": "4", "number_of_doors":"5" } }`)),
+		ID:       "123",
+		Make:     "Merc",
+		Model:    "R500",
+		Year:     2020,
+		Metadata: null.JSONFrom([]byte(`{"vehicle_info": {"fuel_type": "gas", "driven_wheels": "4", "number_of_doors":"5" } }`)),
+	}
+	ds := models.DeviceStyle{
+		SubModel:           "AMG",
+		Name:               "C63 AMG",
+		DeviceDefinitionID: dbDevice.ID,
 	}
 	di := models.DeviceIntegration{
 		DeviceDefinitionID: "123",
@@ -145,6 +148,7 @@ func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
 	}
 	dbDevice.R = dbDevice.R.NewStruct()
 	dbDevice.R.DeviceIntegrations = append(dbDevice.R.DeviceIntegrations, &di)
+	dbDevice.R.DeviceStyles = append(dbDevice.R.DeviceStyles, &ds)
 	dd := NewDeviceDefinitionFromDatabase(&dbDevice)
 
 	assert.Equal(t, "123", dd.DeviceDefinitionID)
@@ -162,14 +166,12 @@ func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
 }
 
 func TestNewDbModelFromDeviceDefinition(t *testing.T) {
-	submodel := "AMG"
 	dd := services.DeviceDefinition{
 		Type: services.DeviceType{
-			Type:      "Vehicle",
-			Make:      "Merc",
-			Model:     "R500",
-			Year:      2020,
-			SubModels: types.StringArray{submodel},
+			Type:  "Vehicle",
+			Make:  "Merc",
+			Model: "R500",
+			Year:  2020,
 		},
 		VehicleInfo: services.DeviceVehicleInfo{
 			FuelType:      "gas",
@@ -182,6 +184,5 @@ func TestNewDbModelFromDeviceDefinition(t *testing.T) {
 	assert.Equal(t, "R500", dbDevice.Model)
 	assert.Equal(t, "Merc", dbDevice.Make)
 	assert.Equal(t, int16(2020), dbDevice.Year)
-	assert.Contains(t, dbDevice.SubModels, "AMG")
 	assert.Equal(t, `{"vehicle_info":{"fuel_type":"gas","driven_wheels":"4","number_of_doors":"5"}}`, string(dbDevice.Metadata.JSON))
 }

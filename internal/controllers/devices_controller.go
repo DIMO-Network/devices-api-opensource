@@ -28,7 +28,7 @@ type DevicesController struct {
 
 // NewDevicesController constructor
 func NewDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, nhtsaSvc services.INHTSAService, ddSvc services.IDeviceDefinitionService) DevicesController {
-	edmundsSvc := services.NewEdmundsService(settings.TorProxyURL)
+	edmundsSvc := services.NewEdmundsService(settings.TorProxyURL, logger)
 
 	return DevicesController{
 		Settings:     settings,
@@ -219,11 +219,10 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) services.Devic
 		ImageURL:               dd.ImageURL.Ptr(),
 		CompatibleIntegrations: []services.DeviceCompatibility{},
 		Type: services.DeviceType{
-			Type:      "Vehicle",
-			Make:      dd.Make,
-			Model:     dd.Model,
-			Year:      int(dd.Year),
-			SubModels: dd.SubModels,
+			Type:  "Vehicle",
+			Make:  dd.Make,
+			Model: dd.Model,
+			Year:  int(dd.Year),
 		},
 		Metadata: string(dd.Metadata.JSON),
 		Verified: dd.Verified,
@@ -233,24 +232,41 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) services.Devic
 	if err := dd.Metadata.Unmarshal(&vi); err == nil {
 		rp.VehicleInfo = vi[vehicleInfoJSONNode]
 	}
-	// compatible integrations
+	// relational properties
 	if dd.R != nil {
+		// compatible integrations
 		rp.CompatibleIntegrations = DeviceCompatibilityFromDB(dd.R.DeviceIntegrations)
+		// sub_models
+		rp.Type.SubModels = SubModelsFromStylesDB(dd.R.DeviceStyles)
 	}
 
 	return rp
 }
 
+// SubModelsFromStylesDB gets the unique style.SubModel from the styles slice
+func SubModelsFromStylesDB(styles models.DeviceStyleSlice) []string {
+	subModels := map[string]string{}
+	for _, style := range styles {
+		if _, ok := subModels[style.SubModel]; !ok {
+			subModels[style.SubModel] = style.SubModel
+		}
+	}
+	keys := make([]string, len(subModels))
+	for key := range subModels {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
 // NewDbModelFromDeviceDefinition converts a DeviceDefinition response object to a new database model for the given squishVin. source is NHTSA, edmunds, smartcar, etc
 func NewDbModelFromDeviceDefinition(dd services.DeviceDefinition, source *string) *models.DeviceDefinition {
 	dbDevice := models.DeviceDefinition{
-		ID:        ksuid.New().String(),
-		Make:      dd.Type.Make,
-		Model:     dd.Type.Model,
-		Year:      int16(dd.Type.Year),
-		Verified:  true,
-		SubModels: dd.Type.SubModels,
-		Source:    null.StringFromPtr(source),
+		ID:       ksuid.New().String(),
+		Make:     dd.Type.Make,
+		Model:    dd.Type.Model,
+		Year:     int16(dd.Type.Year),
+		Verified: true,
+		Source:   null.StringFromPtr(source),
 	}
 	_ = dbDevice.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dd.VehicleInfo})
 

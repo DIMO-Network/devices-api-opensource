@@ -30,6 +30,7 @@ type DeviceStyle struct {
 	Source             string    `boil:"source" json:"source" toml:"source" yaml:"source"`
 	CreatedAt          time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt          time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	SubModel           string    `boil:"sub_model" json:"sub_model" toml:"sub_model" yaml:"sub_model"`
 
 	R *deviceStyleR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L deviceStyleL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -43,6 +44,7 @@ var DeviceStyleColumns = struct {
 	Source             string
 	CreatedAt          string
 	UpdatedAt          string
+	SubModel           string
 }{
 	ID:                 "id",
 	DeviceDefinitionID: "device_definition_id",
@@ -51,6 +53,7 @@ var DeviceStyleColumns = struct {
 	Source:             "source",
 	CreatedAt:          "created_at",
 	UpdatedAt:          "updated_at",
+	SubModel:           "sub_model",
 }
 
 var DeviceStyleTableColumns = struct {
@@ -61,6 +64,7 @@ var DeviceStyleTableColumns = struct {
 	Source             string
 	CreatedAt          string
 	UpdatedAt          string
+	SubModel           string
 }{
 	ID:                 "device_styles.id",
 	DeviceDefinitionID: "device_styles.device_definition_id",
@@ -69,6 +73,7 @@ var DeviceStyleTableColumns = struct {
 	Source:             "device_styles.source",
 	CreatedAt:          "device_styles.created_at",
 	UpdatedAt:          "device_styles.updated_at",
+	SubModel:           "device_styles.sub_model",
 }
 
 // Generated where
@@ -81,6 +86,7 @@ var DeviceStyleWhere = struct {
 	Source             whereHelperstring
 	CreatedAt          whereHelpertime_Time
 	UpdatedAt          whereHelpertime_Time
+	SubModel           whereHelperstring
 }{
 	ID:                 whereHelperstring{field: "\"devices_api\".\"device_styles\".\"id\""},
 	DeviceDefinitionID: whereHelperstring{field: "\"devices_api\".\"device_styles\".\"device_definition_id\""},
@@ -89,6 +95,7 @@ var DeviceStyleWhere = struct {
 	Source:             whereHelperstring{field: "\"devices_api\".\"device_styles\".\"source\""},
 	CreatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"device_styles\".\"created_at\""},
 	UpdatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"device_styles\".\"updated_at\""},
+	SubModel:           whereHelperstring{field: "\"devices_api\".\"device_styles\".\"sub_model\""},
 }
 
 // DeviceStyleRels is where relationship names are stored.
@@ -112,8 +119,8 @@ func (*deviceStyleR) NewStruct() *deviceStyleR {
 type deviceStyleL struct{}
 
 var (
-	deviceStyleAllColumns            = []string{"id", "device_definition_id", "name", "external_style_id", "source", "created_at", "updated_at"}
-	deviceStyleColumnsWithoutDefault = []string{"id", "device_definition_id", "name", "external_style_id", "source"}
+	deviceStyleAllColumns            = []string{"id", "device_definition_id", "name", "external_style_id", "source", "created_at", "updated_at", "sub_model"}
+	deviceStyleColumnsWithoutDefault = []string{"id", "device_definition_id", "name", "external_style_id", "source", "sub_model"}
 	deviceStyleColumnsWithDefault    = []string{"created_at", "updated_at"}
 	deviceStylePrimaryKeyColumns     = []string{"id"}
 )

@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"strings"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
@@ -31,14 +30,14 @@ type DeviceDefinitionService struct {
 }
 
 func NewDeviceDefinitionService(settings *config.Settings, DBS func() *database.DBReaderWriter, log *zerolog.Logger, nhtsaService INHTSAService) *DeviceDefinitionService {
-	return &DeviceDefinitionService{DBS: DBS, log: log, EdmundsSvc: NewEdmundsService(settings.TorProxyURL), nhtsaSvc: nhtsaService}
+	return &DeviceDefinitionService{DBS: DBS, log: log, EdmundsSvc: NewEdmundsService(settings.TorProxyURL, log), nhtsaSvc: nhtsaService}
 }
 
 // FindDeviceDefinitionByMMY builds and execs query to find device definition for MMY, returns db object and db error if occurs. if db tx is nil, just uses one from service, useful for tx
 func (d *DeviceDefinitionService) FindDeviceDefinitionByMMY(ctx context.Context, tx boil.ContextExecutor, mk, model string, year int, loadIntegrations bool) (*models.DeviceDefinition, error) {
 	qms := []qm.QueryMod{
-		qm.Where("make = ?", strings.ToUpper(mk)),
-		qm.And("model = ?", strings.ToUpper(model)),
+		qm.Where("make ilike ?", mk),
+		qm.And("model ilike ?", model),
 		qm.And("year = ?", year),
 	}
 	if loadIntegrations {

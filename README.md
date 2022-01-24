@@ -32,10 +32,13 @@ You can connect to db eg: `psql -h localhost -p 5432 -U dimo` or with your favor
 5. Run application
 `$ go run ./cmd/devices-api`
 
-6. Seed data from SmartCar:
+6. Seed data from Edmunds
+`$ go run ./cmd/devices-api edmunds-vehicles-sync`
+
+7. Seed data from SmartCar:
 `$ go run ./cmd/devices-api seed-smartcar`
 
-7. Set some vehicle images from edmunds:
+8. Set some vehicle images from edmunds:
 `$ go run ./cmd/devices-api edmunds-images [--overwrite]`
 
 ### Kafka test producer

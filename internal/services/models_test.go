@@ -14,11 +14,11 @@ func TestNewDeviceDefinitionFromNHTSA(t *testing.T) {
 	deviceDefinition := NewDeviceDefinitionFromNHTSA(&vinResp)
 
 	assert.Equal(t, "", deviceDefinition.DeviceDefinitionID)
-	assert.Equal(t, "2020 TESLA MODEL Y", deviceDefinition.Name)
+	assert.Equal(t, "2020 TESLA Model Y", deviceDefinition.Name)
 	assert.Equal(t, "Vehicle", deviceDefinition.Type.Type)
 	assert.Equal(t, 2020, deviceDefinition.Type.Year)
 	assert.Equal(t, "TESLA", deviceDefinition.Type.Make)
-	assert.Equal(t, "MODEL Y", deviceDefinition.Type.Model)
+	assert.Equal(t, "Model Y", deviceDefinition.Type.Model)
 	assert.Len(t, deviceDefinition.Type.SubModels, 0)
 	assert.Equal(t, "PASSENGER CAR", deviceDefinition.VehicleInfo.VehicleType)
 	assert.Equal(t, 48000, deviceDefinition.VehicleInfo.BaseMSRP)
