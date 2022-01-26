@@ -64,7 +64,7 @@ func loadEdmundsDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, s
 			}
 			if err == nil && matchingDD != nil {
 				// match, update it!
-				fmt.Printf("Found exact match with: %s\n.", printMMY(matchingDD, Green))
+				fmt.Printf("Found exact match with: %s\n.", printMMY(matchingDD, Green, false))
 				matchingDD.Make = vehicle.Make
 				matchingDD.Model = vehicle.Model
 				matchingDD.Source = null.StringFrom(edmundsSource)

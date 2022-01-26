@@ -23,6 +23,7 @@ import (
 var Red = "\033[31m"
 var Reset = "\033[0m"
 var Green = "\033[32m"
+var Purple = "\033[35m"
 
 func mergeEdmundsDefinitions(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore) error {
 	// get non edmunds dd's
@@ -39,7 +40,7 @@ func mergeEdmundsDefinitions(ctx context.Context, logger *zerolog.Logger, settin
 			qm.And("model ilike ?", dd.Model)).One(ctx, pdb.DBS().Writer)
 		if errors.Is(err, sql.ErrNoRows) {
 			// uh oh spaghetti-oh
-			fmt.Printf("No Exact Match found for %s\n", printMMY(dd, Red))
+			fmt.Printf("No Exact Match found for %s\n", printMMY(dd, Red, true))
 			// lookup if has userDevices, if not offer to delete
 			hasUserDevices, err := models.UserDevices(models.UserDeviceWhere.DeviceDefinitionID.EQ(dd.ID)).Exists(ctx, pdb.DBS().Writer)
 			if err != nil {
@@ -66,7 +67,7 @@ func mergeEdmundsDefinitions(ctx context.Context, logger *zerolog.Logger, settin
 			linq.From(edmundsModelYearMatches).Where(func(e interface{}) bool {
 				return dd.Model[:1] == e.(*models.DeviceDefinition).Model[:1]
 			}).ToSlice(&modelFirstLetterMatches)
-			fmt.Printf("Found the following edmunds matches (partial on Model) for: %s:\n", printMMY(dd, Red))
+			fmt.Printf("Found the following edmunds matches (partial on Model) for: %s:\n", printMMY(dd, Red, true))
 			for i, match := range modelFirstLetterMatches {
 				fmt.Printf("%d: %d %s %s\n", i, match.Year, match.Make, match.Model)
 			}
@@ -79,7 +80,7 @@ func mergeEdmundsDefinitions(ctx context.Context, logger *zerolog.Logger, settin
 					fmt.Println("this DD has userDevices attached so can't be deleted through this tool")
 					continue
 				} else {
-					del := askForConfirmation(fmt.Sprintf("Confirm: %s has no exact edmunds match and no userDevices. Delete? (n to see more options)", printMMY(dd, Red)))
+					del := askForConfirmation(fmt.Sprintf("Confirm: %s has no exact edmunds match and no userDevices. Delete? (n to see more options)", printMMY(dd, Red, false)))
 					if del {
 						_, err = dd.Delete(ctx, pdb.DBS().Writer)
 						if err != nil {
@@ -91,14 +92,14 @@ func mergeEdmundsDefinitions(ctx context.Context, logger *zerolog.Logger, settin
 				}
 			}
 			if indexSelection == -1 {
-				fmt.Printf("ok then, let me show you more edmunds options for %s:\n", printMMY(dd, Red))
+				fmt.Printf("ok then, let me show you more edmunds options for %s:\n", printMMY(dd, Red, false))
 				for i, match := range edmundsModelYearMatches {
 					fmt.Printf("%d: %d %s %s\n", i, match.Year, match.Make, match.Model)
 				}
 				indexSelection = askForNumberEntry("Choose one from above", len(edmundsModelYearMatches)-1)
 				if indexSelection == -1 {
 					// prompt to delete
-					del := askForConfirmation(fmt.Sprintf("Ok, no selection then. Would you like to delete Device Def: %s? Delete?", printMMY(dd, Red)))
+					del := askForConfirmation(fmt.Sprintf("Ok, no selection then. Would you like to delete Device Def: %s? Delete?", printMMY(dd, Red, true)))
 					if del {
 						_, err = dd.Delete(ctx, pdb.DBS().Writer)
 						if err != nil {
@@ -125,7 +126,7 @@ func mergeEdmundsDefinitions(ctx context.Context, logger *zerolog.Logger, settin
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Found exact match with: %s. ", printMMY(edmundsDD, Green))
+		fmt.Printf("Found exact match with: %s. ", printMMY(edmundsDD, Green, false))
 		err = mergeMatchingDefinitions(ctx, edmundsDD, dd, pdb)
 		if err != nil {
 			return err
@@ -155,7 +156,7 @@ func mergeMatchingDefinitions(ctx context.Context, edmundsDD, existingDD *models
 		return errors.Wrap(err, "error updating all the device_styles to the existing dd_id")
 	}
 	fmt.Printf("Successfuly updated existing DD with edmunds one, and updated %d device_styles. %s \n",
-		stylesUpdatedCnt, printMMY(existingDD, Green))
+		stylesUpdatedCnt, printMMY(existingDD, Green, false))
 	_, err = edmundsDD.Delete(ctx, pdb.DBS().Writer)
 	if err != nil {
 		return errors.Wrapf(err, "error deleting copied edmunds device_definition: %s", edmundsDD.ID)
@@ -217,6 +218,10 @@ func askForNumberEntry(s string, max int) int {
 	}
 }
 
-func printMMY(definition *models.DeviceDefinition, color string) string {
-	return fmt.Sprintf("%s%d %s %s%s", color, definition.Year, definition.Make, definition.Model, Reset)
+func printMMY(definition *models.DeviceDefinition, color string, includeSource bool) string {
+	if !includeSource {
+		return fmt.Sprintf("%s%d %s %s%s", color, definition.Year, definition.Make, definition.Model, Reset)
+	}
+	return fmt.Sprintf("%s%d %s %s %s(source: %s)%s",
+		color, definition.Year, definition.Make, definition.Model, Purple, definition.Source.String, Reset)
 }
