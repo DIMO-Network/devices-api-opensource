@@ -56,12 +56,15 @@ func mergeEdmundsDefinitions(ctx context.Context, logger *zerolog.Logger, settin
 			}
 			// if no Make & Year matches here likely means something off in our DB, offer to stop to review
 			if len(edmundsModelYearMatches) == 0 {
-				stop := askForConfirmation(fmt.Sprintf(" %s No Make and Year matches found in edmunds for: %d %s. Stop to review? %s", Red, dd.Year, dd.Make, Reset))
-				if stop {
-					os.Exit(0)
-				} else {
-					continue
+				del := askForConfirmation(fmt.Sprintf(" %s No Make and Year matches found in edmunds for: %d %s. Delete? %s", Red, dd.Year, dd.Make, Reset))
+				if del {
+					_, err = dd.Delete(ctx, pdb.DBS().Writer)
+					if err != nil {
+						return errors.Wrapf(err, "error deleting device_definition %s", dd.ID)
+					}
+					fmt.Println("successfully deleted")
 				}
+				continue
 			}
 			// filter some of the Make and Year matches.
 			var modelFirstLetterMatches []*models.DeviceDefinition
