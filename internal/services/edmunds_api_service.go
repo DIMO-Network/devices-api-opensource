@@ -114,7 +114,7 @@ func (e *EdmundsService) GetFlattenedVehicles() (*[]FlatMMYDefinition, error) {
 				}
 				definition := FlatMMYDefinition{
 					Make:        mk.Name,
-					ModelYearID: model.ID,
+					ModelYearID: year.ID,
 					Model:       model.Name,
 					Year:        year.Year,
 					SubModels:   subModels,
@@ -299,7 +299,7 @@ type FlatMMYDefinition struct {
 	Model string
 	Year  int
 	// edmunds response: models.years.id
-	ModelYearID string
+	ModelYearID int
 	// SubModels are edmunds Trims
 	SubModels []string
 	Styles    []FlatMMYDefinitionStyle

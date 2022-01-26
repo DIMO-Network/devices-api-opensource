@@ -88,12 +88,12 @@ func main() {
 	case "seed-smartcar":
 		loadSmartCarData(ctx, logger, settings, pdb)
 	case "edmunds-vehicles-sync":
-		cleanDB := false
+		mergeMMYMatch := false
 		if len(os.Args) > 2 {
-			cleanDB = os.Args[2] == "--cleandb"
+			mergeMMYMatch = os.Args[2] == "--mergemmy"
 		}
-		logger.Info().Msgf("Loading edmunds vehicles for device definitions with cleandb: %v", cleanDB)
-		err = loadEdmundsDeviceDefinitions(ctx, &logger, settings, pdb, cleanDB)
+		logger.Info().Msgf("Loading edmunds vehicles for device definitions with merge MMY match: %v", mergeMMYMatch)
+		err = loadEdmundsDeviceDefinitions(ctx, &logger, settings, pdb, mergeMMYMatch)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("error trying to sync edmunds")
 		}

@@ -218,5 +218,5 @@ func askForNumberEntry(s string, max int) int {
 }
 
 func printMMY(definition *models.DeviceDefinition, color string) string {
-	return fmt.Sprintf("%s %d %s %s %s", color, definition.Year, definition.Make, definition.Model, Reset)
+	return fmt.Sprintf("%s%d %s %s%s", color, definition.Year, definition.Make, definition.Model, Reset)
 }
