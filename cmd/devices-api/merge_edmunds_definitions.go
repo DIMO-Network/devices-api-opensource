@@ -137,12 +137,38 @@ func mergeEdmundsDefinitions(ctx context.Context, logger *zerolog.Logger, settin
 
 // mergeMatchingDefinitions copies make,model,source to existing DD to make it same as edmunds one, moves styles over to existing dd, then deletes the original edmunds one
 func mergeMatchingDefinitions(ctx context.Context, edmundsDD, existingDD *models.DeviceDefinition, pdb database.DbStore) error {
+	// make sure not leaving user_devices behind in the edmundsDD
+	edmundsDDUserDevices, err := models.UserDevices(models.UserDeviceWhere.DeviceDefinitionID.EQ(edmundsDD.ID)).All(ctx, pdb.DBS().Writer)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return errors.Wrapf(err, "error getting edmunds userDevices for dd_id %s", edmundsDD.ID)
+	}
+	if len(edmundsDDUserDevices) > 0 {
+		fmt.Printf("found %d userDevices attached to edmunds dd_id %s, moving them over to existing dd_id %s\n",
+			len(edmundsDDUserDevices), edmundsDD.ID, existingDD.ID)
+		_, err = edmundsDDUserDevices.UpdateAll(ctx, pdb.DBS().Writer, models.M{"device_definition_id": existingDD.ID})
+		if err != nil {
+			return errors.Wrap(err, "error updating user devices dd_id")
+		}
+	}
+	// make sure not leaving behind integrations in the edmundsDD
+	edmundsDDIntegrations, err := models.DeviceIntegrations(models.DeviceIntegrationWhere.DeviceDefinitionID.EQ(edmundsDD.ID)).All(ctx, pdb.DBS().Writer)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return errors.Wrapf(err, "error getting edmunds integrations for dd_id %s", edmundsDD.ID)
+	}
+	if len(edmundsDDIntegrations) > 0 {
+		fmt.Printf("found deviceIntegrations attached to edmunds dd_id %s, moving them over to existin dd_id %s\n", edmundsDD.ID, existingDD.ID)
+		_, err = edmundsDDIntegrations.UpdateAll(ctx, pdb.DBS().Writer, models.M{"device_definition_id": existingDD.ID})
+		if err != nil {
+			fmt.Printf("go error trying to update deviceIntegrations, most likely because conflict with existing integration, which is OK. err: %v \n", err)
+		}
+	}
+
 	existingDD.Make = edmundsDD.Make
 	existingDD.Model = edmundsDD.Model
 	existingDD.Source = null.StringFrom(edmundsSource)
 	existingDD.ExternalID = edmundsDD.ExternalID
 	existingDD.Verified = true
-	_, err := existingDD.Update(ctx, pdb.DBS().Writer, boil.Infer())
+	_, err = existingDD.Update(ctx, pdb.DBS().Writer, boil.Infer())
 	if err != nil {
 		return errors.Wrap(err, "error updating device_definition with edmunds data")
 	}
