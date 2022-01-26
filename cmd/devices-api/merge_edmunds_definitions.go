@@ -33,6 +33,7 @@ func mergeEdmundsDefinitions(ctx context.Context, logger *zerolog.Logger, settin
 	}
 	// loop through non ed dd's, lookup existing match in edmunds dd's,
 	for _, dd := range existingDDs {
+		fmt.Println("--------------------------------------------")
 		// if find match exact match, assume all good and merge
 		edmundsDD, err := models.DeviceDefinitions(models.DeviceDefinitionWhere.Source.EQ(null.StringFrom(edmundsSource)),
 			qm.And("year = ?", dd.Year),
