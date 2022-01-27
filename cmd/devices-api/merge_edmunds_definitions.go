@@ -141,55 +141,62 @@ func mergeEdmundsDefinitions(ctx context.Context, logger *zerolog.Logger, settin
 
 // mergeMatchingDefinitions copies make,model,source to existing DD to make it same as edmunds one, moves styles over to existing dd, then deletes the original edmunds one
 func mergeMatchingDefinitions(ctx context.Context, edmundsDD, existingDD *models.DeviceDefinition, pdb database.DbStore) error {
-	// make sure not leaving user_devices behind in the edmundsDD
-	edmundsDDUserDevices, err := models.UserDevices(models.UserDeviceWhere.DeviceDefinitionID.EQ(edmundsDD.ID)).All(ctx, pdb.DBS().Writer)
+	// todo: merge stuff to edmundsDD instead, and delete existingDD. Do we copy metadata? check fkeys make sure not forgetting something
+	tx, err := pdb.DBS().Writer.BeginTx(ctx, nil)
+	if err != nil {
+		return errors.Wrap(err, "could not start transaction")
+	}
+	defer tx.Rollback() //nolint
+
+	// bring over user devices to edmunds DD
+	existingDDUserDevices, err := models.UserDevices(models.UserDeviceWhere.DeviceDefinitionID.EQ(existingDD.ID)).All(ctx, tx)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return errors.Wrapf(err, "error getting edmunds userDevices for dd_id %s", edmundsDD.ID)
 	}
-	if len(edmundsDDUserDevices) > 0 {
-		fmt.Printf("found %d userDevices attached to edmunds dd_id %s, moving them over to existing dd_id %s\n",
-			len(edmundsDDUserDevices), edmundsDD.ID, existingDD.ID)
-		_, err = edmundsDDUserDevices.UpdateAll(ctx, pdb.DBS().Writer, models.M{"device_definition_id": existingDD.ID})
+	if len(existingDDUserDevices) > 0 {
+		fmt.Printf("found %d userDevices attached to existing dd_id %s, moving them over to edmunds dd_id %s\n",
+			len(existingDDUserDevices), existingDD.ID, edmundsDD.ID)
+		_, err = existingDDUserDevices.UpdateAll(ctx, tx, models.M{"device_definition_id": edmundsDD.ID})
 		if err != nil {
 			return errors.Wrap(err, "error updating user devices dd_id")
 		}
 	}
-	// make sure not leaving behind integrations in the edmundsDD
-	edmundsDDIntegrations, err := models.DeviceIntegrations(models.DeviceIntegrationWhere.DeviceDefinitionID.EQ(edmundsDD.ID)).All(ctx, pdb.DBS().Writer)
+	// bring over any integrations to edmunds DD
+	existingDDIntegrations, err := models.DeviceIntegrations(models.DeviceIntegrationWhere.DeviceDefinitionID.EQ(existingDD.ID)).All(ctx, tx)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return errors.Wrapf(err, "error getting edmunds integrations for dd_id %s", edmundsDD.ID)
 	}
-	if len(edmundsDDIntegrations) > 0 {
-		fmt.Printf("found deviceIntegrations attached to edmunds dd_id %s, moving them over to existin dd_id %s\n", edmundsDD.ID, existingDD.ID)
-		_, err = edmundsDDIntegrations.UpdateAll(ctx, pdb.DBS().Writer, models.M{"device_definition_id": existingDD.ID})
+	if len(existingDDIntegrations) > 0 {
+		fmt.Printf("found deviceIntegrations attached to existing dd_id %s, moving them over to edmunds dd_id %s\n", existingDD.ID, edmundsDD.ID)
+		exists, err := models.DeviceIntegrations(models.DeviceIntegrationWhere.DeviceDefinitionID.EQ(edmundsDD.ID)).Exists(ctx, tx)
 		if err != nil {
-			fmt.Printf("go error trying to update deviceIntegrations, most likely because conflict with existing integration, which is OK. err: %v \n", err)
+			return err
+		}
+		if !exists {
+			_, err = existingDDIntegrations.UpdateAll(ctx, tx, models.M{"device_definition_id": edmundsDD.ID})
+			if err != nil {
+				fmt.Printf("error trying to update deviceIntegrations, most likely because conflict with existing integration, which is OK. err: %v \n", err)
+			}
+		}
+	}
+	// copy any useful old data
+	if existingDD.ImageURL.Ptr() != nil || existingDD.Metadata.Ptr() != nil {
+		edmundsDD.ImageURL = existingDD.ImageURL
+		edmundsDD.Metadata = existingDD.Metadata
+		_, err = edmundsDD.Update(ctx, tx, boil.Infer())
+		if err != nil {
+			return errors.Wrap(err, "error updating device_definition with edmunds data")
 		}
 	}
 
-	existingDD.Make = edmundsDD.Make
-	existingDD.Model = edmundsDD.Model
-	existingDD.Source = null.StringFrom(edmundsSource)
-	existingDD.ExternalID = edmundsDD.ExternalID
-	existingDD.Verified = true
-	_, err = existingDD.Update(ctx, pdb.DBS().Writer, boil.Infer())
+	fmt.Printf("Successfuly updated edmunds DD with selected existing one. %s\n", printMMY(existingDD, Green, false))
+	_, err = existingDD.Delete(ctx, tx)
 	if err != nil {
-		return errors.Wrap(err, "error updating device_definition with edmunds data")
+		return errors.Wrapf(err, "error deleting existing device_definition: %s", existingDD.ID)
 	}
-	// move styles
-	edmundsStyles, err := models.DeviceStyles(models.DeviceStyleWhere.DeviceDefinitionID.EQ(edmundsDD.ID)).All(ctx, pdb.DBS().Writer)
+	err = tx.Commit()
 	if err != nil {
-		return errors.Wrap(err, "error looking for existing styles")
-	}
-	stylesUpdatedCnt, err := edmundsStyles.UpdateAll(ctx, pdb.DBS().Writer, models.M{"device_definition_id": existingDD.ID})
-	if err != nil {
-		return errors.Wrap(err, "error updating all the device_styles to the existing dd_id")
-	}
-	fmt.Printf("Successfuly updated existing DD with edmunds one, and updated %d device_styles. %s \n",
-		stylesUpdatedCnt, printMMY(existingDD, Green, false))
-	_, err = edmundsDD.Delete(ctx, pdb.DBS().Writer)
-	if err != nil {
-		return errors.Wrapf(err, "error deleting copied edmunds device_definition: %s", edmundsDD.ID)
+		return errors.Wrap(err, "error commiting transaction")
 	}
 	return nil
 }
