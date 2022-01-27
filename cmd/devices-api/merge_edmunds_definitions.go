@@ -109,9 +109,9 @@ func mergeEdmundsDefinitions(ctx context.Context, logger *zerolog.Logger, settin
 						if err != nil {
 							return errors.Wrapf(err, "error deleting device_definition %s", dd.ID)
 						}
-						fmt.Println("successfully deleted")
-						continue
+						fmt.Println("successfully deleted" + printMMY(dd, Red, false))
 					}
+					continue
 				} else {
 					chosenDDToMerge = edmundsModelYearMatches[indexSelection]
 				}
@@ -139,9 +139,8 @@ func mergeEdmundsDefinitions(ctx context.Context, logger *zerolog.Logger, settin
 	return nil
 }
 
-// mergeMatchingDefinitions copies make,model,source to existing DD to make it same as edmunds one, moves styles over to existing dd, then deletes the original edmunds one
+// mergeMatchingDefinitions moves existing DD to the edmunds DD, moving over all related data.
 func mergeMatchingDefinitions(ctx context.Context, edmundsDD, existingDD *models.DeviceDefinition, pdb database.DbStore) error {
-	// todo: merge stuff to edmundsDD instead, and delete existingDD. Do we copy metadata? check fkeys make sure not forgetting something
 	tx, err := pdb.DBS().Writer.BeginTx(ctx, nil)
 	if err != nil {
 		return errors.Wrap(err, "could not start transaction")
