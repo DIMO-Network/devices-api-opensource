@@ -28,7 +28,7 @@ var Purple = "\033[35m"
 func mergeEdmundsDefinitions(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore) error {
 	// get non edmunds dd's
 	existingDDs, err := models.DeviceDefinitions(models.DeviceDefinitionWhere.Source.NEQ(null.StringFrom(edmundsSource)),
-		qm.Or("source not like %cli-ignored")).All(ctx, pdb.DBS().Writer)
+		qm.Or("source not like '%cli-ignored'")).All(ctx, pdb.DBS().Writer)
 	if err != nil {
 		return err
 	}
