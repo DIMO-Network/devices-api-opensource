@@ -56,8 +56,11 @@ func mergeEdmundsDefinitions(ctx context.Context, logger *zerolog.Logger, settin
 			}
 			// if no Make & Year matches here likely means something off in our DB, offer to stop to review
 			if len(edmundsModelYearMatches) == 0 {
-				del := askForConfirmation(fmt.Sprintf(" %s No Make and Year matches found in edmunds for: %d %s. Delete? %s", Red, dd.Year, dd.Make, Reset))
-				if del {
+				del := askForConfirmation(fmt.Sprintf(" %s No Make and Year matches found in edmunds for: %d %s. Delete? Ignore? %s", Red, dd.Year, dd.Make, Reset))
+				if del == nil {
+					//mark ignored
+					markIgnored(dd)
+				} else if *del {
 					_, err = dd.Delete(ctx, pdb.DBS().Writer)
 					if err != nil {
 						return errors.Wrapf(err, "error deleting device_definition %s", dd.ID)
@@ -75,9 +78,13 @@ func mergeEdmundsDefinitions(ctx context.Context, logger *zerolog.Logger, settin
 			for i, match := range modelFirstLetterMatches {
 				fmt.Printf("%d: %d %s %s\n", i, match.Year, match.Make, match.Model)
 			}
-			chosenDDToMerge := &models.DeviceDefinition{}
+			chosenDDToMerge := &models.DeviceDefinition{} //nolint
 
 			indexSelection := askForNumberEntry("Choose one from above", len(modelFirstLetterMatches)-1)
+			if indexSelection == -3 {
+				markIgnored(dd)
+				continue
+			}
 			if indexSelection == -2 {
 				// prompt to delete
 				if hasUserDevices {
@@ -85,14 +92,16 @@ func mergeEdmundsDefinitions(ctx context.Context, logger *zerolog.Logger, settin
 					continue
 				} else {
 					del := askForConfirmation(fmt.Sprintf("Confirm: %s has no exact edmunds match and no userDevices. Delete? (n to see more options)", printMMY(dd, Red, false)))
-					if del {
+					if del == nil {
+						markIgnored(dd)
+					} else if *del {
 						_, err = dd.Delete(ctx, pdb.DBS().Writer)
 						if err != nil {
 							return errors.Wrapf(err, "error deleting device_definition %s", dd.ID)
 						}
 						fmt.Println("successfully deleted")
-						continue
 					}
+					continue
 				}
 			}
 			if indexSelection == -1 {
@@ -101,10 +110,16 @@ func mergeEdmundsDefinitions(ctx context.Context, logger *zerolog.Logger, settin
 					fmt.Printf("%d: %d %s %s\n", i, match.Year, match.Make, match.Model)
 				}
 				indexSelection = askForNumberEntry("Choose one from above", len(edmundsModelYearMatches)-1)
+				if indexSelection == -3 {
+					markIgnored(dd)
+					continue
+				}
 				if indexSelection == -1 {
 					// prompt to delete
 					del := askForConfirmation(fmt.Sprintf("Ok, no selection then. Would you like to delete Device Def: %s? Delete?", printMMY(dd, Red, true)))
-					if del {
+					if del == nil {
+						markIgnored(dd)
+					} else if *del {
 						_, err = dd.Delete(ctx, pdb.DBS().Writer)
 						if err != nil {
 							return errors.Wrapf(err, "error deleting device_definition %s", dd.ID)
@@ -200,11 +215,11 @@ func mergeMatchingDefinitions(ctx context.Context, edmundsDD, existingDD *models
 	return nil
 }
 
-func askForConfirmation(s string) bool {
+func askForConfirmation(s string) *bool {
 	reader := bufio.NewReader(os.Stdin)
-
+	c := false
 	for {
-		fmt.Printf("%s [y/n]: ", s)
+		fmt.Printf("%s [y/n/i]: ", s)
 
 		response, err := reader.ReadString('\n')
 		if err != nil {
@@ -214,9 +229,12 @@ func askForConfirmation(s string) bool {
 		response = strings.ToLower(strings.TrimSpace(response))
 
 		if response == "y" || response == "yes" {
-			return true
+			c = true
+			return &c
 		} else if response == "n" || response == "no" {
-			return false
+			return &c
+		} else if response == "i" {
+			return nil
 		}
 	}
 }
@@ -226,7 +244,7 @@ func askForNumberEntry(s string, max int) int {
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
-		fmt.Printf("%s [0-%d]: (n=none | d=delete): ", s, max)
+		fmt.Printf("%s [0-%d]: (n=none | d=delete | i=ignore): ", s, max)
 
 		response, err := reader.ReadString('\n')
 		if err != nil {
@@ -239,6 +257,9 @@ func askForNumberEntry(s string, max int) int {
 		}
 		if response == "d" {
 			return -2
+		}
+		if response == "i" {
+			return -3
 		}
 
 		number, err := strconv.Atoi(response)
@@ -260,4 +281,12 @@ func printMMY(definition *models.DeviceDefinition, color string, includeSource b
 	}
 	return fmt.Sprintf("%s%d %s %s %s(source: %s)%s",
 		color, definition.Year, definition.Make, definition.Model, Purple, definition.Source.String, Reset)
+}
+
+func markIgnored(definition *models.DeviceDefinition) {
+	if definition.Source.Ptr() == nil {
+		definition.Source = null.StringFrom("cli-ignored")
+	} else {
+		definition.Source = null.StringFrom(fmt.Sprintf("%s, cli-ignored", definition.Source.String))
+	}
 }

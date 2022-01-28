@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"testing"
 
 	"github.com/jarcoal/httpmock"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -61,4 +63,23 @@ func TestEdmundsService_GetDefaultImageForMMY_happyPath(t *testing.T) {
 	imageURL, err := es.GetDefaultImageForMMY(m, model, year)
 	assert.NoError(t, err)
 	assert.Equal(t, "https://something.com/gateway/honda/civic/2016/oem/2016_honda_civic_coupe_touring_fq_oem_17_815.jpg", *imageURL)
+}
+
+func TestEdmundsService_buildAndExecuteRequest(t *testing.T) {
+	log := zerolog.New(os.Stdout)
+	es := &EdmundsService{
+		baseMediaURL: "https://something.com/gateway",
+		baseAPIURL:   "https://test-api.com",
+		log:          &log,
+	}
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+	url := fmt.Sprintf("%s/testing", es.baseAPIURL)
+	httpmock.RegisterResponder(http.MethodGet, url, httpmock.NewStringResponder(409, "error: too many requests"))
+
+	response, err := es.buildAndExecuteRequest(url, "")
+
+	assert.Error(t, err, "expected error")
+	assert.Contains(t, err.Error(), "all retries failed")
+	assert.Nil(t, response)
 }

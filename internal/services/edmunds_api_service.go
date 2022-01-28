@@ -142,7 +142,7 @@ func (e *EdmundsService) buildAndExecuteRequest(url string, torProxyURL string) 
 
 	for _, backoff := range backoffSchedule {
 		resp, err = executeRequestWithTor(torProxyURL, req)
-		if resp.StatusCode == fiber.StatusOK && err == nil {
+		if resp != nil && resp.StatusCode == fiber.StatusOK && err == nil {
 			break
 		}
 		// control for err or resp being nil to log message.
@@ -157,9 +157,11 @@ func (e *EdmundsService) buildAndExecuteRequest(url string, torProxyURL string) 
 		e.log.Warn().Msgf("Request Status: %s. error: %s. Retrying in %v", respStatus, errMsg, backoff)
 		time.Sleep(backoff)
 	}
-
-	if err != nil || resp.StatusCode != fiber.StatusOK {
+	if err != nil {
 		return nil, errors.Wrapf(err, "all retries failed. http url: %s", url)
+	}
+	if resp.StatusCode != fiber.StatusOK {
+		return nil, fmt.Errorf("all retries failed, last status code: %d. http url: %s", resp.StatusCode, url)
 	}
 	return resp, err
 }
