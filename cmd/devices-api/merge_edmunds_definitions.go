@@ -204,8 +204,12 @@ func mergeMatchingDefinitions(ctx context.Context, edmundsDD, existingDD *models
 			return errors.Wrap(err, "error updating device_definition with edmunds data")
 		}
 	}
-
-	fmt.Printf("Successfuly updated edmunds DD with selected existing one. %s\n", printMMY(existingDD, Green, false))
+	// delete any old device_styles (new one will have correct styles from edmunds)
+	_, err = models.DeviceStyles(models.DeviceStyleWhere.DeviceDefinitionID.EQ(existingDD.ID)).DeleteAll(ctx, tx)
+	if err != nil {
+		return errors.Wrapf(err, "could not delete asoociated device_styles to dd_id: %s", existingDD.ID)
+	}
+	// delete the old device_definition
 	_, err = existingDD.Delete(ctx, tx)
 	if err != nil {
 		return errors.Wrapf(err, "error deleting existing device_definition: %s", existingDD.ID)
@@ -214,6 +218,7 @@ func mergeMatchingDefinitions(ctx context.Context, edmundsDD, existingDD *models
 	if err != nil {
 		return errors.Wrap(err, "error commiting transaction")
 	}
+	fmt.Printf("Successfuly updated edmunds DD with selected existing one. %s\n", printMMY(existingDD, Green, false))
 	return nil
 }
 
