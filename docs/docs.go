@@ -495,9 +495,186 @@ var doc = `{
                     }
                 }
             }
+        },
+        "/user/geofences": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "gets all geofences for the current user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "geofence"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/controllers.GetGeofence"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "adds a new geofence to the user's account, optionally attached to specific user_devices",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "geofence"
+                ],
+                "parameters": [
+                    {
+                        "description": "add geofence to user.",
+                        "name": "geofence",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.CreateGeofence"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.CreateResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/geofences/:geofenceID": {
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "updates an existing geofence for the current user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "geofence"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "geofence id",
+                        "name": "geofenceID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "add geofence to user.",
+                        "name": "geofence",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.CreateGeofence"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "hard deletes a geofence from db",
+                "tags": [
+                    "geofence"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "geofence id",
+                        "name": "geofenceID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "controllers.CreateGeofence": {
+            "type": "object",
+            "properties": {
+                "UserDeviceIDs": {
+                    "description": "Optionally link the geofence with a list of user device Id",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "h3Index": {
+                    "description": "required: true",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "description": "required: true",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "one of following: \"PrivacyFence\", \"TriggerEntry\", \"TriggerExit\"\nrequired: true",
+                    "type": "string"
+                }
+            }
+        },
+        "controllers.CreateResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                }
+            }
+        },
         "controllers.DeviceMMYRoot": {
             "type": "object",
             "properties": {
@@ -533,6 +710,46 @@ var doc = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/controllers.DeviceModelYear"
+                    }
+                }
+            }
+        },
+        "controllers.GeoFenceUserDevice": {
+            "type": "object",
+            "properties": {
+                "mmy": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "userDeviceId": {
+                    "type": "string"
+                }
+            }
+        },
+        "controllers.GetGeofence": {
+            "type": "object",
+            "properties": {
+                "h3Index": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "userDevices": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.GeoFenceUserDevice"
                     }
                 }
             }
@@ -729,8 +946,11 @@ var doc = `{
                 "model": {
                     "type": "string"
                 },
-                "subModel": {
-                    "type": "string"
+                "subModels": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "type": {
                     "description": "Type is eg. Vehicle, E-bike, roomba",

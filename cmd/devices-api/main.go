@@ -136,6 +136,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	taskSvc := services.NewTaskService(settings, pdb.DBS, ddSvc, eventService, &logger)
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc)
 	userDeviceControllers := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService)
+	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger)
 
 	prometheus := fiberprometheus.New("devices-api")
 	app.Use(prometheus.Middleware)
@@ -162,6 +163,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	app.Put("/loglevel", changeLogLevel)
 
 	v1 := app.Group("/v1")
+	// Device Definitions
 	v1.Get("/device-definitions/all", cacheHandler, deviceControllers.GetAllDeviceMakeModelYears)
 	v1.Get("/device-definitions/:id", deviceControllers.GetDeviceDefinitionByID)
 	v1.Get("/device-definitions/:id/integrations", deviceControllers.GetIntegrationsByID)
@@ -174,17 +176,25 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		KeyRefreshInterval:   &keyRefreshInterval,
 		KeyRefreshUnknownKID: &keyRefreshUnknownKID,
 	})
-	v1.Get("/user/devices/me", jwtAuth, userDeviceControllers.GetUserDevices)
-	v1.Post("/user/devices", jwtAuth, userDeviceControllers.RegisterDeviceForUser)
-	v1.Delete("/user/devices/:userDeviceID", jwtAuth, userDeviceControllers.DeleteUserDevice)
-	v1.Patch("/user/devices/:userDeviceID/vin", jwtAuth, userDeviceControllers.UpdateVIN)
-	v1.Patch("/user/devices/:userDeviceID/name", jwtAuth, userDeviceControllers.UpdateName)
-	v1.Patch("/user/devices/:userDeviceID/country-code", jwtAuth, userDeviceControllers.UpdateCountryCode)
-	v1.Get("/user/devices/:userDeviceID/integrations/:integrationID", jwtAuth, userDeviceControllers.GetUserDeviceIntegration)
-	v1.Delete("/user/devices/:userDeviceID/integrations/:integrationID", jwtAuth, userDeviceControllers.DeleteUserDeviceIntegration)
-	v1.Post("/user/devices/:userDeviceID/integrations/:integrationID", jwtAuth, userDeviceControllers.RegisterSmartcarIntegration)
-	v1.Get("/user/devices/:userDeviceID/status", jwtAuth, userDeviceControllers.GetUserDeviceStatus)
-	v1.Post("/user/devices/:userDeviceID/commands/refresh", jwtAuth, userDeviceControllers.RefreshUserDeviceStatus)
+	v1Auth := app.Group("/v1", jwtAuth)
+	// user's devices
+	v1Auth.Get("/user/devices/me", userDeviceControllers.GetUserDevices)
+	v1Auth.Post("/user/devices", userDeviceControllers.RegisterDeviceForUser)
+	v1Auth.Delete("/user/devices/:userDeviceID", userDeviceControllers.DeleteUserDevice)
+	v1Auth.Patch("/user/devices/:userDeviceID/vin", userDeviceControllers.UpdateVIN)
+	v1Auth.Patch("/user/devices/:userDeviceID/name", userDeviceControllers.UpdateName)
+	v1Auth.Patch("/user/devices/:userDeviceID/country-code", userDeviceControllers.UpdateCountryCode)
+	v1Auth.Get("/user/devices/:userDeviceID/integrations/:integrationID", userDeviceControllers.GetUserDeviceIntegration)
+	v1Auth.Delete("/user/devices/:userDeviceID/integrations/:integrationID", userDeviceControllers.DeleteUserDeviceIntegration)
+	v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID", userDeviceControllers.RegisterSmartcarIntegration)
+	v1Auth.Get("/user/devices/:userDeviceID/status", userDeviceControllers.GetUserDeviceStatus)
+	v1Auth.Post("/user/devices/:userDeviceID/commands/refresh", userDeviceControllers.RefreshUserDeviceStatus)
+
+	// geofence
+	v1Auth.Post("/user/geofences", geofenceController.Create)
+	v1Auth.Get("/user/geofences", geofenceController.GetAll)
+	v1Auth.Delete("/user/geofences/:geofenceID", geofenceController.Delete)
+	v1Auth.Put("/user/geofences/:geofenceID", geofenceController.Update)
 
 	// admin / internal operations paths
 	// v1.Post("/admin/user/:user_id/devices", userDeviceControllers.AdminRegisterUserDevice)

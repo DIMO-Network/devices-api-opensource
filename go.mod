@@ -39,6 +39,7 @@ require (
 require (
 	github.com/ericlagergren/decimal v0.0.0-20181231230500-73749d4874d5 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
+	github.com/paulmach/go.geojson v1.4.0 // indirect
 )
 
 require (

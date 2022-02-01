@@ -7,16 +7,20 @@ var TableNames = struct {
 	DeviceDefinitions         string
 	DeviceIntegrations        string
 	DeviceStyles              string
+	Geofences                 string
 	Integrations              string
 	UserDeviceAPIIntegrations string
 	UserDeviceData            string
+	UserDeviceToGeofence      string
 	UserDevices               string
 }{
 	DeviceDefinitions:         "device_definitions",
 	DeviceIntegrations:        "device_integrations",
 	DeviceStyles:              "device_styles",
+	Geofences:                 "geofences",
 	Integrations:              "integrations",
 	UserDeviceAPIIntegrations: "user_device_api_integrations",
 	UserDeviceData:            "user_device_data",
+	UserDeviceToGeofence:      "user_device_to_geofence",
 	UserDevices:               "user_devices",
 }

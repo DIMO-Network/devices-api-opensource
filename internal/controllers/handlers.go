@@ -21,3 +21,8 @@ func getUserID(c *fiber.Ctx) string {
 	userID := claims["sub"].(string)
 	return userID
 }
+
+// CreateResponse is a generic response with an ID of the created entity
+type CreateResponse struct {
+	ID string `json:"id"`
+}

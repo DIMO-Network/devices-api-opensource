@@ -51,6 +51,13 @@ func makeCacheKey(cols boil.Columns, nzDefaults []string) string {
 	return str
 }
 
+// Enum values for GeofenceType
+const (
+	GeofenceTypePrivacyFence = "PrivacyFence"
+	GeofenceTypeTriggerEntry = "TriggerEntry"
+	GeofenceTypeTriggerExit  = "TriggerExit"
+)
+
 // Enum values for IntegrationType
 const (
 	IntegrationTypeHardware = "Hardware"

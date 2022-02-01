@@ -118,10 +118,12 @@ var UserDeviceRels = struct {
 	DeviceDefinition          string
 	UserDeviceDatum           string
 	UserDeviceAPIIntegrations string
+	UserDeviceToGeofences     string
 }{
 	DeviceDefinition:          "DeviceDefinition",
 	UserDeviceDatum:           "UserDeviceDatum",
 	UserDeviceAPIIntegrations: "UserDeviceAPIIntegrations",
+	UserDeviceToGeofences:     "UserDeviceToGeofences",
 }
 
 // userDeviceR is where relationships are stored.
@@ -129,6 +131,7 @@ type userDeviceR struct {
 	DeviceDefinition          *DeviceDefinition             `boil:"DeviceDefinition" json:"DeviceDefinition" toml:"DeviceDefinition" yaml:"DeviceDefinition"`
 	UserDeviceDatum           *UserDeviceDatum              `boil:"UserDeviceDatum" json:"UserDeviceDatum" toml:"UserDeviceDatum" yaml:"UserDeviceDatum"`
 	UserDeviceAPIIntegrations UserDeviceAPIIntegrationSlice `boil:"UserDeviceAPIIntegrations" json:"UserDeviceAPIIntegrations" toml:"UserDeviceAPIIntegrations" yaml:"UserDeviceAPIIntegrations"`
+	UserDeviceToGeofences     UserDeviceToGeofenceSlice     `boil:"UserDeviceToGeofences" json:"UserDeviceToGeofences" toml:"UserDeviceToGeofences" yaml:"UserDeviceToGeofences"`
 }
 
 // NewStruct creates a new relationship struct
@@ -470,6 +473,27 @@ func (o *UserDevice) UserDeviceAPIIntegrations(mods ...qm.QueryMod) userDeviceAP
 	return query
 }
 
+// UserDeviceToGeofences retrieves all the user_device_to_geofence's UserDeviceToGeofences with an executor.
+func (o *UserDevice) UserDeviceToGeofences(mods ...qm.QueryMod) userDeviceToGeofenceQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"devices_api\".\"user_device_to_geofence\".\"user_device_id\"=?", o.ID),
+	)
+
+	query := UserDeviceToGeofences(queryMods...)
+	queries.SetFrom(query.Query, "\"devices_api\".\"user_device_to_geofence\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"devices_api\".\"user_device_to_geofence\".*"})
+	}
+
+	return query
+}
+
 // LoadDeviceDefinition allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for an N-1 relationship.
 func (userDeviceL) LoadDeviceDefinition(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserDevice interface{}, mods queries.Applicator) error {
@@ -773,6 +797,104 @@ func (userDeviceL) LoadUserDeviceAPIIntegrations(ctx context.Context, e boil.Con
 	return nil
 }
 
+// LoadUserDeviceToGeofences allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (userDeviceL) LoadUserDeviceToGeofences(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserDevice interface{}, mods queries.Applicator) error {
+	var slice []*UserDevice
+	var object *UserDevice
+
+	if singular {
+		object = maybeUserDevice.(*UserDevice)
+	} else {
+		slice = *maybeUserDevice.(*[]*UserDevice)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &userDeviceR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &userDeviceR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`devices_api.user_device_to_geofence`),
+		qm.WhereIn(`devices_api.user_device_to_geofence.user_device_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load user_device_to_geofence")
+	}
+
+	var resultSlice []*UserDeviceToGeofence
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice user_device_to_geofence")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on user_device_to_geofence")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for user_device_to_geofence")
+	}
+
+	if len(userDeviceToGeofenceAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.UserDeviceToGeofences = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &userDeviceToGeofenceR{}
+			}
+			foreign.R.UserDevice = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.UserDeviceID {
+				local.R.UserDeviceToGeofences = append(local.R.UserDeviceToGeofences, foreign)
+				if foreign.R == nil {
+					foreign.R = &userDeviceToGeofenceR{}
+				}
+				foreign.R.UserDevice = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // SetDeviceDefinition of the userDevice to the related item.
 // Sets o.R.DeviceDefinition to related.
 // Adds o to related.R.UserDevices.
@@ -915,6 +1037,59 @@ func (o *UserDevice) AddUserDeviceAPIIntegrations(ctx context.Context, exec boil
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &userDeviceAPIIntegrationR{
+				UserDevice: o,
+			}
+		} else {
+			rel.R.UserDevice = o
+		}
+	}
+	return nil
+}
+
+// AddUserDeviceToGeofences adds the given related objects to the existing relationships
+// of the user_device, optionally inserting them as new records.
+// Appends related to o.R.UserDeviceToGeofences.
+// Sets related.R.UserDevice appropriately.
+func (o *UserDevice) AddUserDeviceToGeofences(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*UserDeviceToGeofence) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.UserDeviceID = o.ID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"devices_api\".\"user_device_to_geofence\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"user_device_id"}),
+				strmangle.WhereClause("\"", "\"", 2, userDeviceToGeofencePrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.UserDeviceID, rel.GeofenceID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.UserDeviceID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &userDeviceR{
+			UserDeviceToGeofences: related,
+		}
+	} else {
+		o.R.UserDeviceToGeofences = append(o.R.UserDeviceToGeofences, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &userDeviceToGeofenceR{
 				UserDevice: o,
 			}
 		} else {
