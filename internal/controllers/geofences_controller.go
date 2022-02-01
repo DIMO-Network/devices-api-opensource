@@ -104,10 +104,11 @@ func (g *GeofencesController) Create(c *fiber.Ctx) error {
 // @Router  /user/geofences [get]
 func (g *GeofencesController) GetAll(c *fiber.Ctx) error {
 	userID := getUserID(c)
+	//could not find LoadUserDevices method for eager loading
 	items, err := models.Geofences(models.GeofenceWhere.UserID.EQ(userID),
 		qm.Load(models.GeofenceRels.UserDeviceToGeofences),
-		qm.Load("UserDeviceToGeofences.UserDevices"),
-		qm.Load("UserDeviceToGeofences.UserDevices.DeviceDefinitions")).All(c.Context(), g.DBS().Reader)
+		qm.Load("UserDeviceToGeofences.UserDevice"),
+		qm.Load("UserDeviceToGeofences.UserDevice.DeviceDefinition")).All(c.Context(), g.DBS().Reader)
 	if err != nil {
 		return err
 	}
@@ -239,7 +240,7 @@ type CreateGeofence struct {
 	// required: true
 	H3Indexes []string `json:"h3Indexes"`
 	// Optionally link the geofence with a list of user device Id
-	UserDeviceIDs []string `json:"UserDeviceIds"`
+	UserDeviceIDs []string `json:"userDeviceIds"`
 }
 
 func (g *CreateGeofence) Validate() error {

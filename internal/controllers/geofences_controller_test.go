@@ -10,10 +10,14 @@ import (
 	"testing"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
+	"github.com/DIMO-INC/devices-api/models"
 	"github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog"
+	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
 func TestGeofencesController(t *testing.T) {
@@ -36,6 +40,23 @@ func TestGeofencesController(t *testing.T) {
 	app.Get("/user/geofences", authInjectorTestHandler(testUserID), c.GetAll)
 	app.Put("/user/geofences/:geofenceID", authInjectorTestHandler(testUserID), c.Update)
 	app.Delete("/user/geofences/:geofenceID", authInjectorTestHandler(testUserID), c.Delete)
+	// test data
+	deviceDef := models.DeviceDefinition{
+		ID:       ksuid.New().String(),
+		Make:     "Mercedex",
+		Model:    "C300",
+		Year:     2009,
+		Verified: true,
+	}
+	_ = deviceDef.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+	userDevice := models.UserDevice{
+		ID:                 ksuid.New().String(),
+		UserID:             "1234",
+		DeviceDefinitionID: deviceDef.ID,
+		Name:               null.StringFrom("chungus"),
+		CountryCode:        null.StringFrom("USA"),
+	}
+	_ = userDevice.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 
 	createdID := ""
 	t.Run("POST - create geofence", func(t *testing.T) {
@@ -43,7 +64,7 @@ func TestGeofencesController(t *testing.T) {
 			Name:          "Home",
 			Type:          "PrivacyFence",
 			H3Indexes:     []string{"123", "321"},
-			UserDeviceIDs: nil,
+			UserDeviceIDs: []string{userDevice.ID},
 		}
 		j, _ := json.Marshal(req)
 		request := buildRequest("POST", "/user/geofences", string(j))

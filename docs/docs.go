@@ -643,13 +643,6 @@ var doc = `{
         "controllers.CreateGeofence": {
             "type": "object",
             "properties": {
-                "UserDeviceIds": {
-                    "description": "Optionally link the geofence with a list of user device Id",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
                 "h3Indexes": {
                     "description": "required: true",
                     "type": "array",
@@ -664,6 +657,13 @@ var doc = `{
                 "type": {
                     "description": "one of following: \"PrivacyFence\", \"TriggerEntry\", \"TriggerExit\"\nrequired: true",
                     "type": "string"
+                },
+                "userDeviceIds": {
+                    "description": "Optionally link the geofence with a list of user device Id",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },

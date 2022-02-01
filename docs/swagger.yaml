@@ -2,11 +2,6 @@ basePath: /v1
 definitions:
   controllers.CreateGeofence:
     properties:
-      UserDeviceIds:
-        description: Optionally link the geofence with a list of user device Id
-        items:
-          type: string
-        type: array
       h3Indexes:
         description: 'required: true'
         items:
@@ -20,6 +15,11 @@ definitions:
           one of following: "PrivacyFence", "TriggerEntry", "TriggerExit"
           required: true
         type: string
+      userDeviceIds:
+        description: Optionally link the geofence with a list of user device Id
+        items:
+          type: string
+        type: array
     type: object
   controllers.CreateResponse:
     properties:
