@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	swagger "github.com/arsmn/fiber-swagger/v2"
 	"net/http"
 	"os"
 	"strings"
@@ -16,7 +17,6 @@ import (
 	"github.com/DIMO-Network/zflogger"
 	"github.com/Shopify/sarama"
 	"github.com/ansrivas/fiberprometheus/v2"
-	swagger "github.com/arsmn/fiber-swagger/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -168,6 +168,13 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1.Get("/device-definitions/:id", deviceControllers.GetDeviceDefinitionByID)
 	v1.Get("/device-definitions/:id/integrations", deviceControllers.GetIntegrationsByID)
 	v1.Get("/device-definitions", deviceControllers.GetDeviceDefinitionByMMY)
+	// swagger - note could add auth middleware so it is not open
+	sc := swagger.Config{ // custom
+		// Expand ("list") or Collapse ("none") tag groups by default
+		DocExpansion: "list",
+	}
+	v1.Get("/swagger/*", swagger.New(sc))
+
 	// secured paths
 	keyRefreshInterval := time.Hour
 	keyRefreshUnknownKID := true
@@ -198,13 +205,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 
 	// admin / internal operations paths
 	// v1.Post("/admin/user/:user_id/devices", userDeviceControllers.AdminRegisterUserDevice)
-
-	// swagger - note could add auth middleware so it is not open
-	sc := swagger.Config{ // custom
-		// Expand ("list") or Collapse ("none") tag groups by default
-		DocExpansion: "list",
-	}
-	v1.Get("/swagger/*", swagger.New(sc))
 
 	logger.Info().Msg("Server started on port " + settings.Port)
 	// Start Server

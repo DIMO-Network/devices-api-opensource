@@ -27,19 +27,21 @@ You can connect to db eg: `psql -h localhost -p 5432 -U dimo` or with your favor
 3. Migrate DB to latest: 
 `$ go run ./cmd/devices-api migrate`
 
-4. Install kafka with brew
+4. Install kafka with brew, and run it
 `$ brew install kafka`
+`$ brew services start zookeeper`
+`$ brew services start kafka`
 
-5. Run application
+6. Run application
 `$ go run ./cmd/devices-api`
 
-6. Seed data from SmartCar:
+7. Seed data from SmartCar:
 `$ go run ./cmd/devices-api seed-smartcar`
  
-7. Seed data from Edmunds / merging it with Smartcar data previously loaded
+8. Seed data from Edmunds / merging it with Smartcar data previously loaded
 `$ go run ./cmd/devices-api edmunds-vehicles-sync --mergemmy`
 
-8. Set some vehicle images from edmunds:
+9. Set some vehicle images from edmunds:
 `$ go run ./cmd/devices-api edmunds-images [--overwrite]`
 
 ### Kafka test producer

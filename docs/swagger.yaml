@@ -2,12 +2,12 @@ basePath: /v1
 definitions:
   controllers.CreateGeofence:
     properties:
-      UserDeviceIDs:
+      UserDeviceIds:
         description: Optionally link the geofence with a list of user device Id
         items:
           type: string
         type: array
-      h3Index:
+      h3Indexes:
         description: 'required: true'
         items:
           type: string
@@ -62,7 +62,7 @@ definitions:
     type: object
   controllers.GetGeofence:
     properties:
-      h3Index:
+      h3Indexes:
         items:
           type: string
         type: array

@@ -643,14 +643,14 @@ var doc = `{
         "controllers.CreateGeofence": {
             "type": "object",
             "properties": {
-                "UserDeviceIDs": {
+                "UserDeviceIds": {
                     "description": "Optionally link the geofence with a list of user device Id",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
-                "h3Index": {
+                "h3Indexes": {
                     "description": "required: true",
                     "type": "array",
                     "items": {
@@ -731,7 +731,7 @@ var doc = `{
         "controllers.GetGeofence": {
             "type": "object",
             "properties": {
-                "h3Index": {
+                "h3Indexes": {
                     "type": "array",
                     "items": {
                         "type": "string"
