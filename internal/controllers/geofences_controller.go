@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
@@ -119,6 +120,8 @@ func (g *GeofencesController) GetAll(c *fiber.Ctx) error {
 			Name:      item.Name,
 			Type:      item.Type,
 			H3Indexes: item.H3Indexes,
+			CreatedAt: item.CreatedAt,
+			UpdatedAt: item.UpdatedAt,
 		}
 		for _, udtg := range item.R.UserDeviceToGeofences {
 			f.UserDevices = append(f.UserDevices, GeoFenceUserDevice{
@@ -223,6 +226,8 @@ type GetGeofence struct {
 	Type        string               `json:"type"`
 	H3Indexes   []string             `json:"h3Indexes"`
 	UserDevices []GeoFenceUserDevice `json:"userDevices"`
+	CreatedAt   time.Time            `json:"createdAt"`
+	UpdatedAt   time.Time            `json:"updatedAt"`
 }
 
 type GeoFenceUserDevice struct {
