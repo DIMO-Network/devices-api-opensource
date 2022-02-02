@@ -731,6 +731,9 @@ var doc = `{
         "controllers.GetGeofence": {
             "type": "object",
             "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
                 "h3Indexes": {
                     "type": "array",
                     "items": {
@@ -744,6 +747,9 @@ var doc = `{
                     "type": "string"
                 },
                 "type": {
+                    "type": "string"
+                },
+                "updatedAt": {
                     "type": "string"
                 },
                 "userDevices": {

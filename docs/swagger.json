@@ -715,6 +715,9 @@
         "controllers.GetGeofence": {
             "type": "object",
             "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
                 "h3Indexes": {
                     "type": "array",
                     "items": {
@@ -728,6 +731,9 @@
                     "type": "string"
                 },
                 "type": {
+                    "type": "string"
+                },
+                "updatedAt": {
                     "type": "string"
                 },
                 "userDevices": {
