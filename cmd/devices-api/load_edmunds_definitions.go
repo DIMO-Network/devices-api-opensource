@@ -45,11 +45,46 @@ func loadEdmundsDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, s
 
 	for _, vehicle := range *vehicles {
 		// check if the device definition for the edmunds models.years.id exists
-		deviceDefExists := linq.From(allDefinitions).WhereT(func(d models.DeviceDefinition) bool {
+		deviceDefExists := linq.From(allDefinitions).WhereT(func(d *models.DeviceDefinition) bool {
 			return d.ExternalID.String == strconv.Itoa(vehicle.ModelYearID) && d.Source == null.StringFrom(edmundsSource)
 		}).Any()
 		if deviceDefExists {
-			// ignore matching style id definition
+			// check the styles inside the existing device def
+			existingDD := linq.From(allDefinitions).WhereT(func(d *models.DeviceDefinition) bool {
+				return d.ExternalID.String == strconv.Itoa(vehicle.ModelYearID) && d.Source == null.StringFrom(edmundsSource)
+			}).First().(*models.DeviceDefinition)
+			// get styles
+			existingStyles, err := models.DeviceStyles(models.DeviceStyleWhere.DeviceDefinitionID.EQ(existingDD.ID)).All(ctx, pdb.DBS().Reader)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return errors.Wrapf(err, "error looking for styles for device_definition: %s", existingDD.ID)
+			}
+			// loop and compare
+			for _, edmundsStyle := range vehicle.Styles {
+				matchFound := false
+				for _, existingStyle := range existingStyles {
+					if existingStyle.ExternalStyleID == strconv.Itoa(edmundsStyle.StyleID) {
+						matchFound = true
+					}
+				}
+				if !matchFound {
+					// insert edmundsStyle
+					newStyle := models.DeviceStyle{
+						ID:                 ksuid.New().String(),
+						DeviceDefinitionID: existingDD.ID,
+						Name:               edmundsStyle.Name,
+						ExternalStyleID:    strconv.Itoa(edmundsStyle.StyleID),
+						Source:             edmundsSource,
+						SubModel:           edmundsStyle.Trim,
+					}
+					err = newStyle.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+					if err != nil {
+						return errors.Wrapf(err, "error inserting new device style %+v", edmundsStyle)
+					}
+					logger.Info().Msgf("inserted new style: %s %s for existing dd: %s", newStyle.Name, newStyle.SubModel, existingDD.ID)
+				}
+			}
+
+			// back to loop since don't want to insert MMY
 			continue
 		}
 
