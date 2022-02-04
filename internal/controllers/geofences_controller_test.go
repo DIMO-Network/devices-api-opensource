@@ -75,6 +75,31 @@ func TestGeofencesController(t *testing.T) {
 		}
 		createdID = gjson.Get(string(body), "id").String()
 		assert.Len(t, createdID, 27)
+
+		// create one without h3 indexes required
+		req = CreateGeofence{
+			Name:          "Work",
+			Type:          "PrivacyFence",
+			UserDeviceIDs: []string{userDevice.ID},
+		}
+		j, _ = json.Marshal(req)
+		request = buildRequest("POST", "/user/geofences", string(j))
+		response, _ = app.Test(request)
+		if assert.Equal(t, fiber.StatusCreated, response.StatusCode, "expected create OK without h3 indexes") == false {
+			body, _ = ioutil.ReadAll(response.Body)
+			fmt.Println("message: " + string(body))
+		}
+	})
+	t.Run("POST - 400 if same name", func(t *testing.T) {
+		req := CreateGeofence{
+			Name:          "Home",
+			Type:          "PrivacyFence",
+			UserDeviceIDs: []string{userDevice.ID},
+		}
+		j, _ := json.Marshal(req)
+		request := buildRequest("POST", "/user/geofences", string(j))
+		response, _ := app.Test(request)
+		assert.Equal(t, fiber.StatusBadRequest, response.StatusCode, "expected bad request on duplicate name")
 	})
 	t.Run("GET - get all geofences for user", func(t *testing.T) {
 		request, _ := http.NewRequest("GET", "/user/geofences", nil)
@@ -86,11 +111,11 @@ func TestGeofencesController(t *testing.T) {
 		if assert.True(t, get.IsArray()) == false {
 			fmt.Println("body: " + string(body))
 		}
-		assert.Len(t, get.Array(), 1, "expected to find one item in response")
+		assert.Len(t, get.Array(), 2, "expected to find one item in response")
 	})
 	t.Run("PUT - update a geofence", func(t *testing.T) {
 		req := CreateGeofence{
-			Name:          "Work",
+			Name:          "School",
 			Type:          "TriggerEntry",
 			H3Indexes:     []string{"123", "321", "1234555"},
 			UserDeviceIDs: nil,
@@ -110,9 +135,10 @@ func TestGeofencesController(t *testing.T) {
 		// assert changes
 		assert.Equal(t, fiber.StatusOK, response.StatusCode)
 		get := gjson.Get(string(body), "geofences").Array()
-		assert.Equal(t, req.Name, get[0].Get("name").String(), "expected name to be updated")
-		assert.Equal(t, req.Type, get[0].Get("type").String(), "expected type to be updated")
-		assert.Len(t, get[0].Get("h3Indexes").Array(), 3)
+		// assert against second item in array, which was the created one
+		assert.Equal(t, req.Name, get[1].Get("name").String(), "expected name to be updated")
+		assert.Equal(t, req.Type, get[1].Get("type").String(), "expected type to be updated")
+		assert.Len(t, get[1].Get("h3Indexes").Array(), 3)
 	})
 	t.Run("DELETE - delete the  geofence by id", func(t *testing.T) {
 		request, _ := http.NewRequest("DELETE", "/user/geofences/"+createdID, nil)

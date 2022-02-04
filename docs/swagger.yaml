@@ -3,7 +3,7 @@ definitions:
   controllers.CreateGeofence:
     properties:
       h3Indexes:
-        description: 'required: true'
+        description: 'required: false'
         items:
           type: string
         type: array

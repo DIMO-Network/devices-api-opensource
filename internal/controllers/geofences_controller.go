@@ -242,7 +242,7 @@ type CreateGeofence struct {
 	// one of following: "PrivacyFence", "TriggerEntry", "TriggerExit"
 	// required: true
 	Type string `json:"type"`
-	// required: true
+	// required: false
 	H3Indexes []string `json:"h3Indexes"`
 	// Optionally link the geofence with a list of user device ID
 	UserDeviceIDs []string `json:"userDeviceIds"`
@@ -252,5 +252,5 @@ func (g *CreateGeofence) Validate() error {
 	return validation.ValidateStruct(g,
 		validation.Field(&g.Name, validation.Required),
 		validation.Field(&g.Type, validation.Required, validation.In("PrivacyFence", "TriggerEntry", "TriggerExit")),
-		validation.Field(&g.H3Indexes, validation.Required))
+	)
 }

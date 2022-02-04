@@ -644,7 +644,7 @@ var doc = `{
             "type": "object",
             "properties": {
                 "h3Indexes": {
-                    "description": "required: true",
+                    "description": "required: false",
                     "type": "array",
                     "items": {
                         "type": "string"
