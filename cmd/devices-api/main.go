@@ -115,6 +115,12 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error running Smartcar Kafka re-registration")
 		}
+	case "search-sync-dds":
+		logger.Info().Msg("loading device definitions from our DB to elastic cluster")
+		err := loadElasticDevices(ctx, &logger, settings, pdb)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("error syncing with elastic")
+		}
 	default:
 		startPrometheus(logger)
 		eventService := services.NewEventService(&logger, settings)

@@ -659,7 +659,7 @@ var doc = `{
                     "type": "string"
                 },
                 "userDeviceIds": {
-                    "description": "Optionally link the geofence with a list of user device Id",
+                    "description": "Optionally link the geofence with a list of user device ID",
                     "type": "array",
                     "items": {
                         "type": "string"

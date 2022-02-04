@@ -104,3 +104,21 @@ func (d *DeviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Co
 
 	return nil
 }
+
+// SubModelsFromStylesDB gets the unique style.SubModel from the styles slice, deduping sub_model
+func SubModelsFromStylesDB(styles models.DeviceStyleSlice) []string {
+	items := map[string]string{}
+	for _, style := range styles {
+		if _, ok := items[style.SubModel]; !ok {
+			items[style.SubModel] = style.Name
+		}
+	}
+
+	sm := make([]string, len(items))
+	i := 0
+	for key := range items {
+		sm[i] = key
+		i++
+	}
+	return sm
+}

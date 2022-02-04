@@ -237,25 +237,10 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) services.Devic
 		// compatible integrations
 		rp.CompatibleIntegrations = DeviceCompatibilityFromDB(dd.R.DeviceIntegrations)
 		// sub_models
-		rp.Type.SubModels = SubModelsFromStylesDB(dd.R.DeviceStyles)
+		rp.Type.SubModels = services.SubModelsFromStylesDB(dd.R.DeviceStyles)
 	}
 
 	return rp
-}
-
-// SubModelsFromStylesDB gets the unique style.SubModel from the styles slice
-func SubModelsFromStylesDB(styles models.DeviceStyleSlice) []string {
-	subModels := map[string]string{}
-	for _, style := range styles {
-		if _, ok := subModels[style.SubModel]; !ok {
-			subModels[style.SubModel] = style.SubModel
-		}
-	}
-	keys := make([]string, len(subModels))
-	for key := range subModels {
-		keys = append(keys, key)
-	}
-	return keys
 }
 
 // NewDbModelFromDeviceDefinition converts a DeviceDefinition response object to a new database model for the given squishVin. source is NHTSA, edmunds, smartcar, etc

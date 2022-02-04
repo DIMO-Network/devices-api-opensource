@@ -30,6 +30,8 @@ type Settings struct {
 	KafkaBrokers         string `yaml:"KAFKA_BROKERS"`
 	DeviceStatusTopic    string `yaml:"DEVICE_STATUS_TOPIC"`
 	EventsTopic          string `yaml:"EVENTS_TOPIC"`
+	ElasticSearchHost    string `yaml:"ELASTIC_SEARCH_HOST"`
+	ElasticSearchToken   string `yaml:"ELASTIC_SEARCH_TOKEN"`
 }
 
 // GetWriterDSN builds the connection string to the db writer - for now same as reader

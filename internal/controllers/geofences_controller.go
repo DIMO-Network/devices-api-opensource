@@ -244,7 +244,7 @@ type CreateGeofence struct {
 	Type string `json:"type"`
 	// required: true
 	H3Indexes []string `json:"h3Indexes"`
-	// Optionally link the geofence with a list of user device Id
+	// Optionally link the geofence with a list of user device ID
 	UserDeviceIDs []string `json:"userDeviceIds"`
 }
 
