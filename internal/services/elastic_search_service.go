@@ -27,8 +27,8 @@ func NewElasticSearchService(settings *config.Settings, logger zerolog.Logger) (
 		Timeout: time.Second * 10,
 	}
 	return &ElasticSearchService{
-		BaseURL:        settings.ElasticSearchHost,
-		Token:          settings.ElasticSearchToken,
+		BaseURL:        settings.ElasticSearchAppSearchHost,
+		Token:          settings.ElasticSearchAppSearchToken,
 		MetaEngineName: "dd-" + settings.Environment,
 		httpClient:     netClient,
 		log:            logger,
