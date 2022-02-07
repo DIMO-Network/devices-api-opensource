@@ -28,60 +28,38 @@ func loadEdmundsDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, s
 	//ddSvc := services.NewDeviceDefinitionService(settings, pdb.DBS, &logger, nhtsaSvc)
 	edmundsSvc := services.NewEdmundsService(settings.TorProxyURL, logger)
 
-	vehicles, err := edmundsSvc.GetFlattenedVehicles()
+	latestEdmunds, err := edmundsSvc.GetFlattenedVehicles()
 	if err != nil {
 		return err
 	}
 	//prefilter edmunds sourced data
-	allDefinitions, err := models.DeviceDefinitions(models.DeviceDefinitionWhere.Source.EQ(null.StringFrom(edmundsSource))).All(ctx, pdb.DBS().Reader)
+	existingDDsEdmundsSrc, err := models.DeviceDefinitions(models.DeviceDefinitionWhere.Source.EQ(null.StringFrom(edmundsSource)),
+		qm.OrderBy("id")).All(ctx, pdb.DBS().Reader)
 	if err != nil {
 		return err
 	}
+	fmt.Printf("Found %d existing edmunds Device Definitions\n", len(existingDDsEdmundsSrc))
+
 	tx, err := pdb.DBS().Writer.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback() // nolint
 
-	for _, vehicle := range *vehicles {
+	for _, edmundVehicle := range *latestEdmunds {
 		// check if the device definition for the edmunds models.years.id exists
-		deviceDefExists := linq.From(allDefinitions).WhereT(func(d *models.DeviceDefinition) bool {
-			return d.ExternalID.String == strconv.Itoa(vehicle.ModelYearID) && d.Source == null.StringFrom(edmundsSource)
+		deviceDefExists := linq.From(existingDDsEdmundsSrc).WhereT(func(d *models.DeviceDefinition) bool {
+			return d.ExternalID.String == strconv.Itoa(edmundVehicle.ModelYearID) && d.Source.String == edmundsSource
 		}).Any()
 		if deviceDefExists {
-			// check the styles inside the existing device def
-			existingDD := linq.From(allDefinitions).WhereT(func(d *models.DeviceDefinition) bool {
-				return d.ExternalID.String == strconv.Itoa(vehicle.ModelYearID) && d.Source == null.StringFrom(edmundsSource)
+			// find the existing DD in our list
+			existingDD := linq.From(existingDDsEdmundsSrc).WhereT(func(d *models.DeviceDefinition) bool {
+				return d.ExternalID.String == strconv.Itoa(edmundVehicle.ModelYearID) && d.Source == null.StringFrom(edmundsSource)
 			}).First().(*models.DeviceDefinition)
-			// get styles
-			existingStyles, err := models.DeviceStyles(models.DeviceStyleWhere.DeviceDefinitionID.EQ(existingDD.ID)).All(ctx, pdb.DBS().Reader)
-			if err != nil && !errors.Is(err, sql.ErrNoRows) {
-				return errors.Wrapf(err, "error looking for styles for device_definition: %s", existingDD.ID)
-			}
-			// loop and compare
-			for _, edmundsStyle := range vehicle.Styles {
-				matchFound := false
-				for _, existingStyle := range existingStyles {
-					if existingStyle.ExternalStyleID == strconv.Itoa(edmundsStyle.StyleID) {
-						matchFound = true
-					}
-				}
-				if !matchFound {
-					// insert edmundsStyle
-					newStyle := models.DeviceStyle{
-						ID:                 ksuid.New().String(),
-						DeviceDefinitionID: existingDD.ID,
-						Name:               edmundsStyle.Name,
-						ExternalStyleID:    strconv.Itoa(edmundsStyle.StyleID),
-						Source:             edmundsSource,
-						SubModel:           edmundsStyle.Trim,
-					}
-					err = newStyle.Insert(ctx, pdb.DBS().Writer, boil.Infer())
-					if err != nil {
-						return errors.Wrapf(err, "error inserting new device style %+v", edmundsStyle)
-					}
-					logger.Info().Msgf("inserted new style: %s %s for existing dd: %s", newStyle.Name, newStyle.SubModel, existingDD.ID)
-				}
+			// insert styles deduping
+			err = insertStyles(ctx, logger, edmundVehicle, existingDD.ID, tx)
+			if err != nil {
+				return errors.Wrapf(err, "error inserting styles for device_definition_id: %s", existingDD.ID)
 			}
 
 			// back to loop since don't want to insert MMY
@@ -89,28 +67,32 @@ func loadEdmundsDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, s
 		}
 
 		if mergeMMYMatch {
-			// lookup ilike MMY, if match, update and continue loop
+			// lookup ilike MMY, if match, update, insert styles and continue loop
 			matchingDD, err := models.DeviceDefinitions(
-				qm.Where("year = ?", vehicle.Year),
-				qm.And("make ilike ?", vehicle.Make),
-				qm.And("model ilike ?", vehicle.Model)).One(ctx, pdb.DBS().Writer)
+				qm.Where("year = ?", edmundVehicle.Year),
+				qm.And("make ilike ?", edmundVehicle.Make),
+				qm.And("model ilike ?", edmundVehicle.Model)).One(ctx, tx)
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
 				return errors.Wrap(err, "error querying for existing DD")
 			}
 			if err == nil && matchingDD != nil {
 				// match, update it!
-				fmt.Printf("Found exact match with: %s\n.", printMMY(matchingDD, Green, false))
-				matchingDD.Make = vehicle.Make
-				matchingDD.Model = vehicle.Model
+				fmt.Printf("Found MMY match with: %s. dd_id: %s\n.", printMMY(matchingDD, Green, true), matchingDD.ID)
+				if matchingDD.Source.String == edmundsSource {
+					fmt.Printf("weird, MMY match but external ID's dont. existing external id: %s, edmunds model year id: %d. updating to match\n",
+						matchingDD.ExternalID.String, edmundVehicle.ModelYearID)
+				}
+				matchingDD.Make = edmundVehicle.Make
+				matchingDD.Model = edmundVehicle.Model
 				matchingDD.Source = null.StringFrom(edmundsSource)
-				matchingDD.ExternalID = null.StringFrom(strconv.Itoa(vehicle.ModelYearID))
+				matchingDD.ExternalID = null.StringFrom(strconv.Itoa(edmundVehicle.ModelYearID))
 				matchingDD.Verified = true
-				_, err = matchingDD.Update(ctx, pdb.DBS().Writer, boil.Infer())
+				_, err = matchingDD.Update(ctx, tx, boil.Infer())
 				if err != nil {
 					return errors.Wrap(err, "error updating device_definition with edmunds data")
 				}
 				// insert styles
-				err = insertStyles(ctx, vehicle, matchingDD.ID, tx)
+				err = insertStyles(ctx, logger, edmundVehicle, matchingDD.ID, tx)
 				if err != nil {
 					return errors.Wrapf(err, "error inserting styles for device_definition_id: %s", matchingDD.ID)
 				}
@@ -122,18 +104,18 @@ func loadEdmundsDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, s
 		// no matching style found. Insert new Device Definition
 		newDD := models.DeviceDefinition{
 			ID:         ksuid.New().String(),
-			Make:       vehicle.Make,
-			Model:      vehicle.Model,
-			Year:       int16(vehicle.Year),
+			Make:       edmundVehicle.Make,
+			Model:      edmundVehicle.Model,
+			Year:       int16(edmundVehicle.Year),
 			Source:     null.StringFrom(edmundsSource),
 			Verified:   true,
-			ExternalID: null.StringFrom(strconv.Itoa(vehicle.ModelYearID)),
+			ExternalID: null.StringFrom(strconv.Itoa(edmundVehicle.ModelYearID)),
 		}
 		err = newDD.Insert(ctx, tx, boil.Infer())
 		if err != nil {
 			return err
 		}
-		err = insertStyles(ctx, vehicle, newDD.ID, tx)
+		err = insertStyles(ctx, logger, edmundVehicle, newDD.ID, tx)
 		if err != nil {
 			return err
 		}
@@ -146,19 +128,35 @@ func loadEdmundsDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, s
 	return nil
 }
 
-func insertStyles(ctx context.Context, vehicle services.FlatMMYDefinition, deviceDefinitionID string, tx *sql.Tx) error {
-	for _, style := range vehicle.Styles {
-		newDs := models.DeviceStyle{
-			ID:                 ksuid.New().String(),
-			DeviceDefinitionID: deviceDefinitionID,
-			Name:               style.Name,
-			SubModel:           style.Trim,
-			ExternalStyleID:    strconv.Itoa(style.StyleID),
-			Source:             edmundsSource,
+func insertStyles(ctx context.Context, logger *zerolog.Logger, vehicle services.FlatMMYDefinition, deviceDefinitionID string, tx *sql.Tx) error {
+	// get styles
+	existingStyles, err := models.DeviceStyles(models.DeviceStyleWhere.DeviceDefinitionID.EQ(deviceDefinitionID)).All(ctx, tx)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return errors.Wrapf(err, "error looking for styles for device_definition: %s", deviceDefinitionID)
+	}
+	// loop and compare
+	for _, edmundsStyle := range vehicle.Styles {
+		matchFound := false
+		for _, existingStyle := range existingStyles {
+			if existingStyle.ExternalStyleID == strconv.Itoa(edmundsStyle.StyleID) {
+				matchFound = true
+			}
 		}
-		err := newDs.Insert(ctx, tx, boil.Infer())
-		if err != nil {
-			return err
+		if !matchFound {
+			// insert edmundsStyle
+			newStyle := models.DeviceStyle{
+				ID:                 ksuid.New().String(),
+				DeviceDefinitionID: deviceDefinitionID,
+				Name:               edmundsStyle.Name,
+				ExternalStyleID:    strconv.Itoa(edmundsStyle.StyleID),
+				Source:             edmundsSource,
+				SubModel:           edmundsStyle.Trim,
+			}
+			err = newStyle.Insert(ctx, tx, boil.Infer())
+			if err != nil {
+				return errors.Wrapf(err, "error inserting new device style %+v", edmundsStyle)
+			}
+			logger.Info().Msgf("inserted new style: %s %s for existing dd: %s", newStyle.Name, newStyle.SubModel, deviceDefinitionID)
 		}
 	}
 	return nil
