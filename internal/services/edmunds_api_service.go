@@ -34,14 +34,13 @@ var ErrVehicleNotFound = errors.New("vehicle not found in Edmunds")
 
 func (e *EdmundsService) getAllMakes() (*makesResponse, error) {
 	res, err := e.buildAndExecuteRequest(fmt.Sprintf("%s/api/vehicle/v2/makes", e.baseAPIURL), e.torProxyURL)
-	defer res.Body.Close() //nolint
 	if err != nil {
 		return nil, err
 	}
-
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("received a non 200 response from edmunds. status code: %d", res.StatusCode)
 	}
+	defer res.Body.Close() //nolint
 
 	items := makesResponse{}
 	err = json.NewDecoder(res.Body).Decode(&items)
@@ -54,14 +53,13 @@ func (e *EdmundsService) getAllMakes() (*makesResponse, error) {
 
 func (e *EdmundsService) getModelsForMake(makeNiceName string) (*modelsResponse, error) {
 	res, err := e.buildAndExecuteRequest(fmt.Sprintf("%s/api/vehicle/v2/%s/models", e.baseAPIURL, makeNiceName), e.torProxyURL)
-	defer res.Body.Close() //nolint
 	if err != nil {
 		return nil, err
 	}
-
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("received a non 200 response from edmunds. status code: %d", res.StatusCode)
 	}
+	defer res.Body.Close() //nolint
 
 	items := modelsResponse{}
 	err = json.NewDecoder(res.Body).Decode(&items)
@@ -83,7 +81,9 @@ func (e *EdmundsService) GetFlattenedVehicles() (*[]FlatMMYDefinition, error) {
 	for _, mk := range makes.Makes {
 		models, err := e.getModelsForMake(mk.NiceName) // this could time out
 		if err != nil {
-			return nil, err
+			// log and skip this one
+			e.log.Err(err).Msgf("requests to get models failed for make: %s. ignoring and continuing.", mk.NiceName)
+			continue
 		}
 		e.log.Info().Msgf("found models %d for: %s", models.ModelsCount, mk.NiceName)
 		for _, model := range models.Models {
