@@ -8,9 +8,9 @@ metadata:
     {{- include "devices-api.labels" . | nindent 4 }}
 spec:
   schedule: "0 * * * *"
+  concurrencyPolicy: "Forbid"
   jobTemplate:
     spec:
-      concurrencyPolicy: "Forbid"
       template:
         metadata:
           annotations:
@@ -18,7 +18,7 @@ spec:
             {{- toYaml . | nindent 8 }}
           {{- end }}
           labels:
-            {{- include "devices-api.selectorLabels" . | nindent 8 }}
+            {{- include "devices-api.selectorLabels" . | nindent 12 }}
         spec:
           initContainers:
           - name: edmunds-vehicles-sync
