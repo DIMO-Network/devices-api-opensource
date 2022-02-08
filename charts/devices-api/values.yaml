@@ -2,8 +2,7 @@ replicaCount: 1
 image:
   repository: dimozone/devices-api
   pullPolicy: IfNotPresent
-  tag: d38cc9d
-
+  tag: c08f9a0
 imagePullSecrets: []
 nameOverride: ''
 fullnameOverride: ''
@@ -11,21 +10,15 @@ serviceAccount:
   create: true
   annotations: {}
   name: ''
-
 podAnnotations: {}
-
-podSecurityContext: 
+podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
   runAsGroup: 3000
-  
-
-securityContext: 
+securityContext:
   allowPrivilegeEscalation: false
-
 cronJob:
   enabled: true
-  
 env:
   ENVIRONMENT: dev
   PORT: '8080'
@@ -111,7 +104,6 @@ kafka:
         compression.type: producer
         cleanup.policy: compact
         min.compaction.lag.ms: '3600000'
-
 serviceMonitor:
   enabled: true
   path: /metrics
