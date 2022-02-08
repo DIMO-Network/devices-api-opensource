@@ -11,11 +11,13 @@ serviceAccount:
   annotations: {}
   name: ''
 podAnnotations: {}
-podSecurityContext:
+
+podSecurityContext: 
   runAsNonRoot: true
   runAsUser: 1000
-  runAsGroup: 3000
-securityContext:
+  runAsGroup: 1001
+
+securityContext: 
   allowPrivilegeEscalation: false
 cronJob:
   enabled: true

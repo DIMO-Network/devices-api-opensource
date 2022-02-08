@@ -4,14 +4,6 @@ image:
   pullPolicy: IfNotPresent
   tag: 0.3.4
 
-podSecurityContext: 
-  runAsNonRoot: true
-  runAsUser: 1000
-  runAsGroup: 1001
-
-securityContext: 
-  allowPrivilegeEscalation: false
-
 cronJob:
   enabled: false
 
