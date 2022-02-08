@@ -5,7 +5,8 @@ image:
   tag: 0.3.4
 
 cronJob:
-  enabled: false
+  enabled: true
+  schedule: "0 0 * * 0"
 
 env:
   ENVIRONMENT: prod

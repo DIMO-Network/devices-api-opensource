@@ -7,7 +7,7 @@ metadata:
   labels:
     {{- include "devices-api.labels" . | nindent 4 }}
 spec:
-  schedule: "0 * * * *"
+  schedule: {{ .Values.cronJob.schedule | quote}}
   concurrencyPolicy: "Forbid"
   jobTemplate:
     spec:
