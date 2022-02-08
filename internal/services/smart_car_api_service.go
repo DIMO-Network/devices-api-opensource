@@ -47,7 +47,7 @@ func (s *SmartCarService) SeedDeviceDefinitionsFromSmartCar(ctx context.Context)
 }
 
 func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data *SmartCarCompatibilityData) error {
-	scIntegrationID, err := s.getOrCreateSmartCarIntegration(ctx)
+	scIntegrationID, err := s.GetOrCreateSmartCarIntegration(ctx)
 	if err != nil {
 		return err
 	}
@@ -254,7 +254,7 @@ func parseSmartCarYears(yearsPtr *string) ([]int, error) {
 	return []int{y}, nil
 }
 
-func (s *SmartCarService) getOrCreateSmartCarIntegration(ctx context.Context) (string, error) {
+func (s *SmartCarService) GetOrCreateSmartCarIntegration(ctx context.Context) (string, error) {
 	const (
 		smartCarType   = "API"
 		smartCarVendor = "SmartCar"
