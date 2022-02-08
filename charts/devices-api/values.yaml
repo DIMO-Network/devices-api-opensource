@@ -2,7 +2,7 @@ replicaCount: 1
 image:
   repository: dimozone/devices-api
   pullPolicy: IfNotPresent
-  tag: '5143937'
+  tag: 682f3ab
 imagePullSecrets: []
 nameOverride: ''
 fullnameOverride: ''
@@ -11,13 +11,11 @@ serviceAccount:
   annotations: {}
   name: ''
 podAnnotations: {}
-
-podSecurityContext: 
+podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
   runAsGroup: 1001
-
-securityContext: 
+securityContext:
   allowPrivilegeEscalation: false
 cronJob:
   enabled: true
