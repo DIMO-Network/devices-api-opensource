@@ -41,6 +41,8 @@ func smartCarForwardCompatibility(ctx context.Context, logger zerolog.Logger, pd
 	if err != nil {
 		return err
 	}
+	fmt.Printf("found %d device definitions with smartcar integration", len(deviceDefs))
+
 	lastMM := ""
 	lastYear := int16(0)
 	for _, dd := range deviceDefs {
