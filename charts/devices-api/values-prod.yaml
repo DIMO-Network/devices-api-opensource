@@ -2,12 +2,10 @@ replicaCount: 2
 image:
   repository: dimozone/devices-api
   pullPolicy: IfNotPresent
-  tag: 0.3.4
-
+  tag: 0.3.33
 cronJob:
   enabled: true
-  schedule: "0 0 * * 0"
-
+  schedule: 0 0 * * 0
 env:
   ENVIRONMENT: prod
   PORT: '8080'
@@ -28,7 +26,6 @@ env:
   KAFKA_BROKERS: kafka-prod-dimo-kafka-kafka-brokers:9092
   DEVICE_STATUS_TOPIC: topic.device.status
   EVENTS_TOPIC: topic.event
-
 ingress:
   enabled: true
   className: nginx
@@ -44,7 +41,6 @@ ingress:
         - path: /
           pathType: ImplementationSpecific
   tls: []
-
 resources:
   limits:
     cpu: 1
