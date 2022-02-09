@@ -60,31 +60,31 @@ func smartCarForwardCompatibility(ctx context.Context, logger zerolog.Logger, pd
 			yearDiff := lastYear - dd.Year
 			if yearDiff > 1 {
 				// we have a gap
-				fmt.Printf("found a year gap of %d...", yearDiff)
-				// todo: need to loop for each yearDiff -1, eg. if found 3 years of gap, iterate over dd.Year +1 and +2
-				gapDd, err := deviceDefSvc.FindDeviceDefinitionByMMY(ctx, pdb.DBS().Reader, dd.Make, dd.Model, int(dd.Year+1), true)
-				if errors.Is(err, sql.ErrNoRows) {
-					funcLastValues(dd)
-					continue
-				}
-				if err != nil {
-					return err
-				}
-				// found a record that needs to be attached to integration
-				if len(gapDd.R.DeviceIntegrations) == 0 {
-					fmt.Printf("\nfound device def for year gap %s, inserting device_integration\n", printMMY(gapDd, Green, true))
-					diGap := models.DeviceIntegration{
-						DeviceDefinitionID: gapDd.ID,
-						IntegrationID:      integrationID,
-						Country:            "USA",       // default
-						Capabilities:       null.JSON{}, // we'd need to copy from previous dd?
+				fmt.Printf("%s found a year gap of %d...\n", thisMM, yearDiff)
+				for i := int16(1); i < yearDiff; i++ {
+					gapDd, err := deviceDefSvc.FindDeviceDefinitionByMMY(ctx, pdb.DBS().Reader, dd.Make, dd.Model, int(dd.Year+i), true)
+					if errors.Is(err, sql.ErrNoRows) {
+						continue // this continues internal loop, so funcLastValues will still get set at end of outer loop
 					}
-					err = diGap.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 					if err != nil {
-						return errors.Wrap(err, "error inserting device_integration")
+						return err
 					}
-				} else {
-					fmt.Printf("but %s already had an integration set\n", printMMY(gapDd, Red, true))
+					// found a record that needs to be attached to integration
+					if len(gapDd.R.DeviceIntegrations) == 0 {
+						fmt.Printf("found device def for year gap %s, inserting smartcar device_integration\n", printMMY(gapDd, Green, true))
+						diGap := models.DeviceIntegration{
+							DeviceDefinitionID: gapDd.ID,
+							IntegrationID:      integrationID,
+							Country:            "USA",       // default
+							Capabilities:       null.JSON{}, // we'd need to copy from previous dd?
+						}
+						err = diGap.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+						if err != nil {
+							return errors.Wrap(err, "error inserting device_integration")
+						}
+					} else {
+						fmt.Printf("%s already had an integration set\n", printMMY(gapDd, Red, true))
+					}
 				}
 			}
 		} else {
