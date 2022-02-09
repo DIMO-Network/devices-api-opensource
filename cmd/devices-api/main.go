@@ -103,7 +103,7 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("error trying to run migrator tool")
 		}
-	case "smartcar-forward-compat":
+	case "smartcar-compatibility":
 		logger.Info().Msg("starting smartcar compatibility equalizer check to set smartcar compat forwards")
 		err = smartCarForwardCompatibility(ctx, logger, pdb)
 		if err != nil {
