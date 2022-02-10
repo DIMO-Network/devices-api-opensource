@@ -170,6 +170,48 @@ var doc = `{
                 }
             }
         },
+        "/user/device-data/:userDeviceID/historical": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all historical data for a userDeviceID, within start and end range",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device-data"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user id",
+                        "name": "userDeviceID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "startDate eg 2022-01-02",
+                        "name": "startDate",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "endDate eg 2022-03-01",
+                        "name": "endDate",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/user/devices": {
             "post": {
                 "security": [

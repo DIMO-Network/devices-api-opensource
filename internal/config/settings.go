@@ -4,34 +4,38 @@ import "fmt"
 
 // Settings contains the application config
 type Settings struct {
-	Environment                 string `yaml:"ENVIRONMENT"`
-	Port                        string `yaml:"PORT"`
-	LogLevel                    string `yaml:"LOG_LEVEL"`
-	DBUser                      string `yaml:"DB_USER"`
-	DBPassword                  string `yaml:"DB_PASSWORD"`
-	DBPort                      string `yaml:"DB_PORT"`
-	DBHost                      string `yaml:"DB_HOST"`
-	DBName                      string `yaml:"DB_NAME"`
-	DBMaxOpenConnections        int    `yaml:"DB_MAX_OPEN_CONNECTIONS"`
-	DBMaxIdleConnections        int    `yaml:"DB_MAX_IDLE_CONNECTIONS"`
-	ServiceName                 string `yaml:"SERVICE_NAME"`
-	JwtKeySetURL                string `yaml:"JWT_KEY_SET_URL"`
-	SwaggerBaseURL              string `yaml:"SWAGGER_BASE_URL"`
-	TorProxyURL                 string `yaml:"TOR_PROXY_URL"`
-	SmartcarClientID            string `yaml:"SMARTCAR_CLIENT_ID"`
-	SmartcarClientSecret        string `yaml:"SMARTCAR_CLIENT_SECRET"`
-	SmartcarTestMode            bool   `yaml:"SMARTCAR_TEST_MODE"`
-	SmartcarWebhookID           string `yaml:"SMARTCAR_WEBHOOK_ID"`
-	RedisURL                    string `yaml:"REDIS_URL"`
-	RedisPassword               string `yaml:"REDIS_PASSWORD"`
-	RedisTLS                    bool   `yaml:"REDIS_TLS"`
-	IngestSmartcarURL           string `yaml:"INGEST_SMARTCAR_URL"`
-	IngestSmartcarTopic         string `yaml:"INGEST_SMARTCAR_TOPIC"`
-	KafkaBrokers                string `yaml:"KAFKA_BROKERS"`
-	DeviceStatusTopic           string `yaml:"DEVICE_STATUS_TOPIC"`
-	EventsTopic                 string `yaml:"EVENTS_TOPIC"`
-	ElasticSearchAppSearchHost  string `yaml:"ELASTIC_SEARCH_APP_SEARCH_HOST"`
-	ElasticSearchAppSearchToken string `yaml:"ELASTIC_SEARCH_APP_SEARCH_TOKEN"`
+	Environment                    string `yaml:"ENVIRONMENT"`
+	Port                           string `yaml:"PORT"`
+	LogLevel                       string `yaml:"LOG_LEVEL"`
+	DBUser                         string `yaml:"DB_USER"`
+	DBPassword                     string `yaml:"DB_PASSWORD"`
+	DBPort                         string `yaml:"DB_PORT"`
+	DBHost                         string `yaml:"DB_HOST"`
+	DBName                         string `yaml:"DB_NAME"`
+	DBMaxOpenConnections           int    `yaml:"DB_MAX_OPEN_CONNECTIONS"`
+	DBMaxIdleConnections           int    `yaml:"DB_MAX_IDLE_CONNECTIONS"`
+	ServiceName                    string `yaml:"SERVICE_NAME"`
+	JwtKeySetURL                   string `yaml:"JWT_KEY_SET_URL"`
+	SwaggerBaseURL                 string `yaml:"SWAGGER_BASE_URL"`
+	TorProxyURL                    string `yaml:"TOR_PROXY_URL"`
+	SmartcarClientID               string `yaml:"SMARTCAR_CLIENT_ID"`
+	SmartcarClientSecret           string `yaml:"SMARTCAR_CLIENT_SECRET"`
+	SmartcarTestMode               bool   `yaml:"SMARTCAR_TEST_MODE"`
+	SmartcarWebhookID              string `yaml:"SMARTCAR_WEBHOOK_ID"`
+	RedisURL                       string `yaml:"REDIS_URL"`
+	RedisPassword                  string `yaml:"REDIS_PASSWORD"`
+	RedisTLS                       bool   `yaml:"REDIS_TLS"`
+	IngestSmartcarURL              string `yaml:"INGEST_SMARTCAR_URL"`
+	IngestSmartcarTopic            string `yaml:"INGEST_SMARTCAR_TOPIC"`
+	KafkaBrokers                   string `yaml:"KAFKA_BROKERS"`
+	DeviceStatusTopic              string `yaml:"DEVICE_STATUS_TOPIC"`
+	EventsTopic                    string `yaml:"EVENTS_TOPIC"`
+	ElasticSearchAppSearchHost     string `yaml:"ELASTIC_SEARCH_APP_SEARCH_HOST"`
+	ElasticSearchAppSearchToken    string `yaml:"ELASTIC_SEARCH_APP_SEARCH_TOKEN"`
+	ElasticSearchAnalyticsHost     string `yaml:"ELASTIC_SEARCH_ANALYTICS_HOST"`
+	ElasticSearchAnalyticsUsername string `yaml:"ELASTIC_SEARCH_ANALYTICS_USERNAME"`
+	ElasticSearchAnalyticsPassword string `yaml:"ELASTIC_SEARCH_ANALYTICS_PASSWORD"`
+	DeviceDataIndexName            string `yaml:"DEVICE_DATA_INDEX_NAME"`
 }
 
 // GetWriterDSN builds the connection string to the db writer - for now same as reader

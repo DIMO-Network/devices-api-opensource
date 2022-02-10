@@ -43,6 +43,7 @@ env:
   KAFKA_BROKERS: kafka-dev-dimo-kafka-kafka-brokers:9092
   DEVICE_STATUS_TOPIC: topic.device.status
   EVENTS_TOPIC: topic.event
+  DEVICE_DATA_INDEX_NAME: device-status-prod*
 service:
   type: ClusterIP
   ports:

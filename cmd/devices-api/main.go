@@ -149,6 +149,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc)
 	userDeviceControllers := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService)
 	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger)
+	deviceDataController := controllers.NewDeviceDataController(settings, pdb.DBS, &logger)
 
 	prometheus := fiberprometheus.New("devices-api")
 	app.Use(prometheus.Middleware)
@@ -186,6 +187,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		DocExpansion: "list",
 	}
 	v1.Get("/swagger/*", swagger.New(sc))
+	//v1.Get("/elastic/test", deviceDataController.GetTestData)
 
 	// secured paths
 	keyRefreshInterval := time.Hour
@@ -214,6 +216,9 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Get("/user/geofences", geofenceController.GetAll)
 	v1Auth.Delete("/user/geofences/:geofenceID", geofenceController.Delete)
 	v1Auth.Put("/user/geofences/:geofenceID", geofenceController.Update)
+
+	// elastic device data
+	v1Auth.Get("/user/device-data/:userDeviceID/historical", deviceDataController.GetHistoricalRaw)
 
 	// admin / internal operations paths
 	// v1.Post("/admin/user/:user_id/devices", userDeviceControllers.AdminRegisterUserDevice)

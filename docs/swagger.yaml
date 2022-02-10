@@ -16,7 +16,7 @@ definitions:
           required: true
         type: string
       userDeviceIds:
-        description: Optionally link the geofence with a list of user device Id
+        description: Optionally link the geofence with a list of user device ID
         items:
           type: string
         type: array
@@ -342,6 +342,33 @@ paths:
             type: array
       tags:
       - device-definitions
+  /user/device-data/:userDeviceID/historical:
+    get:
+      description: Get all historical data for a userDeviceID, within start and end
+        range
+      parameters:
+      - description: user id
+        in: path
+        name: userDeviceID
+        required: true
+        type: string
+      - description: startDate eg 2022-01-02
+        in: query
+        name: startDate
+        type: string
+      - description: endDate eg 2022-03-01
+        in: query
+        name: endDate
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+      security:
+      - BearerAuth: []
+      tags:
+      - device-data
   /user/devices:
     post:
       consumes:
