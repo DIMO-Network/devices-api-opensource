@@ -194,13 +194,13 @@ var doc = `{
                     },
                     {
                         "type": "string",
-                        "description": "startDate eg 2022-01-02",
+                        "description": "startDate eg 2022-01-02. if empty two weeks back",
                         "name": "startDate",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "endDate eg 2022-03-01",
+                        "description": "endDate eg 2022-03-01. if empty today",
                         "name": "endDate",
                         "in": "query"
                     }

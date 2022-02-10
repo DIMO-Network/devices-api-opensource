@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"io"
+	"time"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
@@ -39,18 +40,32 @@ func NewDeviceDataController(settings *config.Settings, dbs func() *database.DBR
 // @Produce json
 // @Success 200
 // @Param userDeviceID path string true "user id"
-// @Param startDate query string false "startDate eg 2022-01-02"
-// @Param endDate query string false "endDate eg 2022-03-01"
+// @Param startDate query string false "startDate eg 2022-01-02. if empty two weeks back"
+// @Param endDate query string false "endDate eg 2022-03-01. if empty today"
 // @Security BearerAuth
 // @Router /user/device-data/:userDeviceID/historical [get]
 func (d *DeviceDataController) GetHistoricalRaw(c *fiber.Ctx) error {
+	const dateLayout = "2006-01-02" // date layout support by elastic
 	userID := getUserID(c)
 	udi := c.Params("userDeviceID")
-	//startDate := c.Query("start_date")
-	//endDate := c.Query("end_date")
-	//if endDate == "" {
-	//	endDate = time.Now().Format("2006-01-02")
-	//}
+	startDate := c.Query("startDate")
+	if startDate == "" {
+		startDate = time.Now().Add(-1 * (time.Hour * 24 * 14)).Format(dateLayout)
+	} else {
+		_, err := time.Parse(dateLayout, startDate)
+		if err != nil {
+			return errorResponseHandler(c, err, fiber.StatusBadRequest)
+		}
+	}
+	endDate := c.Query("endDate")
+	if endDate == "" {
+		endDate = time.Now().Format(dateLayout)
+	} else {
+		_, err := time.Parse(dateLayout, endDate)
+		if err != nil {
+			return errorResponseHandler(c, err, fiber.StatusBadRequest)
+		}
+	}
 
 	// todo: cache this
 	exists, err := models.UserDevices(models.UserDeviceWhere.UserID.EQ(userID), models.UserDeviceWhere.ID.EQ(udi)).Exists(c.Context(), d.DBS().Reader)
@@ -60,9 +75,12 @@ func (d *DeviceDataController) GetHistoricalRaw(c *fiber.Ctx) error {
 	if !exists {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
-	// filter by udi, todo: filter by date range
 	res, err := esquery.Search().
-		Query(esquery.Match("subject", udi)).
+		Query(esquery.Bool().Must(
+			esquery.Term("subject", udi),
+			esquery.Range("data.timestamp").
+				Gte(startDate).
+				Lte(endDate))).
 		Size(50).
 		Sort("data.timestamp", "desc").
 		Run(d.es, d.es.Search.WithContext(c.Context()), d.es.Search.WithIndex(d.Settings.DeviceDataIndexName))
@@ -70,36 +88,11 @@ func (d *DeviceDataController) GetHistoricalRaw(c *fiber.Ctx) error {
 		return err
 	}
 	defer res.Body.Close()
-	b, _ := io.ReadAll(res.Body)
+	body, _ := io.ReadAll(res.Body)
 
 	c.Set("Content-type", "application/json")
-	return c.Status(fiber.StatusOK).Send(b)
+	return c.Status(fiber.StatusOK).Send(body)
 }
-
-//func (d *DeviceDataController) GetTestData(c *fiber.Ctx) error {
-//	udi := "22tIH4BG0vUFYpHCUyl1VrcwYwU"
-//	// filter by udi, filter by date range too?
-//	//res, err := esquery.Search().
-//	//	Query(esquery.Bool().
-//	//		Filter(esquery.Term("subject", udi))).
-//	//	Run(d.es, d.es.Search.WithContext(c.Context()), d.es.Search.WithIndex(d.Settings.DeviceDataIndexName))
-//	startDate := "2022-02-05"
-//	endDate := "2022-02-10"
-//	//				Query(esquery.Range("data.timestamp").Gte(startDate).Lte(endDate))
-//
-//	// todo: tweak this until get udi, start, end dates filtering
-//	res, err := esquery.Search().
-//		Query(esquery.Match("subject", udi)).
-//		Size(50). // default is only 10, we may need to paginate
-//		Sort("data.timestamp", "desc").
-//		Run(d.es, d.es.Search.WithContext(c.Context()), d.es.Search.WithIndex(d.Settings.DeviceDataIndexName))
-//	if err != nil {
-//		return err
-//	}
-//	defer res.Body.Close()
-//
-//	return c.Status(fiber.StatusOK).SendString(res.String())
-//}
 
 func connect(settings *config.Settings) (*elasticsearch.Client, error) {
 	// maybe refactor some of this into elasticsearchservice
