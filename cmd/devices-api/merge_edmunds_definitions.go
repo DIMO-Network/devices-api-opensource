@@ -58,16 +58,21 @@ func mergeEdmundsDefinitions(ctx context.Context, logger *zerolog.Logger, settin
 			}
 			// if no Make & Year matches here likely means something off in our DB, offer to stop to review
 			if len(edmundsModelYearMatches) == 0 {
-				del := askForConfirmation(fmt.Sprintf(" %s No Make and Year matches found in edmunds for: %d %s. Delete? Ignore? %s", Red, dd.Year, dd.Make, Reset))
-				if del == nil {
-					//mark ignored
+				if hasUserDevices {
 					markIgnored(dd, pdb)
-				} else if *del {
-					_, err = dd.Delete(ctx, pdb.DBS().Writer)
-					if err != nil {
-						return errors.Wrapf(err, "error deleting device_definition %s", dd.ID)
+					fmt.Printf("ignoring %s since has user devices and likely from a non-US user\n", printMMY(dd, Green, true))
+				} else {
+					del := askForConfirmation(fmt.Sprintf(" %s No Make and Year matches found in edmunds for: %d %s. Delete? Ignore? %s", Red, dd.Year, dd.Make, Reset))
+					if del == nil {
+						//mark ignored
+						markIgnored(dd, pdb)
+					} else if *del {
+						_, err = dd.Delete(ctx, pdb.DBS().Writer)
+						if err != nil {
+							return errors.Wrapf(err, "error deleting device_definition %s", dd.ID)
+						}
+						fmt.Println("successfully deleted")
 					}
-					fmt.Println("successfully deleted")
 				}
 				continue
 			}
@@ -88,21 +93,17 @@ func mergeEdmundsDefinitions(ctx context.Context, logger *zerolog.Logger, settin
 				continue
 			}
 			if indexSelection == -2 {
-				// prompt to delete
+				// just ignore if has user devices
 				if hasUserDevices {
-					fmt.Println("this DD has userDevices attached so can't be deleted through this tool")
+					markIgnored(dd, pdb)
+					fmt.Printf("this DD has userDevices attached so %smarking ignored%s instead\n", Green, Reset)
 					continue
 				} else {
-					del := askForConfirmation(fmt.Sprintf("Confirm: %s has no exact edmunds match and no userDevices. Delete? (n to see more options)", printMMY(dd, Red, false)))
-					if del == nil {
-						markIgnored(dd, pdb)
-					} else if *del {
-						_, err = dd.Delete(ctx, pdb.DBS().Writer)
-						if err != nil {
-							return errors.Wrapf(err, "error deleting device_definition %s", dd.ID)
-						}
-						fmt.Println("successfully deleted")
+					_, err = dd.Delete(ctx, pdb.DBS().Writer)
+					if err != nil {
+						return errors.Wrapf(err, "error deleting device_definition %s", dd.ID)
 					}
+					fmt.Println("successfully deleted")
 					continue
 				}
 			}
@@ -116,12 +117,11 @@ func mergeEdmundsDefinitions(ctx context.Context, logger *zerolog.Logger, settin
 					markIgnored(dd, pdb)
 					continue
 				}
-				if indexSelection == -1 {
-					// prompt to delete
-					del := askForConfirmation(fmt.Sprintf("Ok, no selection then. Would you like to delete Device Def: %s? Delete?", printMMY(dd, Red, true)))
-					if del == nil {
+				if indexSelection == -2 {
+					if hasUserDevices {
+						fmt.Printf("this DD has userDevices attached so %smarking ignored%s instead\n", Green, Reset)
 						markIgnored(dd, pdb)
-					} else if *del {
+					} else {
 						_, err = dd.Delete(ctx, pdb.DBS().Writer)
 						if err != nil {
 							return errors.Wrapf(err, "error deleting device_definition %s", dd.ID)
