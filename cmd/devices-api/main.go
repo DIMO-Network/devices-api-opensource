@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"github.com/DIMO-INC/devices-api/internal/kafka"
 	"github.com/DIMO-INC/devices-api/internal/services"
 	"github.com/DIMO-Network/zflogger"
+	"github.com/Jeffail/benthos/v3/lib/util/hash/murmur2"
 	"github.com/Shopify/sarama"
 	"github.com/ansrivas/fiberprometheus/v2"
 	swagger "github.com/arsmn/fiber-swagger/v2"
@@ -67,6 +69,11 @@ func main() {
 		totalTime++
 	}
 
+	producer, err := createKafkaProducer(settings)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Could not initialize Kafka producer, terminating")
+	}
+
 	// todo: use flag or other package to handle args
 	arg := ""
 	if len(os.Args) > 1 {
@@ -83,7 +90,7 @@ func main() {
 		}
 		migrateDatabase(logger, settings, command)
 	case "generate-events":
-		eventService := services.NewEventService(&logger, settings)
+		eventService := services.NewEventService(&logger, settings, producer)
 		generateEvents(logger, settings, pdb, eventService)
 	case "seed-smartcar":
 		loadSmartCarData(ctx, logger, settings, pdb)
@@ -121,6 +128,11 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error running Smartcar Kafka re-registration")
 		}
+	case "remake-fence-topic":
+		err = remakeFenceTopic(&logger, settings, pdb, producer)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error running Smartcar Kafka re-registration")
+		}
 	case "search-sync-dds":
 		logger.Info().Msg("loading device definitions from our DB to elastic cluster")
 		err := loadElasticDevices(ctx, &logger, settings, pdb)
@@ -129,13 +141,28 @@ func main() {
 		}
 	default:
 		startPrometheus(logger)
-		eventService := services.NewEventService(&logger, settings)
+		eventService := services.NewEventService(&logger, settings, producer)
 		startDeviceStatusConsumer(logger, settings, pdb, eventService)
-		startWebAPI(logger, settings, pdb, eventService)
+		startWebAPI(logger, settings, pdb, eventService, producer)
 	}
 }
 
-func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore, eventService services.EventService) {
+func createKafkaProducer(settings *config.Settings) (sarama.SyncProducer, error) {
+	config := sarama.NewConfig()
+	config.Version = sarama.V2_8_1_0
+	config.Producer.Return.Successes = true
+	config.Producer.Partitioner = sarama.NewCustomPartitioner(
+		sarama.WithAbsFirst(),
+		sarama.WithCustomHashFunction(murmur2.New32),
+	)
+	p, err := sarama.NewSyncProducer(strings.Split(settings.KafkaBrokers, ","), config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct producer with broker list %s: %w", settings.KafkaBrokers, err)
+	}
+	return p, nil
+}
+
+func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore, eventService services.EventService, producer sarama.SyncProducer) {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return ErrorHandler(c, err, logger)
@@ -145,10 +172,10 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	})
 	nhtsaSvc := services.NewNHTSAService()
 	ddSvc := services.NewDeviceDefinitionService(settings, pdb.DBS, &logger, nhtsaSvc)
-	taskSvc := services.NewTaskService(settings, pdb.DBS, ddSvc, eventService, &logger)
+	taskSvc := services.NewTaskService(settings, pdb.DBS, ddSvc, eventService, &logger, producer)
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc)
 	userDeviceControllers := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService)
-	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger)
+	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer)
 	deviceDataController := controllers.NewDeviceDataController(settings, pdb.DBS, &logger)
 
 	prometheus := fiberprometheus.New("devices-api")

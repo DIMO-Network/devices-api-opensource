@@ -3,7 +3,6 @@ package services
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
@@ -29,15 +28,7 @@ type eventService struct {
 	Producer sarama.SyncProducer
 }
 
-func NewEventService(logger *zerolog.Logger, settings *config.Settings) EventService {
-	kafkaConfig := sarama.NewConfig()
-	kafkaConfig.Producer.Return.Successes = true
-	// Would like to move to AsyncProducer but this needs more thought. These are not mere tracing
-	// messages, the user does expect to see them.
-	producer, err := sarama.NewSyncProducer(strings.Split(settings.KafkaBrokers, ","), kafkaConfig)
-	if err != nil {
-		panic(err)
-	}
+func NewEventService(logger *zerolog.Logger, settings *config.Settings, producer sarama.SyncProducer) EventService {
 	return &eventService{
 		Settings: settings,
 		Logger:   logger,
@@ -46,7 +37,7 @@ func NewEventService(logger *zerolog.Logger, settings *config.Settings) EventSer
 }
 
 func (e *eventService) Emit(event *Event) error {
-	msgBytes, err := json.Marshal(cloudEventMessage{
+	msgBytes, err := json.Marshal(CloudEventMessage{
 		ID:          ksuid.New().String(),
 		Source:      event.Source,
 		SpecVersion: "1.0",

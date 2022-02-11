@@ -29,6 +29,7 @@ type Settings struct {
 	IngestSmartcarTopic            string `yaml:"INGEST_SMARTCAR_TOPIC"`
 	KafkaBrokers                   string `yaml:"KAFKA_BROKERS"`
 	DeviceStatusTopic              string `yaml:"DEVICE_STATUS_TOPIC"`
+	PrivacyFenceTopic              string `yaml:"PRIVACY_FENCE_TOPIC"`
 	EventsTopic                    string `yaml:"EVENTS_TOPIC"`
 	ElasticSearchAppSearchHost     string `yaml:"ELASTIC_SEARCH_APP_SEARCH_HOST"`
 	ElasticSearchAppSearchToken    string `yaml:"ELASTIC_SEARCH_APP_SEARCH_TOKEN"`

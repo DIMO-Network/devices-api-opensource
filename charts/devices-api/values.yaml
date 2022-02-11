@@ -42,6 +42,7 @@ env:
   INGEST_SMARTCAR_TOPIC: topic.interface.ingest.smartcar
   KAFKA_BROKERS: kafka-dev-dimo-kafka-kafka-brokers:9092
   DEVICE_STATUS_TOPIC: topic.device.status
+  PRIVACY_FENCE_TOPIC: table.device.privacyfence
   EVENTS_TOPIC: topic.event
   DEVICE_DATA_INDEX_NAME: device-status-dev*
 service:
@@ -103,7 +104,19 @@ kafka:
         compression.type: producer
         cleanup.policy: compact,delete
         min.compaction.lag.ms: '3600000'
+    - name: topic.device.status.private
+      config:
+        segment.ms: '3600000'
+        compression.type: producer
+        cleanup.policy: compact,delete
+        min.compaction.lag.ms: '3600000'
     - name: table.device.integration.smartcar
+      config:
+        segment.ms: '3600000'
+        compression.type: producer
+        cleanup.policy: compact
+        min.compaction.lag.ms: '3600000'
+    - name: table.device.privacyfence
       config:
         segment.ms: '3600000'
         compression.type: producer

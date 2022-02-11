@@ -25,6 +25,7 @@ env:
   INGEST_SMARTCAR_TOPIC: topic.interface.ingest.smartcar
   KAFKA_BROKERS: kafka-prod-dimo-kafka-kafka-brokers:9092
   DEVICE_STATUS_TOPIC: topic.device.status
+  PRIVACY_FENCE_TOPIC: table.device.privacyfence
   EVENTS_TOPIC: topic.event
   DEVICE_DATA_INDEX_NAME: device-status-prod*
 ingress:

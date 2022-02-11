@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/RichardKnop/machinery/v1"
@@ -82,7 +81,7 @@ var batchRequestFixed = batchRequest{
 	},
 }
 
-type cloudEventMessage struct {
+type CloudEventMessage struct {
 	ID          string      `json:"id"`
 	Source      string      `json:"source"`
 	SpecVersion string      `json:"specversion"`
@@ -104,7 +103,7 @@ func (s *SmartcarIngestRegistrar) Register(smartcarID, userDeviceID, integration
 		DeviceID   string `json:"deviceId"`
 		ExternalID string `json:"externalId"`
 	}{userDeviceID, smartcarID}
-	value := cloudEventMessage{
+	value := CloudEventMessage{
 		ID:          ksuid.New().String(),
 		Source:      "dimo/integration/" + integrationID,
 		Subject:     userDeviceID,
@@ -584,7 +583,7 @@ func (t *TaskService) StartSmartcarDeregistrationTasks(userDeviceID, integration
 	return
 }
 
-func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWriter, deviceDefSvc *DeviceDefinitionService, eventService EventService, logger *zerolog.Logger) *TaskService {
+func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWriter, deviceDefSvc *DeviceDefinitionService, eventService EventService, logger *zerolog.Logger, producer sarama.SyncProducer) *TaskService {
 	var redisConn string
 	if settings.RedisPassword == "" {
 		redisConn = fmt.Sprintf("redis://%s", settings.RedisURL)
@@ -615,19 +614,13 @@ func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWrit
 		panic(err)
 	}
 
-	kafkaConfig := sarama.NewConfig()
-	kafkaConfig.Producer.Return.Successes = true
-	producer, err := sarama.NewSyncProducer(strings.Split(settings.KafkaBrokers, ","), kafkaConfig)
-	if err != nil {
-		panic(err)
-	}
-
 	t := &TaskService{
-		Settings:        settings,
-		DBS:             dbs,
-		Machinery:       server,
-		Log:             logger,
-		DeviceDefSvc:    deviceDefSvc,
+		Settings:     settings,
+		DBS:          dbs,
+		Machinery:    server,
+		Log:          logger,
+		DeviceDefSvc: deviceDefSvc,
+		// Maybe lift this up.
 		IngestRegistrar: SmartcarIngestRegistrar{Producer: producer},
 		eventService:    eventService,
 	}
