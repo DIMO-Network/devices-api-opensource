@@ -451,9 +451,11 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
-	err = udc.taskSvc.StartSmartcarDeregistrationTasks(userDeviceID, integrationID, apiIntegration.ExternalID.String, apiIntegration.AccessToken)
-	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	if apiIntegration.ExternalID.Valid {
+		err = udc.taskSvc.StartSmartcarDeregistrationTasks(userDeviceID, integrationID, apiIntegration.ExternalID.String, apiIntegration.AccessToken)
+		if err != nil {
+			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		}
 	}
 
 	_, err = apiIntegration.Delete(c.Context(), tx)
@@ -717,9 +719,11 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	for _, apiInteg := range userDevice.R.UserDeviceAPIIntegrations {
 		// For now, there are only Smartcar integrations. We will probably regret this
 		// line later.
-		err = udc.taskSvc.StartSmartcarDeregistrationTasks(udi, apiInteg.IntegrationID, apiInteg.ExternalID.String, apiInteg.AccessToken)
-		if err != nil {
-			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		if apiInteg.ExternalID.Valid {
+			err = udc.taskSvc.StartSmartcarDeregistrationTasks(udi, apiInteg.IntegrationID, apiInteg.ExternalID.String, apiInteg.AccessToken)
+			if err != nil {
+				return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+			}
 		}
 	}
 

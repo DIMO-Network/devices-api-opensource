@@ -249,11 +249,6 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 
 	vehicleID := (*vehicleIDs)[0]
 	t.Log.Info().Str("userDeviceId", userDeviceID).Str("integrationId", integrationID).Msgf("Got Smartcar vehicle ID %s", vehicleID)
-	integ.ExternalID = null.StringFrom(vehicleID)
-	_, err = integ.Update(context.Background(), tx, boil.Infer())
-	if err != nil {
-		return fmt.Errorf("failed updating API integration with Smartcar vehicle ID: %w", err)
-	}
 
 	scVeh := client.NewVehicle(&smartcar.VehicleParams{
 		ID:          vehicleID,
@@ -296,6 +291,13 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 		}
 	}
 
+	// At this point, we're sure that we want to proceed with registration.
+	integ.ExternalID = null.StringFrom(vehicleID)
+	_, err = integ.Update(context.Background(), tx, boil.Infer())
+	if err != nil {
+		return fmt.Errorf("failed updating API integration with Smartcar vehicle ID: %w", err)
+	}
+
 	ud := integ.R.UserDevice
 	ud.VinIdentifier = null.StringFrom(vin)
 	ud.VinConfirmed = true
@@ -303,6 +305,7 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 	if err != nil {
 		return fmt.Errorf("database failure adding Smartcar-confirmed VIN to user device: %w", err)
 	}
+
 	go func() {
 		err := t.DeviceDefSvc.UpdateDeviceDefinitionFromNHTSA(context.Background(), ud.DeviceDefinitionID, vin)
 		if err != nil {
@@ -510,8 +513,10 @@ func (t *TaskService) failIntegration(errString, userDeviceID, integrationID str
 	if err != nil {
 		return
 	}
-	integ.Status = models.UserDeviceAPIIntegrationStatusFailed
-	_, err = integ.Update(context.Background(), db, boil.Whitelist("status", "updated_at"))
+	if integ.Status != models.UserDeviceAPIIntegrationStatusDuplicateIntegration {
+		integ.Status = models.UserDeviceAPIIntegrationStatusFailed
+		_, err = integ.Update(context.Background(), db, boil.Whitelist("status", "updated_at"))
+	}
 	return
 }
 
