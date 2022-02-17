@@ -17,7 +17,7 @@ import (
 )
 
 func loadSmartCarData(ctx context.Context, logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) {
-	apiSvc := services.NewSmartCarService("https://api.smartcar.com/v2.0/", pdb.DBS, logger)
+	apiSvc := services.NewSmartCarService(pdb.DBS, logger)
 
 	err := apiSvc.SeedDeviceDefinitionsFromSmartCar(ctx)
 	if err != nil {
@@ -29,7 +29,7 @@ func smartCarForwardCompatibility(ctx context.Context, logger zerolog.Logger, pd
 	// get all device integrations where smartcar ordered by date asc.
 	// then group them by make and model, so we can iterate over the years.
 	// if there is a gap in the years, insert device_integration
-	scSvc := services.NewSmartCarService("https://api.smartcar.com/v2.0/", pdb.DBS, logger)
+	scSvc := services.NewSmartCarService(pdb.DBS, logger)
 	integrationID, err := scSvc.GetOrCreateSmartCarIntegration(ctx)
 	deviceDefSvc := services.NewDeviceDefinitionService(&config.Settings{}, pdb.DBS, &logger, nil)
 

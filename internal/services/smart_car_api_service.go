@@ -20,7 +20,10 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
-const SmartCarSource = "SmartCar"
+const (
+	SmartCarSource = "SmartCar"
+	SmartCarVendor = "SmartCar"
+)
 
 type SmartCarService struct {
 	baseURL string
@@ -28,9 +31,9 @@ type SmartCarService struct {
 	log     zerolog.Logger // can't remember if best practice with this logger is to use *
 }
 
-func NewSmartCarService(apiBaseURL string, dbs func() *database.DBReaderWriter, logger zerolog.Logger) SmartCarService {
+func NewSmartCarService(dbs func() *database.DBReaderWriter, logger zerolog.Logger) SmartCarService {
 	return SmartCarService{
-		baseURL: apiBaseURL,
+		baseURL: "https://api.smartcar.com/v2.0/",
 		DBS:     dbs,
 		log:     logger,
 	}
@@ -256,12 +259,11 @@ func parseSmartCarYears(yearsPtr *string) ([]int, error) {
 
 func (s *SmartCarService) GetOrCreateSmartCarIntegration(ctx context.Context) (string, error) {
 	const (
-		smartCarType   = "API"
-		smartCarVendor = "SmartCar"
-		smartCarStyle  = models.IntegrationStyleWebhook
+		smartCarType  = "API"
+		smartCarStyle = models.IntegrationStyleWebhook
 	)
 	integration, err := models.Integrations(qm.Where("type = ?", smartCarType),
-		qm.And("vendor = ?", smartCarVendor),
+		qm.And("vendor = ?", SmartCarVendor),
 		qm.And("style = ?", smartCarStyle)).One(ctx, s.DBS().Writer)
 
 	if err != nil {
@@ -269,7 +271,7 @@ func (s *SmartCarService) GetOrCreateSmartCarIntegration(ctx context.Context) (s
 			// create
 			integration = &models.Integration{}
 			integration.ID = ksuid.New().String()
-			integration.Vendor = smartCarVendor
+			integration.Vendor = SmartCarVendor
 			integration.Type = smartCarType
 			integration.Style = smartCarStyle
 			err = integration.Insert(ctx, s.DBS().Writer, boil.Infer())

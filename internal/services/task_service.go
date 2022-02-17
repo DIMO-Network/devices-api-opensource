@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/DIMO-Network/shared"
 	"github.com/RichardKnop/machinery/v1"
 	machinery_config "github.com/RichardKnop/machinery/v1/config"
 	"github.com/RichardKnop/machinery/v1/tasks"
@@ -44,6 +45,7 @@ type TaskService struct {
 	DeviceDefSvc    IDeviceDefinitionService
 	IngestRegistrar SmartcarIngestRegistrar
 	eventService    EventService
+	smartCarSvc     *SmartCarService
 }
 
 const smartcarWebhookURL = "https://api.smartcar.com/v2.0/vehicles/%s/webhooks/%s"
@@ -260,7 +262,7 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 		return fmt.Errorf("failed to obtain vehicle VIN from Smartcar: %w", err)
 	}
 
-	vin := scVIN.VIN
+	vin := shared.VIN(scVIN.VIN)
 
 	// Prevent users from connecting a vehicle if it's already connected through another user
 	// device object. Disabled outside of prod for ease of testing.
@@ -269,7 +271,7 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 		var conflict bool
 		conflict, err = models.UserDevices(
 			models.UserDeviceWhere.ID.NEQ(userDeviceID), // If you want to re-register, that's okay.
-			models.UserDeviceWhere.VinIdentifier.EQ(null.StringFrom(vin)),
+			models.UserDeviceWhere.VinIdentifier.EQ(null.StringFrom(vin.String())),
 			models.UserDeviceWhere.VinConfirmed.EQ(true),
 		).Exists(context.Background(), tx)
 		if err != nil {
@@ -299,7 +301,42 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 	}
 
 	ud := integ.R.UserDevice
-	ud.VinIdentifier = null.StringFrom(vin)
+
+	// If the vin states that the vehicle is of a different year that what was entered, try to correct it otherwise just log
+	if integ.R.UserDevice.R.DeviceDefinition.Year != int16(vin.Year()) {
+		t.Log.Info().Msgf("smartcar registration: when connecting vin %s to smartcar, found it was of a different year %d. user_device_id %s", vin.String(), vin.Year(), integ.UserDeviceID)
+		// lookup a Device Definition for the matching year
+		correctDD, err := t.DeviceDefSvc.FindDeviceDefinitionByMMY(context.Background(), tx, integ.R.UserDevice.R.DeviceDefinition.Make,
+			integ.R.UserDevice.R.DeviceDefinition.Model, vin.Year(), true)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				t.Log.Warn().Msgf("smartcar registration: could not find device definition matching vin year %d", vin.Year())
+			} else {
+				t.Log.Err(err).Msg("error looking up device definition for smartcar year re-assignment")
+			}
+		} else {
+			// check if the correct dd has smartcar integration set, if not add it using the user's country
+			smartCarIntegrationID, err := t.smartCarSvc.GetOrCreateSmartCarIntegration(context.Background())
+			if err != nil {
+				t.Log.Err(err).Msg("error looking up smartcar integration for year re-assignment")
+			}
+			exists := false
+			for _, integration := range correctDD.R.DeviceIntegrations {
+				if integration.Country == ud.CountryCode.String && integration.IntegrationID == smartCarIntegrationID {
+					exists = true
+					break
+				}
+			}
+			if exists {
+				// only re-assign dd_id if it has an integration to smartcar
+				ud.DeviceDefinitionID = correctDD.ID
+			} else {
+				t.Log.Warn().Msgf("smartcar registration: integration does not exist for device_definition_id %s", correctDD.ID)
+			}
+		}
+	}
+
+	ud.VinIdentifier = null.StringFrom(vin.String())
 	ud.VinConfirmed = true
 	_, err = ud.Update(context.Background(), tx, boil.Infer())
 	if err != nil {
@@ -307,7 +344,8 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 	}
 
 	go func() {
-		err := t.DeviceDefSvc.UpdateDeviceDefinitionFromNHTSA(context.Background(), ud.DeviceDefinitionID, vin)
+		// this is kinda useless
+		err := t.DeviceDefSvc.UpdateDeviceDefinitionFromNHTSA(context.Background(), ud.DeviceDefinitionID, vin.String())
 		if err != nil {
 			t.Log.Err(err).Msgf("error when trying to update deviceDefinitionID: %s from NHTSA for vin: %s", ud.DeviceDefinitionID, vin)
 		}
@@ -346,7 +384,7 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 				Make:  ud.R.DeviceDefinition.Make,
 				Model: ud.R.DeviceDefinition.Model,
 				Year:  int(ud.R.DeviceDefinition.Year),
-				VIN:   vin,
+				VIN:   vin.String(),
 			},
 			Integration: UserDeviceEventIntegration{
 				ID:     integ.R.Integration.ID,
@@ -588,7 +626,7 @@ func (t *TaskService) StartSmartcarDeregistrationTasks(userDeviceID, integration
 	return
 }
 
-func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWriter, deviceDefSvc *DeviceDefinitionService, eventService EventService, logger *zerolog.Logger, producer sarama.SyncProducer) *TaskService {
+func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWriter, deviceDefSvc *DeviceDefinitionService, eventService EventService, logger *zerolog.Logger, producer sarama.SyncProducer, smartCarSvc *SmartCarService) *TaskService {
 	var redisConn string
 	if settings.RedisPassword == "" {
 		redisConn = fmt.Sprintf("redis://%s", settings.RedisURL)
@@ -628,6 +666,7 @@ func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWrit
 		// Maybe lift this up.
 		IngestRegistrar: SmartcarIngestRegistrar{Producer: producer},
 		eventService:    eventService,
+		smartCarSvc:     smartCarSvc,
 	}
 	err = server.RegisterTasks(map[string]interface{}{
 		smartcarConnectVehicleTask:    t.smartcarConnectVehicle,
