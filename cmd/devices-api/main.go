@@ -94,6 +94,10 @@ func main() {
 		generateEvents(logger, settings, pdb, eventService)
 	case "seed-smartcar":
 		loadSmartCarData(ctx, logger, settings, pdb)
+	case "create-tesla-integrations":
+		if err := createTeslaIntegrations(ctx, pdb, &logger); err != nil {
+			logger.Fatal().Err(err).Msg("Failed to create Tesla integrations")
+		}
 	case "edmunds-vehicles-sync":
 		mergeMMYMatch := false
 		if len(os.Args) > 2 {
