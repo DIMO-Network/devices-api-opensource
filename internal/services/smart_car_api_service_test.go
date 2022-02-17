@@ -66,13 +66,13 @@ func Test_parseSmartCarYears(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseSmartCarYears(tt.yearsPtr)
+			got, err := ParseSmartCarYears(tt.yearsPtr)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseSmartCarYears() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ParseSmartCarYears() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseSmartCarYears() got = %v, want %v", got, tt.want)
+				t.Errorf("ParseSmartCarYears() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -85,7 +85,7 @@ func Test_getSmartCarVehicleData(t *testing.T) {
 	url := "https://smartcar.com/page-data/product/compatible-vehicles/page-data.json"
 	httpmock.RegisterResponder(http.MethodGet, url, httpmock.NewStringResponder(200, testSmartCarVehicles))
 
-	data, err := getSmartCarVehicleData()
+	data, err := GetSmartCarVehicleData()
 	assert.NoError(t, err)
 
 	assert.Equal(t, "Audi", data.Result.Data.AllMakesTable.Edges[0].Node.CompatibilityData.US[0].Name)
@@ -117,24 +117,24 @@ func Test_getCapability(t *testing.T) {
 
 	hdrs := compatibleVehicles.Result.Data.AllMakesTable.Edges[0].Node.CompatibilityData.US[0].Headers
 	row := compatibleVehicles.Result.Data.AllMakesTable.Edges[0].Node.CompatibilityData.US[0].Rows[0]
-	locCap := getCapability("Location", hdrs, row)
+	locCap := GetCapability("Location", hdrs, row)
 	assert.True(t, locCap, "expected location to be true")
 
-	odoCap := getCapability("Odometer", hdrs, row)
+	odoCap := GetCapability("Odometer", hdrs, row)
 	assert.True(t, odoCap, "expected odometer to be true")
 
-	lockUnLockCap := getCapability("Lock & unlock", hdrs, row)
+	lockUnLockCap := GetCapability("Lock & unlock", hdrs, row)
 	assert.True(t, lockUnLockCap, "expected lock and unlock to be true")
 
-	evBattery := getCapability("EV Battery", hdrs, row)
+	evBattery := GetCapability("EV Battery", hdrs, row)
 	assert.False(t, evBattery, "expected ev battery to be false")
 
-	evChargeStat := getCapability("EV Charging Status", hdrs, row)
+	evChargeStat := GetCapability("EV Charging Status", hdrs, row)
 	assert.False(t, evChargeStat, "expected EV charge status to be false")
 
-	fuelTank := getCapability("Fuel Tank", hdrs, row)
+	fuelTank := GetCapability("Fuel Tank", hdrs, row)
 	assert.True(t, fuelTank, "expected fuel to be true")
 
-	vinCap := getCapability("VIN", hdrs, row)
+	vinCap := GetCapability("VIN", hdrs, row)
 	assert.True(t, vinCap, "expected vin capability to be true")
 }

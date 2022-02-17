@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
@@ -16,13 +17,112 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
-func loadSmartCarData(ctx context.Context, logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) {
-	apiSvc := services.NewSmartCarService(pdb.DBS, logger)
+func syncSmartCarCompatibility(ctx context.Context, logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) {
+	smartCarSvc := services.NewSmartCarService(pdb.DBS, logger)
 
-	err := apiSvc.SeedDeviceDefinitionsFromSmartCar(ctx)
+	smartCarVehicleData, err := services.GetSmartCarVehicleData()
 	if err != nil {
-		logger.Fatal().Err(err).Msg("error seeding device defs from smart car")
+		logger.Fatal().Err(err)
 	}
+
+	err = setIntegrationForMatchingMakeYears(ctx, &smartCarSvc, pdb, smartCarVehicleData)
+	if err != nil {
+		logger.Fatal().Err(err)
+	}
+}
+
+// setIntegrationForMatchingMakeYears will set the smartcar device_integration for any matching Year and Make DD existing in our database
+func setIntegrationForMatchingMakeYears(ctx context.Context, smartCarSvc *services.SmartCarService, pdb database.DbStore,
+	data *services.SmartCarCompatibilityData) error {
+	scIntegrationID, err := smartCarSvc.GetOrCreateSmartCarIntegration(ctx)
+	if err != nil {
+		return err
+	}
+	// get all of our devices, that do not have a smartcar integration set, years 2012+
+	deviceDefs, err := models.DeviceDefinitions(qm.LeftOuterJoin("device_integrations di on di.device_definition_id = device_definitions.id"),
+		qm.Where("di is null or di.integration_id != ?", scIntegrationID), qm.And("year >= 2012")).
+		All(ctx, pdb.DBS().Reader)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("found %d device definitions that are not attached to smartcar integration\n", len(deviceDefs))
+
+	makeYears := make(map[string][]int)
+
+	for _, usData := range data.Result.Data.AllMakesTable.Edges[0].Node.CompatibilityData.US {
+		vehicleMake := usData.Name
+		if strings.Contains(vehicleMake, "Nissan") || strings.Contains(vehicleMake, "Hyundai") || strings.Contains(vehicleMake, "All makes") {
+			continue // skip if nissan or hyundai b/c not really supported
+		}
+
+		for _, row := range usData.Rows {
+			years := row[0].Subtext // eg. 2017+ or 2012-2017
+
+			if years == nil {
+				fmt.Println("Skipping row as years is nil")
+				continue
+			}
+
+			yearRange, err := services.ParseSmartCarYears(years)
+			if err != nil {
+				return errors.Wrapf(err, "could not parse years: %s", *years)
+			}
+			//fmt.Printf("found year range %s for make %s\n", *years, vehicleMake) // for debugging
+
+			for _, yr := range yearRange {
+				// update the map with the years
+				// check if yr exists in map first
+				yrExists := false
+				if makeYears[vehicleMake] != nil {
+					for _, y := range makeYears[vehicleMake] {
+						if y == yr {
+							yrExists = true
+							break
+						}
+					}
+				}
+				if !yrExists {
+					makeYears[vehicleMake] = append(makeYears[vehicleMake], yr)
+				}
+			}
+		}
+	}
+
+	fmt.Printf("built up a map with %d makes and year ranges\n", len(makeYears))
+
+	for mk, years := range makeYears {
+		fmt.Printf("%s- processing make %s -%s", Green, mk, Reset)
+		for _, year := range years {
+			// get list of all device defs that have this yr and make.
+			filtered := filterDeviceDefs(deviceDefs, mk, year)
+			fmt.Printf("found %d device defs for year %d and make %s that don't have smartcar\n", len(filtered), year, mk)
+			// insert device_integration for each one
+			for _, definition := range filtered {
+				di := models.DeviceIntegration{
+					DeviceDefinitionID: definition.ID,
+					IntegrationID:      scIntegrationID,
+					Country:            "USA",
+				}
+				err = di.Upsert(ctx, pdb.DBS().Writer, false,
+					[]string{"device_definition_id", "integration_id", "country"}, boil.Infer(), boil.Infer())
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func filterDeviceDefs(items models.DeviceDefinitionSlice, make string, year int) []models.DeviceDefinition {
+	var filtered []models.DeviceDefinition
+	for _, item := range items {
+		if item.Year == int16(year) && strings.EqualFold(item.Make, make) {
+			filtered = append(filtered, *item)
+		}
+	}
+	return filtered
 }
 
 func smartCarForwardCompatibility(ctx context.Context, logger zerolog.Logger, pdb database.DbStore) error {

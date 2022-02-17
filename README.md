@@ -32,16 +32,15 @@ You can connect to db eg: `psql -h localhost -p 5432 -U dimo` or with your favor
 `$ brew services start zookeeper`
 `$ brew services start kafka`
 
-6. Run application
+5. Run application
 `$ go run ./cmd/devices-api`
-
-7. Seed data from SmartCar:
-`$ go run ./cmd/devices-api seed-smartcar`
  
-8. Seed data from Edmunds / merging it with Smartcar data previously loaded
+6. Seed data from Edmunds / merging it with Smartcar data previously loaded
 `$ go run ./cmd/devices-api edmunds-vehicles-sync --mergemmy`
+7. Sync SmartCar compatibilities:
+`$ go run ./cmd/devices-api smartcar-sync`
 
-9. Set some vehicle images from edmunds:
+8. Set some vehicle images from edmunds:
 `$ go run ./cmd/devices-api edmunds-images [--overwrite]`
 
 ### Kafka test producer

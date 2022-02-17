@@ -40,11 +40,14 @@ func NewSmartCarService(dbs func() *database.DBReaderWriter, logger zerolog.Logg
 }
 
 func (s *SmartCarService) SeedDeviceDefinitionsFromSmartCar(ctx context.Context) error {
-	smartCarVehicleData, err := getSmartCarVehicleData()
+	smartCarVehicleData, err := GetSmartCarVehicleData()
 	if err != nil {
 		return err
 	}
 
+	// todo: changes:
+	// - do not create any new devices
+	// - if there is a make and year found in smartcar, then make all of the device definitions compatible for that make and year on our end
 	err = s.saveSmartCarDataToDeviceDefs(ctx, smartCarVehicleData)
 	return err
 }
@@ -72,28 +75,25 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 			}
 
 			ic := IntegrationCapabilities{
-				Location:          getCapability("Location", usData.Headers, row),
-				Odometer:          getCapability("Odometer", usData.Headers, row),
-				LockUnlock:        getCapability("Lock & unlock", usData.Headers, row),
-				EVBattery:         getCapability("EV battery", usData.Headers, row),
-				EVChargingStatus:  getCapability("EV charging status", usData.Headers, row),
-				EVStartStopCharge: getCapability("EV start & stop charge", usData.Headers, row),
-				FuelTank:          getCapability("Fuel tank", usData.Headers, row),
-				TirePressure:      getCapability("Tire pressure", usData.Headers, row),
-				EngineOilLife:     getCapability("Engine oil life", usData.Headers, row),
-				VehicleAttributes: getCapability("Vehicle attributes", usData.Headers, row),
-				VIN:               getCapability("VIN", usData.Headers, row),
+				Location:          GetCapability("Location", usData.Headers, row),
+				Odometer:          GetCapability("Odometer", usData.Headers, row),
+				LockUnlock:        GetCapability("Lock & unlock", usData.Headers, row),
+				EVBattery:         GetCapability("EV battery", usData.Headers, row),
+				EVChargingStatus:  GetCapability("EV charging status", usData.Headers, row),
+				EVStartStopCharge: GetCapability("EV start & stop charge", usData.Headers, row),
+				FuelTank:          GetCapability("Fuel tank", usData.Headers, row),
+				TirePressure:      GetCapability("Tire pressure", usData.Headers, row),
+				EngineOilLife:     GetCapability("Engine oil life", usData.Headers, row),
+				VehicleAttributes: GetCapability("Vehicle attributes", usData.Headers, row),
+				VIN:               GetCapability("VIN", usData.Headers, row),
 			}
 			icJSON, err := json.Marshal(&ic)
 			if err != nil {
 				return err
 			}
 			dvi := DeviceVehicleInfo{VehicleType: "PASSENGER CAR", FuelType: smartCarVehicleTypeToNhtsaFuelType(vehicleType)}
-			if years == nil {
-				s.log.Info().Msg("skipping row since years are nil")
-				continue
-			}
-			yearRange, err := parseSmartCarYears(years)
+
+			yearRange, err := ParseSmartCarYears(years)
 			if err != nil {
 				return errors.Wrapf(err, "could not parse years: %s", *years)
 			}
@@ -205,7 +205,7 @@ func getHdrIdxForCapability(capabilityName string, headers []struct {
 	return -1
 }
 
-func getCapability(capabilityName string, headers []struct {
+func GetCapability(capabilityName string, headers []struct {
 	Text    string  `json:"text"`
 	Tooltip *string `json:"tooltip"`
 }, row []struct {
@@ -224,8 +224,8 @@ func getCapability(capabilityName string, headers []struct {
 	return null.StringFromPtr(row[rowIdx].Type).String == "check"
 }
 
-// parseSmartCarYears parses out the years format in the smartcar document and returns an array of years
-func parseSmartCarYears(yearsPtr *string) ([]int, error) {
+// ParseSmartCarYears parses out the years format in the smartcar document and returns an array of years
+func ParseSmartCarYears(yearsPtr *string) ([]int, error) {
 	if yearsPtr == nil || len(*yearsPtr) == 0 {
 		return nil, errors.New("years string was nil")
 	}
@@ -292,8 +292,8 @@ func smartCarVehicleTypeToNhtsaFuelType(vehicleType string) string {
 	return "GASOLINE"
 }
 
-// getSmartCarVehicleData gets all smartcar data on compatibility from their website
-func getSmartCarVehicleData() (*SmartCarCompatibilityData, error) {
+// GetSmartCarVehicleData gets all smartcar data on compatibility from their website
+func GetSmartCarVehicleData() (*SmartCarCompatibilityData, error) {
 	const url = "https://smartcar.com/page-data/product/compatible-vehicles/page-data.json"
 	res, err := http.Get(url)
 	if err != nil {
