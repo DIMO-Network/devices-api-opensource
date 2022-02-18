@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
@@ -14,54 +13,31 @@ import (
 	"github.com/volatiletech/null/v8"
 )
 
-func remakeSmartcarTopic(logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore) error {
-	ctx := context.Background()
-	kafkaConfig := sarama.NewConfig()
-	kafkaConfig.Producer.Return.Successes = true
-	producer, err := sarama.NewSyncProducer(strings.Split(settings.KafkaBrokers, ","), kafkaConfig)
-	if err != nil {
-		return err
-	}
-
+func remakeSmartcarTopic(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore, producer sarama.SyncProducer) error {
 	reg := services.SmartcarIngestRegistrar{Producer: producer}
 	db := pdb.DBS().Reader
 
-	// Grab the Smartcar integration, there should be exactly one.
-	sc, err := models.Integrations(models.IntegrationWhere.Vendor.EQ("SmartCar")).One(ctx, db)
-	if err != nil {
-		return err
-	}
-	scID := sc.ID
-
-	// Clear out any old messages that were keyed by our device ID.
-	devices, err := models.UserDevices().All(context.Background(), db)
-	if err != nil {
-		return fmt.Errorf("failed retrieving devices: %w", err)
-	}
-	for _, device := range devices {
-		err = reg.Deregister(
-			device.ID,
-			device.ID, // This looks a bit odd because it is not a Smartcar ID.
-			scID,
-		)
-		if err != nil {
-			return fmt.Errorf("failed clearing out any old messages for %s: %w", device.ID, err)
-		}
+	// Grab the Smartcar integration ID, there should be exactly one.
+	var scIntID string
+	if scInt, err := models.Integrations(models.IntegrationWhere.Vendor.EQ("SmartCar")).One(ctx, db); err != nil {
+		return fmt.Errorf("failed to retrieve Smartcar integration: %w", err)
+	} else {
+		scIntID = scInt.ID
 	}
 
-	integs, err := models.UserDeviceAPIIntegrations(
-		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(scID), // At the time of writing, this will get everything.
+	// Find all integration instances that have acquired Smartcar ids.
+	apiInts, err := models.UserDeviceAPIIntegrations(
+		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(scIntID),
 		models.UserDeviceAPIIntegrationWhere.ExternalID.NEQ(null.StringFromPtr(nil)),
-	).All(context.Background(), db)
+	).All(ctx, db)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve all API integrations with external IDs: %w", err)
 	}
 
 	// For each of these send a new registration message, keyed by Smartcar vehicle ID.
-	for _, integ := range integs {
-		err = reg.Register(integ.ExternalID.String, integ.UserDeviceID, scID)
-		if err != nil {
-			return fmt.Errorf("failed sending registration for device %s: %w", integ.UserDeviceID, err)
+	for _, apiInt := range apiInts {
+		if err := reg.Register(apiInt.ExternalID.String, apiInt.UserDeviceID, scIntID); err != nil {
+			return fmt.Errorf("failed to register Smartcar-DIMO id link for device %s: %w", apiInt.UserDeviceID, err)
 		}
 	}
 
