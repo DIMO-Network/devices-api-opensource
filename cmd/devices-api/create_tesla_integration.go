@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/DIMO-INC/devices-api/internal/controllers"
 	"github.com/DIMO-INC/devices-api/internal/database"
 	"github.com/DIMO-INC/devices-api/models"
+	"github.com/DIMO-Network/shared"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
 	"github.com/volatiletech/sqlboiler/v4/boil"
@@ -63,7 +63,7 @@ func createTeslaIntegrations(ctx context.Context, pdb database.DbStore, logger *
 	}
 
 	for _, teslaDef := range teslaDefs {
-		integCountries := controllers.NewStringSet()
+		integCountries := shared.NewStringSet()
 		for _, integ := range teslaDef.R.DeviceIntegrations {
 			integCountries.Add(integ.Country)
 		}

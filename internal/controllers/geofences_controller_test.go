@@ -11,6 +11,7 @@ import (
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/models"
+	"github.com/DIMO-Network/shared"
 	"github.com/Shopify/sarama"
 	saramamocks "github.com/Shopify/sarama/mocks"
 	"github.com/gofiber/fiber/v2"
@@ -51,7 +52,7 @@ func checkForDeviceAndH3(userDeviceID string, h3Indexes []string) func(*sarama.P
 			return fmt.Errorf("expected %d H3 indices but got %d", len(h3Indexes), len(ev.Data.H3Indexes))
 		}
 
-		set := NewStringSet()
+		set := shared.NewStringSet()
 		for _, ind := range h3Indexes {
 			set.Add(ind)
 		}

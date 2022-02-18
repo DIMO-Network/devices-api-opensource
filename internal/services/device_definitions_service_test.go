@@ -38,5 +38,5 @@ func TestSubModelsFromStylesDB(t *testing.T) {
 	subModels := SubModelsFromStylesDB(styles)
 
 	assert.Len(t, subModels, 3)
-	assert.Equal(t, []string{"XLT", "Lariat", "King Cab"}, subModels)
+	assert.Equal(t, []string{"King Cab", "Lariat", "XLT"}, subModels)
 }

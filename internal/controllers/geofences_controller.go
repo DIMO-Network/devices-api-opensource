@@ -11,6 +11,7 @@ import (
 	"github.com/DIMO-INC/devices-api/internal/database"
 	"github.com/DIMO-INC/devices-api/internal/services"
 	"github.com/DIMO-INC/devices-api/models"
+	"github.com/DIMO-Network/shared"
 	"github.com/Shopify/sarama"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/gofiber/fiber/v2"
@@ -39,35 +40,6 @@ func NewGeofencesController(settings *config.Settings, dbs func() *database.DBRe
 }
 
 const PrivacyFenceEventType = "zone.dimo.device.privacyfence.update"
-
-type StringSet struct {
-	elements map[string]struct{}
-}
-
-func NewStringSet() *StringSet {
-	return &StringSet{elements: make(map[string]struct{})}
-}
-
-func (s *StringSet) Add(st string) {
-	s.elements[st] = struct{}{}
-}
-
-func (s *StringSet) Contains(st string) bool {
-	_, ok := s.elements[st]
-	return ok
-}
-
-func (s *StringSet) Slice() []string {
-	out := make([]string, 0, len(s.elements))
-	for st := range s.elements {
-		out = append(out, st)
-	}
-	return out
-}
-
-func (s *StringSet) Len() int {
-	return len(s.elements)
-}
 
 // Create godoc
 // @Description adds a new geofence to the user's account, optionally attached to specific user_devices
@@ -111,7 +83,7 @@ func (g *GeofencesController) Create(c *fiber.Ctx) error {
 			return fmt.Errorf("failed to look up user's devices: %w", err)
 		}
 
-		allUserDeviceIDs := NewStringSet()
+		allUserDeviceIDs := shared.NewStringSet()
 		for _, userDevice := range allUserDevices {
 			allUserDeviceIDs.Add(userDevice.ID)
 		}
@@ -174,7 +146,7 @@ func (g *GeofencesController) EmitPrivacyFenceUpdates(ctx context.Context, db bo
 		return err
 	}
 
-	indexes := NewStringSet()
+	indexes := shared.NewStringSet()
 
 	for _, rel := range rels {
 		if rel.R.Geofence.Type != models.GeofenceTypePrivacyFence {
@@ -299,7 +271,7 @@ func (g *GeofencesController) Update(c *fiber.Ctx) error {
 		return err
 	}
 
-	affectedDeviceIDs := NewStringSet()
+	affectedDeviceIDs := shared.NewStringSet()
 	for _, rel := range geofence.R.UserDeviceToGeofences {
 		affectedDeviceIDs.Add(rel.UserDeviceID)
 	}

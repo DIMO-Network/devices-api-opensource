@@ -10,6 +10,7 @@ import (
 	"github.com/DIMO-INC/devices-api/internal/database"
 	"github.com/DIMO-INC/devices-api/internal/services"
 	"github.com/DIMO-INC/devices-api/models"
+	"github.com/DIMO-Network/shared"
 	"github.com/Shopify/sarama"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
@@ -26,11 +27,11 @@ func remakeFenceTopic(logger *zerolog.Logger, settings *config.Settings, pdb dat
 		return err
 	}
 
-	deviceIDToIndexes := make(map[string]*controllers.StringSet)
+	deviceIDToIndexes := make(map[string]*shared.StringSet)
 
 	for _, rel := range rels {
 		if _, ok := deviceIDToIndexes[rel.UserDeviceID]; !ok {
-			deviceIDToIndexes[rel.UserDeviceID] = controllers.NewStringSet()
+			deviceIDToIndexes[rel.UserDeviceID] = shared.NewStringSet()
 		}
 		for _, ind := range rel.R.Geofence.H3Indexes {
 			deviceIDToIndexes[rel.UserDeviceID].Add(ind)

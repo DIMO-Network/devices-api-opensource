@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"sort"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
 	"github.com/DIMO-INC/devices-api/internal/database"
@@ -120,5 +121,6 @@ func SubModelsFromStylesDB(styles models.DeviceStyleSlice) []string {
 		sm[i] = key
 		i++
 	}
+	sort.Strings(sm)
 	return sm
 }
