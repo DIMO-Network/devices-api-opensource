@@ -28,7 +28,7 @@ type Geofence struct {
 	UserID    string            `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
 	Name      string            `boil:"name" json:"name" toml:"name" yaml:"name"`
 	Type      string            `boil:"type" json:"type" toml:"type" yaml:"type"`
-	H3Indexes types.StringArray `boil:"h3_indexes" json:"h3_indexes" toml:"h3_indexes" yaml:"h3_indexes"`
+	H3Indexes types.StringArray `boil:"h3_indexes" json:"h3_indexes,omitempty" toml:"h3_indexes" yaml:"h3_indexes,omitempty"`
 	CreatedAt time.Time         `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt time.Time         `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 
@@ -77,10 +77,10 @@ var GeofenceTableColumns = struct {
 type whereHelpertypes_StringArray struct{ field string }
 
 func (w whereHelpertypes_StringArray) EQ(x types.StringArray) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.EQ, x)
+	return qmhelper.WhereNullEQ(w.field, false, x)
 }
 func (w whereHelpertypes_StringArray) NEQ(x types.StringArray) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.NEQ, x)
+	return qmhelper.WhereNullEQ(w.field, true, x)
 }
 func (w whereHelpertypes_StringArray) LT(x types.StringArray) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.LT, x)
@@ -93,6 +93,11 @@ func (w whereHelpertypes_StringArray) GT(x types.StringArray) qm.QueryMod {
 }
 func (w whereHelpertypes_StringArray) GTE(x types.StringArray) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+
+func (w whereHelpertypes_StringArray) IsNull() qm.QueryMod { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpertypes_StringArray) IsNotNull() qm.QueryMod {
+	return qmhelper.WhereIsNotNull(w.field)
 }
 
 var GeofenceWhere = struct {
