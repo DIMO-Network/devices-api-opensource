@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/DIMO-INC/devices-api/docs"
-	"github.com/DIMO-INC/devices-api/internal/config"
-	"github.com/DIMO-INC/devices-api/internal/controllers"
-	"github.com/DIMO-INC/devices-api/internal/database"
-	"github.com/DIMO-INC/devices-api/internal/kafka"
-	"github.com/DIMO-INC/devices-api/internal/services"
+	_ "github.com/DIMO-Network/devices-api/docs"
+	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/controllers"
+	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/DIMO-Network/devices-api/internal/kafka"
+	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/zflogger"
 	"github.com/Jeffail/benthos/v3/lib/util/hash/murmur2"
 	"github.com/Shopify/sarama"
@@ -30,10 +30,9 @@ import (
 	_ "go.uber.org/automaxprocs"
 )
 
-// @title     DIMO Devices API
-// @version   2.0
-// @BasePath  /v1
-
+// @title                       DIMO Devices API
+// @version                     1.0
+// @BasePath                    /v1
 // @securityDefinitions.apikey  BearerAuth
 // @in                          header
 // @name                        Authorization
@@ -210,18 +209,16 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	app.Put("/loglevel", changeLogLevel)
 
 	v1 := app.Group("/v1")
+	sc := swagger.Config{ // custom
+		// Expand ("list") or Collapse ("none") tag groups by default
+		//DocExpansion: "list",
+	}
+	v1.Get("/swagger/*", swagger.New(sc))
 	// Device Definitions
 	v1.Get("/device-definitions/all", cacheHandler, deviceControllers.GetAllDeviceMakeModelYears)
 	v1.Get("/device-definitions/:id", deviceControllers.GetDeviceDefinitionByID)
 	v1.Get("/device-definitions/:id/integrations", deviceControllers.GetIntegrationsByID)
 	v1.Get("/device-definitions", deviceControllers.GetDeviceDefinitionByMMY)
-	// swagger - note could add auth middleware so it is not open
-	sc := swagger.Config{ // custom
-		// Expand ("list") or Collapse ("none") tag groups by default
-		DocExpansion: "list",
-	}
-	v1.Get("/swagger/*", swagger.New(sc))
-	//v1.Get("/elastic/test", deviceDataController.GetTestData)
 
 	// secured paths
 	keyRefreshInterval := time.Hour
@@ -264,14 +261,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	}
 }
 
-// healthCheck godoc
-// @Summary Show the status of server.
-// @Description get the status of server.
-// @Tags root
-// @Accept */*
-// @Produce json
-// @Success 200 {object} map[string]interface{}
-// @Router / [get]
 func healthCheck(c *fiber.Ctx) error {
 	res := map[string]interface{}{
 		"data": "Server is up and running",

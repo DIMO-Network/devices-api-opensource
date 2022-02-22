@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/DIMO-INC/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/config"
 )
 
 const databaseDriver = "postgres"

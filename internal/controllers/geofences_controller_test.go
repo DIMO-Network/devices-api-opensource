@@ -9,8 +9,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/DIMO-INC/devices-api/internal/config"
-	"github.com/DIMO-INC/devices-api/models"
+	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
 	"github.com/Shopify/sarama"
 	saramamocks "github.com/Shopify/sarama/mocks"

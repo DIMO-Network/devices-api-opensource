@@ -2,8 +2,8 @@ FROM golang:1.17 AS build
 
 RUN useradd -u 10001 dimo
 
-WORKDIR /go/src/github.com/DIMO-INC/devices-api/
-COPY . /go/src/github.com/DIMO-INC/devices-api/
+WORKDIR /go/src/github.com/DIMO-Network/devices-api/
+COPY . /go/src/github.com/DIMO-Network/devices-api/
 
 ENV CGO_ENABLED=0
 ENV GOOS=linux
@@ -22,8 +22,8 @@ WORKDIR /
 
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /etc/passwd /etc/passwd
-COPY --from=build /go/src/github.com/DIMO-INC/devices-api/target/bin/devices-api .
-COPY --from=build /go/src/github.com/DIMO-INC/devices-api/migrations /migrations
+COPY --from=build /go/src/github.com/DIMO-Network/devices-api/target/bin/devices-api .
+COPY --from=build /go/src/github.com/DIMO-Network/devices-api/migrations /migrations
 
 USER dimo
 

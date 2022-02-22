@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DIMO-INC/devices-api/internal/appmetrics"
-	"github.com/DIMO-INC/devices-api/internal/database"
-	"github.com/DIMO-INC/devices-api/models"
+	"github.com/DIMO-Network/devices-api/internal/appmetrics"
+	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/DIMO-Network/devices-api/models"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"

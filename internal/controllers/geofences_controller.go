@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DIMO-INC/devices-api/internal/config"
-	"github.com/DIMO-INC/devices-api/internal/database"
-	"github.com/DIMO-INC/devices-api/internal/services"
-	"github.com/DIMO-INC/devices-api/models"
+	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/DIMO-Network/devices-api/internal/services"
+	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
 	"github.com/Shopify/sarama"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
@@ -42,15 +42,15 @@ func NewGeofencesController(settings *config.Settings, dbs func() *database.DBRe
 const PrivacyFenceEventType = "zone.dimo.device.privacyfence.update"
 
 // Create godoc
-// @Description adds a new geofence to the user's account, optionally attached to specific user_devices
-// @Tags 	geofence
-// @Produce json
-// @Accept json
-// @Param geofence body controllers.CreateGeofence true "add geofence to user."
-// @Success 201 {object} controllers.CreateResponse
-// @Security ApiKeyAuth
-// @Security BearerAuth
-// @Router  /user/geofences [post]
+// @Description  adds a new geofence to the user's account, optionally attached to specific user_devices
+// @Tags           geofence
+// @Produce      json
+// @Accept       json
+// @Param        geofence  body      controllers.CreateGeofence  true  "add geofence to user."
+// @Success      201       {object}  controllers.CreateResponse
+// @Security     ApiKeyAuth
+// @Security     BearerAuth
+// @Router       /user/geofences [post]
 func (g *GeofencesController) Create(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	create := CreateGeofence{}
@@ -192,13 +192,13 @@ func (g *GeofencesController) EmitPrivacyFenceUpdates(ctx context.Context, db bo
 }
 
 // GetAll godoc
-// @Description gets all geofences for the current user
-// @Tags 	geofence
-// @Produce json
-// @Success 200 {object} []controllers.GetGeofence
-// @Security ApiKeyAuth
-// @Security BearerAuth
-// @Router  /user/geofences [get]
+// @Description  gets all geofences for the current user
+// @Tags           geofence
+// @Produce      json
+// @Success      200  {object}  []controllers.GetGeofence
+// @Security     ApiKeyAuth
+// @Security     BearerAuth
+// @Router       /user/geofences [get]
 func (g *GeofencesController) GetAll(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	//could not find LoadUserDevices method for eager loading
@@ -237,16 +237,16 @@ func (g *GeofencesController) GetAll(c *fiber.Ctx) error {
 }
 
 // Update godoc
-// @Description updates an existing geofence for the current user
-// @Tags geofence
-// @Produce json
-// @Accept json
-// @Param geofenceID path string true "geofence id"
-// @Param geofence body controllers.CreateGeofence true "add geofence to user."
-// @Success 204
-// @Security ApiKeyAuth
-// @Security BearerAuth
-// @Router /user/geofences/:geofenceID [put]
+// @Description  updates an existing geofence for the current user
+// @Tags         geofence
+// @Produce      json
+// @Accept       json
+// @Param        geofenceID  path  string                      true  "geofence id"
+// @Param        geofence    body  controllers.CreateGeofence  true  "add geofence to user."
+// @Success      204
+// @Security     ApiKeyAuth
+// @Security     BearerAuth
+// @Router       /user/geofences/{geofenceID} [put]
 func (g *GeofencesController) Update(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	id := c.Params("geofenceID")
@@ -315,13 +315,13 @@ func (g *GeofencesController) Update(c *fiber.Ctx) error {
 }
 
 // Delete godoc
-// @Description hard deletes a geofence from db
-// @Tags geofence
-// @Param geofenceID path string true "geofence id"
-// @Success 204
-// @Security ApiKeyAuth
-// @Security BearerAuth
-// @Router /user/geofences/:geofenceID [delete]
+// @Description  hard deletes a geofence from db
+// @Tags         geofence
+// @Param        geofenceID  path  string  true  "geofence id"
+// @Success      204
+// @Security     ApiKeyAuth
+// @Security     BearerAuth
+// @Router       /user/geofences/{geofenceID} [delete]
 func (g *GeofencesController) Delete(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	id := c.Params("geofenceID")

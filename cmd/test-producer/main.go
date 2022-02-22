@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DIMO-INC/devices-api/internal/config"
-	"github.com/DIMO-INC/devices-api/internal/services"
+	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/Shopify/sarama"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"

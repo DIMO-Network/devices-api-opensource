@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/DIMO-INC/devices-api/internal/config"
-	"github.com/DIMO-INC/devices-api/internal/database"
-	"github.com/DIMO-INC/devices-api/internal/services"
-	"github.com/DIMO-INC/devices-api/models"
+	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/DIMO-Network/devices-api/internal/services"
+	"github.com/DIMO-Network/devices-api/models"
 	"github.com/Shopify/sarama"
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/null/v8"
@@ -18,11 +18,12 @@ func remakeSmartcarTopic(ctx context.Context, logger *zerolog.Logger, settings *
 	db := pdb.DBS().Reader
 
 	// Grab the Smartcar integration ID, there should be exactly one.
-	scInt, err := models.Integrations(models.IntegrationWhere.Vendor.EQ(services.SmartCarVendor)).One(ctx, db)
+	var scIntID string
+	scInt, err := models.Integrations(models.IntegrationWhere.Vendor.EQ("SmartCar")).One(ctx, db)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve Smartcar integration: %w", err)
 	}
-	scIntID := scInt.ID
+	scIntID = scInt.ID
 
 	// Find all integration instances that have acquired Smartcar ids.
 	apiInts, err := models.UserDeviceAPIIntegrations(

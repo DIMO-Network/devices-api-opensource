@@ -4,9 +4,9 @@ import (
 	"io"
 	"time"
 
-	"github.com/DIMO-INC/devices-api/internal/config"
-	"github.com/DIMO-INC/devices-api/internal/database"
-	"github.com/DIMO-INC/devices-api/models"
+	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/DIMO-Network/devices-api/models"
 	"github.com/aquasecurity/esquery"
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/gofiber/fiber/v2"
@@ -35,15 +35,15 @@ func NewDeviceDataController(settings *config.Settings, dbs func() *database.DBR
 }
 
 // GetHistoricalRaw godoc
-// @Description Get all historical data for a userDeviceID, within start and end range
-// @Tags device-data
-// @Produce json
-// @Success 200
-// @Param userDeviceID path string true "user id"
-// @Param startDate query string false "startDate eg 2022-01-02. if empty two weeks back"
-// @Param endDate query string false "endDate eg 2022-03-01. if empty today"
-// @Security BearerAuth
-// @Router /user/device-data/:userDeviceID/historical [get]
+// @Description  Get all historical data for a userDeviceID, within start and end range
+// @Tags         device-data
+// @Produce      json
+// @Success      200
+// @Param        userDeviceID  path   string  true   "user id"
+// @Param        startDate     query  string  false  "startDate eg 2022-01-02. if empty two weeks back"
+// @Param        endDate       query  string  false  "endDate eg 2022-03-01. if empty today"
+// @Security     BearerAuth
+// @Router       /user/device-data/{userDeviceID}/historical [get]
 func (d *DeviceDataController) GetHistoricalRaw(c *fiber.Ctx) error {
 	const dateLayout = "2006-01-02" // date layout support by elastic
 	userID := getUserID(c)
@@ -78,6 +78,7 @@ func (d *DeviceDataController) GetHistoricalRaw(c *fiber.Ctx) error {
 	res, err := esquery.Search().
 		Query(esquery.Bool().Must(
 			esquery.Term("subject", udi),
+			esquery.Exists("data.odometer"),
 			esquery.Range("data.timestamp").
 				Gte(startDate).
 				Lte(endDate))).

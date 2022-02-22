@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/DIMO-INC/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/config"
 )
 
 //go:generate mockgen -source tesla_service.go -destination mocks/tesla_service_mock.go

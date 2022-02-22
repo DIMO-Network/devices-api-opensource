@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DIMO-INC/devices-api/internal/config"
-	"github.com/DIMO-INC/devices-api/internal/database"
+	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/database"
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
@@ -57,7 +57,7 @@ func setupDatabase(ctx context.Context, t *testing.T, migrationsDirRelPath strin
 	}
 
 	return pdb, edb
-	// if we add code migrations, import: _ "github.com/DIMO-INC/devices-api/migrations"
+	// if we add code migrations, import: _ "github.com/DIMO-Network/devices-api/migrations"
 }
 
 func buildRequest(method, url, body string) *http.Request {

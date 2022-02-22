@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DIMO-INC/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/Shopify/sarama"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"

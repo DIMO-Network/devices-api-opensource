@@ -3,7 +3,7 @@ package services
 import (
 	"testing"
 
-	"github.com/DIMO-INC/devices-api/models"
+	"github.com/DIMO-Network/devices-api/models"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -1,4 +1,4 @@
-module github.com/DIMO-INC/devices-api
+module github.com/DIMO-Network/devices-api
 
 go 1.17
 
@@ -9,15 +9,16 @@ require (
 	github.com/ThreeDotsLabs/watermill v1.1.1
 	github.com/ThreeDotsLabs/watermill-kafka/v2 v2.2.1
 	github.com/ahmetb/go-linq/v3 v3.2.0
+	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751
 	github.com/ansrivas/fiberprometheus/v2 v2.1.2
 	github.com/aquasecurity/esquery v0.2.0
-	github.com/arsmn/fiber-swagger/v2 v2.24.0
+	github.com/arsmn/fiber-swagger/v2 v2.2.0
 	github.com/buger/jsonparser v1.1.1
 	github.com/elastic/go-elasticsearch/v7 v7.6.0
 	github.com/fergusstrange/embedded-postgres v1.14.0
 	github.com/friendsofgo/errors v0.9.2
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
-	github.com/gofiber/fiber/v2 v2.26.0
+	github.com/gofiber/fiber/v2 v2.27.0
 	github.com/gofiber/jwt/v3 v3.2.4
 	github.com/golang-jwt/jwt/v4 v4.3.0
 	github.com/golang/mock v1.6.0
@@ -29,7 +30,7 @@ require (
 	github.com/rs/zerolog v1.26.1
 	github.com/segmentio/ksuid v1.0.4
 	github.com/stretchr/testify v1.7.0
-	github.com/swaggo/swag v1.7.9
+	github.com/swaggo/swag v1.8.0
 	github.com/tidwall/gjson v1.14.0
 	github.com/tidwall/sjson v1.2.4
 	github.com/volatiletech/null/v8 v8.1.2
@@ -124,7 +125,7 @@ require (
 	github.com/gofrs/uuid v4.2.0+incompatible // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
-	github.com/klauspost/compress v1.14.2 // indirect
+	github.com/klauspost/compress v1.14.4 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/smartcar/go-sdk v1.4.0
@@ -139,7 +140,7 @@ require (
 	github.com/volatiletech/randomize v0.0.1 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
-	golang.org/x/sys v0.0.0-20220209214540-3681064d5158 // indirect
+	golang.org/x/sys v0.0.0-20220222160653-b146bcec3beb // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/tools v0.1.9 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect

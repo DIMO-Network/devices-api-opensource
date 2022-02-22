@@ -7,7 +7,7 @@ package mock_services
 import (
 	reflect "reflect"
 
-	services "github.com/DIMO-INC/devices-api/internal/services"
+	services "github.com/DIMO-Network/devices-api/internal/services"
 	gomock "github.com/golang/mock/gomock"
 )
 

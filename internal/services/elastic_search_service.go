@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DIMO-INC/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )

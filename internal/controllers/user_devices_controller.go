@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/DIMO-INC/devices-api/internal/config"
-	"github.com/DIMO-INC/devices-api/internal/database"
-	"github.com/DIMO-INC/devices-api/internal/services"
-	"github.com/DIMO-INC/devices-api/models"
+	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/DIMO-Network/devices-api/internal/services"
+	"github.com/DIMO-Network/devices-api/models"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/gofiber/fiber/v2"
@@ -49,12 +49,12 @@ func NewUserDevicesController(settings *config.Settings, dbs func() *database.DB
 }
 
 // GetUserDevices godoc
-// @Description gets all devices associated with current user - pulled from token
-// @Tags 	user-devices
-// @Produce json
-// @Success 200 {object} []controllers.UserDeviceFull
-// @Security BearerAuth
-// @Router  /user/devices/me [get]
+// @Description  gets all devices associated with current user - pulled from token
+// @Tags           user-devices
+// @Produce      json
+// @Success      200  {object}  []controllers.UserDeviceFull
+// @Security     BearerAuth
+// @Router       /user/devices/me [get]
 func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	devices, err := models.UserDevices(qm.Where("user_id = ?", userID),
@@ -109,15 +109,15 @@ type UserDeviceEvent struct {
 }
 
 // RegisterDeviceForUser godoc
-// @Description adds a device to a user. can add with only device_definition_id or with MMY, which will create a device_definition on the fly
-// @Tags 	user-devices
-// @Produce json
-// @Accept json
-// @Param user_device body controllers.RegisterUserDevice true "add device to user. either MMY or id are required"
-// @Security ApiKeyAuth
-// @Success 201 {object} controllers.RegisterUserDeviceResponse
-// @Security BearerAuth
-// @Router  /user/devices [post]
+// @Description  adds a device to a user. can add with only device_definition_id or with MMY, which will create a device_definition on the fly
+// @Tags           user-devices
+// @Produce      json
+// @Accept       json
+// @Param        user_device  body  controllers.RegisterUserDevice  true  "add device to user. either MMY or id are required"
+// @Security     ApiKeyAuth
+// @Success      201  {object}  controllers.RegisterUserDeviceResponse
+// @Security     BearerAuth
+// @Router       /user/devices [post]
 func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	reg := &RegisterUserDevice{}
@@ -420,10 +420,10 @@ func (udc *UserDevicesController) RegisterDeviceTesla(c *fiber.Ctx, logger *zero
 }
 
 // GetUserDeviceIntegration godoc
-// @Description Receive status updates about a Smartcar integration
-// @Tags user-devices
-// @Success 200 {object} controllers.GetUserDeviceIntegrationResponse
-// @Router /user/devices/:userDeviceID/integrations/:integrationID [get]
+// @Description  Receive status updates about a Smartcar integration
+// @Tags         user-devices
+// @Success      200  {object}  controllers.GetUserDeviceIntegrationResponse
+// @Router       /user/devices/{userDeviceID}/integrations/{integrationID} [get]
 func (udc *UserDevicesController) GetUserDeviceIntegration(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	userDeviceID := c.Params("userDeviceID")
@@ -453,10 +453,10 @@ func (udc *UserDevicesController) GetUserDeviceIntegration(c *fiber.Ctx) error {
 }
 
 // DeleteUserDeviceIntegration godoc
-// @Description Remove an user device's integration
-// @Tags user-devices
-// @Success 204
-// @Router /user/devices/:userDeviceID/integrations/:integrationID [delete]
+// @Description  Remove an user device's integration
+// @Tags         user-devices
+// @Success      204
+// @Router       /user/devices/{userDeviceID}/integrations/{integrationID} [delete]
 func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	userDeviceID := c.Params("userDeviceID")
@@ -543,15 +543,15 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 }
 
 // UpdateVIN godoc
-// @Description updates the VIN on the user device record
-// @Tags 	user-devices
-// @Produce json
-// @Accept json
-// @Param vin body controllers.UpdateVINReq true "VIN"
-// @Param userDeviceID path string true "user id"
-// @Success 204
-// @Security BearerAuth
-// @Router  /user/devices/:userDeviceID/vin [patch]
+// @Description  updates the VIN on the user device record
+// @Tags           user-devices
+// @Produce      json
+// @Accept       json
+// @Param        vin           body  controllers.UpdateVINReq  true  "VIN"
+// @Param        userDeviceID  path  string                    true  "user id"
+// @Success      204
+// @Security     BearerAuth
+// @Router       /user/devices/{userDeviceID}/vin [patch]
 func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
@@ -583,15 +583,15 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 }
 
 // UpdateName godoc
-// @Description updates the Name on the user device record
-// @Tags 	user-devices
-// @Produce json
-// @Accept json
-// @Param name body controllers.UpdateNameReq true "Name"
-// @Param user_device_id path string true "user id"
-// @Success 204
-// @Security BearerAuth
-// @Router  /user/devices/:userDeviceID/name [patch]
+// @Description  updates the Name on the user device record
+// @Tags           user-devices
+// @Produce      json
+// @Accept       json
+// @Param        name            body  controllers.UpdateNameReq  true  "Name"
+// @Param        user_device_id  path  string                     true  "user id"
+// @Success      204
+// @Security     BearerAuth
+// @Router       /user/devices/{userDeviceID}/name [patch]
 func (udc *UserDevicesController) UpdateName(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
@@ -618,14 +618,14 @@ func (udc *UserDevicesController) UpdateName(c *fiber.Ctx) error {
 }
 
 // GetUserDeviceStatus godoc
-// @Description Returns the latest status update for the device. May return 404 if the
-// @Description user does not have a device with the ID, or if no status updates have come
-// @Tags user-devices
-// @Produce json
-// @Param user_device_id path string true "user device ID"
-// @Success 200
-// @Security BearerAuth
-// @Router  /user/devices/:userDeviceID/status [get]
+// @Description  Returns the latest status update for the device. May return 404 if the
+// @Description  user does not have a device with the ID, or if no status updates have come
+// @Tags         user-devices
+// @Produce      json
+// @Param        user_device_id  path  string  true  "user device ID"
+// @Success      200
+// @Security     BearerAuth
+// @Router       /user/devices/{userDeviceID}/status [get]
 func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
@@ -653,13 +653,13 @@ func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 }
 
 // RefreshUserDeviceStatus godoc
-// @Description Starts the process of refreshing device status from Smartcar
-// @Tags user-devices
-// @Param user_device_id path string true "user device ID"
-// @Success 204
-// @Failure 429 "rate limit hit for integration"
-// @Security BearerAuth
-// @Router  /user/devices/:userDeviceID/commands/refresh [post]
+// @Description  Starts the process of refreshing device status from Smartcar
+// @Tags         user-devices
+// @Param        user_device_id  path  string  true  "user device ID"
+// @Success      204
+// @Failure      429  "rate limit hit for integration"
+// @Security     BearerAuth
+// @Router       /user/devices/{userDeviceID}/commands/refresh [post]
 func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
@@ -700,14 +700,14 @@ func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
 }
 
 // UpdateCountryCode godoc
-// @Description updates the CountryCode on the user device record
-// @Tags 	user-devices
-// @Produce json
-// @Accept json
-// @Param name body controllers.UpdateCountryCodeReq true "Country code"
-// @Success 204
-// @Security BearerAuth
-// @Router  /user/devices/:userDeviceID/country_code [patch]
+// @Description  updates the CountryCode on the user device record
+// @Tags           user-devices
+// @Produce      json
+// @Accept       json
+// @Param        name  body  controllers.UpdateCountryCodeReq  true  "Country code"
+// @Success      204
+// @Security     BearerAuth
+// @Router       /user/devices/{userDeviceID}/country_code [patch]
 func (udc *UserDevicesController) UpdateCountryCode(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
@@ -734,12 +734,12 @@ func (udc *UserDevicesController) UpdateCountryCode(c *fiber.Ctx) error {
 }
 
 // DeleteUserDevice godoc
-// @Description delete the user device record (hard delete)
-// @Tags 	user-devices
-// @Param userDeviceID path string true "user id"
-// @Success 204
-// @Security BearerAuth
-// @Router  /user/devices/:userDeviceID [delete]
+// @Description  delete the user device record (hard delete)
+// @Tags                       user-devices
+// @Param        userDeviceID  path  string  true  "user id"
+// @Success      204
+// @Security     BearerAuth
+// @Router       /user/devices/{userDeviceID} [delete]
 func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
 	userID := getUserID(c)

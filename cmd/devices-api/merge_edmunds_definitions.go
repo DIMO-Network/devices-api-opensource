@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/DIMO-INC/devices-api/internal/config"
-	"github.com/DIMO-INC/devices-api/internal/database"
-	"github.com/DIMO-INC/devices-api/models"
+	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/DIMO-Network/devices-api/models"
 	"github.com/ahmetb/go-linq/v3"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"

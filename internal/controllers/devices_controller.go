@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/DIMO-INC/devices-api/internal/config"
-	"github.com/DIMO-INC/devices-api/internal/database"
-	"github.com/DIMO-INC/devices-api/internal/services"
-	"github.com/DIMO-INC/devices-api/models"
+	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/DIMO-Network/devices-api/internal/services"
+	"github.com/DIMO-Network/devices-api/models"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -41,11 +41,11 @@ func NewDevicesController(settings *config.Settings, dbs func() *database.DBRead
 }
 
 // GetAllDeviceMakeModelYears godoc
-// @Description returns a json tree of Makes, models, and years
-// @Tags 	device-definitions
-// @Produce json
-// @Success 200 {object} []controllers.DeviceMMYRoot
-// @Router  /device-definitions/all [get]
+// @Description  returns a json tree of Makes, models, and years
+// @Tags           device-definitions
+// @Produce      json
+// @Success      200  {object}  []controllers.DeviceMMYRoot
+// @Router       /device-definitions/all [get]
 func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
 	all, err := models.DeviceDefinitions(qm.Where("verified = true"),
 		qm.OrderBy("make, model, year")).All(c.Context(), d.DBS().Reader)
@@ -83,12 +83,12 @@ func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
 }
 
 // GetDeviceDefinitionByID godoc
-// @Description gets a specific device definition by id
-// @Tags 	device-definitions
-// @Produce json
-// @Param 	id path string true "device definition id, KSUID format"
-// @Success 200 {object} services.DeviceDefinition
-// @Router  /device-definitions/{id} [get]
+// @Description  gets a specific device definition by id
+// @Tags           device-definitions
+// @Produce      json
+// @Param             id        path  string  true  "device definition id, KSUID format"
+// @Success      200  {object}  services.DeviceDefinition
+// @Router       /device-definitions/{id} [get]
 func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if len(id) != 27 {
@@ -115,12 +115,12 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 }
 
 // GetIntegrationsByID godoc
-// @Description gets all the available integrations for a device definition. Includes the capabilities of the device with the integration
-// @Tags 	device-definitions
-// @Produce json
-// @Param 	id path string true "device definition id, KSUID format"
-// @Success 200 {object} []services.DeviceCompatibility
-// @Router  /device-definitions/{id}/integrations [get]
+// @Description  gets all the available integrations for a device definition. Includes the capabilities of the device with the integration
+// @Tags           device-definitions
+// @Produce      json
+// @Param             id        path  string  true  "device definition id, KSUID format"
+// @Success      200  {object}  []services.DeviceCompatibility
+// @Router       /device-definitions/{id}/integrations [get]
 func (d *DevicesController) GetIntegrationsByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if len(id) != 27 {
@@ -159,14 +159,14 @@ func (d *DevicesController) GetIntegrationsByID(c *fiber.Ctx) error {
 }
 
 // GetDeviceDefinitionByMMY godoc
-// @Description gets a specific device definition by make model and year
-// @Tags 	device-definitions
-// @Produce json
-// @Param 	make query string true "make eg TESLA"
-// @Param 	model query string true "model eg MODEL Y"
-// @Param 	year query string true "year eg 2021"
-// @Success 200 {object} services.DeviceDefinition
-// @Router  /device-definitions [get]
+// @Description  gets a specific device definition by make model and year
+// @Tags           device-definitions
+// @Produce      json
+// @Param             make      query  string  true  "make eg TESLA"
+// @Param             model     query  string  true  "model eg MODEL Y"
+// @Param             year      query  string  true  "year eg 2021"
+// @Success      200  {object}  services.DeviceDefinition
+// @Router       /device-definitions [get]
 func (d *DevicesController) GetDeviceDefinitionByMMY(c *fiber.Ctx) error {
 	mk := c.Query("make")
 	model := c.Query("model")

@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 
-	"github.com/DIMO-INC/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/config"
 	smartcar "github.com/smartcar/go-sdk"
 )
 

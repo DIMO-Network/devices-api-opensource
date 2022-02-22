@@ -97,7 +97,7 @@ rm -R ./resources/data/ && mkdir ./resources/data/
 docker compose up -d
 ```
 
-If we have code base migrations in the migrations folder, we must import `_ "github.com/DIMO-INC/devices-api/migrations"` in the runner so that
+If we have code base migrations in the migrations folder, we must import `_ "github.com/DIMO-Network/devices-api/migrations"` in the runner so that
 it can find the migrations, otherwise get error.
 
 ### Managing migrations from k8s
@@ -150,8 +150,12 @@ https://devices-api.dimo.zone
 
 ### Generating swagger / openapi spec
 
+Note that swagger must be served from fiber-swagger library v2.2.0. v2.2.4 currently does not work for us. 
+
+To check what cli version you have installed: `swag --version`. As of this writing v1.8.0 is working for us. 
 ```bash
-swag init --generalInfo ./cmd/devices-api/main.go --parseInternal true --generatedTime true
+go install github.com/swaggo/swag/cmd/swag@latest
+swag init -g cmd/devices-api/main.go --parseDependency --parseInternal --generatedTime true --parseDepth 2
 ```
 
 [declarative_comments_format](https://swaggo.github.io/swaggo.io/declarative_comments_format/)

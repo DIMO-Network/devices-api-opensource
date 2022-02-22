@@ -3,34 +3,10 @@
     "info": {
         "title": "DIMO Devices API",
         "contact": {},
-        "version": "2.0"
+        "version": "1.0"
     },
     "basePath": "/v1",
     "paths": {
-        "/": {
-            "get": {
-                "description": "get the status of server.",
-                "consumes": [
-                    "*/*"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "root"
-                ],
-                "summary": "Show the status of server.",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
         "/device-definitions": {
             "get": {
                 "description": "gets a specific device definition by make model and year",
@@ -88,7 +64,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/controllers.DeviceMMYRoot"
+                                "$ref": "#/definitions/internal_controllers.DeviceMMYRoot"
                             }
                         }
                     }
@@ -154,7 +130,7 @@
                 }
             }
         },
-        "/user/device-data/:userDeviceID/historical": {
+        "/user/device-data/{userDeviceID}/historical": {
             "get": {
                 "security": [
                     {
@@ -223,7 +199,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/controllers.RegisterUserDevice"
+                            "$ref": "#/definitions/internal_controllers.RegisterUserDevice"
                         }
                     }
                 ],
@@ -231,119 +207,13 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/controllers.RegisterUserDeviceResponse"
+                            "$ref": "#/definitions/internal_controllers.RegisterUserDeviceResponse"
                         }
-                    }
-                }
-            }
-        },
-        "/user/devices/:userDeviceID": {
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "delete the user device record (hard delete)",
-                "tags": [
-                    "user-devices"
-                ],
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "user id",
-                        "name": "userDeviceID",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": ""
-                    }
-                }
-            }
-        },
-        "/user/devices/:userDeviceID/commands/refresh": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Starts the process of refreshing device status from Smartcar",
-                "tags": [
-                    "user-devices"
-                ],
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "user device ID",
-                        "name": "user_device_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": ""
-                    },
-                    "429": {
-                        "description": "rate limit hit for integration"
-                    }
-                }
-            }
-        },
-        "/user/devices/:userDeviceID/country_code": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "updates the CountryCode on the user device record",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "user-devices"
-                ],
-                "parameters": [
-                    {
-                        "description": "Country code",
-                        "name": "name",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controllers.UpdateCountryCodeReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": ""
                     }
                 }
             }
         },
         "/user/devices/:userDeviceID/integrations/:integrationID": {
-            "get": {
-                "description": "Receive status updates about a Smartcar integration",
-                "tags": [
-                    "user-devices"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.GetUserDeviceIntegrationResponse"
-                        }
-                    }
-                }
-            },
             "post": {
                 "description": "Submit credentials for registering a device with a given integration.",
                 "consumes": [
@@ -359,133 +229,8 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/controllers.RegisterDeviceIntegrationRequest"
+                            "$ref": "#/definitions/internal_controllers.RegisterDeviceIntegrationRequest"
                         }
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": ""
-                    }
-                }
-            },
-            "delete": {
-                "description": "Remove an user device's integration",
-                "tags": [
-                    "user-devices"
-                ],
-                "responses": {
-                    "204": {
-                        "description": ""
-                    }
-                }
-            }
-        },
-        "/user/devices/:userDeviceID/name": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "updates the Name on the user device record",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "user-devices"
-                ],
-                "parameters": [
-                    {
-                        "description": "Name",
-                        "name": "name",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controllers.UpdateNameReq"
-                        }
-                    },
-                    {
-                        "type": "string",
-                        "description": "user id",
-                        "name": "user_device_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": ""
-                    }
-                }
-            }
-        },
-        "/user/devices/:userDeviceID/status": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns the latest status update for the device. May return 404 if the\nuser does not have a device with the ID, or if no status updates have come",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "user-devices"
-                ],
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "user device ID",
-                        "name": "user_device_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": ""
-                    }
-                }
-            }
-        },
-        "/user/devices/:userDeviceID/vin": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "updates the VIN on the user device record",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "user-devices"
-                ],
-                "parameters": [
-                    {
-                        "description": "VIN",
-                        "name": "vin",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controllers.UpdateVINReq"
-                        }
-                    },
-                    {
-                        "type": "string",
-                        "description": "user id",
-                        "name": "userDeviceID",
-                        "in": "path",
-                        "required": true
                     }
                 ],
                 "responses": {
@@ -515,9 +260,242 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/controllers.UserDeviceFull"
+                                "$ref": "#/definitions/internal_controllers.UserDeviceFull"
                             }
                         }
+                    }
+                }
+            }
+        },
+        "/user/devices/{userDeviceID}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "delete the user device record (hard delete)",
+                "tags": [
+                    "user-devices"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user id",
+                        "name": "userDeviceID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/user/devices/{userDeviceID}/commands/refresh": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Starts the process of refreshing device status from Smartcar",
+                "tags": [
+                    "user-devices"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user device ID",
+                        "name": "user_device_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    },
+                    "429": {
+                        "description": "rate limit hit for integration"
+                    }
+                }
+            }
+        },
+        "/user/devices/{userDeviceID}/country_code": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "updates the CountryCode on the user device record",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user-devices"
+                ],
+                "parameters": [
+                    {
+                        "description": "Country code",
+                        "name": "name",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.UpdateCountryCodeReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/user/devices/{userDeviceID}/integrations/{integrationID}": {
+            "get": {
+                "description": "Receive status updates about a Smartcar integration",
+                "tags": [
+                    "user-devices"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.GetUserDeviceIntegrationResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove an user device's integration",
+                "tags": [
+                    "user-devices"
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/user/devices/{userDeviceID}/name": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "updates the Name on the user device record",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user-devices"
+                ],
+                "parameters": [
+                    {
+                        "description": "Name",
+                        "name": "name",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.UpdateNameReq"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "user id",
+                        "name": "user_device_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/user/devices/{userDeviceID}/status": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the latest status update for the device. May return 404 if the\nuser does not have a device with the ID, or if no status updates have come",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user-devices"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user device ID",
+                        "name": "user_device_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/user/devices/{userDeviceID}/vin": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "updates the VIN on the user device record",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user-devices"
+                ],
+                "parameters": [
+                    {
+                        "description": "VIN",
+                        "name": "vin",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.UpdateVINReq"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "user id",
+                        "name": "userDeviceID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
                     }
                 }
             }
@@ -545,7 +523,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/controllers.GetGeofence"
+                                "$ref": "#/definitions/internal_controllers.GetGeofence"
                             }
                         }
                     }
@@ -577,7 +555,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/controllers.CreateGeofence"
+                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
                         }
                     }
                 ],
@@ -585,13 +563,13 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/controllers.CreateResponse"
+                            "$ref": "#/definitions/internal_controllers.CreateResponse"
                         }
                     }
                 }
             }
         },
-        "/user/geofences/:geofenceID": {
+        "/user/geofences/{geofenceID}": {
             "put": {
                 "security": [
                     {
@@ -625,7 +603,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/controllers.CreateGeofence"
+                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
                         }
                     }
                 ],
@@ -666,7 +644,7 @@
         }
     },
     "definitions": {
-        "controllers.CreateGeofence": {
+        "github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence": {
             "type": "object",
             "properties": {
                 "h3Indexes": {
@@ -693,7 +671,7 @@
                 }
             }
         },
-        "controllers.CreateResponse": {
+        "github.com_DIMO-Network_devices-api_internal_controllers.CreateResponse": {
             "type": "object",
             "properties": {
                 "id": {
@@ -701,7 +679,7 @@
                 }
             }
         },
-        "controllers.DeviceMMYRoot": {
+        "github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot": {
             "type": "object",
             "properties": {
                 "make": {
@@ -710,12 +688,12 @@
                 "models": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/controllers.DeviceModels"
+                        "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceModels"
                     }
                 }
             }
         },
-        "controllers.DeviceModelYear": {
+        "github.com_DIMO-Network_devices-api_internal_controllers.DeviceModelYear": {
             "type": "object",
             "properties": {
                 "id": {
@@ -726,7 +704,7 @@
                 }
             }
         },
-        "controllers.DeviceModels": {
+        "github.com_DIMO-Network_devices-api_internal_controllers.DeviceModels": {
             "type": "object",
             "properties": {
                 "model": {
@@ -735,12 +713,12 @@
                 "years": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/controllers.DeviceModelYear"
+                        "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceModelYear"
                     }
                 }
             }
         },
-        "controllers.GeoFenceUserDevice": {
+        "github.com_DIMO-Network_devices-api_internal_controllers.GeoFenceUserDevice": {
             "type": "object",
             "properties": {
                 "mmy": {
@@ -754,7 +732,7 @@
                 }
             }
         },
-        "controllers.GetGeofence": {
+        "github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence": {
             "type": "object",
             "properties": {
                 "createdAt": {
@@ -781,12 +759,12 @@
                 "userDevices": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/controllers.GeoFenceUserDevice"
+                        "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GeoFenceUserDevice"
                     }
                 }
             }
         },
-        "controllers.GetUserDeviceIntegrationResponse": {
+        "github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse": {
             "type": "object",
             "properties": {
                 "externalId": {
@@ -799,7 +777,7 @@
                 }
             }
         },
-        "controllers.RegisterDeviceIntegrationRequest": {
+        "github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest": {
             "type": "object",
             "properties": {
                 "accessToken": {
@@ -824,7 +802,7 @@
                 }
             }
         },
-        "controllers.RegisterUserDevice": {
+        "github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDevice": {
             "type": "object",
             "properties": {
                 "countryCode": {
@@ -844,7 +822,7 @@
                 }
             }
         },
-        "controllers.RegisterUserDeviceResponse": {
+        "github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDeviceResponse": {
             "type": "object",
             "properties": {
                 "deviceDefinitionId": {
@@ -861,7 +839,7 @@
                 }
             }
         },
-        "controllers.UpdateCountryCodeReq": {
+        "github.com_DIMO-Network_devices-api_internal_controllers.UpdateCountryCodeReq": {
             "type": "object",
             "properties": {
                 "countryCode": {
@@ -869,7 +847,7 @@
                 }
             }
         },
-        "controllers.UpdateNameReq": {
+        "github.com_DIMO-Network_devices-api_internal_controllers.UpdateNameReq": {
             "type": "object",
             "properties": {
                 "name": {
@@ -877,7 +855,7 @@
                 }
             }
         },
-        "controllers.UpdateVINReq": {
+        "github.com_DIMO-Network_devices-api_internal_controllers.UpdateVINReq": {
             "type": "object",
             "properties": {
                 "vin": {
@@ -885,7 +863,7 @@
                 }
             }
         },
-        "controllers.UserDeviceFull": {
+        "github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceFull": {
             "type": "object",
             "properties": {
                 "countryCode": {
@@ -903,7 +881,7 @@
                 "integrations": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/controllers.UserDeviceIntegrationStatus"
+                        "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceIntegrationStatus"
                     }
                 },
                 "name": {
@@ -917,7 +895,269 @@
                 }
             }
         },
-        "controllers.UserDeviceIntegrationStatus": {
+        "github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceIntegrationStatus": {
+            "type": "object",
+            "properties": {
+                "integrationId": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_controllers.CreateGeofence": {
+            "type": "object",
+            "properties": {
+                "h3Indexes": {
+                    "description": "required: false",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "description": "required: true",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "one of following: \"PrivacyFence\", \"TriggerEntry\", \"TriggerExit\"\nrequired: true",
+                    "type": "string"
+                },
+                "userDeviceIds": {
+                    "description": "Optionally link the geofence with a list of user device ID",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_controllers.CreateResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_controllers.DeviceMMYRoot": {
+            "type": "object",
+            "properties": {
+                "make": {
+                    "type": "string"
+                },
+                "models": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_controllers.DeviceModels"
+                    }
+                }
+            }
+        },
+        "internal_controllers.DeviceModelYear": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "year": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_controllers.DeviceModels": {
+            "type": "object",
+            "properties": {
+                "model": {
+                    "type": "string"
+                },
+                "years": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_controllers.DeviceModelYear"
+                    }
+                }
+            }
+        },
+        "internal_controllers.GeoFenceUserDevice": {
+            "type": "object",
+            "properties": {
+                "mmy": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "userDeviceId": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_controllers.GetGeofence": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "h3Indexes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "userDevices": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_controllers.GeoFenceUserDevice"
+                    }
+                }
+            }
+        },
+        "internal_controllers.GetUserDeviceIntegrationResponse": {
+            "type": "object",
+            "properties": {
+                "externalId": {
+                    "description": "ExternalID is the identifier used by the third party for the device. It may be absent if we\nhaven't authorized yet.",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status is one of \"Pending\", \"PendingFirstData\", \"Active\", \"Failed\", \"DuplicateIntegration\".",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_controllers.RegisterDeviceIntegrationRequest": {
+            "type": "object",
+            "properties": {
+                "accessToken": {
+                    "type": "string"
+                },
+                "code": {
+                    "description": "Code is an OAuth authorization code. Not used in all integrations.",
+                    "type": "string"
+                },
+                "expiresIn": {
+                    "type": "integer"
+                },
+                "externalId": {
+                    "type": "string"
+                },
+                "redirectURI": {
+                    "description": "RedirectURI is the OAuth redirect URI used by the frontend. Not used in all integrations.",
+                    "type": "string"
+                },
+                "refreshToken": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_controllers.RegisterUserDevice": {
+            "type": "object",
+            "properties": {
+                "countryCode": {
+                    "type": "string"
+                },
+                "deviceDefinitionId": {
+                    "type": "string"
+                },
+                "make": {
+                    "type": "string"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "year": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_controllers.RegisterUserDeviceResponse": {
+            "type": "object",
+            "properties": {
+                "deviceDefinitionId": {
+                    "type": "string"
+                },
+                "integrationCapabilities": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.DeviceCompatibility"
+                    }
+                },
+                "userDeviceId": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_controllers.UpdateCountryCodeReq": {
+            "type": "object",
+            "properties": {
+                "countryCode": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_controllers.UpdateNameReq": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_controllers.UpdateVINReq": {
+            "type": "object",
+            "properties": {
+                "vin": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_controllers.UserDeviceFull": {
+            "type": "object",
+            "properties": {
+                "countryCode": {
+                    "type": "string"
+                },
+                "customImageUrl": {
+                    "type": "string"
+                },
+                "deviceDefinition": {
+                    "$ref": "#/definitions/services.DeviceDefinition"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "integrations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_controllers.UserDeviceIntegrationStatus"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "vin": {
+                    "type": "string"
+                },
+                "vinConfirmed": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_controllers.UserDeviceIntegrationStatus": {
             "type": "object",
             "properties": {
                 "integrationId": {
