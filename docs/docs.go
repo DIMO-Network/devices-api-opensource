@@ -818,12 +818,24 @@ var doc = `{
         "controllers.RegisterDeviceIntegrationRequest": {
             "type": "object",
             "properties": {
+                "accessToken": {
+                    "type": "string"
+                },
                 "code": {
                     "description": "Code is an OAuth authorization code. Not used in all integrations.",
                     "type": "string"
                 },
+                "expiresIn": {
+                    "type": "integer"
+                },
+                "externalId": {
+                    "type": "string"
+                },
                 "redirectURI": {
                     "description": "RedirectURI is the OAuth redirect URI used by the frontend. Not used in all integrations.",
+                    "type": "string"
+                },
+                "refreshToken": {
                     "type": "string"
                 }
             }

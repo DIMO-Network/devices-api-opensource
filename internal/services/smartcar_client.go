@@ -8,6 +8,7 @@ import (
 )
 
 //go:generate mockgen -source smartcar_client.go -destination mocks/smartcar_client_mock.go
+
 type SmartcarClient interface {
 	ExchangeCode(ctx context.Context, code, redirectURI string) (*smartcar.Token, error)
 }

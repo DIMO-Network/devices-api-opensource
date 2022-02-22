@@ -496,7 +496,7 @@ func (t *TaskService) smartcarGetInitialData(userDeviceID, integrationID string)
 		integ.AccessToken = token.Access
 		integ.AccessExpiresAt = token.AccessExpiry
 		integ.RefreshToken = token.Refresh
-		integ.RefreshExpiresAt = token.RefreshExpiry
+		integ.RefreshExpiresAt = null.TimeFrom(token.RefreshExpiry)
 
 		_, err = integ.Update(context.Background(), tx, boil.Infer())
 		if err != nil {

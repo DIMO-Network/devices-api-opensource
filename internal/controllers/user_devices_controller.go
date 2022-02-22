@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/DIMO-INC/devices-api/internal/config"
@@ -30,10 +31,11 @@ type UserDevicesController struct {
 	taskSvc        services.ITaskService
 	eventService   services.EventService
 	smartcarClient services.SmartcarClient
+	teslaService   services.TeslaService
 }
 
 // NewUserDevicesController constructor
-func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc services.ITaskService, eventService services.EventService, smartcarClient services.SmartcarClient) UserDevicesController {
+func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc services.ITaskService, eventService services.EventService, smartcarClient services.SmartcarClient, teslaSvc services.TeslaService) UserDevicesController {
 	return UserDevicesController{
 		Settings:       settings,
 		DBS:            dbs,
@@ -42,6 +44,7 @@ func NewUserDevicesController(settings *config.Settings, dbs func() *database.DB
 		taskSvc:        taskSvc,
 		eventService:   eventService,
 		smartcarClient: smartcarClient,
+		teslaService:   teslaSvc,
 	}
 }
 
@@ -293,6 +296,8 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 	switch integ.R.Integration.Vendor {
 	case services.SmartCarVendor:
 		return udc.registerSmartcarIntegration(c, &logger, tx, userDeviceID, integrationID)
+	case "Tesla":
+		return udc.RegisterDeviceTesla(c, &logger, tx, userDeviceID, integrationID, ud)
 	default:
 		logger.Error().Msg("Attempted to register an unsupported integration")
 		return errorResponseHandler(c, fmt.Errorf("unsupported integration %s", integrationID), fiber.StatusBadRequest)
@@ -327,7 +332,7 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 		AccessToken:      token.Access,
 		AccessExpiresAt:  token.AccessExpiry,
 		RefreshToken:     token.Refresh,
-		RefreshExpiresAt: token.RefreshExpiry,
+		RefreshExpiresAt: null.TimeFrom(token.RefreshExpiry),
 	}
 
 	if err := integration.Insert(c.Context(), tx, boil.Infer()); err != nil {
@@ -346,6 +351,70 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 	}
 
 	logger.Info().Msg("Finished Smartcar device registration")
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func (udc *UserDevicesController) RegisterDeviceTesla(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, userDeviceID, integrationID string, ud *models.UserDevice) error {
+	reqBody := new(RegisterDeviceIntegrationRequest)
+	if err := c.BodyParser(reqBody); err != nil {
+		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+	}
+
+	// We'll use this to kick off the job
+	teslaID, err := strconv.Atoi(reqBody.ExternalID)
+	if err != nil {
+		return err
+	}
+	v, err := udc.teslaService.GetVehicle(reqBody.AccessToken, teslaID)
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+	}
+
+	// Prevent users from connecting a vehicle if it's already connected through another user
+	// device object. Disabled outside of prod for ease of testing.
+	if udc.Settings.Environment == "prod" {
+		// Probably a race condition here.
+		var conflict bool
+		conflict, err = models.UserDevices(
+			models.UserDeviceWhere.ID.NEQ(userDeviceID), // If you want to re-register, that's okay.
+			models.UserDeviceWhere.VinIdentifier.EQ(null.StringFrom(v.VIN)),
+			models.UserDeviceWhere.VinConfirmed.EQ(true),
+		).Exists(c.Context(), tx)
+		if err != nil {
+			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		}
+
+		if conflict {
+			return errorResponseHandler(c, fmt.Errorf("VIN already used for another device's integration"), fiber.StatusBadRequest)
+		}
+	}
+
+	integration := models.UserDeviceAPIIntegration{
+		UserDeviceID:    userDeviceID,
+		IntegrationID:   integrationID,
+		ExternalID:      null.StringFrom(reqBody.ExternalID),
+		Status:          models.UserDeviceAPIIntegrationStatusPendingFirstData,
+		AccessToken:     reqBody.AccessToken,
+		AccessExpiresAt: time.Now().Add(time.Duration(reqBody.ExpiresIn) * time.Second),
+		RefreshToken:    reqBody.RefreshToken,
+	}
+
+	if err := integration.Insert(c.Context(), tx, boil.Infer()); err != nil {
+		logger.Err(err).Msg("Unexpected database error inserting new Tesla integration registration")
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	ud.VinIdentifier = null.StringFrom(v.VIN)
+	ud.VinConfirmed = true
+	_, err = ud.Update(c.Context(), tx, boil.Infer())
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
@@ -823,6 +892,11 @@ type RegisterDeviceIntegrationRequest struct {
 	Code string `json:"code"`
 	// RedirectURI is the OAuth redirect URI used by the frontend. Not used in all integrations.
 	RedirectURI string `json:"redirectURI"`
+
+	ExternalID   string `json:"externalId"`
+	AccessToken  string `json:"accessToken"`
+	ExpiresIn    int    `json:"expiresIn"`
+	RefreshToken string `json:"refreshToken"`
 }
 
 type GetUserDeviceIntegrationResponse struct {

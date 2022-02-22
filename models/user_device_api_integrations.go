@@ -30,7 +30,7 @@ type UserDeviceAPIIntegration struct {
 	AccessToken      string      `boil:"access_token" json:"access_token" toml:"access_token" yaml:"access_token"`
 	AccessExpiresAt  time.Time   `boil:"access_expires_at" json:"access_expires_at" toml:"access_expires_at" yaml:"access_expires_at"`
 	RefreshToken     string      `boil:"refresh_token" json:"refresh_token" toml:"refresh_token" yaml:"refresh_token"`
-	RefreshExpiresAt time.Time   `boil:"refresh_expires_at" json:"refresh_expires_at" toml:"refresh_expires_at" yaml:"refresh_expires_at"`
+	RefreshExpiresAt null.Time   `boil:"refresh_expires_at" json:"refresh_expires_at,omitempty" toml:"refresh_expires_at" yaml:"refresh_expires_at,omitempty"`
 	ExternalID       null.String `boil:"external_id" json:"external_id,omitempty" toml:"external_id" yaml:"external_id,omitempty"`
 	CreatedAt        time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt        time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
@@ -89,6 +89,30 @@ var UserDeviceAPIIntegrationTableColumns = struct {
 
 // Generated where
 
+type whereHelpernull_Time struct{ field string }
+
+func (w whereHelpernull_Time) EQ(x null.Time) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpernull_Time) NEQ(x null.Time) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpernull_Time) LT(x null.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpernull_Time) LTE(x null.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpernull_Time) GT(x null.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpernull_Time) GTE(x null.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+
+func (w whereHelpernull_Time) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpernull_Time) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+
 var UserDeviceAPIIntegrationWhere = struct {
 	UserDeviceID     whereHelperstring
 	IntegrationID    whereHelperstring
@@ -96,7 +120,7 @@ var UserDeviceAPIIntegrationWhere = struct {
 	AccessToken      whereHelperstring
 	AccessExpiresAt  whereHelpertime_Time
 	RefreshToken     whereHelperstring
-	RefreshExpiresAt whereHelpertime_Time
+	RefreshExpiresAt whereHelpernull_Time
 	ExternalID       whereHelpernull_String
 	CreatedAt        whereHelpertime_Time
 	UpdatedAt        whereHelpertime_Time
@@ -107,7 +131,7 @@ var UserDeviceAPIIntegrationWhere = struct {
 	AccessToken:      whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"access_token\""},
 	AccessExpiresAt:  whereHelpertime_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"access_expires_at\""},
 	RefreshToken:     whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"refresh_token\""},
-	RefreshExpiresAt: whereHelpertime_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"refresh_expires_at\""},
+	RefreshExpiresAt: whereHelpernull_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"refresh_expires_at\""},
 	ExternalID:       whereHelpernull_String{field: "\"devices_api\".\"user_device_api_integrations\".\"external_id\""},
 	CreatedAt:        whereHelpertime_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"created_at\""},
 	UpdatedAt:        whereHelpertime_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"updated_at\""},

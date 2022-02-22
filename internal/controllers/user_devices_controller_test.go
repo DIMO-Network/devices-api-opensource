@@ -53,10 +53,11 @@ func TestUserDevicesController(t *testing.T) {
 	deviceDefSvc := mock_services.NewMockIDeviceDefinitionService(mockCtrl)
 	taskSvc := mock_services.NewMockITaskService(mockCtrl)
 	scClient := mock_services.NewMockSmartcarClient(mockCtrl)
+	teslaSvc := mock_services.NewMockTeslaService(mockCtrl)
 
 	testUserID := "123123"
 	testUserID2 := "3232451"
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, taskSvc, &fakeEventService{}, scClient)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, taskSvc, &fakeEventService{}, scClient, teslaSvc)
 	app := fiber.New()
 	app.Post("/user/devices", authInjectorTestHandler(testUserID), c.RegisterDeviceForUser)
 	app.Post("/user/devices/second", authInjectorTestHandler(testUserID2), c.RegisterDeviceForUser) // for different test user
@@ -69,13 +70,14 @@ func TestUserDevicesController(t *testing.T) {
 	deviceDefSvc.EXPECT().CheckAndSetImage(gomock.Any(), false).AnyTimes().Return(nil)
 	createdUserDeviceID := ""
 	scIntegrationID := ""
+	teslaDDID := ""
 
 	t.Run("POST - register with existing device_definition_id", func(t *testing.T) {
 
 		// arrange DB
-		ddID := ksuid.New().String()
+		teslaDDID = ksuid.New().String()
 		dd := models.DeviceDefinition{
-			ID:       ddID,
+			ID:       teslaDDID,
 			Make:     "Tesla",
 			Model:    "Model X",
 			Year:     2020,
@@ -93,7 +95,7 @@ func TestUserDevicesController(t *testing.T) {
 		err = integration.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 		assert.NoError(t, err, "database error")
 		deviceInt := models.DeviceIntegration{
-			DeviceDefinitionID: ddID,
+			DeviceDefinitionID: teslaDDID,
 			IntegrationID:      integration.ID,
 			Country:            "USA",
 		}
@@ -101,7 +103,7 @@ func TestUserDevicesController(t *testing.T) {
 		assert.NoError(t, err, "database error")
 		// act request
 		reg := RegisterUserDevice{
-			DeviceDefinitionID: &ddID,
+			DeviceDefinitionID: &teslaDDID,
 			CountryCode:        "USA",
 		}
 		j, _ := json.Marshal(reg)
@@ -118,7 +120,7 @@ func TestUserDevicesController(t *testing.T) {
 
 		assert.Len(t, regUserResp.ID, 27)
 		assert.Len(t, regUserResp.DeviceDefinition.DeviceDefinitionID, 27)
-		assert.Equal(t, ddID, regUserResp.DeviceDefinition.DeviceDefinitionID)
+		assert.Equal(t, teslaDDID, regUserResp.DeviceDefinition.DeviceDefinitionID)
 		if assert.Len(t, regUserResp.DeviceDefinition.CompatibleIntegrations, 1) == false {
 			fmt.Println("resp body: " + string(body))
 		}
@@ -264,7 +266,7 @@ func TestUserDevicesController(t *testing.T) {
 			AccessToken:      "caca-token",
 			AccessExpiresAt:  time.Now().Add(time.Duration(10) * time.Hour),
 			RefreshToken:     "caca-refresh",
-			RefreshExpiresAt: time.Now().Add(time.Duration(100) * time.Hour),
+			RefreshExpiresAt: null.TimeFrom(time.Now().Add(time.Duration(100) * time.Hour)),
 			ExternalID:       null.StringFrom("caca-external-id"),
 		}
 		_ = udiai.Insert(ctx, pdb.DBS().Writer, boil.Infer())
@@ -341,5 +343,49 @@ func TestUserDevicesController(t *testing.T) {
 		request := buildRequest("POST", "/user/devices/fakeDevice/integrations/"+scIntegrationID, req)
 		response, _ := app.Test(request)
 		assert.Equal(t, fiber.StatusBadRequest, response.StatusCode, "should return success")
+	})
+
+	t.Run("POST - register Tesla integration", func(t *testing.T) {
+		teslaInt := models.Integration{
+			ID:     ksuid.New().String(),
+			Type:   models.IntegrationTypeAPI,
+			Style:  models.IntegrationStyleOEM,
+			Vendor: "Tesla",
+		}
+		_ = teslaInt.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+
+		di := models.DeviceIntegration{
+			DeviceDefinitionID: teslaDDID,
+			IntegrationID:      teslaInt.ID,
+			Country:            "USA",
+		}
+		_ = di.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+
+		req := `{
+			"accessToken": "abc",
+			"externalId": "1145",
+			"expiresIn": 600,
+			"refreshToken": "fffg"
+		}`
+		request := buildRequest("POST", "/user/devices/"+createdUserDeviceID+"/integrations/"+teslaInt.ID, req)
+
+		teslaSvc.EXPECT().GetVehicle("abc", 1145).Return(&services.TeslaVehicle{
+			ID:        1145,
+			VehicleID: 223,
+			VIN:       "5YJ3E1EA1KF064316",
+		}, nil)
+		expectedExpiry := time.Now().Add(10 * time.Minute)
+		response, _ := app.Test(request)
+		assert.Equal(t, fiber.StatusNoContent, response.StatusCode, "should return success")
+
+		within := func(test, reference *time.Time, d time.Duration) bool {
+			return test.After(reference.Add(-d)) && test.Before(reference.Add(d))
+		}
+
+		apiInt, _ := models.FindUserDeviceAPIIntegration(ctx, pdb.DBS().Writer, createdUserDeviceID, teslaInt.ID)
+		assert.Equal(t, "abc", apiInt.AccessToken)
+		assert.Equal(t, "1145", apiInt.ExternalID.String)
+		assert.Equal(t, "fffg", apiInt.RefreshToken)
+		assert.True(t, within(&apiInt.AccessExpiresAt, &expectedExpiry, 15*time.Second), "access token expires at %s, expected something close to %s", apiInt.AccessExpiresAt, expectedExpiry)
 	})
 }
