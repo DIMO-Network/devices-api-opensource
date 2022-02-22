@@ -16,7 +16,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
-	smartcar "github.com/smartcar/go-sdk"
 	"github.com/tidwall/sjson"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
@@ -24,23 +23,25 @@ import (
 )
 
 type UserDevicesController struct {
-	Settings     *config.Settings
-	DBS          func() *database.DBReaderWriter
-	DeviceDefSvc services.IDeviceDefinitionService
-	log          *zerolog.Logger
-	taskSvc      services.ITaskService
-	eventService services.EventService
+	Settings       *config.Settings
+	DBS            func() *database.DBReaderWriter
+	DeviceDefSvc   services.IDeviceDefinitionService
+	log            *zerolog.Logger
+	taskSvc        services.ITaskService
+	eventService   services.EventService
+	smartcarClient services.SmartcarClient
 }
 
 // NewUserDevicesController constructor
-func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc services.ITaskService, eventService services.EventService) UserDevicesController {
+func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc services.ITaskService, eventService services.EventService, smartcarClient services.SmartcarClient) UserDevicesController {
 	return UserDevicesController{
-		Settings:     settings,
-		DBS:          dbs,
-		log:          logger,
-		DeviceDefSvc: ddSvc,
-		taskSvc:      taskSvc,
-		eventService: eventService,
+		Settings:       settings,
+		DBS:            dbs,
+		log:            logger,
+		DeviceDefSvc:   ddSvc,
+		taskSvc:        taskSvc,
+		eventService:   eventService,
+		smartcarClient: smartcarClient,
 	}
 }
 
@@ -232,33 +233,14 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	})
 }
 
-type RegisterSmartcarRequest struct {
-	Code        string `json:"code"`
-	RedirectURI string `json:"redirectURI"`
-}
-
-var smartcarScopes = []string{
-	"read_engine_oil",
-	"read_battery",
-	"read_charge",
-	"control_charge",
-	"read_fuel",
-	"read_location",
-	"read_odometer",
-	"read_tires",
-	"read_vehicle_info",
-	"read_vin",
-}
-
-// RegisterSmartcarIntegration godoc
-// @Description Use a Smartcar auth code to connect to Smartcar and obtain access and refresh
-// @Description tokens for use by the app.
+// RegisterDeviceIntegration godoc
+// @Description Submit credentials for registering a device with a given integration.
 // @Tags user-devices
 // @Accept json
-// @Param userDeviceIntegrationRegistration body controllers.RegisterSmartcarRequest true "Authorization code from Smartcar"
+// @Param userDeviceIntegrationRegistration body controllers.RegisterDeviceIntegrationRequest true "Integration credentials"
 // @Success 204
 // @Router /user/devices/:userDeviceID/integrations/:integrationID [post]
-func (udc *UserDevicesController) RegisterSmartcarIntegration(c *fiber.Ctx) error {
+func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	userDeviceID := c.Params("userDeviceID")
 	integrationID := c.Params("integrationID")
@@ -267,78 +249,73 @@ func (udc *UserDevicesController) RegisterSmartcarIntegration(c *fiber.Ctx) erro
 		Str("userId", userID).
 		Str("userDeviceId", userDeviceID).
 		Str("integrationId", integrationID).
-		Str("handler", "RegisterSmartcarIntegration").
+		Str("handler", "RegisterIntegration").
 		Logger()
-	logger.Info().Msg("Attempting to register Smartcar integration")
+	logger.Info().Msg("Attempting to register device integration")
 
-	reqBody := RegisterSmartcarRequest{}
-	if err := c.BodyParser(&reqBody); err != nil {
-		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+	tx, err := udc.DBS().Writer.BeginTx(c.Context(), nil)
+	if err != nil {
+		return errorResponseHandler(c, fmt.Errorf("failed to create transaction: %w", err), fiber.StatusInternalServerError)
 	}
+	defer tx.Rollback() //nolint
 
 	ud, err := models.UserDevices(
-		qm.Where("id = ?", userDeviceID),
-		qm.Where("user_id = ?", userID),
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		models.UserDeviceWhere.UserID.EQ(userID),
 		qm.Load(models.UserDeviceRels.DeviceDefinition),
-	).One(c.Context(), udc.DBS().Reader)
+	).One(c.Context(), tx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return errorResponseHandler(c, errors.Wrapf(err, "could not find user_device with id %s for user %s", userDeviceID, userID), fiber.StatusBadRequest)
+			return errorResponseHandler(c, fmt.Errorf("could not find device with id %s for user %s", userDeviceID, userID), fiber.StatusBadRequest)
 		}
 		logger.Err(err).Msg("Unexpected database error searching for user device")
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
 	integ, err := models.DeviceIntegrations(
-		qm.Where("device_definition_id = ?", ud.DeviceDefinitionID),
-		qm.And("integration_id = ?", integrationID),
-		qm.And("country = ?", ud.CountryCode),
-		qm.Load("Integration")).One(c.Context(), udc.DBS().Writer)
+		models.DeviceIntegrationWhere.DeviceDefinitionID.EQ(ud.DeviceDefinitionID),
+		models.DeviceIntegrationWhere.IntegrationID.EQ(integrationID),
+		models.DeviceIntegrationWhere.Country.EQ(ud.CountryCode.String),
+		qm.Load(models.DeviceIntegrationRels.Integration),
+	).One(c.Context(), tx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			logger.Warn().Msg("Attempted to register a device integration that didn't exist")
-			return errorResponseHandler(c,
-				errors.Wrapf(err, "could not find device_integrations with device_definition_id %s, integration_id %s and country %s", ud.DeviceDefinitionID, integrationID, ud.CountryCode.String), fiber.StatusBadRequest)
+			return errorResponseHandler(c, fmt.Errorf("could not find device integration for device definition %s, integration %s and country %s", ud.DeviceDefinitionID, integrationID, ud.CountryCode.String), fiber.StatusBadRequest)
 		}
 		logger.Err(err).Msg("Unexpected database error searching for device integration")
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
-	// This is the only integration we currently support. It is generated by the sync script in
-	// /cmd/devices-api/load_smartcar.go with a random identifier.
-	if integ.R.Integration.Type != "API" || integ.R.Integration.Vendor != "SmartCar" {
-		logger.Warn().Msg("Attempted to register a non-Smartcar integration")
-		return errorResponseHandler(c, errors.New("could not find SmartCar integration relation"), fiber.StatusBadRequest)
+	// In anticipation of a bunch more of these. Maybe move to a real internal integration registry.
+	// The per-integration handler is responsible for handling the fiber context and committing the
+	// transaction.
+	switch integ.R.Integration.Vendor {
+	case services.SmartCarVendor:
+		return udc.registerSmartcarIntegration(c, &logger, tx, userDeviceID, integrationID)
+	default:
+		logger.Error().Msg("Attempted to register an unsupported integration")
+		return errorResponseHandler(c, fmt.Errorf("unsupported integration %s", integrationID), fiber.StatusBadRequest)
+	}
+}
+
+func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, userDeviceID, integrationID string) error {
+	reqBody := new(RegisterDeviceIntegrationRequest)
+	if err := c.BodyParser(reqBody); err != nil {
+		return errorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
 
-	client := smartcar.NewClient() // Unclear whether we need one of these at the top level
-	auth := client.NewAuth(&smartcar.AuthParams{
-		ClientID:     udc.Settings.SmartcarClientID,
-		ClientSecret: udc.Settings.SmartcarClientSecret,
-		RedirectURI:  reqBody.RedirectURI,
-		Scope:        smartcarScopes,
-		TestMode:     udc.Settings.SmartcarTestMode,
-	})
-	token, err := auth.ExchangeCode(c.Context(), &smartcar.ExchangeCodeParams{Code: reqBody.Code})
+	if exists, err := models.UserDeviceAPIIntegrationExists(c.Context(), tx, userDeviceID, integrationID); err != nil {
+		logger.Err(err).Msg("Unexpected database error looking for existing instance of integration")
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	} else if exists {
+		return errorResponseHandler(c, fmt.Errorf("device %s already has a registration with integration %s, please delete that first", userDeviceID, integrationID), fiber.StatusBadRequest)
+	}
+
+	token, err := udc.smartcarClient.ExchangeCode(c.Context(), reqBody.Code, reqBody.RedirectURI)
 	if err != nil {
 		logger.Err(err).Msg("Error exchanging authorization code with Smartcar")
-		return errorResponseHandler(c, errors.Wrap(err, "failure exchanging code with SmartCar"), fiber.StatusBadRequest)
-	}
-
-	// TODO: Probably replace this ugly block with an upsert later.
-	temp, err := models.FindUserDeviceAPIIntegration(c.Context(), udc.DBS().Writer, userDeviceID, integrationID)
-	if err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			logger.Err(err).Msg("Unexpected database error looking for existing instance of integration")
-			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
-		}
-	} else {
-		// This is mostly helpful for testing
-		_, err := temp.Delete(c.Context(), udc.DBS().Writer)
-		if err != nil {
-			logger.Err(err).Msg("Unexpected database error deleting old instance of integration")
-			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
-		}
+		return errorResponseHandler(c, fmt.Errorf("failure exchanging code with Smartcar: %w", err), fiber.StatusBadRequest)
 	}
 
 	// TODO: Encrypt the tokens. Note that you need the client id, client secret, and redirect
@@ -353,28 +330,24 @@ func (udc *UserDevicesController) RegisterSmartcarIntegration(c *fiber.Ctx) erro
 		RefreshExpiresAt: token.RefreshExpiry,
 	}
 
-	err = integration.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
-	if err != nil {
+	if err := integration.Insert(c.Context(), tx, boil.Infer()); err != nil {
 		logger.Err(err).Msg("Unexpected database error inserting new Smartcar integration registration")
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
-	err = udc.taskSvc.StartSmartcarRegistrationTasks(userDeviceID, integrationID)
-	if err != nil {
+	if err := tx.Commit(); err != nil {
+		logger.Error().Msg("Failed to commit new integration")
+		return errorResponseHandler(c, fmt.Errorf("failed to commit new integration: %w", err), fiber.StatusBadRequest)
+	}
+
+	if err := udc.taskSvc.StartSmartcarRegistrationTasks(userDeviceID, integrationID); err != nil {
 		logger.Err(err).Msg("Unexpected error starting Smartcar Machinery tasks")
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
-	logger.Info().Msg("Finished registering Smartcar integration")
-	return c.SendStatus(fiber.StatusNoContent)
-}
+	logger.Info().Msg("Finished Smartcar device registration")
 
-type GetUserDeviceIntegrationResponse struct {
-	// Status is one of "Pending", "PendingFirstData", "Active"
-	Status string `json:"status"`
-	// ExternalID is the identifier used by the third party for the device. It may be absent if we
-	// haven't authorized yet.
-	ExternalID null.String `json:"externalId" swaggertype:"string"`
+	return c.SendStatus(fiber.StatusNoContent)
 }
 
 // GetUserDeviceIntegration godoc
@@ -451,11 +424,15 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
-	if apiIntegration.ExternalID.Valid {
-		err = udc.taskSvc.StartSmartcarDeregistrationTasks(userDeviceID, integrationID, apiIntegration.ExternalID.String, apiIntegration.AccessToken)
-		if err != nil {
-			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	if apiIntegration.R.Integration.Vendor == services.SmartCarVendor {
+		if apiIntegration.ExternalID.Valid {
+			err = udc.taskSvc.StartSmartcarDeregistrationTasks(userDeviceID, integrationID, apiIntegration.ExternalID.String, apiIntegration.AccessToken)
+			if err != nil {
+				return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+			}
 		}
+	} else {
+		udc.log.Warn().Msgf("Don't know how to deregister integration %s for device %s", apiIntegration.IntegrationID, userDeviceID)
 	}
 
 	_, err = apiIntegration.Delete(c.Context(), tx)
@@ -635,7 +612,7 @@ func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
 	// note: the UserDeviceDatum is not tied to the integration table
 
 	for _, devInteg := range ud.R.UserDeviceAPIIntegrations {
-		if devInteg.R.Integration.Type == models.IntegrationTypeAPI && devInteg.R.Integration.Vendor == "SmartCar" && devInteg.Status == models.UserDeviceAPIIntegrationStatusActive {
+		if devInteg.R.Integration.Type == models.IntegrationTypeAPI && devInteg.R.Integration.Vendor == services.SmartCarVendor && devInteg.Status == models.UserDeviceAPIIntegrationStatusActive {
 			if ud.R.UserDeviceDatum != nil {
 				nextAvailableTime := ud.R.UserDeviceDatum.UpdatedAt.Add(time.Second * time.Duration(devInteg.R.Integration.RefreshLimitSecs))
 				if time.Now().Before(nextAvailableTime) {
@@ -707,7 +684,8 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 		qm.Where("id = ?", udi),
 		qm.And("user_id = ?", userID),
 		qm.Load(models.UserDeviceRels.DeviceDefinition),
-		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
+		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations), // Probably don't need this one.
+		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
 	).One(c.Context(), tx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -717,16 +695,19 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	}
 
 	for _, apiInteg := range userDevice.R.UserDeviceAPIIntegrations {
-		// For now, there are only Smartcar integrations. We will probably regret this
-		// line later.
-		if apiInteg.ExternalID.Valid {
-			err = udc.taskSvc.StartSmartcarDeregistrationTasks(udi, apiInteg.IntegrationID, apiInteg.ExternalID.String, apiInteg.AccessToken)
-			if err != nil {
-				return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		if apiInteg.R.Integration.Vendor == services.SmartCarVendor {
+			if apiInteg.ExternalID.Valid {
+				err = udc.taskSvc.StartSmartcarDeregistrationTasks(udi, apiInteg.IntegrationID, apiInteg.ExternalID.String, apiInteg.AccessToken)
+				if err != nil {
+					return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+				}
 			}
+		} else {
+			udc.log.Warn().Msgf("Don't know how to deregister integration %s for device %s", apiInteg.IntegrationID, udi)
 		}
 	}
 
+	// This will delete the associated integrations as well.
 	_, err = userDevice.Delete(c.Context(), tx)
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
@@ -833,4 +814,21 @@ type UserDeviceFull struct {
 type UserDeviceIntegrationStatus struct {
 	IntegrationID string `json:"integrationId"`
 	Status        string `json:"status"`
+}
+
+// RegisterDeviceIntegrationRequest carries credentials used to connect the device to a given
+// integration.
+type RegisterDeviceIntegrationRequest struct {
+	// Code is an OAuth authorization code. Not used in all integrations.
+	Code string `json:"code"`
+	// RedirectURI is the OAuth redirect URI used by the frontend. Not used in all integrations.
+	RedirectURI string `json:"redirectURI"`
+}
+
+type GetUserDeviceIntegrationResponse struct {
+	// Status is one of "Pending", "PendingFirstData", "Active", "Failed", "DuplicateIntegration".
+	Status string `json:"status"`
+	// ExternalID is the identifier used by the third party for the device. It may be absent if we
+	// haven't authorized yet.
+	ExternalID null.String `json:"externalId" swaggertype:"string"`
 }

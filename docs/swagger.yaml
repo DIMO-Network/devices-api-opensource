@@ -89,14 +89,18 @@ definitions:
           haven't authorized yet.
         type: string
       status:
-        description: Status is one of "Pending", "PendingFirstData", "Active"
+        description: Status is one of "Pending", "PendingFirstData", "Active", "Failed",
+          "DuplicateIntegration".
         type: string
     type: object
-  controllers.RegisterSmartcarRequest:
+  controllers.RegisterDeviceIntegrationRequest:
     properties:
       code:
+        description: Code is an OAuth authorization code. Not used in all integrations.
         type: string
       redirectURI:
+        description: RedirectURI is the OAuth redirect URI used by the frontend. Not
+          used in all integrations.
         type: string
     type: object
   controllers.RegisterUserDevice:
@@ -469,16 +473,14 @@ paths:
     post:
       consumes:
       - application/json
-      description: |-
-        Use a Smartcar auth code to connect to Smartcar and obtain access and refresh
-        tokens for use by the app.
+      description: Submit credentials for registering a device with a given integration.
       parameters:
-      - description: Authorization code from Smartcar
+      - description: Integration credentials
         in: body
         name: userDeviceIntegrationRegistration
         required: true
         schema:
-          $ref: '#/definitions/controllers.RegisterSmartcarRequest'
+          $ref: '#/definitions/controllers.RegisterDeviceIntegrationRequest'
       responses:
         "204":
           description: ""

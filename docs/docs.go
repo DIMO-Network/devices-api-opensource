@@ -361,7 +361,7 @@ var doc = `{
                 }
             },
             "post": {
-                "description": "Use a Smartcar auth code to connect to Smartcar and obtain access and refresh\ntokens for use by the app.",
+                "description": "Submit credentials for registering a device with a given integration.",
                 "consumes": [
                     "application/json"
                 ],
@@ -370,12 +370,12 @@ var doc = `{
                 ],
                 "parameters": [
                     {
-                        "description": "Authorization code from Smartcar",
+                        "description": "Integration credentials",
                         "name": "userDeviceIntegrationRegistration",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/controllers.RegisterSmartcarRequest"
+                            "$ref": "#/definitions/controllers.RegisterDeviceIntegrationRequest"
                         }
                     }
                 ],
@@ -810,18 +810,20 @@ var doc = `{
                     "type": "string"
                 },
                 "status": {
-                    "description": "Status is one of \"Pending\", \"PendingFirstData\", \"Active\"",
+                    "description": "Status is one of \"Pending\", \"PendingFirstData\", \"Active\", \"Failed\", \"DuplicateIntegration\".",
                     "type": "string"
                 }
             }
         },
-        "controllers.RegisterSmartcarRequest": {
+        "controllers.RegisterDeviceIntegrationRequest": {
             "type": "object",
             "properties": {
                 "code": {
+                    "description": "Code is an OAuth authorization code. Not used in all integrations.",
                     "type": "string"
                 },
                 "redirectURI": {
+                    "description": "RedirectURI is the OAuth redirect URI used by the frontend. Not used in all integrations.",
                     "type": "string"
                 }
             }

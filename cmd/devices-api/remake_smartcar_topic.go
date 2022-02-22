@@ -18,12 +18,11 @@ func remakeSmartcarTopic(ctx context.Context, logger *zerolog.Logger, settings *
 	db := pdb.DBS().Reader
 
 	// Grab the Smartcar integration ID, there should be exactly one.
-	var scIntID string
-	if scInt, err := models.Integrations(models.IntegrationWhere.Vendor.EQ("SmartCar")).One(ctx, db); err != nil {
+	scInt, err := models.Integrations(models.IntegrationWhere.Vendor.EQ(services.SmartCarVendor)).One(ctx, db)
+	if err != nil {
 		return fmt.Errorf("failed to retrieve Smartcar integration: %w", err)
-	} else {
-		scIntID = scInt.ID
 	}
+	scIntID := scInt.ID
 
 	// Find all integration instances that have acquired Smartcar ids.
 	apiInts, err := models.UserDeviceAPIIntegrations(

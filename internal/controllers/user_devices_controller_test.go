@@ -16,8 +16,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/mock/gomock"
 	_ "github.com/lib/pq"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
+	smartcar "github.com/smartcar/go-sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
 	"github.com/volatiletech/null/v8"
@@ -50,10 +52,11 @@ func TestUserDevicesController(t *testing.T) {
 	}()
 	deviceDefSvc := mock_services.NewMockIDeviceDefinitionService(mockCtrl)
 	taskSvc := mock_services.NewMockITaskService(mockCtrl)
+	scClient := mock_services.NewMockSmartcarClient(mockCtrl)
 
 	testUserID := "123123"
 	testUserID2 := "3232451"
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, taskSvc, &fakeEventService{})
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, taskSvc, &fakeEventService{}, scClient)
 	app := fiber.New()
 	app.Post("/user/devices", authInjectorTestHandler(testUserID), c.RegisterDeviceForUser)
 	app.Post("/user/devices/second", authInjectorTestHandler(testUserID2), c.RegisterDeviceForUser) // for different test user
@@ -61,9 +64,11 @@ func TestUserDevicesController(t *testing.T) {
 	app.Patch("/user/devices/:userDeviceID/vin", authInjectorTestHandler(testUserID), c.UpdateVIN)
 	app.Patch("/user/devices/:userDeviceID/name", authInjectorTestHandler(testUserID), c.UpdateName)
 	app.Post("/user/devices/:userDeviceID/commands/refresh", authInjectorTestHandler(testUserID), c.RefreshUserDeviceStatus)
+	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", authInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
 
 	deviceDefSvc.EXPECT().CheckAndSetImage(gomock.Any(), false).AnyTimes().Return(nil)
 	createdUserDeviceID := ""
+	scIntegrationID := ""
 
 	t.Run("POST - register with existing device_definition_id", func(t *testing.T) {
 
@@ -84,6 +89,7 @@ func TestUserDevicesController(t *testing.T) {
 			Style:  models.IntegrationStyleWebhook,
 			Vendor: "SmartCar",
 		}
+		scIntegrationID = integration.ID
 		err = integration.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 		assert.NoError(t, err, "database error")
 		deviceInt := models.DeviceIntegration{
@@ -218,7 +224,6 @@ func TestUserDevicesController(t *testing.T) {
 		assert.Equal(t, fiber.StatusOK, response.StatusCode)
 
 		result := gjson.Get(string(body), "userDevices.#.id")
-		fmt.Println(string(body))
 		assert.Len(t, result.Array(), 2)
 		for _, id := range result.Array() {
 			assert.True(t, id.Exists(), "expected to find the ID")
@@ -289,5 +294,52 @@ func TestUserDevicesController(t *testing.T) {
 			body, _ := ioutil.ReadAll(response.Body)
 			fmt.Println("unexpected response: " + string(body))
 		}
+	})
+
+	t.Run("POST - Smartcar integration failure", func(t *testing.T) {
+		req := `{
+			"code": "qxyz",
+			"redirectURI": "http://dimo.zone/cb"
+		}`
+		scClient.EXPECT().ExchangeCode(gomock.Any(), "qxyz", "http://dimo.zone/cb").Times(1).Return(nil, errors.New("failure communicating with Smartcar"))
+		request := buildRequest("POST", "/user/devices/"+createdUserDeviceID+"/integrations/"+scIntegrationID, req)
+		response, _ := app.Test(request)
+		assert.Equal(t, fiber.StatusBadRequest, response.StatusCode, "should return bad request when given incorrect authorization code")
+		exists, _ := models.UserDeviceAPIIntegrationExists(ctx, pdb.DBS().Writer, createdUserDeviceID, scIntegrationID)
+		assert.False(t, exists, "no integration should have been created")
+	})
+
+	t.Run("POST - Smartcar integration success", func(t *testing.T) {
+		req := `{
+			"code": "qxy",
+			"redirectURI": "http://dimo.zone/cb"
+		}`
+		expiry, _ := time.Parse(time.RFC3339, "2022-03-01T12:00:00Z")
+		scClient.EXPECT().ExchangeCode(gomock.Any(), "qxy", "http://dimo.zone/cb").Times(1).Return(&smartcar.Token{
+			Access:        "myAccess",
+			AccessExpiry:  expiry,
+			Refresh:       "myRefresh",
+			RefreshExpiry: expiry.Add(24 * time.Hour),
+		}, nil)
+		taskSvc.EXPECT().StartSmartcarRegistrationTasks(createdUserDeviceID, scIntegrationID).Times(1).Return(nil)
+		request := buildRequest("POST", "/user/devices/"+createdUserDeviceID+"/integrations/"+scIntegrationID, req)
+		response, _ := app.Test(request)
+		assert.Equal(t, fiber.StatusNoContent, response.StatusCode, "should return success")
+		apiInt, _ := models.FindUserDeviceAPIIntegration(ctx, pdb.DBS().Writer, createdUserDeviceID, scIntegrationID)
+
+		assert.Equal(t, "myAccess", apiInt.AccessToken)
+		assert.True(t, expiry.Equal(apiInt.AccessExpiresAt))
+		assert.Equal(t, "Pending", apiInt.Status)
+		assert.Equal(t, "myRefresh", apiInt.RefreshToken)
+	})
+
+	t.Run("POST - integration for unknown device", func(t *testing.T) {
+		req := `{
+			"code": "qxy",
+			"redirectURI": "http://dimo.zone/cb"
+		}`
+		request := buildRequest("POST", "/user/devices/fakeDevice/integrations/"+scIntegrationID, req)
+		response, _ := app.Test(request)
+		assert.Equal(t, fiber.StatusBadRequest, response.StatusCode, "should return success")
 	})
 }

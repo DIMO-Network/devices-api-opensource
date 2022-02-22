@@ -177,9 +177,10 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	nhtsaSvc := services.NewNHTSAService()
 	ddSvc := services.NewDeviceDefinitionService(settings, pdb.DBS, &logger, nhtsaSvc)
 	smartCarSvc := services.NewSmartCarService(pdb.DBS, logger)
+	smartcarClient := services.NewSmartcarClient(settings)
 	taskSvc := services.NewTaskService(settings, pdb.DBS, ddSvc, eventService, &logger, producer, &smartCarSvc)
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc)
-	userDeviceControllers := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService)
+	userDeviceControllers := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService, smartcarClient)
 	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer)
 	deviceDataController := controllers.NewDeviceDataController(settings, pdb.DBS, &logger)
 
@@ -239,7 +240,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Patch("/user/devices/:userDeviceID/country-code", userDeviceControllers.UpdateCountryCode)
 	v1Auth.Get("/user/devices/:userDeviceID/integrations/:integrationID", userDeviceControllers.GetUserDeviceIntegration)
 	v1Auth.Delete("/user/devices/:userDeviceID/integrations/:integrationID", userDeviceControllers.DeleteUserDeviceIntegration)
-	v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID", userDeviceControllers.RegisterSmartcarIntegration)
+	v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID", userDeviceControllers.RegisterDeviceIntegration)
 	v1Auth.Get("/user/devices/:userDeviceID/status", userDeviceControllers.GetUserDeviceStatus)
 	v1Auth.Post("/user/devices/:userDeviceID/commands/refresh", userDeviceControllers.RefreshUserDeviceStatus)
 
