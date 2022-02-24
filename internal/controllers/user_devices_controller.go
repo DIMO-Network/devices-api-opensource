@@ -24,27 +24,29 @@ import (
 )
 
 type UserDevicesController struct {
-	Settings       *config.Settings
-	DBS            func() *database.DBReaderWriter
-	DeviceDefSvc   services.IDeviceDefinitionService
-	log            *zerolog.Logger
-	taskSvc        services.ITaskService
-	eventService   services.EventService
-	smartcarClient services.SmartcarClient
-	teslaService   services.TeslaService
+	Settings         *config.Settings
+	DBS              func() *database.DBReaderWriter
+	DeviceDefSvc     services.IDeviceDefinitionService
+	log              *zerolog.Logger
+	taskSvc          services.ITaskService
+	eventService     services.EventService
+	smartcarClient   services.SmartcarClient
+	teslaService     services.TeslaService
+	teslaTaskService services.TeslaTaskService
 }
 
 // NewUserDevicesController constructor
-func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc services.ITaskService, eventService services.EventService, smartcarClient services.SmartcarClient, teslaSvc services.TeslaService) UserDevicesController {
+func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc services.ITaskService, eventService services.EventService, smartcarClient services.SmartcarClient, teslaSvc services.TeslaService, teslaTaskService services.TeslaTaskService) UserDevicesController {
 	return UserDevicesController{
-		Settings:       settings,
-		DBS:            dbs,
-		log:            logger,
-		DeviceDefSvc:   ddSvc,
-		taskSvc:        taskSvc,
-		eventService:   eventService,
-		smartcarClient: smartcarClient,
-		teslaService:   teslaSvc,
+		Settings:         settings,
+		DBS:              dbs,
+		log:              logger,
+		DeviceDefSvc:     ddSvc,
+		taskSvc:          taskSvc,
+		eventService:     eventService,
+		smartcarClient:   smartcarClient,
+		teslaService:     teslaSvc,
+		teslaTaskService: teslaTaskService,
 	}
 }
 
@@ -412,6 +414,10 @@ func (udc *UserDevicesController) RegisterDeviceTesla(c *fiber.Ctx, logger *zero
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
+	if err := udc.teslaTaskService.StartPoll(v, &integration); err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
 	if err := tx.Commit(); err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
@@ -497,6 +503,12 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 		if apiIntegration.ExternalID.Valid {
 			err = udc.taskSvc.StartSmartcarDeregistrationTasks(userDeviceID, integrationID, apiIntegration.ExternalID.String, apiIntegration.AccessToken)
 			if err != nil {
+				return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+			}
+		}
+	} else if apiIntegration.R.Integration.Vendor == "Tesla" {
+		if apiIntegration.ExternalID.Valid {
+			if err := udc.teslaTaskService.StopPoll(apiIntegration); err != nil {
 				return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 			}
 		}
@@ -768,6 +780,12 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 			if apiInteg.ExternalID.Valid {
 				err = udc.taskSvc.StartSmartcarDeregistrationTasks(udi, apiInteg.IntegrationID, apiInteg.ExternalID.String, apiInteg.AccessToken)
 				if err != nil {
+					return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+				}
+			}
+		} else if apiInteg.R.Integration.Vendor == "Tesla" {
+			if apiInteg.ExternalID.Valid {
+				if err := udc.teslaTaskService.StopPoll(apiInteg); err != nil {
 					return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 				}
 			}

@@ -14,6 +14,8 @@ TOR_PROXY_URL: socks5://127.0.0.1:9050
 KAFKA_BROKERS: 127.0.0.1:9092
 INGEST_SMARTCAR_TOPIC: topic.interface.ingest.smartcar
 DEVICE_STATUS_TOPIC: topic.device.status
+TASK_RUN_NOW_TOPIC: topic.task.run.now
+TASK_STOP_TOPIC: table.task.stop
 PRIVACY_FENCE_TOPIC: table.device.privacyfence
 REDIS_URL: localhost:6379
 REDIS_PASSWORD:

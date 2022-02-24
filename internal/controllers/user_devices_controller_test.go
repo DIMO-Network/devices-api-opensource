@@ -54,10 +54,11 @@ func TestUserDevicesController(t *testing.T) {
 	taskSvc := mock_services.NewMockITaskService(mockCtrl)
 	scClient := mock_services.NewMockSmartcarClient(mockCtrl)
 	teslaSvc := mock_services.NewMockTeslaService(mockCtrl)
+	teslaTaskService := mock_services.NewMockTeslaTaskService(mockCtrl)
 
 	testUserID := "123123"
 	testUserID2 := "3232451"
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, taskSvc, &fakeEventService{}, scClient, teslaSvc)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, taskSvc, &fakeEventService{}, scClient, teslaSvc, teslaTaskService)
 	app := fiber.New()
 	app.Post("/user/devices", authInjectorTestHandler(testUserID), c.RegisterDeviceForUser)
 	app.Post("/user/devices/second", authInjectorTestHandler(testUserID2), c.RegisterDeviceForUser) // for different test user
@@ -369,6 +370,17 @@ func TestUserDevicesController(t *testing.T) {
 		}`
 		request := buildRequest("POST", "/user/devices/"+createdUserDeviceID+"/integrations/"+teslaInt.ID, req)
 
+		oV := &services.TeslaVehicle{}
+		oUdai := &models.UserDeviceAPIIntegration{}
+
+		teslaTaskService.EXPECT().StartPoll(gomock.AssignableToTypeOf(oV), gomock.AssignableToTypeOf(oUdai)).DoAndReturn(
+			func(v *services.TeslaVehicle, udai *models.UserDeviceAPIIntegration) error {
+				oV = v
+				oUdai = udai
+				return nil
+			},
+		)
+
 		teslaSvc.EXPECT().GetVehicle("abc", 1145).Return(&services.TeslaVehicle{
 			ID:        1145,
 			VehicleID: 223,
@@ -377,6 +389,9 @@ func TestUserDevicesController(t *testing.T) {
 		expectedExpiry := time.Now().Add(10 * time.Minute)
 		response, _ := app.Test(request)
 		assert.Equal(t, fiber.StatusNoContent, response.StatusCode, "should return success")
+
+		assert.Equal(t, 1145, oV.ID)
+		assert.Equal(t, 223, oV.VehicleID)
 
 		within := func(test, reference *time.Time, d time.Duration) bool {
 			return test.After(reference.Add(-d)) && test.Before(reference.Add(d))

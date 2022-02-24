@@ -30,6 +30,8 @@ type Settings struct {
 	KafkaBrokers                   string `yaml:"KAFKA_BROKERS"`
 	DeviceStatusTopic              string `yaml:"DEVICE_STATUS_TOPIC"`
 	PrivacyFenceTopic              string `yaml:"PRIVACY_FENCE_TOPIC"`
+	TaskRunNowTopic                string `yaml:"TASK_RUN_NOW_TOPIC"`
+	TaskStopTopic                  string `yaml:"TASK_STOP_TOPIC"`
 	EventsTopic                    string `yaml:"EVENTS_TOPIC"`
 	ElasticSearchAppSearchHost     string `yaml:"ELASTIC_SEARCH_APP_SEARCH_HOST"`
 	ElasticSearchAppSearchToken    string `yaml:"ELASTIC_SEARCH_APP_SEARCH_TOKEN"`

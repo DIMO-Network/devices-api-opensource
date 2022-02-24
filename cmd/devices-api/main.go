@@ -177,10 +177,11 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	ddSvc := services.NewDeviceDefinitionService(settings, pdb.DBS, &logger, nhtsaSvc)
 	smartCarSvc := services.NewSmartCarService(pdb.DBS, logger)
 	smartcarClient := services.NewSmartcarClient(settings)
+	teslaTaskService := services.NewTeslaTaskService(settings, producer)
 	teslaSvc := services.NewTeslaService(settings)
 	taskSvc := services.NewTaskService(settings, pdb.DBS, ddSvc, eventService, &logger, producer, &smartCarSvc)
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc)
-	userDeviceControllers := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService, smartcarClient, teslaSvc)
+	userDeviceControllers := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService, smartcarClient, teslaSvc, teslaTaskService)
 	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer)
 	deviceDataController := controllers.NewDeviceDataController(settings, pdb.DBS, &logger)
 
