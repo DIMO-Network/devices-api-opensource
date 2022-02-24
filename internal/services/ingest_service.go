@@ -65,6 +65,14 @@ func (i *IngestService) processDeviceStatus(msg *message.Message) error {
 		UserDeviceID: userDeviceID,
 		Data:         null.JSONFrom(e.Data),
 	}
+	whiteList := []string{"error_data", "created_at", "updated_at"} // always update error_data, even if no errors so gets set to null
+	newOdometer, errOdo := extractOdometer(e.Data)
+	if errOdo != nil {
+		i.log.Err(errOdo).Msg("Failed to grab odometer from status update, will not update Data")
+		udd.ErrorData = null.JSONFrom(e.Data)
+	} else {
+		whiteList = append(whiteList, "data") // set data only if can find odometer, meaning good data
+	}
 
 	tx, err := i.db().Writer.BeginTx(ctx, nil)
 	if err != nil {
@@ -97,7 +105,7 @@ func (i *IngestService) processDeviceStatus(msg *message.Message) error {
 		}
 	}
 
-	err = udd.Upsert(ctx, tx, true, []string{"user_device_id"}, boil.Whitelist("data", "created_at", "updated_at"), boil.Infer())
+	err = udd.Upsert(ctx, tx, true, []string{"user_device_id"}, boil.Whitelist(whiteList...), boil.Infer())
 	if err != nil {
 		return fmt.Errorf("error upserting vehicle status event data: %w", err)
 	}
@@ -107,10 +115,7 @@ func (i *IngestService) processDeviceStatus(msg *message.Message) error {
 		return fmt.Errorf("error committing transaction: %w", err)
 	}
 
-	newOdometer, err := extractOdometer(e.Data)
-	if err != nil {
-		i.log.Err(err).Msg("Failed to grab odometer from status update")
-	} else if !haveOldOdometer || newOdometer != oldOdometer {
+	if errOdo == nil && (!haveOldOdometer || newOdometer != oldOdometer) {
 		// If the Smartcar /odometer endpoint returned an error, we won't have a value.
 		err = i.eventService.Emit(&Event{
 			Type:    "com.dimo.zone.device.odometer.update",

@@ -659,6 +659,9 @@ func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 	// date formatting defaults to encoding/json
 	json, _ := sjson.Set(string(userDevice.R.UserDeviceDatum.Data.JSON), "recordUpdatedAt", userDevice.R.UserDeviceDatum.UpdatedAt)
 	json, _ = sjson.Set(json, "recordCreatedAt", userDevice.R.UserDeviceDatum.CreatedAt)
+	if userDevice.R.UserDeviceDatum.ErrorData.Valid {
+		json, _ = sjson.Set(json, "errorData", userDevice.R.UserDeviceDatum.ErrorData)
+	}
 
 	c.Set("Content-Type", "application/json")
 	return c.Send([]byte(json))
