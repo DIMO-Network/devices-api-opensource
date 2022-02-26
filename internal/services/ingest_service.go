@@ -65,7 +65,7 @@ func (i *IngestService) processDeviceStatus(msg *message.Message) error {
 		UserDeviceID: userDeviceID,
 		Data:         null.JSONFrom(e.Data),
 	}
-	whiteList := []string{"error_data", "created_at", "updated_at"} // always update error_data, even if no errors so gets set to null
+	whiteList := []string{"error_data", "updated_at"} // always update error_data, even if no errors so gets set to null
 	newOdometer, errOdo := extractOdometer(e.Data)
 	if errOdo != nil {
 		i.log.Err(errOdo).Msg("Failed to grab odometer from status update, will not update Data")
