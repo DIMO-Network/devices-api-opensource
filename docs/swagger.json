@@ -64,7 +64,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_controllers.DeviceMMYRoot"
+                                "$ref": "#/definitions/controllers.DeviceMMYRoot"
                             }
                         }
                     }
@@ -199,7 +199,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.RegisterUserDevice"
+                            "$ref": "#/definitions/controllers.RegisterUserDevice"
                         }
                     }
                 ],
@@ -207,7 +207,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.RegisterUserDeviceResponse"
+                            "$ref": "#/definitions/controllers.RegisterUserDeviceResponse"
                         }
                     }
                 }
@@ -229,7 +229,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.RegisterDeviceIntegrationRequest"
+                            "$ref": "#/definitions/controllers.RegisterDeviceIntegrationRequest"
                         }
                     }
                 ],
@@ -260,7 +260,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_controllers.UserDeviceFull"
+                                "$ref": "#/definitions/controllers.UserDeviceFull"
                             }
                         }
                     }
@@ -348,7 +348,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.UpdateCountryCodeReq"
+                            "$ref": "#/definitions/controllers.UpdateCountryCodeReq"
                         }
                     }
                 ],
@@ -369,7 +369,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.GetUserDeviceIntegrationResponse"
+                            "$ref": "#/definitions/controllers.GetUserDeviceIntegrationResponse"
                         }
                     }
                 }
@@ -410,7 +410,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.UpdateNameReq"
+                            "$ref": "#/definitions/controllers.UpdateNameReq"
                         }
                     },
                     {
@@ -482,7 +482,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.UpdateVINReq"
+                            "$ref": "#/definitions/controllers.UpdateVINReq"
                         }
                     },
                     {
@@ -523,7 +523,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_controllers.GetGeofence"
+                                "$ref": "#/definitions/controllers.GetGeofence"
                             }
                         }
                     }
@@ -555,7 +555,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
+                            "$ref": "#/definitions/controllers.CreateGeofence"
                         }
                     }
                 ],
@@ -563,7 +563,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CreateResponse"
+                            "$ref": "#/definitions/controllers.CreateResponse"
                         }
                     }
                 }
@@ -603,7 +603,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
+                            "$ref": "#/definitions/controllers.CreateGeofence"
                         }
                     }
                 ],
@@ -644,7 +644,7 @@
         }
     },
     "definitions": {
-        "github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence": {
+        "controllers.CreateGeofence": {
             "type": "object",
             "properties": {
                 "h3Indexes": {
@@ -671,7 +671,7 @@
                 }
             }
         },
-        "github.com_DIMO-Network_devices-api_internal_controllers.CreateResponse": {
+        "controllers.CreateResponse": {
             "type": "object",
             "properties": {
                 "id": {
@@ -679,7 +679,7 @@
                 }
             }
         },
-        "github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot": {
+        "controllers.DeviceMMYRoot": {
             "type": "object",
             "properties": {
                 "make": {
@@ -688,12 +688,12 @@
                 "models": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceModels"
+                        "$ref": "#/definitions/controllers.DeviceModels"
                     }
                 }
             }
         },
-        "github.com_DIMO-Network_devices-api_internal_controllers.DeviceModelYear": {
+        "controllers.DeviceModelYear": {
             "type": "object",
             "properties": {
                 "id": {
@@ -704,7 +704,7 @@
                 }
             }
         },
-        "github.com_DIMO-Network_devices-api_internal_controllers.DeviceModels": {
+        "controllers.DeviceModels": {
             "type": "object",
             "properties": {
                 "model": {
@@ -713,12 +713,12 @@
                 "years": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceModelYear"
+                        "$ref": "#/definitions/controllers.DeviceModelYear"
                     }
                 }
             }
         },
-        "github.com_DIMO-Network_devices-api_internal_controllers.GeoFenceUserDevice": {
+        "controllers.GeoFenceUserDevice": {
             "type": "object",
             "properties": {
                 "mmy": {
@@ -732,7 +732,7 @@
                 }
             }
         },
-        "github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence": {
+        "controllers.GetGeofence": {
             "type": "object",
             "properties": {
                 "createdAt": {
@@ -759,14 +759,18 @@
                 "userDevices": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GeoFenceUserDevice"
+                        "$ref": "#/definitions/controllers.GeoFenceUserDevice"
                     }
                 }
             }
         },
-        "github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse": {
+        "controllers.GetUserDeviceIntegrationResponse": {
             "type": "object",
             "properties": {
+                "createdAt": {
+                    "description": "CreatedAt is the creation time of this integration for this device.",
+                    "type": "string"
+                },
                 "externalId": {
                     "description": "ExternalID is the identifier used by the third party for the device. It may be absent if we\nhaven't authorized yet.",
                     "type": "string"
@@ -777,7 +781,7 @@
                 }
             }
         },
-        "github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest": {
+        "controllers.RegisterDeviceIntegrationRequest": {
             "type": "object",
             "properties": {
                 "accessToken": {
@@ -802,7 +806,7 @@
                 }
             }
         },
-        "github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDevice": {
+        "controllers.RegisterUserDevice": {
             "type": "object",
             "properties": {
                 "countryCode": {
@@ -822,7 +826,7 @@
                 }
             }
         },
-        "github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDeviceResponse": {
+        "controllers.RegisterUserDeviceResponse": {
             "type": "object",
             "properties": {
                 "deviceDefinitionId": {
@@ -839,7 +843,7 @@
                 }
             }
         },
-        "github.com_DIMO-Network_devices-api_internal_controllers.UpdateCountryCodeReq": {
+        "controllers.UpdateCountryCodeReq": {
             "type": "object",
             "properties": {
                 "countryCode": {
@@ -847,7 +851,7 @@
                 }
             }
         },
-        "github.com_DIMO-Network_devices-api_internal_controllers.UpdateNameReq": {
+        "controllers.UpdateNameReq": {
             "type": "object",
             "properties": {
                 "name": {
@@ -855,7 +859,7 @@
                 }
             }
         },
-        "github.com_DIMO-Network_devices-api_internal_controllers.UpdateVINReq": {
+        "controllers.UpdateVINReq": {
             "type": "object",
             "properties": {
                 "vin": {
@@ -863,7 +867,7 @@
                 }
             }
         },
-        "github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceFull": {
+        "controllers.UserDeviceFull": {
             "type": "object",
             "properties": {
                 "countryCode": {
@@ -881,7 +885,7 @@
                 "integrations": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceIntegrationStatus"
+                        "$ref": "#/definitions/controllers.UserDeviceIntegrationStatus"
                     }
                 },
                 "name": {
@@ -895,271 +899,12 @@
                 }
             }
         },
-        "github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceIntegrationStatus": {
-            "type": "object",
-            "properties": {
-                "integrationId": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_controllers.CreateGeofence": {
-            "type": "object",
-            "properties": {
-                "h3Indexes": {
-                    "description": "required: false",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "name": {
-                    "description": "required: true",
-                    "type": "string"
-                },
-                "type": {
-                    "description": "one of following: \"PrivacyFence\", \"TriggerEntry\", \"TriggerExit\"\nrequired: true",
-                    "type": "string"
-                },
-                "userDeviceIds": {
-                    "description": "Optionally link the geofence with a list of user device ID",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "internal_controllers.CreateResponse": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_controllers.DeviceMMYRoot": {
-            "type": "object",
-            "properties": {
-                "make": {
-                    "type": "string"
-                },
-                "models": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_controllers.DeviceModels"
-                    }
-                }
-            }
-        },
-        "internal_controllers.DeviceModelYear": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "year": {
-                    "type": "integer"
-                }
-            }
-        },
-        "internal_controllers.DeviceModels": {
-            "type": "object",
-            "properties": {
-                "model": {
-                    "type": "string"
-                },
-                "years": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_controllers.DeviceModelYear"
-                    }
-                }
-            }
-        },
-        "internal_controllers.GeoFenceUserDevice": {
-            "type": "object",
-            "properties": {
-                "mmy": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "userDeviceId": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_controllers.GetGeofence": {
+        "controllers.UserDeviceIntegrationStatus": {
             "type": "object",
             "properties": {
                 "createdAt": {
                     "type": "string"
                 },
-                "h3Indexes": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "updatedAt": {
-                    "type": "string"
-                },
-                "userDevices": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_controllers.GeoFenceUserDevice"
-                    }
-                }
-            }
-        },
-        "internal_controllers.GetUserDeviceIntegrationResponse": {
-            "type": "object",
-            "properties": {
-                "externalId": {
-                    "description": "ExternalID is the identifier used by the third party for the device. It may be absent if we\nhaven't authorized yet.",
-                    "type": "string"
-                },
-                "status": {
-                    "description": "Status is one of \"Pending\", \"PendingFirstData\", \"Active\", \"Failed\", \"DuplicateIntegration\".",
-                    "type": "string"
-                }
-            }
-        },
-        "internal_controllers.RegisterDeviceIntegrationRequest": {
-            "type": "object",
-            "properties": {
-                "accessToken": {
-                    "type": "string"
-                },
-                "code": {
-                    "description": "Code is an OAuth authorization code. Not used in all integrations.",
-                    "type": "string"
-                },
-                "expiresIn": {
-                    "type": "integer"
-                },
-                "externalId": {
-                    "type": "string"
-                },
-                "redirectURI": {
-                    "description": "RedirectURI is the OAuth redirect URI used by the frontend. Not used in all integrations.",
-                    "type": "string"
-                },
-                "refreshToken": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_controllers.RegisterUserDevice": {
-            "type": "object",
-            "properties": {
-                "countryCode": {
-                    "type": "string"
-                },
-                "deviceDefinitionId": {
-                    "type": "string"
-                },
-                "make": {
-                    "type": "string"
-                },
-                "model": {
-                    "type": "string"
-                },
-                "year": {
-                    "type": "integer"
-                }
-            }
-        },
-        "internal_controllers.RegisterUserDeviceResponse": {
-            "type": "object",
-            "properties": {
-                "deviceDefinitionId": {
-                    "type": "string"
-                },
-                "integrationCapabilities": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/services.DeviceCompatibility"
-                    }
-                },
-                "userDeviceId": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_controllers.UpdateCountryCodeReq": {
-            "type": "object",
-            "properties": {
-                "countryCode": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_controllers.UpdateNameReq": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_controllers.UpdateVINReq": {
-            "type": "object",
-            "properties": {
-                "vin": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_controllers.UserDeviceFull": {
-            "type": "object",
-            "properties": {
-                "countryCode": {
-                    "type": "string"
-                },
-                "customImageUrl": {
-                    "type": "string"
-                },
-                "deviceDefinition": {
-                    "$ref": "#/definitions/services.DeviceDefinition"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "integrations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_controllers.UserDeviceIntegrationStatus"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                },
-                "vin": {
-                    "type": "string"
-                },
-                "vinConfirmed": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "internal_controllers.UserDeviceIntegrationStatus": {
-            "type": "object",
-            "properties": {
                 "integrationId": {
                     "type": "string"
                 },

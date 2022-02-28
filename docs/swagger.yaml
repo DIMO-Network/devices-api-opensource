@@ -1,6 +1,6 @@
 basePath: /v1
 definitions:
-  github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence:
+  controllers.CreateGeofence:
     properties:
       h3Indexes:
         description: 'required: false'
@@ -21,37 +21,37 @@ definitions:
           type: string
         type: array
     type: object
-  github.com_DIMO-Network_devices-api_internal_controllers.CreateResponse:
+  controllers.CreateResponse:
     properties:
       id:
         type: string
     type: object
-  github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot:
+  controllers.DeviceMMYRoot:
     properties:
       make:
         type: string
       models:
         items:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceModels'
+          $ref: '#/definitions/controllers.DeviceModels'
         type: array
     type: object
-  github.com_DIMO-Network_devices-api_internal_controllers.DeviceModelYear:
+  controllers.DeviceModelYear:
     properties:
       id:
         type: string
       year:
         type: integer
     type: object
-  github.com_DIMO-Network_devices-api_internal_controllers.DeviceModels:
+  controllers.DeviceModels:
     properties:
       model:
         type: string
       years:
         items:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceModelYear'
+          $ref: '#/definitions/controllers.DeviceModelYear'
         type: array
     type: object
-  github.com_DIMO-Network_devices-api_internal_controllers.GeoFenceUserDevice:
+  controllers.GeoFenceUserDevice:
     properties:
       mmy:
         type: string
@@ -60,7 +60,7 @@ definitions:
       userDeviceId:
         type: string
     type: object
-  github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence:
+  controllers.GetGeofence:
     properties:
       createdAt:
         type: string
@@ -78,11 +78,14 @@ definitions:
         type: string
       userDevices:
         items:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GeoFenceUserDevice'
+          $ref: '#/definitions/controllers.GeoFenceUserDevice'
         type: array
     type: object
-  github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse:
+  controllers.GetUserDeviceIntegrationResponse:
     properties:
+      createdAt:
+        description: CreatedAt is the creation time of this integration for this device.
+        type: string
       externalId:
         description: |-
           ExternalID is the identifier used by the third party for the device. It may be absent if we
@@ -93,7 +96,7 @@ definitions:
           "DuplicateIntegration".
         type: string
     type: object
-  github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest:
+  controllers.RegisterDeviceIntegrationRequest:
     properties:
       accessToken:
         type: string
@@ -111,7 +114,7 @@ definitions:
       refreshToken:
         type: string
     type: object
-  github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDevice:
+  controllers.RegisterUserDevice:
     properties:
       countryCode:
         type: string
@@ -124,7 +127,7 @@ definitions:
       year:
         type: integer
     type: object
-  github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDeviceResponse:
+  controllers.RegisterUserDeviceResponse:
     properties:
       deviceDefinitionId:
         type: string
@@ -135,22 +138,22 @@ definitions:
       userDeviceId:
         type: string
     type: object
-  github.com_DIMO-Network_devices-api_internal_controllers.UpdateCountryCodeReq:
+  controllers.UpdateCountryCodeReq:
     properties:
       countryCode:
         type: string
     type: object
-  github.com_DIMO-Network_devices-api_internal_controllers.UpdateNameReq:
+  controllers.UpdateNameReq:
     properties:
       name:
         type: string
     type: object
-  github.com_DIMO-Network_devices-api_internal_controllers.UpdateVINReq:
+  controllers.UpdateVINReq:
     properties:
       vin:
         type: string
     type: object
-  github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceFull:
+  controllers.UserDeviceFull:
     properties:
       countryCode:
         type: string
@@ -162,7 +165,7 @@ definitions:
         type: string
       integrations:
         items:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceIntegrationStatus'
+          $ref: '#/definitions/controllers.UserDeviceIntegrationStatus'
         type: array
       name:
         type: string
@@ -171,186 +174,10 @@ definitions:
       vinConfirmed:
         type: boolean
     type: object
-  github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceIntegrationStatus:
-    properties:
-      integrationId:
-        type: string
-      status:
-        type: string
-    type: object
-  internal_controllers.CreateGeofence:
-    properties:
-      h3Indexes:
-        description: 'required: false'
-        items:
-          type: string
-        type: array
-      name:
-        description: 'required: true'
-        type: string
-      type:
-        description: |-
-          one of following: "PrivacyFence", "TriggerEntry", "TriggerExit"
-          required: true
-        type: string
-      userDeviceIds:
-        description: Optionally link the geofence with a list of user device ID
-        items:
-          type: string
-        type: array
-    type: object
-  internal_controllers.CreateResponse:
-    properties:
-      id:
-        type: string
-    type: object
-  internal_controllers.DeviceMMYRoot:
-    properties:
-      make:
-        type: string
-      models:
-        items:
-          $ref: '#/definitions/internal_controllers.DeviceModels'
-        type: array
-    type: object
-  internal_controllers.DeviceModelYear:
-    properties:
-      id:
-        type: string
-      year:
-        type: integer
-    type: object
-  internal_controllers.DeviceModels:
-    properties:
-      model:
-        type: string
-      years:
-        items:
-          $ref: '#/definitions/internal_controllers.DeviceModelYear'
-        type: array
-    type: object
-  internal_controllers.GeoFenceUserDevice:
-    properties:
-      mmy:
-        type: string
-      name:
-        type: string
-      userDeviceId:
-        type: string
-    type: object
-  internal_controllers.GetGeofence:
+  controllers.UserDeviceIntegrationStatus:
     properties:
       createdAt:
         type: string
-      h3Indexes:
-        items:
-          type: string
-        type: array
-      id:
-        type: string
-      name:
-        type: string
-      type:
-        type: string
-      updatedAt:
-        type: string
-      userDevices:
-        items:
-          $ref: '#/definitions/internal_controllers.GeoFenceUserDevice'
-        type: array
-    type: object
-  internal_controllers.GetUserDeviceIntegrationResponse:
-    properties:
-      externalId:
-        description: |-
-          ExternalID is the identifier used by the third party for the device. It may be absent if we
-          haven't authorized yet.
-        type: string
-      status:
-        description: Status is one of "Pending", "PendingFirstData", "Active", "Failed",
-          "DuplicateIntegration".
-        type: string
-    type: object
-  internal_controllers.RegisterDeviceIntegrationRequest:
-    properties:
-      accessToken:
-        type: string
-      code:
-        description: Code is an OAuth authorization code. Not used in all integrations.
-        type: string
-      expiresIn:
-        type: integer
-      externalId:
-        type: string
-      redirectURI:
-        description: RedirectURI is the OAuth redirect URI used by the frontend. Not
-          used in all integrations.
-        type: string
-      refreshToken:
-        type: string
-    type: object
-  internal_controllers.RegisterUserDevice:
-    properties:
-      countryCode:
-        type: string
-      deviceDefinitionId:
-        type: string
-      make:
-        type: string
-      model:
-        type: string
-      year:
-        type: integer
-    type: object
-  internal_controllers.RegisterUserDeviceResponse:
-    properties:
-      deviceDefinitionId:
-        type: string
-      integrationCapabilities:
-        items:
-          $ref: '#/definitions/services.DeviceCompatibility'
-        type: array
-      userDeviceId:
-        type: string
-    type: object
-  internal_controllers.UpdateCountryCodeReq:
-    properties:
-      countryCode:
-        type: string
-    type: object
-  internal_controllers.UpdateNameReq:
-    properties:
-      name:
-        type: string
-    type: object
-  internal_controllers.UpdateVINReq:
-    properties:
-      vin:
-        type: string
-    type: object
-  internal_controllers.UserDeviceFull:
-    properties:
-      countryCode:
-        type: string
-      customImageUrl:
-        type: string
-      deviceDefinition:
-        $ref: '#/definitions/services.DeviceDefinition'
-      id:
-        type: string
-      integrations:
-        items:
-          $ref: '#/definitions/internal_controllers.UserDeviceIntegrationStatus'
-        type: array
-      name:
-        type: string
-      vin:
-        type: string
-      vinConfirmed:
-        type: boolean
-    type: object
-  internal_controllers.UserDeviceIntegrationStatus:
-    properties:
       integrationId:
         type: string
       status:
@@ -512,7 +339,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.DeviceMMYRoot'
+              $ref: '#/definitions/controllers.DeviceMMYRoot'
             type: array
       tags:
       - device-definitions
@@ -555,14 +382,14 @@ paths:
         name: user_device
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.RegisterUserDevice'
+          $ref: '#/definitions/controllers.RegisterUserDevice'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_controllers.RegisterUserDeviceResponse'
+            $ref: '#/definitions/controllers.RegisterUserDeviceResponse'
       security:
       - ApiKeyAuth: []
       - BearerAuth: []
@@ -579,7 +406,7 @@ paths:
         name: userDeviceIntegrationRegistration
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.RegisterDeviceIntegrationRequest'
+          $ref: '#/definitions/controllers.RegisterDeviceIntegrationRequest'
       responses:
         "204":
           description: ""
@@ -630,7 +457,7 @@ paths:
         name: name
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.UpdateCountryCodeReq'
+          $ref: '#/definitions/controllers.UpdateCountryCodeReq'
       produces:
       - application/json
       responses:
@@ -654,7 +481,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.GetUserDeviceIntegrationResponse'
+            $ref: '#/definitions/controllers.GetUserDeviceIntegrationResponse'
       tags:
       - user-devices
   /user/devices/{userDeviceID}/name:
@@ -668,7 +495,7 @@ paths:
         name: name
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.UpdateNameReq'
+          $ref: '#/definitions/controllers.UpdateNameReq'
       - description: user id
         in: path
         name: user_device_id
@@ -714,7 +541,7 @@ paths:
         name: vin
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.UpdateVINReq'
+          $ref: '#/definitions/controllers.UpdateVINReq'
       - description: user id
         in: path
         name: userDeviceID
@@ -739,7 +566,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.UserDeviceFull'
+              $ref: '#/definitions/controllers.UserDeviceFull'
             type: array
       security:
       - BearerAuth: []
@@ -755,7 +582,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.GetGeofence'
+              $ref: '#/definitions/controllers.GetGeofence'
             type: array
       security:
       - ApiKeyAuth: []
@@ -773,14 +600,14 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.CreateGeofence'
+          $ref: '#/definitions/controllers.CreateGeofence'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_controllers.CreateResponse'
+            $ref: '#/definitions/controllers.CreateResponse'
       security:
       - ApiKeyAuth: []
       - BearerAuth: []
@@ -818,7 +645,7 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.CreateGeofence'
+          $ref: '#/definitions/controllers.CreateGeofence'
       produces:
       - application/json
       responses:

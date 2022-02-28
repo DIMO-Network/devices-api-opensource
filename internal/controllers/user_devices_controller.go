@@ -93,6 +93,7 @@ func NewUserDeviceIntegrationStatusesFromDatabase(udis []*models.UserDeviceAPIIn
 		out[i] = UserDeviceIntegrationStatus{
 			IntegrationID: udi.IntegrationID,
 			Status:        udi.Status,
+			CreatedAt:     udi.CreatedAt,
 		}
 	}
 
@@ -498,8 +499,9 @@ type UserDeviceFull struct {
 }
 
 type UserDeviceIntegrationStatus struct {
-	IntegrationID string `json:"integrationId"`
-	Status        string `json:"status"`
+	IntegrationID string    `json:"integrationId"`
+	Status        string    `json:"status"`
+	CreatedAt     time.Time `json:"createdAt"`
 }
 
 // RegisterDeviceIntegrationRequest carries credentials used to connect the device to a given
@@ -522,4 +524,6 @@ type GetUserDeviceIntegrationResponse struct {
 	// ExternalID is the identifier used by the third party for the device. It may be absent if we
 	// haven't authorized yet.
 	ExternalID null.String `json:"externalId" swaggertype:"string"`
+	// CreatedAt is the creation time of this integration for this device.
+	CreatedAt time.Time `json:"createdAt"`
 }
