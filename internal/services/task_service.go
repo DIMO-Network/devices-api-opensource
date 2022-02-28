@@ -529,12 +529,6 @@ func (t *TaskService) smartcarGetInitialData(userDeviceID, integrationID string)
 		return fmt.Errorf("sending batch data to DIMO Smartcar ingest returned status code %d", benthResp.StatusCode)
 	}
 
-	integ.Status = models.UserDeviceAPIIntegrationStatusActive
-	_, err = integ.Update(context.Background(), tx, boil.Whitelist("status", "updated_at"))
-	if err != nil {
-		return fmt.Errorf("failed to set integration's status to active: %w", err)
-	}
-
 	err = tx.Commit()
 	if err != nil {
 		return fmt.Errorf("failed to commit results of batch request: %w", err)

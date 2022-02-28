@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
 	"github.com/Shopify/sarama"
@@ -74,7 +75,7 @@ func TestGeofencesController(t *testing.T) {
 		Logger()
 
 	ctx := context.Background()
-	pdb, database := setupDatabase(ctx, t, migrationsDirRelPath)
+	pdb, database := test.SetupDatabase(ctx, t, migrationsDirRelPath)
 	defer func() {
 		if err := database.Stop(); err != nil {
 			t.Fatal(err)
@@ -85,10 +86,10 @@ func TestGeofencesController(t *testing.T) {
 	producer := saramamocks.NewSyncProducer(t, sarama.NewConfig())
 	c := NewGeofencesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, producer)
 	app := fiber.New()
-	app.Post("/user/geofences", authInjectorTestHandler(testUserID), c.Create)
-	app.Get("/user/geofences", authInjectorTestHandler(testUserID), c.GetAll)
-	app.Put("/user/geofences/:geofenceID", authInjectorTestHandler(testUserID), c.Update)
-	app.Delete("/user/geofences/:geofenceID", authInjectorTestHandler(testUserID), c.Delete)
+	app.Post("/user/geofences", test.AuthInjectorTestHandler(testUserID), c.Create)
+	app.Get("/user/geofences", test.AuthInjectorTestHandler(testUserID), c.GetAll)
+	app.Put("/user/geofences/:geofenceID", test.AuthInjectorTestHandler(testUserID), c.Update)
+	app.Delete("/user/geofences/:geofenceID", test.AuthInjectorTestHandler(testUserID), c.Delete)
 	// test data
 	deviceDef := models.DeviceDefinition{
 		ID:       ksuid.New().String(),
@@ -128,7 +129,7 @@ func TestGeofencesController(t *testing.T) {
 
 		producer.ExpectSendMessageWithMessageCheckerFunctionAndSucceed(checkForDeviceAndH3(userDevice.ID, []string{"123", "321"}))
 
-		request := buildRequest("POST", "/user/geofences", string(j))
+		request := test.BuildRequest("POST", "/user/geofences", string(j))
 		response, _ := app.Test(request)
 		body, _ := ioutil.ReadAll(response.Body)
 		if assert.Equal(t, fiber.StatusCreated, response.StatusCode) == false {
@@ -146,7 +147,7 @@ func TestGeofencesController(t *testing.T) {
 			UserDeviceIDs: []string{userDevice.ID},
 		}
 		j, _ = json.Marshal(req)
-		request = buildRequest("POST", "/user/geofences", string(j))
+		request = test.BuildRequest("POST", "/user/geofences", string(j))
 		response, _ = app.Test(request)
 		if assert.Equal(t, fiber.StatusCreated, response.StatusCode, "expected create OK without h3 indexes") == false {
 			body, _ = ioutil.ReadAll(response.Body)
@@ -160,7 +161,7 @@ func TestGeofencesController(t *testing.T) {
 			UserDeviceIDs: []string{userDevice.ID},
 		}
 		j, _ := json.Marshal(req)
-		request := buildRequest("POST", "/user/geofences", string(j))
+		request := test.BuildRequest("POST", "/user/geofences", string(j))
 		response, _ := app.Test(request)
 		assert.Equal(t, fiber.StatusBadRequest, response.StatusCode, "expected bad request on duplicate name")
 	})
@@ -171,7 +172,7 @@ func TestGeofencesController(t *testing.T) {
 			UserDeviceIDs: []string{otherUserDevice.ID},
 		}
 		j, _ := json.Marshal(req)
-		request := buildRequest("POST", "/user/geofences", string(j))
+		request := test.BuildRequest("POST", "/user/geofences", string(j))
 		response, _ := app.Test(request)
 		assert.Equal(t, fiber.StatusBadRequest, response.StatusCode, "expected bad request when trying to attach a fence to a device that isn't ours")
 	})
@@ -198,7 +199,7 @@ func TestGeofencesController(t *testing.T) {
 			UserDeviceIDs: nil,
 		}
 		j, _ := json.Marshal(req)
-		request := buildRequest("PUT", "/user/geofences/"+createdID, string(j))
+		request := test.BuildRequest("PUT", "/user/geofences/"+createdID, string(j))
 		response, _ := app.Test(request)
 		body, _ := ioutil.ReadAll(response.Body)
 		if assert.Equal(t, fiber.StatusNoContent, response.StatusCode) == false {

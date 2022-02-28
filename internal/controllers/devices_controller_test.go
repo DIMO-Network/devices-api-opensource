@@ -14,6 +14,7 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	mock_services "github.com/DIMO-Network/devices-api/internal/services/mocks"
+	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/buger/jsonparser"
 	"github.com/gofiber/fiber/v2"
@@ -40,7 +41,7 @@ func TestDevicesController(t *testing.T) {
 		Logger()
 
 	ctx := context.Background()
-	pdb, database := setupDatabase(ctx, t, migrationsDirRelPath)
+	pdb, database := test.SetupDatabase(ctx, t, migrationsDirRelPath)
 	defer func() {
 		if err := database.Stop(); err != nil {
 			t.Fatal(err)

@@ -9,7 +9,6 @@ require (
 	github.com/ThreeDotsLabs/watermill v1.1.1
 	github.com/ThreeDotsLabs/watermill-kafka/v2 v2.2.1
 	github.com/ahmetb/go-linq/v3 v3.2.0
-	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751
 	github.com/ansrivas/fiberprometheus/v2 v2.1.2
 	github.com/aquasecurity/esquery v0.2.0
 	github.com/arsmn/fiber-swagger/v2 v2.2.0

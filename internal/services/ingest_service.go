@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/appmetrics"
@@ -34,24 +35,23 @@ func NewIngestService(db func() *database.DBReaderWriter, log *zerolog.Logger, e
 // ProcessDeviceStatusMessages works on channel stream of messages from watermill kafka consumer
 func (i *IngestService) ProcessDeviceStatusMessages(messages <-chan *message.Message) {
 	for msg := range messages {
-		err := i.processDeviceStatus(msg)
+		err := i.processMessage(msg)
 		if err != nil {
 			i.log.Err(err).Msg("error processing smartcar ingest msg")
 		}
 	}
 }
 
-func (i *IngestService) processDeviceStatus(msg *message.Message) error {
+func (i *IngestService) processMessage(msg *message.Message) error {
 	// Keep the pipeline moving no matter what.
 	defer func() { msg.Ack() }()
 
 	defer appmetrics.SmartcarIngestTotalOps.Inc()
 
-	ctx := context.Background() // should this be passed in so can cancel if application shutting down?
 	log.Info().Msgf("Received message: %s, payload: %s", msg.UUID, string(msg.Payload))
-	e := DeviceStatusEvent{}
+	e := new(DeviceStatusEvent)
 
-	err := json.Unmarshal(msg.Payload, &e)
+	err := json.Unmarshal(msg.Payload, e)
 	if err != nil {
 		return errors.Wrap(err, "error parsing device event payload")
 	}
@@ -60,16 +60,24 @@ func (i *IngestService) processDeviceStatus(msg *message.Message) error {
 		return fmt.Errorf("received vehicle status event with unexpected type %s", e.Type)
 	}
 
-	userDeviceID := e.Subject
+	return i.processEvent(e)
+}
+
+var integrationIDregex = regexp.MustCompile("^dimo/integration/([a-zA-Z0-9]{27})$")
+
+func (i *IngestService) processEvent(event *DeviceStatusEvent) error {
+	ctx := context.Background() // should this be passed in so can cancel if application shutting down?
+
+	userDeviceID := event.Subject
 	udd := models.UserDeviceDatum{
 		UserDeviceID: userDeviceID,
-		Data:         null.JSONFrom(e.Data),
+		Data:         null.JSONFrom(event.Data),
 	}
 	whiteList := []string{"error_data", "updated_at"} // always update error_data, even if no errors so gets set to null
-	newOdometer, errOdo := extractOdometer(e.Data)
+	newOdometer, errOdo := extractOdometer(event.Data)
 	if errOdo != nil {
 		i.log.Err(errOdo).Msg("Failed to grab odometer from status update, will not update Data")
-		udd.ErrorData = null.JSONFrom(e.Data)
+		udd.ErrorData = null.JSONFrom(event.Data)
 	} else {
 		whiteList = append(whiteList, "data") // set data only if can find odometer, meaning good data
 	}
@@ -79,6 +87,26 @@ func (i *IngestService) processDeviceStatus(msg *message.Message) error {
 		return fmt.Errorf("error starting transaction: %w", err)
 	}
 	defer tx.Rollback() //nolint
+
+	match := integrationIDregex.FindStringSubmatch(event.Source)
+	if match == nil {
+		i.log.Error().Msgf("Failed to parse out integration from device status event source %q", event.Source)
+	} else {
+		integrationID := match[1]
+		udai, err := models.FindUserDeviceAPIIntegration(ctx, tx, userDeviceID, integrationID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				i.log.Err(err).Msgf("No API integration found for device %s and integration %s", userDeviceID, integrationID)
+			} else {
+				i.log.Err(err).Msg("Failed to search for device integration, cannot check status")
+			}
+		} else if udai.Status != models.UserDeviceAPIIntegrationStatusActive {
+			udai.Status = models.UserDeviceAPIIntegrationStatusActive
+			if _, err := udai.Update(ctx, tx, boil.Whitelist("status")); err != nil {
+				i.log.Err(err).Msg("Failed to update user device API integration to active")
+			}
+		}
+	}
 
 	// Horribly inefficient
 	device, err := models.UserDevices(
@@ -120,7 +148,7 @@ func (i *IngestService) processDeviceStatus(msg *message.Message) error {
 		err = i.eventService.Emit(&Event{
 			Type:    "com.dimo.zone.device.odometer.update",
 			Subject: userDeviceID,
-			Source:  e.Source, // Should be the integration
+			Source:  event.Source, // Should be the integration
 			Data: OdometerEvent{
 				Timestamp: time.Now(),
 				UserID:    device.UserID,

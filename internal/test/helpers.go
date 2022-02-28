@@ -1,4 +1,4 @@
-package controllers
+package test
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func setupDatabase(ctx context.Context, t *testing.T, migrationsDirRelPath string) (database.DbStore, *embeddedpostgres.EmbeddedPostgres) {
+func SetupDatabase(ctx context.Context, t *testing.T, migrationsDirRelPath string) (database.DbStore, *embeddedpostgres.EmbeddedPostgres) {
 	dbName := "devices_api"
 	// an issue here is that if the test panics, it won't kill the embedded db: lsof -i :6669, then kill it.
 	edb := embeddedpostgres.NewDatabase(embeddedpostgres.DefaultConfig().
@@ -60,7 +60,7 @@ func setupDatabase(ctx context.Context, t *testing.T, migrationsDirRelPath strin
 	// if we add code migrations, import: _ "github.com/DIMO-Network/devices-api/migrations"
 }
 
-func buildRequest(method, url, body string) *http.Request {
+func BuildRequest(method, url, body string) *http.Request {
 	req, _ := http.NewRequest(
 		method,
 		url,
@@ -72,7 +72,7 @@ func buildRequest(method, url, body string) *http.Request {
 }
 
 // authInjectorTestHandler injects fake jwt with sub
-func authInjectorTestHandler(userID string) fiber.Handler {
+func AuthInjectorTestHandler(userID string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 			"sub": userID,
