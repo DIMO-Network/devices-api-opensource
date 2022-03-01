@@ -17,7 +17,7 @@ import (
 
 func migrateSmartcarWebhooks(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore, oldWebhookID string) error {
 	db := pdb.DBS().Reader
-	logger.Info().Msgf("Migrating Smartcar webhooks from %q to %q", oldWebhookID, settings.SmartcarWebhookID)
+	logger.Info().Msgf("Migrating Smartcar webhooks from %s to %s", oldWebhookID, settings.SmartcarWebhookID)
 
 	httpClient := &http.Client{Timeout: 10 * time.Second}
 
@@ -66,7 +66,7 @@ func migrateSmartcarWebhooks(ctx context.Context, logger *zerolog.Logger, settin
 				Token: apiInt.RefreshToken,
 			})
 			if err != nil {
-				logger.Err(err).Msgf("Failed to exchange refresh token for device ", dimoID)
+				logger.Err(err).Msgf("Failed to exchange refresh token for device %s", dimoID)
 				continue
 			}
 			accessToken = token.Access
