@@ -68,9 +68,9 @@ func migrateSmartcarWebhooks(ctx context.Context, logger *zerolog.Logger, settin
 		}
 
 		if good {
-			success += 1
+			success++
 		} else {
-			fail += 1
+			fail++
 		}
 
 		logger.Info().Msgf("Succeed: %d, Fail: %d", success, fail)
