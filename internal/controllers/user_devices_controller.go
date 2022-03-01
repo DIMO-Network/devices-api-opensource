@@ -392,6 +392,30 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 		} else {
 			udc.log.Warn().Msgf("Don't know how to deregister integration %s for device %s", apiInteg.IntegrationID, udi)
 		}
+		err = udc.eventService.Emit(&services.Event{
+			Type:    "com.dimo.zone.device.integration.delete",
+			Source:  "devices-api",
+			Subject: udi,
+			Data: services.UserDeviceIntegrationEvent{
+				Timestamp: time.Now(),
+				UserID:    userID,
+				Device: services.UserDeviceEventDevice{
+					ID:    udi,
+					Make:  userDevice.R.DeviceDefinition.Make,
+					Model: userDevice.R.DeviceDefinition.Model,
+					Year:  int(userDevice.R.DeviceDefinition.Year),
+				},
+				Integration: services.UserDeviceEventIntegration{
+					ID:     apiInteg.R.Integration.ID,
+					Type:   apiInteg.R.Integration.Type,
+					Style:  apiInteg.R.Integration.Style,
+					Vendor: apiInteg.R.Integration.Vendor,
+				},
+			},
+		})
+		if err != nil {
+			udc.log.Err(err).Msg("Failed to emit integration deletion")
+		}
 	}
 
 	// This will delete the associated integrations as well.

@@ -206,7 +206,7 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 	case services.SmartCarVendor:
 		return udc.registerSmartcarIntegration(c, &logger, tx, userDeviceID, integrationID)
 	case "Tesla":
-		return udc.RegisterDeviceTesla(c, &logger, tx, userDeviceID, integrationID, ud)
+		return udc.RegisterDeviceTesla(c, &logger, tx, userDeviceID, integ.R.Integration, ud)
 	default:
 		logger.Error().Msg("Attempted to register an unsupported integration")
 		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("unsupported integration %s", integrationID))
@@ -264,7 +264,7 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-func (udc *UserDevicesController) RegisterDeviceTesla(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, userDeviceID, integrationID string, ud *models.UserDevice) error {
+func (udc *UserDevicesController) RegisterDeviceTesla(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, userDeviceID string, integ *models.Integration, ud *models.UserDevice) error {
 	reqBody := new(RegisterDeviceIntegrationRequest)
 	if err := c.BodyParser(reqBody); err != nil {
 		return errorResponseHandler(c, err, fiber.StatusBadRequest)
@@ -301,7 +301,7 @@ func (udc *UserDevicesController) RegisterDeviceTesla(c *fiber.Ctx, logger *zero
 
 	integration := models.UserDeviceAPIIntegration{
 		UserDeviceID:    userDeviceID,
-		IntegrationID:   integrationID,
+		IntegrationID:   integ.ID,
 		ExternalID:      null.StringFrom(reqBody.ExternalID),
 		Status:          models.UserDeviceAPIIntegrationStatusPendingFirstData,
 		AccessToken:     reqBody.AccessToken,
@@ -319,6 +319,32 @@ func (udc *UserDevicesController) RegisterDeviceTesla(c *fiber.Ctx, logger *zero
 	_, err = ud.Update(c.Context(), tx, boil.Infer())
 	if err != nil {
 		return err
+	}
+
+	err = udc.eventService.Emit(&services.Event{
+		Type:    "com.dimo.zone.device.integration.create",
+		Source:  "devices-api",
+		Subject: userDeviceID,
+		Data: services.UserDeviceIntegrationEvent{
+			Timestamp: time.Now(),
+			UserID:    ud.UserID,
+			Device: services.UserDeviceEventDevice{
+				ID:    userDeviceID,
+				Make:  ud.R.DeviceDefinition.Make,
+				Model: ud.R.DeviceDefinition.Model,
+				Year:  int(ud.R.DeviceDefinition.Year),
+				VIN:   v.VIN,
+			},
+			Integration: services.UserDeviceEventIntegration{
+				ID:     integ.ID,
+				Type:   integ.Type,
+				Style:  integ.Style,
+				Vendor: integ.Vendor,
+			},
+		},
+	})
+	if err != nil {
+		udc.log.Err(err).Msg("Failed sending device integration creation event")
 	}
 
 	if err := udc.teslaTaskService.StartPoll(v, &integration); err != nil {
