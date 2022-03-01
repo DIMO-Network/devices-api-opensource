@@ -11,6 +11,7 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/rs/zerolog"
+	smartcar "github.com/smartcar/go-sdk"
 	"github.com/volatiletech/null/v8"
 )
 
@@ -48,32 +49,35 @@ func migrateSmartcarWebhooks(ctx context.Context, logger *zerolog.Logger, settin
 		return fmt.Errorf("failed to retrieve all API integrations with external IDs and status Active: %w", err)
 	}
 
-	success := 0
-	fail := 0
+	client := smartcar.NewClient()
+	auth := client.NewAuth(&smartcar.AuthParams{
+		ClientID:     settings.SmartcarClientID,
+		ClientSecret: settings.SmartcarClientSecret,
+	})
 
 	// For each of these send a new registration message, keyed by Smartcar vehicle ID.
 	for _, apiInt := range apiInts {
-		good := true
+		dimoID := apiInt.UserDeviceID
 		vehicleID := apiInt.ExternalID.String
-		if err := oldClient.Unsubscribe(vehicleID, apiInt.AccessToken); err != nil {
-			logger.Err(err).Msgf("Failed to unsubscribe %s from the old webhook", vehicleID)
-		} else {
-			logger.Info().Msgf("Successfully unsubscribed %s from old webhook", vehicleID)
-		}
-		if err := newClient.Subscribe(vehicleID, apiInt.AccessToken); err != nil {
-			logger.Err(err).Msgf("Failed to subscribe %s to the new webhook", vehicleID)
-			good = false
-		} else {
-			logger.Info().Msgf("Successfully subscribed %s to new webhook", vehicleID)
+		accessToken := apiInt.AccessToken
+
+		if time.Until(apiInt.AccessExpiresAt) < time.Minute {
+			token, err := auth.ExchangeRefreshToken(context.Background(), &smartcar.ExchangeRefreshTokenParams{
+				Token: apiInt.RefreshToken,
+			})
+			if err != nil {
+				logger.Err(err).Msgf("Failed to exchange refresh token for device ", dimoID)
+				continue
+			}
+			accessToken = token.Access
 		}
 
-		if good {
-			success++
-		} else {
-			fail++
+		if err := oldClient.Unsubscribe(vehicleID, accessToken); err != nil {
+			logger.Err(err).Msgf("Failed to unsubscribe %s from the old webhook", dimoID)
 		}
-
-		logger.Info().Msgf("Succeed: %d, Fail: %d", success, fail)
+		if err := newClient.Subscribe(vehicleID, accessToken); err != nil {
+			logger.Err(err).Msgf("Failed to subscribe %s to the new webhook", dimoID)
+		}
 	}
 
 	return nil
