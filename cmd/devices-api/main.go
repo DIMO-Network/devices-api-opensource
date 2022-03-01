@@ -136,6 +136,15 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error running Smartcar Kafka re-registration")
 		}
+	case "migrate-smartcar-webhooks":
+		if len(os.Args[1:]) != 2 {
+			logger.Fatal().Msgf("Expected two arguments, but got %d", len(os.Args[1:]))
+		}
+		oldWebhookID := os.Args[2]
+		err = migrateSmartcarWebhooks(ctx, &logger, settings, pdb, oldWebhookID)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error running Smartcar webhook migration")
+		}
 	case "search-sync-dds":
 		logger.Info().Msg("loading device definitions from our DB to elastic cluster")
 		err := loadElasticDevices(ctx, &logger, settings, pdb)

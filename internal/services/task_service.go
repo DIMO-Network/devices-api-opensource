@@ -38,14 +38,15 @@ type ITaskService interface {
 }
 
 type TaskService struct {
-	Settings        *config.Settings
-	DBS             func() *database.DBReaderWriter
-	Log             *zerolog.Logger
-	Machinery       *machinery.Server
-	DeviceDefSvc    IDeviceDefinitionService
-	IngestRegistrar SmartcarIngestRegistrar
-	eventService    EventService
-	smartCarSvc     *SmartCarService
+	Settings              *config.Settings
+	DBS                   func() *database.DBReaderWriter
+	Log                   *zerolog.Logger
+	Machinery             *machinery.Server
+	DeviceDefSvc          IDeviceDefinitionService
+	IngestRegistrar       SmartcarIngestRegistrar
+	eventService          EventService
+	smartCarSvc           *SmartCarService
+	smartcarWebhookClient *SmartcarWebhookClient
 }
 
 const smartcarWebhookURL = "https://api.smartcar.com/v2.0/vehicles/%s/webhooks/%s"
@@ -142,44 +143,6 @@ func (s *SmartcarIngestRegistrar) Deregister(smartcarID, userDeviceID, integrati
 		return fmt.Errorf("failed sending to Kafka: %w", err)
 	}
 
-	return nil
-}
-
-func (t *TaskService) subscribeVehicle(vehicleID, accessToken string) error {
-	url := fmt.Sprintf(smartcarWebhookURL, vehicleID, t.Settings.SmartcarWebhookID)
-	req, err := http.NewRequest("POST", url, nil)
-	if err != nil {
-		return fmt.Errorf("failed to construct webhook subscription request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("SC-Unit-System", "metric")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("failure making webhook subscription request: %w", err)
-	}
-	defer resp.Body.Close() //nolint
-
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("webhook subscription request returned status code %d", resp.StatusCode)
-	}
-	return nil
-}
-
-func (t *TaskService) unsubscribeVehicle(vehicleID, accessToken string) error {
-	url := fmt.Sprintf(smartcarWebhookURL, vehicleID, t.Settings.SmartcarWebhookID)
-	req, err := http.NewRequest("DELETE", url, nil)
-	if err != nil {
-		return fmt.Errorf("failed to construct webhook deletion request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed sending webhook deletion request: %w", err)
-	}
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("webhook deletion request returned status code %d", resp.StatusCode)
-	}
 	return nil
 }
 
@@ -356,7 +319,7 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 		return fmt.Errorf("failed to emit Smartcar registration event: %w", err)
 	}
 
-	err = t.subscribeVehicle(vehicleID, integ.AccessToken)
+	err = t.smartcarWebhookClient.Subscribe(vehicleID, integ.AccessToken)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe vehicle to webhook: %w", err)
 	}
@@ -407,7 +370,7 @@ func (t *TaskService) smartcarDisconnectVehicle(userDeviceID, integrationID, ext
 		return fmt.Errorf("failed to send deregistration to ingest: %w", err)
 	}
 
-	err = t.unsubscribeVehicle(externalID, accessToken)
+	err = t.smartcarWebhookClient.Unsubscribe(externalID, accessToken)
 	if err != nil {
 		return fmt.Errorf("failed to send deletion request to Smartcar: %w", err)
 	}
@@ -661,6 +624,12 @@ func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWrit
 		IngestRegistrar: SmartcarIngestRegistrar{Producer: producer},
 		eventService:    eventService,
 		smartCarSvc:     smartCarSvc,
+		smartcarWebhookClient: &SmartcarWebhookClient{
+			HTTPClient: &http.Client{
+				Timeout: 10 * time.Second,
+			},
+			WebhookID: settings.SmartcarWebhookID,
+		},
 	}
 	err = server.RegisterTasks(map[string]interface{}{
 		smartcarConnectVehicleTask:    t.smartcarConnectVehicle,
