@@ -59,18 +59,15 @@ func migrateSmartcarWebhooks(ctx context.Context, logger *zerolog.Logger, settin
 	for _, apiInt := range apiInts {
 		dimoID := apiInt.UserDeviceID
 		vehicleID := apiInt.ExternalID.String
-		accessToken := apiInt.AccessToken
 
-		if time.Until(apiInt.AccessExpiresAt) < time.Minute {
-			token, err := auth.ExchangeRefreshToken(context.Background(), &smartcar.ExchangeRefreshTokenParams{
-				Token: apiInt.RefreshToken,
-			})
-			if err != nil {
-				logger.Err(err).Msgf("Failed to exchange refresh token for device %s", dimoID)
-				continue
-			}
-			accessToken = token.Access
+		token, err := auth.ExchangeRefreshToken(context.Background(), &smartcar.ExchangeRefreshTokenParams{
+			Token: apiInt.RefreshToken,
+		})
+		if err != nil {
+			logger.Err(err).Msgf("Failed to exchange refresh token for device %s", dimoID)
+			continue
 		}
+		accessToken := token.Access
 
 		if err := oldClient.Unsubscribe(vehicleID, accessToken); err != nil {
 			logger.Err(err).Msgf("Failed to unsubscribe %s from the old webhook", dimoID)
