@@ -370,7 +370,7 @@ func (t *TaskService) smartcarDisconnectVehicle(userDeviceID, integrationID, ext
 		return fmt.Errorf("failed to send deregistration to ingest: %w", err)
 	}
 
-	err = t.smartcarWebhookClient.Unsubscribe(externalID, accessToken)
+	err = t.smartcarWebhookClient.Unsubscribe(externalID)
 	if err != nil {
 		return fmt.Errorf("failed to send deletion request to Smartcar: %w", err)
 	}
@@ -628,7 +628,8 @@ func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWrit
 			HTTPClient: &http.Client{
 				Timeout: 10 * time.Second,
 			},
-			WebhookID: settings.SmartcarWebhookID,
+			WebhookID:       settings.SmartcarWebhookID,
+			ManagementToken: settings.SmartcarManagementToken,
 		},
 	}
 	err = server.RegisterTasks(map[string]interface{}{

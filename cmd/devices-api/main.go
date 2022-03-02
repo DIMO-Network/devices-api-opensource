@@ -147,6 +147,11 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error running Smartcar webhook migration")
 		}
+	case "refresh-smartcar-tokens":
+		err = refreshSmartcarTokens(ctx, &logger, settings, pdb)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error running Smartcar webhook migration")
+		}
 	case "search-sync-dds":
 		logger.Info().Msg("loading device definitions from our DB to elastic cluster")
 		err := loadElasticDevices(ctx, &logger, settings, pdb)

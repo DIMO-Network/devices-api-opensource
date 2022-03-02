@@ -3,34 +3,19 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
-	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/rs/zerolog"
+	smartcar "github.com/smartcar/go-sdk"
 	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
-func migrateSmartcarWebhooks(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore, oldWebhookID string) error {
-	db := pdb.DBS().Reader
-	logger.Info().Msgf("Migrating Smartcar webhooks from %s to %s", oldWebhookID, settings.SmartcarWebhookID)
-
-	httpClient := &http.Client{Timeout: 10 * time.Second}
-
-	oldClient := services.SmartcarWebhookClient{
-		HTTPClient:      httpClient,
-		WebhookID:       oldWebhookID,
-		ManagementToken: settings.SmartcarManagementToken,
-	}
-
-	newClient := services.SmartcarWebhookClient{
-		HTTPClient:      httpClient,
-		WebhookID:       settings.SmartcarWebhookID,
-		ManagementToken: settings.SmartcarManagementToken, // Won't use it here.
-	}
+func refreshSmartcarTokens(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore) error {
+	db := pdb.DBS().Writer
+	logger.Info().Msg("Refreshing Smartcar tokens")
 
 	// Grab the Smartcar integration ID, there should be exactly one.
 	var scIntID string
@@ -50,19 +35,34 @@ func migrateSmartcarWebhooks(ctx context.Context, logger *zerolog.Logger, settin
 		return fmt.Errorf("failed to retrieve all API integrations with external IDs and status Active: %w", err)
 	}
 
+	client := smartcar.NewClient()
+	auth := client.NewAuth(&smartcar.AuthParams{
+		ClientID:     settings.SmartcarClientID,
+		ClientSecret: settings.SmartcarClientSecret,
+	})
+
 	// For each of these send a new registration message, keyed by Smartcar vehicle ID.
 	for _, apiInt := range apiInts {
-		dimoID := apiInt.UserDeviceID
-		vehicleID := apiInt.ExternalID.String
-		accessToken := apiInt.AccessToken
-
-		if err := oldClient.Unsubscribe(vehicleID); err != nil {
-			logger.Err(err).Msgf("Failed to unsubscribe %s from the old webhook", dimoID)
+		token, err := auth.ExchangeRefreshToken(context.Background(), &smartcar.ExchangeRefreshTokenParams{
+			Token: apiInt.RefreshToken,
+		})
+		if err != nil {
+			logger.Err(err).Str("externalID", apiInt.ExternalID.String).Msg("Failed refreshing Smartcar token")
+			continue
 		}
-		if err := newClient.Subscribe(vehicleID, accessToken); err != nil {
-			logger.Err(err).Msgf("Failed to subscribe %s to the new webhook", dimoID)
+
+		apiInt.AccessToken = token.Access
+		apiInt.AccessExpiresAt = token.AccessExpiry
+		apiInt.RefreshToken = token.Refresh
+		apiInt.RefreshExpiresAt = null.TimeFrom(token.RefreshExpiry)
+
+		_, err = apiInt.Update(ctx, db, boil.Infer())
+		if err != nil {
+			logger.Err(err).Str("externalID", apiInt.ExternalID.String).Msgf("Failed saving new Smartcar token to database")
 		}
 	}
+
+	logger.Info().Msg("Refreshing Smartcar tokens")
 
 	return nil
 }
