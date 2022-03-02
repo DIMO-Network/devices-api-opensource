@@ -23,7 +23,7 @@ const edmundsSource = "edmunds"
 
 // loadEdmundsDeviceDefinitions default assumes an initial migration has already been done. This will only insert where
 // it doesn't find a matching styleId and MMY level id. mergeMMYMatch will lookup the definition by MMY and if find match attempt to merge instead of insert
-func loadEdmundsDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore, mergeMMYMatch bool) error {
+func loadEdmundsDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore) error {
 	//nhtsaSvc := services.NewNHTSAService()
 	//ddSvc := services.NewDeviceDefinitionService(settings, pdb.DBS, &logger, nhtsaSvc)
 	edmundsSvc := services.NewEdmundsService(settings.TorProxyURL, logger)
@@ -66,39 +66,37 @@ func loadEdmundsDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, s
 			continue
 		}
 
-		if mergeMMYMatch {
-			// lookup ilike MMY, if match, update, insert styles and continue loop
-			matchingDD, err := models.DeviceDefinitions(
-				qm.Where("year = ?", edmundVehicle.Year),
-				qm.And("make ilike ?", edmundVehicle.Make),
-				qm.And("model ilike ?", edmundVehicle.Model)).One(ctx, tx)
-			if err != nil && !errors.Is(err, sql.ErrNoRows) {
-				return errors.Wrap(err, "error querying for existing DD")
+		// lookup ilike MMY, if match, update, insert styles and continue loop, need to do this to avoid inserting duplicate MMY
+		matchingDD, err := models.DeviceDefinitions(
+			qm.Where("year = ?", edmundVehicle.Year),
+			qm.And("make ilike ?", edmundVehicle.Make),
+			qm.And("model ilike ?", edmundVehicle.Model)).One(ctx, tx)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return errors.Wrap(err, "error querying for existing DD")
+		}
+		if err == nil && matchingDD != nil {
+			// match, update it!
+			fmt.Printf("Found MMY match with: %s. dd_id: %s\n.", printMMY(matchingDD, Green, true), matchingDD.ID)
+			if matchingDD.Source.String == edmundsSource {
+				fmt.Printf("weird, MMY match but external ID's dont. existing external id: %s, edmunds model year id: %d. updating to match\n",
+					matchingDD.ExternalID.String, edmundVehicle.ModelYearID)
 			}
-			if err == nil && matchingDD != nil {
-				// match, update it!
-				fmt.Printf("Found MMY match with: %s. dd_id: %s\n.", printMMY(matchingDD, Green, true), matchingDD.ID)
-				if matchingDD.Source.String == edmundsSource {
-					fmt.Printf("weird, MMY match but external ID's dont. existing external id: %s, edmunds model year id: %d. updating to match\n",
-						matchingDD.ExternalID.String, edmundVehicle.ModelYearID)
-				}
-				matchingDD.Make = edmundVehicle.Make
-				matchingDD.Model = edmundVehicle.Model
-				matchingDD.Source = null.StringFrom(edmundsSource)
-				matchingDD.ExternalID = null.StringFrom(strconv.Itoa(edmundVehicle.ModelYearID))
-				matchingDD.Verified = true
-				_, err = matchingDD.Update(ctx, tx, boil.Infer())
-				if err != nil {
-					return errors.Wrap(err, "error updating device_definition with edmunds data")
-				}
-				// insert styles
-				err = insertStyles(ctx, logger, edmundVehicle, matchingDD.ID, tx)
-				if err != nil {
-					return errors.Wrapf(err, "error inserting styles for device_definition_id: %s", matchingDD.ID)
-				}
+			matchingDD.Make = edmundVehicle.Make
+			matchingDD.Model = edmundVehicle.Model
+			matchingDD.Source = null.StringFrom(edmundsSource)
+			matchingDD.ExternalID = null.StringFrom(strconv.Itoa(edmundVehicle.ModelYearID))
+			matchingDD.Verified = true
+			_, err = matchingDD.Update(ctx, tx, boil.Infer())
+			if err != nil {
+				return errors.Wrap(err, "error updating device_definition with edmunds data")
+			}
+			// insert styles
+			err = insertStyles(ctx, logger, edmundVehicle, matchingDD.ID, tx)
+			if err != nil {
+				return errors.Wrapf(err, "error inserting styles for device_definition_id: %s", matchingDD.ID)
+			}
 
-				continue
-			}
+			continue
 		}
 
 		// no matching style found. Insert new Device Definition

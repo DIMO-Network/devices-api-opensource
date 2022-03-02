@@ -100,12 +100,8 @@ func main() {
 			logger.Fatal().Err(err).Msg("Failed to create Tesla integrations")
 		}
 	case "edmunds-vehicles-sync":
-		mergeMMYMatch := false
-		if len(os.Args) > 2 {
-			mergeMMYMatch = os.Args[2] == "--mergemmy"
-		}
-		logger.Info().Msgf("Loading edmunds vehicles for device definitions with merge MMY match: %v", mergeMMYMatch)
-		err = loadEdmundsDeviceDefinitions(ctx, &logger, settings, pdb, mergeMMYMatch)
+		logger.Info().Msgf("Loading edmunds vehicles for device definitions and merging MMYs")
+		err = loadEdmundsDeviceDefinitions(ctx, &logger, settings, pdb)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("error trying to sync edmunds")
 		}
