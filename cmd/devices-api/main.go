@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	_ "github.com/DIMO-Network/devices-api/docs"
@@ -265,10 +267,20 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	// v1.Post("/admin/user/:user_id/devices", userDeviceControllers.AdminRegisterUserDevice)
 
 	logger.Info().Msg("Server started on port " + settings.Port)
-	// Start Server
-	if err := app.Listen(":" + settings.Port); err != nil {
-		logger.Fatal().Err(err)
-	}
+	// Start Server from a different go routine
+	go func() {
+		if err := app.Listen(":" + settings.Port); err != nil {
+			logger.Fatal().Err(err)
+		}
+	}()
+	c := make(chan os.Signal, 1)                    // Create channel to signify a signal being sent with length of 1
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM) // When an interrupt or termination signal is sent, notify the channel
+	<-c                                             // This blocks the main thread until an interrupt is received
+	logger.Info().Msg("Gracefully shutting down and running cleanup tasks...")
+	_ = app.Shutdown()
+	_ = pdb.DBS().Writer.Close()
+	_ = pdb.DBS().Reader.Close()
+	_ = producer.Close()
 }
 
 func healthCheck(c *fiber.Ctx) error {
