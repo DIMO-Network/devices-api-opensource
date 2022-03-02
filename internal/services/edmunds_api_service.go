@@ -142,7 +142,7 @@ func (e *EdmundsService) buildAndExecuteRequest(url string, torProxyURL string) 
 
 	for _, backoff := range backoffSchedule {
 		resp, err = executeRequestWithTor(torProxyURL, req)
-		if resp != nil && resp.StatusCode == fiber.StatusOK && err == nil {
+		if resp != nil && resp.StatusCode == http.StatusOK && err == nil {
 			break
 		}
 		// control for err or resp being nil to log message.

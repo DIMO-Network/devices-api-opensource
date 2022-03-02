@@ -39,6 +39,7 @@ type Settings struct {
 	ElasticSearchAnalyticsUsername string `yaml:"ELASTIC_SEARCH_ANALYTICS_USERNAME"`
 	ElasticSearchAnalyticsPassword string `yaml:"ELASTIC_SEARCH_ANALYTICS_PASSWORD"`
 	DeviceDataIndexName            string `yaml:"DEVICE_DATA_INDEX_NAME"`
+	AutoPiAPIToken                 string `yaml:"AUTO_PI_API_TOKEN"`
 }
 
 // GetWriterDSN builds the connection string to the db writer - for now same as reader

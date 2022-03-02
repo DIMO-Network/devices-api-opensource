@@ -74,3 +74,16 @@ func NewDeviceDefinitionFromNHTSA(decodedVin *NHTSADecodeVINResponse) DeviceDefi
 
 	return dd
 }
+
+type VehicleDriveType string
+
+const (
+	ICE  VehicleDriveType = "ICE"
+	HEV  VehicleDriveType = "HEV"
+	PHEV VehicleDriveType = "PHEV"
+	BEV  VehicleDriveType = "BEV"
+)
+
+func (v VehicleDriveType) String() string {
+	return string(v)
+}
