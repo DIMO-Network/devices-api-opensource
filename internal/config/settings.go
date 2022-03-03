@@ -32,6 +32,7 @@ type Settings struct {
 	PrivacyFenceTopic              string `yaml:"PRIVACY_FENCE_TOPIC"`
 	TaskRunNowTopic                string `yaml:"TASK_RUN_NOW_TOPIC"`
 	TaskStopTopic                  string `yaml:"TASK_STOP_TOPIC"`
+	TaskCredentialTopic            string `yaml:"TASK_CREDENTIAL_TOPIC"`
 	EventsTopic                    string `yaml:"EVENTS_TOPIC"`
 	ElasticSearchAppSearchHost     string `yaml:"ELASTIC_SEARCH_APP_SEARCH_HOST"`
 	ElasticSearchAppSearchToken    string `yaml:"ELASTIC_SEARCH_APP_SEARCH_TOKEN"`
@@ -39,6 +40,8 @@ type Settings struct {
 	ElasticSearchAnalyticsUsername string `yaml:"ELASTIC_SEARCH_ANALYTICS_USERNAME"`
 	ElasticSearchAnalyticsPassword string `yaml:"ELASTIC_SEARCH_ANALYTICS_PASSWORD"`
 	DeviceDataIndexName            string `yaml:"DEVICE_DATA_INDEX_NAME"`
+	AWSRegion                      string `yaml:"AWS_REGION"`
+	KMSKeyID                       string `yaml:"KMS_KEY_ID"`
 	AutoPiAPIToken                 string `yaml:"AUTO_PI_API_TOKEN"`
 	SmartcarManagementToken        string `yaml:"SMARTCAR_MANAGEMENT_TOKEN"`
 }

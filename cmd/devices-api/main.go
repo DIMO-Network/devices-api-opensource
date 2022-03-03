@@ -21,6 +21,9 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/ansrivas/fiberprometheus/v2"
 	swagger "github.com/arsmn/fiber-swagger/v2"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -185,6 +188,15 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		DisableStartupMessage: true,
 		ReadBufferSize:        16000,
 	})
+
+	var encrypter services.Encrypter
+	if settings.Environment == "dev" || settings.Environment == "prod" {
+		encrypter = createKMS(settings, &logger)
+	} else {
+		logger.Warn().Msg("Using ROT13 encrypter. Only use this for testing!")
+		encrypter = new(services.ROT13Encrypter)
+	}
+
 	nhtsaSvc := services.NewNHTSAService()
 	ddSvc := services.NewDeviceDefinitionService(settings, pdb.DBS, &logger, nhtsaSvc)
 	smartCarSvc := services.NewSmartCarService(pdb.DBS, logger)
@@ -193,7 +205,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	teslaSvc := services.NewTeslaService(settings)
 	taskSvc := services.NewTaskService(settings, pdb.DBS, ddSvc, eventService, &logger, producer, &smartCarSvc)
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc)
-	userDeviceControllers := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService, smartcarClient, teslaSvc, teslaTaskService)
+	userDeviceControllers := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService, smartcarClient, teslaSvc, teslaTaskService, encrypter)
 	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer)
 	deviceDataController := controllers.NewDeviceDataController(settings, pdb.DBS, &logger)
 
@@ -294,6 +306,18 @@ func healthCheck(c *fiber.Ctx) error {
 	}
 
 	return nil
+}
+
+func createKMS(settings *config.Settings, logger *zerolog.Logger) services.Encrypter {
+	// Need AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to be set.
+	sess := session.Must(session.NewSession(&aws.Config{
+		Region: aws.String(settings.AWSRegion),
+	}))
+
+	return &services.KMSEncrypter{
+		KeyID:  settings.KMSKeyID,
+		Client: kms.New(sess),
+	}
 }
 
 func changeLogLevel(c *fiber.Ctx) error {

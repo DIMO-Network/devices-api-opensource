@@ -199,6 +199,13 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 		return err
 	}
 
+	if exists, err := models.UserDeviceAPIIntegrationExists(c.Context(), tx, userDeviceID, integrationID); err != nil {
+		logger.Err(err).Msg("Unexpected database error looking for existing instance of integration")
+		return err
+	} else if exists {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("device %s already has a registration with integration %s, please delete that first", userDeviceID, integrationID))
+	}
+
 	// In anticipation of a bunch more of these. Maybe move to a real internal integration registry.
 	// The per-integration handler is responsible for handling the fiber context and committing the
 	// transaction.
@@ -217,13 +224,6 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 	reqBody := new(RegisterDeviceIntegrationRequest)
 	if err := c.BodyParser(reqBody); err != nil {
 		return errorResponseHandler(c, err, fiber.StatusBadRequest)
-	}
-
-	if exists, err := models.UserDeviceAPIIntegrationExists(c.Context(), tx, userDeviceID, integrationID); err != nil {
-		logger.Err(err).Msg("Unexpected database error looking for existing instance of integration")
-		return err
-	} else if exists {
-		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("device %s already has a registration with integration %s, please delete that first", userDeviceID, integrationID))
 	}
 
 	token, err := udc.smartcarClient.ExchangeCode(c.Context(), reqBody.Code, reqBody.RedirectURI)
@@ -264,6 +264,8 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+var opaqueInternalError = fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+
 func (udc *UserDevicesController) RegisterDeviceTesla(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, userDeviceID string, integ *models.Integration, ud *models.UserDevice) error {
 	reqBody := new(RegisterDeviceIntegrationRequest)
 	if err := c.BodyParser(reqBody); err != nil {
@@ -299,14 +301,26 @@ func (udc *UserDevicesController) RegisterDeviceTesla(c *fiber.Ctx, logger *zero
 		}
 	}
 
+	encAccessToken, err := udc.encrypter.Encrypt(reqBody.AccessToken)
+	if err != nil {
+		logger.Err(err).Msg("Failed encrypting access token")
+		return opaqueInternalError
+	}
+
+	encRefreshToken, err := udc.encrypter.Encrypt(reqBody.RefreshToken)
+	if err != nil {
+		logger.Err(err).Msg("Failed encrypting refresh token")
+		return opaqueInternalError
+	}
+
 	integration := models.UserDeviceAPIIntegration{
 		UserDeviceID:    userDeviceID,
 		IntegrationID:   integ.ID,
 		ExternalID:      null.StringFrom(reqBody.ExternalID),
 		Status:          models.UserDeviceAPIIntegrationStatusPendingFirstData,
-		AccessToken:     reqBody.AccessToken,
+		AccessToken:     encAccessToken,
 		AccessExpiresAt: time.Now().Add(time.Duration(reqBody.ExpiresIn) * time.Second),
-		RefreshToken:    reqBody.RefreshToken,
+		RefreshToken:    encRefreshToken, // Don't know when this expires.
 	}
 
 	if err := integration.Insert(c.Context(), tx, boil.Infer()); err != nil {
@@ -354,6 +368,8 @@ func (udc *UserDevicesController) RegisterDeviceTesla(c *fiber.Ctx, logger *zero
 	if err := tx.Commit(); err != nil {
 		return err
 	}
+
+	logger.Info().Msg("Finished Tesla device registration")
 
 	return c.SendStatus(fiber.StatusNoContent)
 }

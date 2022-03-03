@@ -45,7 +45,6 @@ type TeslaTask struct {
 	UserDeviceID   string           `json:"userDeviceId"`
 	IntegrationID  string           `json:"integrationId"`
 	Identifiers    TeslaIdentifiers `json:"identifiers"`
-	Credentials    TeslaCredentials `json:"credentials"`
 	ActiveLastPoll bool             `json:"activeLastPoll"`
 }
 
@@ -62,6 +61,11 @@ type CloudEventHeaders struct {
 type TeslaTaskCloudEvent struct {
 	CloudEventHeaders
 	Data TeslaTask `json:"data"`
+}
+
+type TeslaCredentialsCloudEvent struct {
+	CloudEventHeaders
+	Data TeslaCredentials `json:"data"`
 }
 
 func (t *teslaTaskService) StartPoll(vehicle *TeslaVehicle, udai *models.UserDeviceAPIIntegration) error {
@@ -81,12 +85,23 @@ func (t *teslaTaskService) StartPoll(vehicle *TeslaVehicle, udai *models.UserDev
 				ID:        vehicle.ID,
 				VehicleID: vehicle.VehicleID,
 			},
-			Credentials: TeslaCredentials{
-				OwnerAccessToken:          udai.AccessToken,
-				OwnerAccessTokenExpiresAt: udai.AccessExpiresAt,
-				AuthRefreshToken:          udai.RefreshToken,
-			},
 			ActiveLastPoll: false,
+		},
+	}
+
+	tc := TeslaCredentialsCloudEvent{
+		CloudEventHeaders: CloudEventHeaders{
+			ID:          ksuid.New().String(),
+			Source:      "dimo/integration/" + udai.IntegrationID,
+			SpecVersion: "1.0",
+			Subject:     udai.UserDeviceID,
+			Time:        time.Now(),
+			Type:        "zone.dimo.task.tesla.poll.credential",
+		},
+		Data: TeslaCredentials{
+			OwnerAccessToken:          udai.AccessToken,
+			OwnerAccessTokenExpiresAt: udai.AccessExpiresAt,
+			AuthRefreshToken:          udai.RefreshToken,
 		},
 	}
 
@@ -97,11 +112,25 @@ func (t *teslaTaskService) StartPoll(vehicle *TeslaVehicle, udai *models.UserDev
 		return err
 	}
 
-	_, _, err = t.Producer.SendMessage(&sarama.ProducerMessage{
-		Topic: t.Settings.TaskRunNowTopic,
-		Key:   sarama.StringEncoder(taskKey),
-		Value: sarama.ByteEncoder(ttb),
-	})
+	tcb, err := json.Marshal(tc)
+	if err != nil {
+		return err
+	}
+
+	err = t.Producer.SendMessages(
+		[]*sarama.ProducerMessage{
+			{
+				Topic: t.Settings.TaskRunNowTopic,
+				Key:   sarama.StringEncoder(taskKey),
+				Value: sarama.ByteEncoder(ttb),
+			},
+			{
+				Topic: t.Settings.TaskCredentialTopic,
+				Key:   sarama.StringEncoder(taskKey),
+				Value: sarama.ByteEncoder(tcb),
+			},
+		},
+	)
 
 	return err
 }
@@ -131,11 +160,20 @@ func (t *teslaTaskService) StopPoll(udai *models.UserDeviceAPIIntegration) error
 		return err
 	}
 
-	_, _, err = t.Producer.SendMessage(&sarama.ProducerMessage{
-		Topic: t.Settings.TaskStopTopic,
-		Key:   sarama.StringEncoder(taskKey),
-		Value: sarama.ByteEncoder(ttb),
-	})
+	err = t.Producer.SendMessages(
+		[]*sarama.ProducerMessage{
+			{
+				Topic: t.Settings.TaskStopTopic,
+				Key:   sarama.StringEncoder(taskKey),
+				Value: sarama.ByteEncoder(ttb),
+			},
+			{
+				Topic: t.Settings.TaskCredentialTopic,
+				Key:   sarama.StringEncoder(taskKey),
+				Value: nil,
+			},
+		},
+	)
 
 	return err
 }

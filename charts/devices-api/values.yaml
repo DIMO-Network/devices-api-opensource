@@ -44,9 +44,11 @@ env:
   KAFKA_BROKERS: kafka-dev-dimo-kafka-kafka-brokers:9092
   DEVICE_STATUS_TOPIC: topic.device.status
   TASK_STOP_TOPIC: table.task.stop
+  TASK_CREDENTIAL_TOPIC: table.task.credential
   PRIVACY_FENCE_TOPIC: table.device.privacyfence
   EVENTS_TOPIC: topic.event
   DEVICE_DATA_INDEX_NAME: device-status-dev*
+  AWS_REGION: us-east-2
 service:
   type: ClusterIP
   ports:

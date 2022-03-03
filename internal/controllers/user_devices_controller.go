@@ -30,10 +30,11 @@ type UserDevicesController struct {
 	smartcarClient   services.SmartcarClient
 	teslaService     services.TeslaService
 	teslaTaskService services.TeslaTaskService
+	encrypter        services.Encrypter
 }
 
 // NewUserDevicesController constructor
-func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc services.ITaskService, eventService services.EventService, smartcarClient services.SmartcarClient, teslaSvc services.TeslaService, teslaTaskService services.TeslaTaskService) UserDevicesController {
+func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc services.ITaskService, eventService services.EventService, smartcarClient services.SmartcarClient, teslaSvc services.TeslaService, teslaTaskService services.TeslaTaskService, encrypter services.Encrypter) UserDevicesController {
 	return UserDevicesController{
 		Settings:         settings,
 		DBS:              dbs,
@@ -44,6 +45,7 @@ func NewUserDevicesController(settings *config.Settings, dbs func() *database.DB
 		smartcarClient:   smartcarClient,
 		teslaService:     teslaSvc,
 		teslaTaskService: teslaTaskService,
+		encrypter:        encrypter,
 	}
 }
 
