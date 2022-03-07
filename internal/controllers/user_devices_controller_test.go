@@ -393,6 +393,7 @@ func TestUserDevicesController(t *testing.T) {
 			VehicleID: 223,
 			VIN:       "5YJ3E1EA1KF064316",
 		}, nil)
+		teslaSvc.EXPECT().WakeUpVehicle("abc", 1145).Return(nil)
 		expectedExpiry := time.Now().Add(10 * time.Minute)
 		response, _ := app.Test(request)
 		assert.Equal(t, fiber.StatusNoContent, response.StatusCode, "should return success")

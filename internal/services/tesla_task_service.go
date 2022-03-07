@@ -42,10 +42,10 @@ type TeslaCredentials struct {
 }
 
 type TeslaTask struct {
-	UserDeviceID   string           `json:"userDeviceId"`
-	IntegrationID  string           `json:"integrationId"`
-	Identifiers    TeslaIdentifiers `json:"identifiers"`
-	ActiveLastPoll bool             `json:"activeLastPoll"`
+	UserDeviceID       string           `json:"userDeviceId"`
+	IntegrationID      string           `json:"integrationId"`
+	Identifiers        TeslaIdentifiers `json:"identifiers"`
+	OnlineIdleLastPoll bool             `json:"onlineIdleLastPoll"`
 }
 
 // CloudEventHeaders contains the fields common to all CloudEvent messages.
@@ -85,7 +85,7 @@ func (t *teslaTaskService) StartPoll(vehicle *TeslaVehicle, udai *models.UserDev
 				ID:        vehicle.ID,
 				VehicleID: vehicle.VehicleID,
 			},
-			ActiveLastPoll: false,
+			OnlineIdleLastPoll: false,
 		},
 	}
 

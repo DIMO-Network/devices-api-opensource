@@ -48,3 +48,17 @@ func (mr *MockTeslaServiceMockRecorder) GetVehicle(ownerAccessToken, id interfac
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVehicle", reflect.TypeOf((*MockTeslaService)(nil).GetVehicle), ownerAccessToken, id)
 }
+
+// WakeUpVehicle mocks base method.
+func (m *MockTeslaService) WakeUpVehicle(ownerAccessToken string, id int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WakeUpVehicle", ownerAccessToken, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// WakeUpVehicle indicates an expected call of WakeUpVehicle.
+func (mr *MockTeslaServiceMockRecorder) WakeUpVehicle(ownerAccessToken, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WakeUpVehicle", reflect.TypeOf((*MockTeslaService)(nil).WakeUpVehicle), ownerAccessToken, id)
+}

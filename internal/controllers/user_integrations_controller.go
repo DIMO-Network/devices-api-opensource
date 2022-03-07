@@ -275,7 +275,7 @@ func (udc *UserDevicesController) RegisterDeviceTesla(c *fiber.Ctx, logger *zero
 	// We'll use this to kick off the job
 	teslaID, err := strconv.Atoi(reqBody.ExternalID)
 	if err != nil {
-		return err
+		return fiber.NewError(fiber.StatusBadRequest, "externalId for Tesla must be a positive integer")
 	}
 	v, err := udc.teslaService.GetVehicle(reqBody.AccessToken, teslaID)
 	if err != nil {
@@ -358,7 +358,11 @@ func (udc *UserDevicesController) RegisterDeviceTesla(c *fiber.Ctx, logger *zero
 		},
 	})
 	if err != nil {
-		udc.log.Err(err).Msg("Failed sending device integration creation event")
+		logger.Err(err).Msg("Failed sending device integration creation event")
+	}
+
+	if err := udc.teslaService.WakeUpVehicle(reqBody.AccessToken, teslaID); err != nil {
+		logger.Err(err).Msg("Failed waking up device")
 	}
 
 	if err := udc.teslaTaskService.StartPoll(v, &integration); err != nil {
