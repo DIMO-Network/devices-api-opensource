@@ -56,6 +56,8 @@ func refreshSmartcarTokens(ctx context.Context, logger *zerolog.Logger, settings
 		apiInt.RefreshToken = token.Refresh
 		apiInt.RefreshExpiresAt = null.TimeFrom(token.RefreshExpiry)
 
+		logger.Info().Str("userDeviceId", apiInt.UserDeviceID).Str("refreshToken", token.Refresh).Msg("Refresh succeeded")
+
 		_, err = apiInt.Update(ctx, db, boil.Infer())
 		if err != nil {
 			logger.Err(err).Str("externalID", apiInt.ExternalID.String).Msgf("Failed saving new Smartcar token to database")
