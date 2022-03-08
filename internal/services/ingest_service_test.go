@@ -83,7 +83,7 @@ func TestIngestDeviceStatus(t *testing.T) {
 		Type:        deviceStatusEventType,
 		Data:        json.RawMessage(`{"odometer": 45.1}`),
 	})
-	assert.NotNil(t, err, "expected no errors from first status event")
+	assert.Nil(t, err, "expected no errors from first status event")
 
 	newUDAI, _ := models.FindUserDeviceAPIIntegration(ctx, pdb.DBS().Writer, ud.ID, scIntegration.ID)
 
@@ -102,7 +102,7 @@ func TestIngestDeviceStatus(t *testing.T) {
 		Type:        deviceStatusEventType,
 		Data:        json.RawMessage(`{"odometer": 55.2}`),
 	})
-	assert.NotNil(t, err, "expected no errors from second status event")
+	assert.Nil(t, err, "expected no errors from second status event")
 
 	assert.Equal(t, 55.2, mes.Buffer[1].Data.(OdometerEvent).Odometer)
 
