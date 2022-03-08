@@ -108,12 +108,6 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("error trying to sync edmunds")
 		}
-	case "edmunds-cli-migrator":
-		logger.Info().Msg("starting edmunds CLI migration tool. Recommend having your DB view open.")
-		err = mergeEdmundsDefinitions(ctx, &logger, settings, pdb)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("error trying to run migrator tool")
-		}
 	case "smartcar-compatibility":
 		logger.Info().Msg("starting smartcar compatibility equalizer check to set smartcar compat forwards")
 		err = smartCarForwardCompatibility(ctx, logger, pdb)

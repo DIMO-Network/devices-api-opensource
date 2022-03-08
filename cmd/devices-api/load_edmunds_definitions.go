@@ -27,6 +27,7 @@ func loadEdmundsDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, s
 	//nhtsaSvc := services.NewNHTSAService()
 	//ddSvc := services.NewDeviceDefinitionService(settings, pdb.DBS, &logger, nhtsaSvc)
 	edmundsSvc := services.NewEdmundsService(settings.TorProxyURL, logger)
+	deviceDefSvc := services.NewDeviceDefinitionService(nil, pdb.DBS, logger, nil)
 
 	latestEdmunds, err := edmundsSvc.GetFlattenedVehicles()
 	if err != nil {
@@ -67,13 +68,15 @@ func loadEdmundsDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, s
 		}
 
 		// lookup ilike MMY, if match, update, insert styles and continue loop, need to do this to avoid inserting duplicate MMY
-		matchingDD, err := models.DeviceDefinitions(
-			qm.Where("year = ?", edmundVehicle.Year),
-			qm.And("make ilike ?", edmundVehicle.Make),
-			qm.And("model ilike ?", edmundVehicle.Model)).One(ctx, tx)
+		matchingDD, err := deviceDefSvc.FindDeviceDefinitionByMMY(ctx, tx, edmundVehicle.Make, edmundVehicle.Model, edmundVehicle.Year, false)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return errors.Wrap(err, "error querying for existing DD")
 		}
+		dm, err := deviceDefSvc.GetOrCreateMake(ctx, tx, edmundVehicle.Make)
+		if err != nil {
+			return errors.Wrap(err, "error quering for make")
+		}
+
 		if err == nil && matchingDD != nil {
 			// match, update it!
 			fmt.Printf("Found MMY match with: %s. dd_id: %s\n.", printMMY(matchingDD, Green, true), matchingDD.ID)
@@ -81,7 +84,8 @@ func loadEdmundsDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, s
 				fmt.Printf("weird, MMY match but external ID's dont. existing external id: %s, edmunds model year id: %d. updating to match\n",
 					matchingDD.ExternalID.String, edmundVehicle.ModelYearID)
 			}
-			matchingDD.Make = edmundVehicle.Make
+
+			matchingDD.DeviceMakeID = dm.ID
 			matchingDD.Model = edmundVehicle.Model
 			matchingDD.Source = null.StringFrom(edmundsSource)
 			matchingDD.ExternalID = null.StringFrom(strconv.Itoa(edmundVehicle.ModelYearID))
@@ -101,13 +105,13 @@ func loadEdmundsDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, s
 
 		// no matching style found. Insert new Device Definition
 		newDD := models.DeviceDefinition{
-			ID:         ksuid.New().String(),
-			Make:       edmundVehicle.Make,
-			Model:      edmundVehicle.Model,
-			Year:       int16(edmundVehicle.Year),
-			Source:     null.StringFrom(edmundsSource),
-			Verified:   true,
-			ExternalID: null.StringFrom(strconv.Itoa(edmundVehicle.ModelYearID)),
+			ID:           ksuid.New().String(),
+			DeviceMakeID: dm.ID,
+			Model:        edmundVehicle.Model,
+			Year:         int16(edmundVehicle.Year),
+			Source:       null.StringFrom(edmundsSource),
+			Verified:     true,
+			ExternalID:   null.StringFrom(strconv.Itoa(edmundVehicle.ModelYearID)),
 		}
 		err = newDD.Insert(ctx, tx, boil.Infer())
 		if err != nil {

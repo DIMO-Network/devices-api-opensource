@@ -41,9 +41,9 @@ func TestDevicesController(t *testing.T) {
 		Logger()
 
 	ctx := context.Background()
-	pdb, database := test.SetupDatabase(ctx, t, migrationsDirRelPath)
+	pdb, db := test.SetupDatabase(ctx, t, migrationsDirRelPath)
 	defer func() {
-		if err := database.Stop(); err != nil {
+		if err := db.Stop(); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -57,14 +57,20 @@ func TestDevicesController(t *testing.T) {
 	app.Get("/device-definitions/:id/integrations", c.GetIntegrationsByID)
 
 	createdID := ksuid.New().String()
-	dbDeviceDef := models.DeviceDefinition{
-		ID:       createdID,
-		Make:     "TESLA",
-		Model:    "MODEL Y",
-		Year:     2020,
-		Verified: true,
+	dbMake := models.DeviceMake{
+		ID:   ksuid.New().String(),
+		Name: "TESLA",
 	}
-	dbErr := dbDeviceDef.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+	dbErr := dbMake.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+	assert.NoError(t, dbErr)
+	dbDeviceDef := models.DeviceDefinition{
+		ID:           createdID,
+		DeviceMakeID: dbMake.ID,
+		Model:        "MODEL Y",
+		Year:         2020,
+		Verified:     true,
+	}
+	dbErr = dbDeviceDef.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 	assert.NoError(t, dbErr)
 	fmt.Println("created device def id: " + createdID)
 
@@ -122,12 +128,16 @@ func TestDevicesController(t *testing.T) {
 }
 
 func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
+	dbMake := &models.DeviceMake{
+		ID:   ksuid.New().String(),
+		Name: "Mercedes",
+	}
 	dbDevice := models.DeviceDefinition{
-		ID:       "123",
-		Make:     "Merc",
-		Model:    "R500",
-		Year:     2020,
-		Metadata: null.JSONFrom([]byte(`{"vehicle_info": {"fuel_type": "gas", "driven_wheels": "4", "number_of_doors":"5" } }`)),
+		ID:           "123",
+		DeviceMakeID: dbMake.ID,
+		Model:        "R500",
+		Year:         2020,
+		Metadata:     null.JSONFrom([]byte(`{"vehicle_info": {"fuel_type": "gas", "driven_wheels": "4", "number_of_doors":"5" } }`)),
 	}
 	ds := models.DeviceStyle{
 		SubModel:           "AMG",
@@ -148,6 +158,7 @@ func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
 		Vendor: "Autopi",
 	}
 	dbDevice.R = dbDevice.R.NewStruct()
+	dbDevice.R.DeviceMake = dbMake
 	dbDevice.R.DeviceIntegrations = append(dbDevice.R.DeviceIntegrations, &di)
 	dbDevice.R.DeviceStyles = append(dbDevice.R.DeviceStyles, &ds)
 	dd := NewDeviceDefinitionFromDatabase(&dbDevice)
@@ -158,32 +169,10 @@ func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
 	assert.Equal(t, "5", dd.VehicleInfo.NumberOfDoors)
 	assert.Equal(t, "Vehicle", dd.Type.Type)
 	assert.Equal(t, 2020, dd.Type.Year)
-	assert.Equal(t, "Merc", dd.Type.Make)
+	assert.Equal(t, "Mercedes", dd.Type.Make)
 	assert.Equal(t, "R500", dd.Type.Model)
 	assert.Contains(t, dd.Type.SubModels, "AMG")
 
 	assert.Len(t, dd.CompatibleIntegrations, 1)
 	assert.Equal(t, "Autopi", dd.CompatibleIntegrations[0].Vendor)
-}
-
-func TestNewDbModelFromDeviceDefinition(t *testing.T) {
-	dd := services.DeviceDefinition{
-		Type: services.DeviceType{
-			Type:  "Vehicle",
-			Make:  "Merc",
-			Model: "R500",
-			Year:  2020,
-		},
-		VehicleInfo: services.DeviceVehicleInfo{
-			FuelType:      "gas",
-			DrivenWheels:  "4",
-			NumberOfDoors: "5",
-		},
-	}
-	dbDevice := NewDbModelFromDeviceDefinition(dd, nil)
-
-	assert.Equal(t, "R500", dbDevice.Model)
-	assert.Equal(t, "Merc", dbDevice.Make)
-	assert.Equal(t, int16(2020), dbDevice.Year)
-	assert.Equal(t, `{"vehicle_info":{"fuel_type":"gas","driven_wheels":"4","number_of_doors":"5"}}`, string(dbDevice.Metadata.JSON))
 }

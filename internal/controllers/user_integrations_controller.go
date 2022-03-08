@@ -69,6 +69,7 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 		models.UserDeviceWhere.UserID.EQ(userID),
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
 		qm.Load(models.UserDeviceRels.DeviceDefinition),
+		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
 	).One(c.Context(), tx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -126,7 +127,7 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 			UserID:    userID,
 			Device: services.UserDeviceEventDevice{
 				ID:    userDeviceID,
-				Make:  device.R.DeviceDefinition.Make,
+				Make:  device.R.DeviceDefinition.R.DeviceMake.Name,
 				Model: device.R.DeviceDefinition.Model,
 				Year:  int(device.R.DeviceDefinition.Year),
 			},
@@ -344,7 +345,7 @@ func (udc *UserDevicesController) RegisterDeviceTesla(c *fiber.Ctx, logger *zero
 			UserID:    ud.UserID,
 			Device: services.UserDeviceEventDevice{
 				ID:    userDeviceID,
-				Make:  ud.R.DeviceDefinition.Make,
+				Make:  "Tesla", // this method is specific to Tesla so ok to hardcode
 				Model: ud.R.DeviceDefinition.Model,
 				Year:  int(ud.R.DeviceDefinition.Year),
 				VIN:   v.VIN,

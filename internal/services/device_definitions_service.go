@@ -2,12 +2,16 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"sort"
+	"strings"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/segmentio/ksuid"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -21,6 +25,7 @@ type IDeviceDefinitionService interface {
 	FindDeviceDefinitionByMMY(ctx context.Context, db boil.ContextExecutor, mk, model string, year int, loadIntegrations bool) (*models.DeviceDefinition, error)
 	CheckAndSetImage(dd *models.DeviceDefinition, overwrite bool) error
 	UpdateDeviceDefinitionFromNHTSA(ctx context.Context, deviceDefinitionID string, vin string) error
+	GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*models.DeviceMake, error)
 }
 
 type DeviceDefinitionService struct {
@@ -37,14 +42,16 @@ func NewDeviceDefinitionService(settings *config.Settings, DBS func() *database.
 // FindDeviceDefinitionByMMY builds and execs query to find device definition for MMY, returns db object and db error if occurs. if db tx is nil, just uses one from service, useful for tx
 func (d *DeviceDefinitionService) FindDeviceDefinitionByMMY(ctx context.Context, tx boil.ContextExecutor, mk, model string, year int, loadIntegrations bool) (*models.DeviceDefinition, error) {
 	qms := []qm.QueryMod{
-		qm.Where("make ilike ?", mk),
+		qm.InnerJoin("device_makes dm on dm.id = device_definitions.device_make_id"),
+		qm.Where("dm.name ilike ?", mk),
 		qm.And("model ilike ?", model),
-		qm.And("year = ?", year),
+		models.DeviceDefinitionWhere.Year.EQ(int16(year)),
+		qm.Load(models.DeviceDefinitionRels.DeviceMake),
 	}
 	if loadIntegrations {
 		qms = append(qms,
 			qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
-			qm.Load("DeviceIntegrations.Integration"))
+			qm.Load(qm.Rels(models.DeviceDefinitionRels.DeviceIntegrations, models.DeviceIntegrationRels.Integration)))
 	}
 
 	query := models.DeviceDefinitions(qms...)
@@ -58,12 +65,39 @@ func (d *DeviceDefinitionService) FindDeviceDefinitionByMMY(ctx context.Context,
 	return dd, nil
 }
 
+// GetOrCreateMake gets the make from the db or creates it if not found. optional tx - if not passed in uses db writer
+func (d *DeviceDefinitionService) GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*models.DeviceMake, error) {
+	if tx == nil {
+		tx = d.DBS().Writer
+	}
+	m, err := models.DeviceMakes(models.DeviceMakeWhere.Name.EQ(strings.TrimSpace(makeName))).One(ctx, tx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// create
+			m = &models.DeviceMake{
+				ID:   ksuid.New().String(),
+				Name: makeName,
+			}
+			err = m.Insert(ctx, tx, boil.Infer())
+			if err != nil {
+				return nil, errors.Wrapf(err, "error inserting make: %s", makeName)
+			}
+			return m, nil
+		}
+		return nil, errors.Wrapf(err, "error querying for make: %s", makeName)
+	}
+	return m, nil
+}
+
 // CheckAndSetImage just checks if the device definitions has an image set, and if not gets it from edmunds and sets it. does not update DB. This process could take a few seconds.
 func (d *DeviceDefinitionService) CheckAndSetImage(dd *models.DeviceDefinition, overwrite bool) error {
 	if !overwrite && dd.ImageURL.Valid {
 		return nil
 	}
-	img, err := d.EdmundsSvc.GetDefaultImageForMMY(dd.Make, dd.Model, int(dd.Year))
+	if dd.R.DeviceMake == nil {
+		return errors.New("device make relation is required in dd.R.DeviceMake")
+	}
+	img, err := d.EdmundsSvc.GetDefaultImageForMMY(dd.R.DeviceMake.Name, dd.Model, int(dd.Year))
 	if err != nil {
 		return err
 	}
@@ -84,7 +118,7 @@ func (d *DeviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Co
 		return err
 	}
 	dd := NewDeviceDefinitionFromNHTSA(nhtsaDecode)
-	if dd.Type.Make == dbDeviceDef.Make && dd.Type.Model == dbDeviceDef.Model && int16(dd.Type.Year) == dbDeviceDef.Year {
+	if dd.Type.Make == dbDeviceDef.R.DeviceMake.Name && dd.Type.Model == dbDeviceDef.Model && int16(dd.Type.Year) == dbDeviceDef.Year {
 		if !(dbDeviceDef.Verified && dbDeviceDef.Source.String == "NHTSA") {
 			// update our device definition metadata `vehicle_info` with latest from nhtsa
 			err = dbDeviceDef.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dd.VehicleInfo})

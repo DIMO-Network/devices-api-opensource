@@ -35,7 +35,8 @@ func loadElasticDevices(ctx context.Context, logger *zerolog.Logger, settings *c
 
 	// get all devices from DB.
 	all, err := models.DeviceDefinitions(models.DeviceDefinitionWhere.Verified.EQ(true),
-		qm.Load(models.DeviceDefinitionRels.DeviceStyles)).All(ctx, pdb.DBS().Reader)
+		qm.Load(models.DeviceDefinitionRels.DeviceStyles),
+		qm.Load(models.DeviceDefinitionRels.DeviceMake)).All(ctx, pdb.DBS().Reader)
 	if err != nil {
 		return err
 	}
@@ -46,7 +47,7 @@ func loadElasticDevices(ctx context.Context, logger *zerolog.Logger, settings *c
 
 	docs := make([]services.DeviceDefinitionSearchDoc, len(all))
 	for i, definition := range all {
-		sd := fmt.Sprintf("%d %s %s", definition.Year, definition.Make, definition.Model)
+		sd := fmt.Sprintf("%d %s %s", definition.Year, definition.R.DeviceMake.Name, definition.Model)
 		sm := services.SubModelsFromStylesDB(definition.R.DeviceStyles)
 		for i2, s := range sm {
 			sm[i2] = sd + " " + s
@@ -54,7 +55,7 @@ func loadElasticDevices(ctx context.Context, logger *zerolog.Logger, settings *c
 		docs[i] = services.DeviceDefinitionSearchDoc{
 			ID:            definition.ID,
 			SearchDisplay: sd,
-			Make:          definition.Make,
+			Make:          definition.R.DeviceMake.Name,
 			Model:         definition.Model,
 			Year:          int(definition.Year),
 			SubModels:     sm,

@@ -118,7 +118,7 @@ func setIntegrationForMatchingMakeYears(ctx context.Context, smartCarSvc *servic
 func filterDeviceDefs(items models.DeviceDefinitionSlice, make string, year int) []models.DeviceDefinition {
 	var filtered []models.DeviceDefinition
 	for _, item := range items {
-		if item.Year == int16(year) && strings.EqualFold(item.Make, make) {
+		if item.Year == int16(year) && strings.EqualFold(item.R.DeviceMake.Name, make) {
 			filtered = append(filtered, *item)
 		}
 	}
@@ -138,7 +138,8 @@ func smartCarForwardCompatibility(ctx context.Context, logger zerolog.Logger, pd
 	}
 
 	deviceDefs, err := models.DeviceDefinitions(qm.InnerJoin("device_integrations di on di.device_definition_id = device_definitions.id"),
-		qm.Where("di.integration_id = ?", integrationID), qm.OrderBy("make, model, year DESC")).
+		qm.Where("di.integration_id = ?", integrationID), qm.OrderBy("make, model, year DESC"),
+		qm.Load(models.DeviceDefinitionRels.DeviceMake)).
 		All(ctx, pdb.DBS().Reader)
 	if err != nil {
 		return err
@@ -150,11 +151,11 @@ func smartCarForwardCompatibility(ctx context.Context, logger zerolog.Logger, pd
 	// meant to be used at the end of each loop to update the "last" values
 	funcLastValues := func(dd *models.DeviceDefinition) {
 		lastYear = dd.Year
-		lastMM = dd.Make + dd.Model
+		lastMM = dd.R.DeviceMake.Name + dd.Model
 	}
 	// year will be descending
 	for _, dd := range deviceDefs {
-		thisMM := dd.Make + dd.Model
+		thisMM := dd.R.DeviceMake.Name + dd.Model
 		if lastMM == thisMM {
 			// we care about year gaps
 			yearDiff := lastYear - dd.Year
@@ -162,7 +163,7 @@ func smartCarForwardCompatibility(ctx context.Context, logger zerolog.Logger, pd
 				// we have a gap
 				fmt.Printf("%s found a year gap of %d...\n", thisMM, yearDiff)
 				for i := int16(1); i < yearDiff; i++ {
-					gapDd, err := deviceDefSvc.FindDeviceDefinitionByMMY(ctx, pdb.DBS().Reader, dd.Make, dd.Model, int(dd.Year+i), true)
+					gapDd, err := deviceDefSvc.FindDeviceDefinitionByMMY(ctx, pdb.DBS().Reader, dd.R.DeviceMake.Name, dd.Model, int(dd.Year+i), true)
 					if errors.Is(err, sql.ErrNoRows) {
 						continue // this continues internal loop, so funcLastValues will still get set at end of outer loop
 					}
@@ -189,7 +190,7 @@ func smartCarForwardCompatibility(ctx context.Context, logger zerolog.Logger, pd
 			}
 		} else {
 			// this should mean we are back at the start of a new make/model starting at highest year
-			nextYearDd, err := deviceDefSvc.FindDeviceDefinitionByMMY(ctx, pdb.DBS().Writer, dd.Make, dd.Model, int(dd.Year+1), true)
+			nextYearDd, err := deviceDefSvc.FindDeviceDefinitionByMMY(ctx, pdb.DBS().Writer, dd.R.DeviceMake.Name, dd.Model, int(dd.Year+1), true)
 			if errors.Is(err, sql.ErrNoRows) {
 				funcLastValues(dd)
 				continue
@@ -218,4 +219,23 @@ func smartCarForwardCompatibility(ctx context.Context, logger zerolog.Logger, pd
 	}
 
 	return nil
+}
+
+/* Terminal colors */
+
+var Red = "\033[31m"
+var Reset = "\033[0m"
+var Green = "\033[32m"
+var Purple = "\033[35m"
+
+func printMMY(definition *models.DeviceDefinition, color string, includeSource bool) string {
+	mk := ""
+	if definition.R != nil && definition.R.DeviceMake != nil {
+		mk = definition.R.DeviceMake.Name
+	}
+	if !includeSource {
+		return fmt.Sprintf("%s%d %s %s%s", color, definition.Year, mk, definition.Model, Reset)
+	}
+	return fmt.Sprintf("%s%d %s %s %s(source: %s)%s",
+		color, definition.Year, mk, definition.Model, Purple, definition.Source.String, Reset)
 }

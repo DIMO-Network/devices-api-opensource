@@ -21,6 +21,7 @@ func generateEvents(logger zerolog.Logger, settings *config.Settings, pdb databa
 	defer tx.Rollback() //nolint
 	devices, err := models.UserDevices(
 		qm.Load(models.UserDeviceRels.DeviceDefinition),
+		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
 	).All(ctx, tx)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Failed to retrieve all devices and definitions for event generation")
@@ -36,7 +37,7 @@ func generateEvents(logger zerolog.Logger, settings *config.Settings, pdb databa
 					UserID:    device.UserID,
 					Device: services.UserDeviceEventDevice{
 						ID:    device.ID,
-						Make:  device.R.DeviceDefinition.Make,
+						Make:  device.R.DeviceDefinition.R.DeviceMake.Name,
 						Model: device.R.DeviceDefinition.Model,
 						Year:  int(device.R.DeviceDefinition.Year),
 					},
@@ -52,6 +53,7 @@ func generateEvents(logger zerolog.Logger, settings *config.Settings, pdb databa
 		models.UserDeviceAPIIntegrationWhere.Status.EQ(models.UserDeviceAPIIntegrationStatusActive),
 		qm.Load(models.UserDeviceAPIIntegrationRels.Integration),
 		qm.Load(qm.Rels(models.UserDeviceAPIIntegrationRels.UserDevice, models.UserDeviceRels.DeviceDefinition)),
+		qm.Load(qm.Rels(models.UserDeviceAPIIntegrationRels.UserDevice, models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
 	).All(ctx, tx)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Failed to retrieve all active integrations")
@@ -75,7 +77,7 @@ func generateEvents(logger zerolog.Logger, settings *config.Settings, pdb databa
 					UserID:    scint.R.UserDevice.UserID,
 					Device: services.UserDeviceEventDevice{
 						ID:    scint.UserDeviceID,
-						Make:  scint.R.UserDevice.R.DeviceDefinition.Make,
+						Make:  scint.R.UserDevice.R.DeviceDefinition.R.DeviceMake.Name,
 						Model: scint.R.UserDevice.R.DeviceDefinition.Model,
 						Year:  int(scint.R.UserDevice.R.DeviceDefinition.Year),
 						VIN:   scint.R.UserDevice.VinIdentifier.String,

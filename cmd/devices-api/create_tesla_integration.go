@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
 	"github.com/rs/zerolog"
@@ -24,6 +25,8 @@ func createTeslaIntegrations(ctx context.Context, pdb database.DbStore, logger *
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback() //nolint
+
+	deviceDefSvc := services.NewDeviceDefinitionService(nil, pdb.DBS, logger, nil)
 
 	var teslaInt *models.Integration
 
@@ -51,8 +54,12 @@ func createTeslaIntegrations(ctx context.Context, pdb database.DbStore, logger *
 	// Grab all Tesla device definitions, along with any existing Tesla integration links. It would
 	// be nice to only load definitions that are missing the integration, but the SQLBoiler is a
 	// bit awkward.
+	teslaMake, err := deviceDefSvc.GetOrCreateMake(ctx, tx, "Tesla")
+	if err != nil {
+		return err
+	}
 	teslaDefs, err := models.DeviceDefinitions(
-		models.DeviceDefinitionWhere.Make.EQ("Tesla"),
+		models.DeviceDefinitionWhere.DeviceMakeID.EQ(teslaMake.ID),
 		qm.Load(
 			models.DeviceDefinitionRels.DeviceIntegrations,
 			models.DeviceIntegrationWhere.IntegrationID.EQ(teslaInt.ID),

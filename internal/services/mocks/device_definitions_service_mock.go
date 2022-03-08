@@ -65,6 +65,21 @@ func (mr *MockIDeviceDefinitionServiceMockRecorder) FindDeviceDefinitionByMMY(ct
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindDeviceDefinitionByMMY", reflect.TypeOf((*MockIDeviceDefinitionService)(nil).FindDeviceDefinitionByMMY), ctx, db, mk, model, year, loadIntegrations)
 }
 
+// GetOrCreateMake mocks base method.
+func (m *MockIDeviceDefinitionService) GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*models.DeviceMake, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOrCreateMake", ctx, tx, makeName)
+	ret0, _ := ret[0].(*models.DeviceMake)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetOrCreateMake indicates an expected call of GetOrCreateMake.
+func (mr *MockIDeviceDefinitionServiceMockRecorder) GetOrCreateMake(ctx, tx, makeName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrCreateMake", reflect.TypeOf((*MockIDeviceDefinitionService)(nil).GetOrCreateMake), ctx, tx, makeName)
+}
+
 // UpdateDeviceDefinitionFromNHTSA mocks base method.
 func (m *MockIDeviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Context, deviceDefinitionID, vin string) error {
 	m.ctrl.T.Helper()

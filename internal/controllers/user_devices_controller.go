@@ -136,9 +136,10 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		return err
 	}
 	var dd *models.DeviceDefinition
+	// attach device def to user
 	if reg.DeviceDefinitionID != nil {
-		// attach device def to user
-		dd, err = models.FindDeviceDefinition(c.Context(), tx, *reg.DeviceDefinitionID)
+		dd, err = models.DeviceDefinitions(qm.Load(models.DeviceDefinitionRels.DeviceMake),
+			models.DeviceDefinitionWhere.ID.EQ(*reg.DeviceDefinitionID)).One(c.Context(), tx)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return errorResponseHandler(c, errors.Wrapf(err, "could not find device definition id: %s", *reg.DeviceDefinitionID), fiber.StatusBadRequest)
@@ -149,16 +150,25 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		// check for existing MMY
 		dd, err = udc.DeviceDefSvc.FindDeviceDefinitionByMMY(c.Context(), tx, *reg.Make, *reg.Model, *reg.Year, false)
 		if dd == nil {
+			dm, err := udc.DeviceDefSvc.GetOrCreateMake(c.Context(), tx, *reg.Make)
+			if err != nil {
+				return err
+			}
 			// since Definition does not exist, create one on the fly with userID as source and not verified
 			dd = &models.DeviceDefinition{
-				ID:       ksuid.New().String(),
-				Make:     *reg.Make,
-				Model:    *reg.Model,
-				Year:     int16(*reg.Year),
-				Source:   null.StringFrom("userID:" + userID),
-				Verified: false,
+				ID:           ksuid.New().String(),
+				DeviceMakeID: dm.ID,
+				Model:        *reg.Model,
+				Year:         int16(*reg.Year),
+				Source:       null.StringFrom("userID:" + userID),
+				Verified:     false,
 			}
 			err = dd.Insert(c.Context(), tx, boil.Infer())
+			if err != nil {
+				return err
+			}
+			dd.R = dd.R.NewStruct()
+			dd.R.DeviceMake = dm
 		}
 		if err != nil {
 			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
@@ -214,7 +224,7 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 			UserID:    userID,
 			Device: services.UserDeviceEventDevice{
 				ID:    userDeviceID,
-				Make:  dd.Make,
+				Make:  dd.R.DeviceMake.Name,
 				Model: dd.Model,
 				Year:  int(dd.Year), // Odd.
 			},
@@ -367,6 +377,7 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 		qm.Where("id = ?", udi),
 		qm.And("user_id = ?", userID),
 		qm.Load(models.UserDeviceRels.DeviceDefinition),
+		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
 		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations), // Probably don't need this one.
 		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
 	).One(c.Context(), tx)
@@ -403,7 +414,7 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 				UserID:    userID,
 				Device: services.UserDeviceEventDevice{
 					ID:    udi,
-					Make:  userDevice.R.DeviceDefinition.Make,
+					Make:  userDevice.R.DeviceDefinition.R.DeviceMake.Name,
 					Model: userDevice.R.DeviceDefinition.Model,
 					Year:  int(userDevice.R.DeviceDefinition.Year),
 				},
@@ -441,7 +452,7 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 			UserID:    userID,
 			Device: services.UserDeviceEventDevice{
 				ID:    udi,
-				Make:  dd.Make,
+				Make:  dd.R.DeviceMake.Name,
 				Model: dd.Model,
 				Year:  int(dd.Year), // Odd.
 			},

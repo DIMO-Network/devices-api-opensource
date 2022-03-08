@@ -75,9 +75,9 @@ func TestGeofencesController(t *testing.T) {
 		Logger()
 
 	ctx := context.Background()
-	pdb, database := test.SetupDatabase(ctx, t, migrationsDirRelPath)
+	pdb, db := test.SetupDatabase(ctx, t, migrationsDirRelPath)
 	defer func() {
-		if err := database.Stop(); err != nil {
+		if err := db.Stop(); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -91,12 +91,17 @@ func TestGeofencesController(t *testing.T) {
 	app.Put("/user/geofences/:geofenceID", test.AuthInjectorTestHandler(testUserID), c.Update)
 	app.Delete("/user/geofences/:geofenceID", test.AuthInjectorTestHandler(testUserID), c.Delete)
 	// test data
+	dm := models.DeviceMake{
+		ID:   ksuid.New().String(),
+		Name: "Mercedes-Benz",
+	}
+	_ = dm.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 	deviceDef := models.DeviceDefinition{
-		ID:       ksuid.New().String(),
-		Make:     "Mercedex",
-		Model:    "C300",
-		Year:     2009,
-		Verified: true,
+		ID:           ksuid.New().String(),
+		DeviceMakeID: dm.ID,
+		Model:        "C300",
+		Year:         2009,
+		Verified:     true,
 	}
 	_ = deviceDef.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 	userDevice := models.UserDevice{
@@ -227,5 +232,5 @@ func TestGeofencesController(t *testing.T) {
 		assert.Equal(t, fiber.StatusNoContent, response.StatusCode)
 	})
 
-	producer.Close()
+	_ = producer.Close()
 }

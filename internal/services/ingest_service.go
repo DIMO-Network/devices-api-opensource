@@ -112,6 +112,7 @@ func (i *IngestService) processEvent(event *DeviceStatusEvent) error {
 	device, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
 		qm.Load(models.UserDeviceRels.DeviceDefinition), // Only needed for the odometer event.
+		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
 	).One(ctx, tx)
 	if err != nil {
 		return fmt.Errorf("couldn't find device %s for status update: %w", userDeviceID, err)
@@ -154,7 +155,7 @@ func (i *IngestService) processEvent(event *DeviceStatusEvent) error {
 				UserID:    device.UserID,
 				Device: odometerEventDevice{
 					ID:    userDeviceID,
-					Make:  device.R.DeviceDefinition.Make,
+					Make:  device.R.DeviceDefinition.R.DeviceMake.Name,
 					Model: device.R.DeviceDefinition.Model,
 					Year:  int(device.R.DeviceDefinition.Year),
 				},

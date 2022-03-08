@@ -192,6 +192,7 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(userDeviceID),
 		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID),
 		qm.Load(qm.Rels(models.UserDeviceAPIIntegrationRels.UserDevice, models.UserDeviceRels.DeviceDefinition)),
+		qm.Load(qm.Rels(models.UserDeviceAPIIntegrationRels.UserDevice, models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
 		qm.Load(models.UserDeviceAPIIntegrationRels.Integration),
 	).One(context.Background(), tx)
 	if err != nil {
@@ -269,7 +270,7 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 	if integ.R.UserDevice.R.DeviceDefinition.Year != int16(vin.Year()) {
 		t.Log.Info().Msgf("smartcar registration: when connecting vin %s to smartcar, found it was of a different year %d. user_device_id %s", vin.String(), vin.Year(), integ.UserDeviceID)
 		// lookup a Device Definition for the matching year
-		correctDD, err := t.DeviceDefSvc.FindDeviceDefinitionByMMY(context.Background(), tx, integ.R.UserDevice.R.DeviceDefinition.Make,
+		correctDD, err := t.DeviceDefSvc.FindDeviceDefinitionByMMY(context.Background(), tx, integ.R.UserDevice.R.DeviceDefinition.R.DeviceMake.Name,
 			integ.R.UserDevice.R.DeviceDefinition.Model, vin.Year(), true)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -344,7 +345,7 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 			UserID:    ud.UserID,
 			Device: UserDeviceEventDevice{
 				ID:    userDeviceID,
-				Make:  ud.R.DeviceDefinition.Make,
+				Make:  ud.R.DeviceDefinition.R.DeviceMake.Name,
 				Model: ud.R.DeviceDefinition.Model,
 				Year:  int(ud.R.DeviceDefinition.Year),
 				VIN:   vin.String(),

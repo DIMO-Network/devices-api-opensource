@@ -204,8 +204,10 @@ func (g *GeofencesController) GetAll(c *fiber.Ctx) error {
 	//could not find LoadUserDevices method for eager loading
 	items, err := models.Geofences(models.GeofenceWhere.UserID.EQ(userID),
 		qm.Load(models.GeofenceRels.UserDeviceToGeofences),
-		qm.Load("UserDeviceToGeofences.UserDevice"),
-		qm.Load("UserDeviceToGeofences.UserDevice.DeviceDefinition")).All(c.Context(), g.DBS().Reader)
+		qm.Load(qm.Rels(models.GeofenceRels.UserDeviceToGeofences, models.UserDeviceToGeofenceRels.UserDevice)),
+		qm.Load(qm.Rels(models.GeofenceRels.UserDeviceToGeofences, models.UserDeviceToGeofenceRels.UserDevice, models.UserDeviceRels.DeviceDefinition)),
+		qm.Load(qm.Rels(models.GeofenceRels.UserDeviceToGeofences, models.UserDeviceToGeofenceRels.UserDevice, models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
+	).All(c.Context(), g.DBS().Reader)
 	if err != nil {
 		return err
 	}
@@ -224,7 +226,7 @@ func (g *GeofencesController) GetAll(c *fiber.Ctx) error {
 				UserDeviceID: udtg.UserDeviceID,
 				Name:         udtg.R.UserDevice.Name.Ptr(),
 				MMY: fmt.Sprintf("%d %s %s", udtg.R.UserDevice.R.DeviceDefinition.Year,
-					udtg.R.UserDevice.R.DeviceDefinition.Make,
+					udtg.R.UserDevice.R.DeviceDefinition.R.DeviceMake.Name,
 					udtg.R.UserDevice.R.DeviceDefinition.Model),
 			})
 		}

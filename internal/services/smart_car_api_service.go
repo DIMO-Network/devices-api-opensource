@@ -26,16 +26,18 @@ const (
 )
 
 type SmartCarService struct {
-	baseURL string
-	DBS     func() *database.DBReaderWriter
-	log     zerolog.Logger // can't remember if best practice with this logger is to use *
+	baseURL      string
+	DBS          func() *database.DBReaderWriter
+	log          zerolog.Logger // can't remember if best practice with this logger is to use *
+	deviceDefSvc *DeviceDefinitionService
 }
 
 func NewSmartCarService(dbs func() *database.DBReaderWriter, logger zerolog.Logger) SmartCarService {
 	return SmartCarService{
-		baseURL: "https://api.smartcar.com/v2.0/",
-		DBS:     dbs,
-		log:     logger,
+		baseURL:      "https://api.smartcar.com/v2.0/",
+		DBS:          dbs,
+		log:          logger,
+		deviceDefSvc: NewDeviceDefinitionService(nil, dbs, &logger, nil), // not using nhtsa service or settings
 	}
 }
 
@@ -125,11 +127,7 @@ func (s *SmartCarService) saveSmartCarDataToDeviceDefs(ctx context.Context, data
 // saveDeviceDefinition does not commit or rollback the transaction, just operates the insert or update if existing device definition with same MMY is found
 func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, make, model string, year int, dvi DeviceVehicleInfo, icJSON []byte, integrationID string, integrationCountry string) error {
 	isUpdate := false
-
-	dbDeviceDef, err := models.DeviceDefinitions(models.DeviceDefinitionWhere.Make.EQ(make),
-		models.DeviceDefinitionWhere.Model.EQ(model), models.DeviceDefinitionWhere.Year.EQ(int16(year)),
-		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations)).
-		One(ctx, tx)
+	dbDeviceDef, err := s.deviceDefSvc.FindDeviceDefinitionByMMY(ctx, tx, make, model, year, true)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return errors.Wrapf(err, "unable to query for existing device definition")
 	}
@@ -140,13 +138,17 @@ func (s *SmartCarService) saveDeviceDefinition(ctx context.Context, tx *sql.Tx, 
 		dbDeviceDef.Source = null.StringFrom(SmartCarSource)
 	} else {
 		// insert
+		dm, err := s.deviceDefSvc.GetOrCreateMake(ctx, tx, make)
+		if err != nil {
+			return err
+		}
 		dbDeviceDef = &models.DeviceDefinition{
-			ID:       ksuid.New().String(),
-			Make:     make,
-			Model:    model,
-			Year:     int16(year),
-			Verified: true,
-			Source:   null.StringFrom(SmartCarSource),
+			ID:           ksuid.New().String(),
+			DeviceMakeID: dm.ID,
+			Model:        model,
+			Year:         int16(year),
+			Verified:     true,
+			Source:       null.StringFrom(SmartCarSource),
 		}
 	}
 	err = dbDeviceDef.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dvi})

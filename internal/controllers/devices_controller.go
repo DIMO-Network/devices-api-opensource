@@ -12,8 +12,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/segmentio/ksuid"
-	"github.com/volatiletech/null/v8"
 	qm "github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
@@ -47,18 +45,29 @@ func NewDevicesController(settings *config.Settings, dbs func() *database.DBRead
 // @Success      200  {object}  []controllers.DeviceMMYRoot
 // @Router       /device-definitions/all [get]
 func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
-	all, err := models.DeviceDefinitions(qm.Where("verified = true"),
-		qm.OrderBy("make, model, year")).All(c.Context(), d.DBS().Reader)
+	allMakes, err := models.DeviceMakes(qm.OrderBy(models.DeviceMakeColumns.Name)).All(c.Context(), d.DBS().Reader)
 	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		return err
+	}
+	all, err := models.DeviceDefinitions(qm.Where("verified = true"),
+		qm.OrderBy("device_make_id, model, year")).All(c.Context(), d.DBS().Reader)
+	if err != nil {
+		return err
 	}
 	var mmy []DeviceMMYRoot
 	for _, dd := range all {
-		idx := indexOfMake(mmy, dd.Make)
+		makeName := ""
+		for _, mk := range allMakes {
+			if mk.ID == dd.DeviceMakeID {
+				makeName = mk.Name
+				break
+			}
+		}
+		idx := indexOfMake(mmy, makeName)
 		// append make if not found
 		if idx == -1 {
 			mmy = append(mmy, DeviceMMYRoot{
-				Make:   dd.Make,
+				Make:   makeName,
 				Models: []DeviceModels{{Model: dd.Model, Years: []DeviceModelYear{{Year: dd.Year, DeviceDefinitionID: dd.ID}}}},
 			})
 		} else {
@@ -99,7 +108,7 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 	dd, err := models.DeviceDefinitions(
 		qm.Where("id = ?", id),
 		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
-		qm.Load("DeviceIntegrations.Integration")).
+		qm.Load(qm.Rels(models.DeviceDefinitionRels.DeviceIntegrations, models.DeviceIntegrationRels.Integration))).
 		One(c.Context(), d.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -213,14 +222,18 @@ func indexOfModel(models []DeviceModels, model string) int {
 const vehicleInfoJSONNode = "vehicle_info"
 
 func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) services.DeviceDefinition {
+	makeName := ""
+	if dd.R != nil && dd.R.DeviceMake != nil {
+		makeName = dd.R.DeviceMake.Name
+	}
 	rp := services.DeviceDefinition{
 		DeviceDefinitionID:     dd.ID,
-		Name:                   fmt.Sprintf("%d %s %s", dd.Year, dd.Make, dd.Model),
+		Name:                   fmt.Sprintf("%d %s %s", dd.Year, makeName, dd.Model),
 		ImageURL:               dd.ImageURL.Ptr(),
 		CompatibleIntegrations: []services.DeviceCompatibility{},
 		Type: services.DeviceType{
 			Type:  "Vehicle",
-			Make:  dd.Make,
+			Make:  makeName,
 			Model: dd.Model,
 			Year:  int(dd.Year),
 		},
@@ -241,21 +254,6 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) services.Devic
 	}
 
 	return rp
-}
-
-// NewDbModelFromDeviceDefinition converts a DeviceDefinition response object to a new database model for the given squishVin. source is NHTSA, edmunds, smartcar, etc
-func NewDbModelFromDeviceDefinition(dd services.DeviceDefinition, source *string) *models.DeviceDefinition {
-	dbDevice := models.DeviceDefinition{
-		ID:       ksuid.New().String(),
-		Make:     dd.Type.Make,
-		Model:    dd.Type.Model,
-		Year:     int16(dd.Type.Year),
-		Verified: true,
-		Source:   null.StringFromPtr(source),
-	}
-	_ = dbDevice.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dd.VehicleInfo})
-
-	return &dbDevice
 }
 
 type DeviceRp struct {
