@@ -41,7 +41,7 @@ func refreshSmartcarTokens(ctx context.Context, logger *zerolog.Logger, settings
 		ClientSecret: settings.SmartcarClientSecret,
 	})
 
-	// For each of these send a new registration message, keyed by Smartcar vehicle ID.
+	// For each of these, try the exchange and save the result if successul.
 	for _, apiInt := range apiInts {
 		token, err := auth.ExchangeRefreshToken(context.Background(), &smartcar.ExchangeRefreshTokenParams{
 			Token: apiInt.RefreshToken,
