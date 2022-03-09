@@ -6,9 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
-	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -26,6 +24,7 @@ import (
 )
 
 const parkersSource = "parkers"
+const minYear = 2000
 
 const monthYearFormat = "January 2006"
 
@@ -55,52 +54,6 @@ type RangesResponse struct {
 }
 
 const baseURL = "https://www.parkers.co.uk"
-const minYear = 2000
-
-type IntSet struct {
-	elements map[int]struct{}
-}
-
-func NewIntSet() *IntSet {
-	return &IntSet{elements: make(map[int]struct{})}
-}
-
-func (s *IntSet) Add(i int) {
-	s.elements[i] = struct{}{}
-}
-
-func (s *IntSet) Contains(i int) bool {
-	_, ok := s.elements[i]
-	return ok
-}
-
-func (s *IntSet) Slice() []int {
-	out := make([]int, 0, len(s.elements))
-	for i := range s.elements {
-		out = append(out, i)
-	}
-	return out
-}
-
-func (s *IntSet) Len() int {
-	return len(s.elements)
-}
-
-var httpClient = http.Client{
-	Transport: &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          100,
-		MaxIdleConnsPerHost:   20,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	},
-}
 
 func get(url string, processBody func(io.Reader) error) error {
 	resp, err := http.Get(url)
@@ -113,9 +66,6 @@ func get(url string, processBody func(io.Reader) error) error {
 	}
 	return processBody(resp.Body)
 }
-
-// Needed for version years
-var monthYearRegexp = regexp.MustCompile(`^(January|February|March|April|May|June|July|August|September|October|November|December) (\d{4})`)
 
 func loadParkersDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore) error {
 	var numRanges uint64
@@ -257,41 +207,26 @@ func loadParkersDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, s
 
 								var versionDoc *goquery.Document
 								if err := get(baseURL+safeLink, makeDoc(&versionDoc)); err != nil {
-									logger.Warn().Msgf("Couldn't fetch version page %s", safeLink)
+									logger.Warn().Err(err).Msgf("Couldn't fetch version page %s", safeLink)
 									return
 								}
 
 								from := strings.TrimSpace(versionDoc.Find("span.specs-detail-page__available-dates__from").First().Text())
 								to := strings.TrimSpace(versionDoc.Find("span.specs-detail-page__available-dates__to").First().Text())
 
-								fromTime, err := time.Parse(monthYearFormat, from)
+								fromYear, err := getModelYear(from, false)
 								if err != nil {
 									logger.Warn().Err(err).Msgf("From date not in the expected format")
 									return
 								}
-								fromYear := fromTime.Year()
-
-								if fromTime.Month() >= time.July {
-									fromYear++
-								}
-
 								if fromYear < minYear {
 									fromYear = minYear
 								}
 
-								toTime := time.Now()
-
-								if to != "Now" {
-									toTime, err = time.Parse(monthYearFormat, to)
-									if err != nil {
-										logger.Warn().Err(err).Msgf("To date not in the expected format")
-										return
-									}
-								}
-
-								toYear := toTime.Year()
-								if toTime.Month() >= time.July {
-									toYear++
+								toYear, err := getModelYear(to, true)
+								if err != nil {
+									logger.Warn().Err(err).Msgf("To date not in the expected format")
+									return
 								}
 
 								for year := fromYear; year <= toYear; year++ {
@@ -371,5 +306,27 @@ func makeDoc(out **goquery.Document) func(io.Reader) error {
 		var err error
 		*out, err = goquery.NewDocumentFromReader(body)
 		return err
+	}
+}
+
+func getModelYear(s string, nowOK bool) (int, error) {
+	var t time.Time
+	if s == "Now" {
+		if !nowOK {
+			return 0, errors.New(`Unexpected "Now"`)
+		}
+		t = time.Now()
+	} else {
+		var err error
+		t, err = time.Parse(monthYearFormat, s)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	if t.Month() >= time.July {
+		return t.Year() + 1, nil
+	} else {
+		return t.Year(), nil
 	}
 }
