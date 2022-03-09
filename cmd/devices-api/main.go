@@ -108,6 +108,12 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("error trying to sync edmunds")
 		}
+	case "parkers-vehicles-sync":
+		logger.Info().Msgf("Loading Parkers vehicles")
+		err = loadParkersDeviceDefinitions(ctx, &logger, settings, pdb)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error syncing with Parkers")
+		}
 	case "smartcar-compatibility":
 		logger.Info().Msg("starting smartcar compatibility equalizer check to set smartcar compat forwards")
 		err = smartCarForwardCompatibility(ctx, logger, pdb)
