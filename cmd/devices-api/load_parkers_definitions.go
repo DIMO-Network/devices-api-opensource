@@ -91,13 +91,12 @@ func loadParkersDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, s
 				if !errors.Is(err, sql.ErrNoRows) {
 					logger.Err(err).Msgf("Failed searching for make with name %q", manufacturer.Name)
 					return
-				} else {
-					dbMake = &models.DeviceMake{
-						ID:   ksuid.New().String(),
-						Name: manufacturer.Name,
-					}
-					logger.Debug().Msgf("Creating make %s", manufacturer.Name)
 				}
+				dbMake = &models.DeviceMake{
+					ID:   ksuid.New().String(),
+					Name: manufacturer.Name,
+				}
+				logger.Debug().Msgf("Creating make %s", manufacturer.Name)
 			} else {
 				logger.Debug().Msgf("Found make %s", manufacturer.Name)
 			}
@@ -114,7 +113,7 @@ func loadParkersDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, s
 
 			externalIDsBytes, err := json.Marshal(externalIDs)
 			if err != nil {
-				logger.Err(err).Msgf("Failed to serialize externalID map: %w", err)
+				logger.Err(err).Msgf("Failed to serialize externalID map: %v", err)
 			}
 
 			dbMake.ExternalIds = null.JSONFrom(externalIDsBytes)
@@ -326,7 +325,6 @@ func getModelYear(s string, nowOK bool) (int, error) {
 
 	if t.Month() >= time.July {
 		return t.Year() + 1, nil
-	} else {
-		return t.Year(), nil
 	}
+	return t.Year(), nil
 }
