@@ -42,6 +42,7 @@ require (
 require (
 	cloud.google.com/go/compute v1.2.0 // indirect
 	cloud.google.com/go/iam v0.1.1 // indirect
+	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/ericlagergren/decimal v0.0.0-20211103172832-aca2edc11f73 // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
@@ -109,6 +110,7 @@ require (
 require (
 	github.com/Jeffail/benthos/v3 v3.63.0
 	github.com/KyleBanks/depth v1.2.1 // indirect
+	github.com/PuerkitoBio/goquery v1.8.0
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/RichardKnop/machinery v1.10.6
