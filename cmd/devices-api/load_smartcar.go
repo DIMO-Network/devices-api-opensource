@@ -131,7 +131,7 @@ func smartCarForwardCompatibility(ctx context.Context, logger zerolog.Logger, pd
 	// if there is a gap in the years, insert device_integration
 	scSvc := services.NewSmartCarService(pdb.DBS, logger)
 	integrationID, err := scSvc.GetOrCreateSmartCarIntegration(ctx)
-	deviceDefSvc := services.NewDeviceDefinitionService(&config.Settings{}, pdb.DBS, &logger, nil)
+	deviceDefSvc := services.NewDeviceDefinitionService("", pdb.DBS, &logger, nil)
 
 	if err != nil {
 		return err

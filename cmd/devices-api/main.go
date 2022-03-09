@@ -192,7 +192,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	}
 
 	nhtsaSvc := services.NewNHTSAService()
-	ddSvc := services.NewDeviceDefinitionService(settings, pdb.DBS, &logger, nhtsaSvc)
+	ddSvc := services.NewDeviceDefinitionService(settings.TorProxyURL, pdb.DBS, &logger, nhtsaSvc)
 	smartCarSvc := services.NewSmartCarService(pdb.DBS, logger)
 	smartcarClient := services.NewSmartcarClient(settings)
 	teslaTaskService := services.NewTeslaTaskService(settings, producer)

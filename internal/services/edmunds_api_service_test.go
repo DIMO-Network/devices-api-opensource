@@ -77,7 +77,7 @@ func TestEdmundsService_buildAndExecuteRequest(t *testing.T) {
 	url := fmt.Sprintf("%s/testing", es.baseAPIURL)
 	httpmock.RegisterResponder(http.MethodGet, url, httpmock.NewStringResponder(409, "error: too many requests"))
 
-	response, err := es.buildAndExecuteRequest(url, "")
+	response, err := es.buildAndExecuteRequest(url)
 
 	assert.Error(t, err, "expected error")
 	assert.Contains(t, err.Error(), "all retries failed")

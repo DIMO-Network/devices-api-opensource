@@ -26,6 +26,7 @@ type EdmundsService struct {
 	log          *zerolog.Logger
 }
 
+// NewEdmundsService if torProxyURL is empty, will not go via tor
 func NewEdmundsService(torProxyURL string, logger *zerolog.Logger) *EdmundsService {
 	return &EdmundsService{log: logger, torProxyURL: torProxyURL, baseAPIURL: "https://www.edmunds.com/gateway", baseMediaURL: "https://media.ed.edmunds-media.com"}
 }
@@ -33,7 +34,7 @@ func NewEdmundsService(torProxyURL string, logger *zerolog.Logger) *EdmundsServi
 var ErrVehicleNotFound = errors.New("vehicle not found in Edmunds")
 
 func (e *EdmundsService) getAllMakes() (*makesResponse, error) {
-	res, err := e.buildAndExecuteRequest(fmt.Sprintf("%s/api/vehicle/v2/makes", e.baseAPIURL), e.torProxyURL)
+	res, err := e.buildAndExecuteRequest(fmt.Sprintf("%s/api/vehicle/v2/makes", e.baseAPIURL))
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +53,7 @@ func (e *EdmundsService) getAllMakes() (*makesResponse, error) {
 }
 
 func (e *EdmundsService) getModelsForMake(makeNiceName string) (*modelsResponse, error) {
-	res, err := e.buildAndExecuteRequest(fmt.Sprintf("%s/api/vehicle/v2/%s/models", e.baseAPIURL, makeNiceName), e.torProxyURL)
+	res, err := e.buildAndExecuteRequest(fmt.Sprintf("%s/api/vehicle/v2/%s/models", e.baseAPIURL, makeNiceName))
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +128,7 @@ func (e *EdmundsService) GetFlattenedVehicles() (*[]FlatMMYDefinition, error) {
 	return &flattened, nil
 }
 
-func (e *EdmundsService) buildAndExecuteRequest(url string, torProxyURL string) (*http.Response, error) {
+func (e *EdmundsService) buildAndExecuteRequest(url string) (*http.Response, error) {
 	backoffSchedule := []time.Duration{
 		1 * time.Second,
 		3 * time.Second,
@@ -141,7 +142,7 @@ func (e *EdmundsService) buildAndExecuteRequest(url string, torProxyURL string) 
 	var resp *http.Response
 
 	for _, backoff := range backoffSchedule {
-		resp, err = executeRequestWithTor(torProxyURL, req)
+		resp, err = executeRequestWithTor(e.torProxyURL, req)
 		if resp != nil && resp.StatusCode == http.StatusOK && err == nil {
 			break
 		}
@@ -175,7 +176,7 @@ func (e EdmundsService) getAllPhotosForMMY(make, model, year string, overridePat
 	} else {
 		photosURL = fmt.Sprintf("%s/api/media/v2/%s/%s/%s/photos?format=json&pageSize=50", e.baseAPIURL, strings.ToLower(make), strings.ToLower(model), year)
 	}
-	res, err := e.buildAndExecuteRequest(photosURL, e.torProxyURL)
+	res, err := e.buildAndExecuteRequest(photosURL)
 	if err != nil {
 		return nil, err
 	}

@@ -26,7 +26,7 @@ func createTeslaIntegrations(ctx context.Context, pdb database.DbStore, logger *
 	}
 	defer tx.Rollback() //nolint
 
-	deviceDefSvc := services.NewDeviceDefinitionService(nil, pdb.DBS, logger, nil)
+	deviceDefSvc := services.NewDeviceDefinitionService("", pdb.DBS, logger, nil)
 
 	var teslaInt *models.Integration
 

@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/pkg/errors"
@@ -35,8 +34,8 @@ type DeviceDefinitionService struct {
 	nhtsaSvc   INHTSAService
 }
 
-func NewDeviceDefinitionService(settings *config.Settings, DBS func() *database.DBReaderWriter, log *zerolog.Logger, nhtsaService INHTSAService) *DeviceDefinitionService {
-	return &DeviceDefinitionService{DBS: DBS, log: log, EdmundsSvc: NewEdmundsService(settings.TorProxyURL, log), nhtsaSvc: nhtsaService}
+func NewDeviceDefinitionService(torProxyURL string, DBS func() *database.DBReaderWriter, log *zerolog.Logger, nhtsaService INHTSAService) *DeviceDefinitionService {
+	return &DeviceDefinitionService{DBS: DBS, log: log, EdmundsSvc: NewEdmundsService(torProxyURL, log), nhtsaSvc: nhtsaService}
 }
 
 // FindDeviceDefinitionByMMY builds and execs query to find device definition for MMY, returns db object and db error if occurs. if db tx is nil, just uses one from service, useful for tx
