@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strconv"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -175,7 +177,7 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 	ud, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
 		models.UserDeviceWhere.UserID.EQ(userID),
-		qm.Load(models.UserDeviceRels.DeviceDefinition),
+		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
 	).One(c.Context(), tx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -302,6 +304,11 @@ func (udc *UserDevicesController) RegisterDeviceTesla(c *fiber.Ctx, logger *zero
 		}
 	}
 
+	if err := udc.fixTeslaDeviceDefinition(c.Context(), logger, tx, integ, ud, v.VIN); err != nil {
+		logger.Err(err).Msg("Failed to fix up device definition")
+		return opaqueInternalError
+	}
+
 	encAccessToken, err := udc.encrypter.Encrypt(reqBody.AccessToken)
 	if err != nil {
 		logger.Err(err).Msg("Failed encrypting access token")
@@ -377,4 +384,53 @@ func (udc *UserDevicesController) RegisterDeviceTesla(c *fiber.Ctx, logger *zero
 	logger.Info().Msg("Finished Tesla device registration")
 
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// fixTeslaDeviceDefinition tries to use the VIN provided by Tesla to correct the device definition
+// used by a device.
+//
+// We do not attempt to create any new entries in integrations, device_definitions, or
+// device_integrations. This should all be handled elsewhere for Tesla.
+func (udc *UserDevicesController) fixTeslaDeviceDefinition(ctx context.Context, logger *zerolog.Logger, exec boil.ContextExecutor, integ *models.Integration, ud *models.UserDevice, vin string) error {
+	vinMake := "Tesla"
+	vinModel := shared.VIN(vin).TeslaModel()
+	vinYear := shared.VIN(vin).Year()
+
+	dd := ud.R.DeviceDefinition
+
+	if dd.R.DeviceMake.Name != "Tesla" || dd.Model != vinModel || int(dd.Year) != vinYear {
+		logger.Warn().Msgf(
+			"Device was attached to %s, %s, %d but should be %s, %s, %d",
+			dd.R.DeviceMake.Name, dd.Model, dd.Year,
+			vinMake, vinModel, vinYear,
+		)
+
+		newDD, err := models.DeviceDefinitions(
+			qm.InnerJoin(models.TableNames.DeviceMakes+" on "+models.DeviceMakeTableColumns.ID+" = "+models.DeviceDefinitionTableColumns.DeviceMakeID),
+			models.DeviceMakeWhere.Name.EQ(vinMake),
+			models.DeviceDefinitionWhere.Model.EQ(vinModel),
+			models.DeviceDefinitionWhere.Year.EQ(int16(vinYear)),
+			qm.Load(
+				models.DeviceDefinitionRels.DeviceIntegrations,
+				models.DeviceIntegrationWhere.IntegrationID.EQ(integ.ID),
+				models.DeviceIntegrationWhere.Country.EQ(ud.CountryCode.String),
+			),
+		).One(ctx, exec)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return fmt.Errorf("no device definition %s, %s, %d", vinMake, vinModel, vinYear)
+			}
+			return fmt.Errorf("database error: %w", err)
+		}
+
+		if len(newDD.R.DeviceIntegrations) == 0 {
+			return fmt.Errorf("correct device definition %s has no integration %s for country %s", newDD.ID, integ.ID, ud.CountryCode.String)
+		}
+
+		if err := ud.SetDeviceDefinition(ctx, exec, false, newDD); err != nil {
+			return fmt.Errorf("failed switching device definition to %s: %w", newDD.ID, err)
+		}
+	}
+
+	return nil
 }
