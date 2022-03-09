@@ -108,6 +108,7 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 	dd, err := models.DeviceDefinitions(
 		qm.Where("id = ?", id),
 		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
+		qm.Load(models.DeviceDefinitionRels.DeviceMake),
 		qm.Load(qm.Rels(models.DeviceDefinitionRels.DeviceIntegrations, models.DeviceIntegrationRels.Integration))).
 		One(c.Context(), d.DBS().Reader)
 	if err != nil {
@@ -117,7 +118,10 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
-	rp := NewDeviceDefinitionFromDatabase(dd)
+	rp, err := NewDeviceDefinitionFromDatabase(dd)
+	if err != nil {
+		return err
+	}
 	return c.JSON(fiber.Map{
 		"deviceDefinition": rp,
 	})
@@ -196,7 +200,10 @@ func (d *DevicesController) GetDeviceDefinitionByMMY(c *fiber.Ctx) error {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
-	rp := NewDeviceDefinitionFromDatabase(dd)
+	rp, err := NewDeviceDefinitionFromDatabase(dd)
+	if err != nil {
+		return err
+	}
 	return c.JSON(fiber.Map{
 		"deviceDefinition": rp,
 	})
@@ -221,19 +228,18 @@ func indexOfModel(models []DeviceModels, model string) int {
 
 const vehicleInfoJSONNode = "vehicle_info"
 
-func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) services.DeviceDefinition {
-	makeName := ""
-	if dd.R != nil && dd.R.DeviceMake != nil {
-		makeName = dd.R.DeviceMake.Name
+func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) (services.DeviceDefinition, error) {
+	if dd.R == nil || dd.R.DeviceMake == nil {
+		return services.DeviceDefinition{}, errors.New("required DeviceMake relation is not set")
 	}
 	rp := services.DeviceDefinition{
 		DeviceDefinitionID:     dd.ID,
-		Name:                   fmt.Sprintf("%d %s %s", dd.Year, makeName, dd.Model),
+		Name:                   fmt.Sprintf("%d %s %s", dd.Year, dd.R.DeviceMake.Name, dd.Model),
 		ImageURL:               dd.ImageURL.Ptr(),
 		CompatibleIntegrations: []services.DeviceCompatibility{},
 		Type: services.DeviceType{
 			Type:  "Vehicle",
-			Make:  makeName,
+			Make:  dd.R.DeviceMake.Name,
 			Model: dd.Model,
 			Year:  int(dd.Year),
 		},
@@ -253,7 +259,7 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) services.Devic
 		rp.Type.SubModels = services.SubModelsFromStylesDB(dd.R.DeviceStyles)
 	}
 
-	return rp
+	return rp, nil
 }
 
 type DeviceRp struct {

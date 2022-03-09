@@ -161,8 +161,9 @@ func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
 	dbDevice.R.DeviceMake = dbMake
 	dbDevice.R.DeviceIntegrations = append(dbDevice.R.DeviceIntegrations, &di)
 	dbDevice.R.DeviceStyles = append(dbDevice.R.DeviceStyles, &ds)
-	dd := NewDeviceDefinitionFromDatabase(&dbDevice)
+	dd, err := NewDeviceDefinitionFromDatabase(&dbDevice)
 
+	assert.NoError(t, err)
 	assert.Equal(t, "123", dd.DeviceDefinitionID)
 	assert.Equal(t, "gas", dd.VehicleInfo.FuelType)
 	assert.Equal(t, "4", dd.VehicleInfo.DrivenWheels)
@@ -175,4 +176,20 @@ func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
 
 	assert.Len(t, dd.CompatibleIntegrations, 1)
 	assert.Equal(t, "Autopi", dd.CompatibleIntegrations[0].Vendor)
+}
+
+func TestNewDeviceDefinitionFromDatabase_Error(t *testing.T) {
+	dbDevice := models.DeviceDefinition{
+		ID:       "123",
+		Model:    "R500",
+		Year:     2020,
+		Metadata: null.JSONFrom([]byte(`{"vehicle_info": {"fuel_type": "gas", "driven_wheels": "4", "number_of_doors":"5" } }`)),
+	}
+	dbDevice.R = dbDevice.R.NewStruct()
+	_, err := NewDeviceDefinitionFromDatabase(&dbDevice)
+	assert.Error(t, err)
+
+	dbDevice.R = nil
+	_, err = NewDeviceDefinitionFromDatabase(&dbDevice)
+	assert.Error(t, err)
 }

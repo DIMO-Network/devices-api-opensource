@@ -60,6 +60,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	devices, err := models.UserDevices(qm.Where("user_id = ?", userID),
 		qm.Load(models.UserDeviceRels.DeviceDefinition),
+		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
 		qm.Load("DeviceDefinition.DeviceIntegrations"),
 		qm.Load("DeviceDefinition.DeviceIntegrations.Integration"),
 		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
@@ -71,6 +72,10 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 	}
 	rp := make([]UserDeviceFull, len(devices))
 	for i, d := range devices {
+		dd, err := NewDeviceDefinitionFromDatabase(d.R.DeviceDefinition)
+		if err != nil {
+			return err
+		}
 		rp[i] = UserDeviceFull{
 			ID:               d.ID,
 			VIN:              d.VinIdentifier.Ptr(),
@@ -78,7 +83,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 			Name:             d.Name.Ptr(),
 			CustomImageURL:   d.CustomImageURL.Ptr(),
 			CountryCode:      d.CountryCode.Ptr(),
-			DeviceDefinition: NewDeviceDefinitionFromDatabase(d.R.DeviceDefinition),
+			DeviceDefinition: dd,
 			Integrations:     NewUserDeviceIntegrationStatusesFromDatabase(d.R.UserDeviceAPIIntegrations),
 		}
 	}
@@ -234,6 +239,10 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		udc.log.Err(err).Msg("Failed emitting device creation event")
 	}
 
+	ddNice, err := NewDeviceDefinitionFromDatabase(dd)
+	if err != nil {
+		return err
+	}
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"userDevice": UserDeviceFull{
 			ID:               ud.ID,
@@ -241,7 +250,7 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 			VINConfirmed:     ud.VinConfirmed,
 			Name:             ud.Name.Ptr(),
 			CustomImageURL:   ud.CustomImageURL.Ptr(),
-			DeviceDefinition: NewDeviceDefinitionFromDatabase(dd),
+			DeviceDefinition: ddNice,
 			CountryCode:      ud.CountryCode.Ptr(),
 			Integrations:     nil, // userDevice just created, there would never be any integrations setup
 		},
