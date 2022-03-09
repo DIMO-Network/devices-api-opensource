@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -28,6 +27,8 @@ import (
 
 const parkersSource = "parkers"
 
+const monthYearFormat = "January 2006"
+
 type Manufacturer struct {
 	Name   string `json:"name"`
 	Key    string `json:"key"`
@@ -39,6 +40,18 @@ type Manufacturer struct {
 }
 type ManufacturersResponse struct {
 	Manufacturers []Manufacturer `json:"manufacturers"`
+}
+
+type RangesResponse struct {
+	Ranges []struct {
+		Name       string `json:"name"`
+		Key        string `json:"key"`
+		RangeYears []struct {
+			Models []struct {
+				URL string `json:"url"`
+			} `json:"models"`
+		} `json:"rangeYears"`
+	} `json:"ranges"`
 }
 
 const baseURL = "https://www.parkers.co.uk"
@@ -102,9 +115,7 @@ func get(url string, processBody func(io.Reader) error) error {
 }
 
 // Needed for version years
-var monthYearRegexp = regexp.MustCompile(`^(?:January|February|March|April|May|June|July|August|September|October|November|December) (\d{4})`)
-
-var yearsRegexp = regexp.MustCompile(`(\d{4}) (?:onwards|- (\d{4}))\) Specifications$`)
+var monthYearRegexp = regexp.MustCompile(`^(January|February|March|April|May|June|July|August|September|October|November|December) (\d{4})`)
 
 func loadParkersDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore) error {
 	var numRanges uint64
@@ -162,66 +173,19 @@ func loadParkersDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, s
 				return
 			}
 
-			for _, mfrRange := range manufacturer.Ranges {
-				rangeURL := baseURL + mfrRange.URL
+			rangesBody := new(RangesResponse)
+			if err := get(baseURL+"/api/cars/quick-find/specs/"+manufacturer.Key, makeDecoder(rangesBody)); err != nil {
+				logger.Err(err).Msgf("Failed to retrieve manufacturer specs for %s", manufacturer.Key)
+			}
 
-				var rangeDoc *goquery.Document
-				if err := get(rangeURL, makeDoc(&rangeDoc)); err != nil {
-					logger.Err(err).Msgf("Failed to retrieve range page %s, skipping", mfrRange.URL)
-					continue
-				}
-
-				years := NewIntSet()
-
-				modelLinks := make([]string, 0)
-
-				rangeDoc.Find("a.panel__primary-link").Each(func(i int, s *goquery.Selection) {
-					modelLink, modelLinkExists := s.Attr("href")
-					if !modelLinkExists {
-						logger.Warn().Msgf("No link for model %s, odd", s.Text())
+			for _, mfrRange := range rangesBody.Ranges {
+				ddCache := make(map[int]*models.DeviceDefinition)
+				getOrCreateDeviceDefinition := func(year int) (*models.DeviceDefinition, error) {
+					dd, ok := ddCache[year]
+					if ok {
+						return dd, nil
 					}
 
-					match := yearsRegexp.FindStringSubmatch(s.Text())
-					if match == nil {
-						logger.Err(err).Msgf("Unexpected model text %q on %s", s.Text(), mfrRange.URL)
-						return
-					}
-
-					startYear, err := strconv.Atoi(match[1])
-					if err != nil {
-						// This simply should not happen after the regex matches.
-						logger.Err(err).Msgf("Failed to parse year string %q into int", match[1])
-						return
-					}
-
-					// Trying to not use anything before 2000.
-					if startYear < minYear {
-						startYear = minYear
-					}
-
-					endYear := time.Now().Year()
-					if match[2] != "" {
-						var err error
-						endYear, err = strconv.Atoi(match[2])
-						if err != nil {
-							// This simply should not happen after the regex matches.
-							logger.Err(err).Msgf("Failed to parse year string %q into int", match[2])
-							return
-						}
-					}
-
-					if modelLinkExists && endYear >= minYear {
-						modelLinks = append(modelLinks, modelLink)
-					}
-
-					for year := startYear; year <= endYear; year++ {
-						years.Add(year)
-					}
-				})
-
-				dds := make(map[int]*models.DeviceDefinition)
-
-				for _, year := range years.Slice() {
 					dd, err := models.DeviceDefinitions(
 						models.DeviceDefinitionWhere.DeviceMakeID.EQ(dbMake.ID),
 						models.DeviceDefinitionWhere.Model.EQ(mfrRange.Name),
@@ -229,17 +193,17 @@ func loadParkersDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, s
 					).One(ctx, db)
 					if err != nil {
 						if !errors.Is(err, sql.ErrNoRows) {
-							logger.Err(err).Msgf("Failed searching for existing device definition")
-							return
+							return nil, err
 						}
+
 						dd = &models.DeviceDefinition{
 							ID:           ksuid.New().String(),
 							DeviceMakeID: dbMake.ID,
 							Model:        mfrRange.Name,
 							Year:         int16(year),
 						}
-						logger.Debug().Msgf("Creating device definition for %s %s %d", manufacturer.Name, mfrRange.Name, year)
 					}
+
 					if !dd.Source.Valid {
 						dd.Source.SetValid(parkersSource)
 						dd.ExternalID.SetValid(manufacturer.Key + "/" + mfrRange.Key)
@@ -248,115 +212,123 @@ func loadParkersDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, s
 
 					if err := dd.Upsert(ctx, db, true, []string{models.DeviceDefinitionColumns.ID}, boil.Infer(), boil.Infer()); err != nil {
 						logger.Err(err).Msgf("Failed upserting device definition")
-						return
+						return nil, err
 					}
 
-					dds[year] = dd
+					ddCache[year] = dd
+					return dd, nil
 				}
 
-				for _, modelLink := range modelLinks {
-					var modelDoc *goquery.Document
-					if err := get(baseURL+modelLink, makeDoc(&modelDoc)); err != nil {
-						logger.Err(err).Msgf("Failed to retrieve model page %s, skipping", mfrRange.URL)
-						continue
-					}
-
-					modelDoc.Find("select.trim-equipment-list__filter").First().Find("option").Each(func(i int, s *goquery.Selection) {
-						val, exists := s.Attr("value")
-						if !exists {
-							logger.Warn().Msgf("Trim selection index %d has no value attribute", i)
+				for _, rangeYears := range mfrRange.RangeYears {
+					for _, model := range rangeYears.Models {
+						var modelDoc *goquery.Document
+						if err := get(baseURL+model.URL, makeDoc(&modelDoc)); err != nil {
+							logger.Err(err).Msgf("Failed to retrieve model page %s, skipping", model.URL)
+							continue
 						}
-						if val == "placeholder" {
-							return
-						}
-						trimName := s.Text()
-						versionSelector := fmt.Sprintf(`ul[data-derivative-id^="%s-engine_"]`, val)
-						modelDoc.Find(versionSelector).Find("li").Each(func(i int, s *goquery.Selection) {
-							versionName := s.Text()
-							versionID, exists := s.Attr("value")
+
+						modelDoc.Find("select.trim-equipment-list__filter").First().Find("option").Each(func(i int, s *goquery.Selection) {
+							val, exists := s.Attr("value")
 							if !exists {
-								logger.Warn().Msgf("Version name has no value attribute")
+								logger.Warn().Msgf("Trim option at index %d has no value attribute on %s", i, model.URL)
 								return
 							}
-							versionLinkSelector := fmt.Sprintf(`div[data-derivative-link-id="%s"]`, versionID)
-							link, exists := modelDoc.Find(versionLinkSelector).Find("a").First().Attr("href")
-							if !exists {
-								logger.Warn().Msgf("Version has no associated link")
+							if val == "placeholder" {
 								return
 							}
-
-							// Sometimes they don't URL-encode "#1" in names.
-							safeLink := strings.Replace(link, "#", "%23", -1)
-
-							var versionDoc *goquery.Document
-							if err := get(baseURL+safeLink, makeDoc(&versionDoc)); err != nil {
-								logger.Warn().Msgf("Couldn't retrieve version doc")
-								return
-							}
-
-							from := strings.TrimSpace(versionDoc.Find("span.specs-detail-page__available-dates__from").First().Text())
-
-							match := monthYearRegexp.FindStringSubmatch(from)
-							if match == nil {
-								logger.Warn().Err(err).Msgf("From date not in the expected format")
-								return
-							}
-							startYear, err := strconv.Atoi(match[1])
-							if err != nil {
-								logger.Warn().Err(err).Msgf("From date not in the expected format")
-								return
-							}
-
-							if startYear < minYear {
-								startYear = minYear
-							}
-
-							to := strings.TrimSpace(versionDoc.Find("span.specs-detail-page__available-dates__to").First().Text())
-							endYear := 2022
-							if to != "Now" {
-								match := monthYearRegexp.FindStringSubmatch(to)
-								if match == nil {
-									logger.Warn().Err(err).Msgf("To date not in the expected format")
+							trimName := s.Text()
+							versionSelector := fmt.Sprintf(`ul[data-derivative-id^="%s-engine_"]`, val)
+							modelDoc.Find(versionSelector).Find("li").Each(func(i int, s *goquery.Selection) {
+								versionName := s.Text()
+								versionID, exists := s.Attr("value")
+								if !exists {
+									logger.Warn().Msgf("Version name has no value attribute")
 									return
 								}
-								endYear, _ = strconv.Atoi(match[1])
-							}
-
-							for year := startYear; year <= endYear; year++ {
-								dd, ok := dds[year]
-								if !ok {
-									logger.Warn().Err(err).Msgf("Version year not in the computed year list for the range")
-									continue
+								versionLinkSelector := fmt.Sprintf(`div[data-derivative-link-id="%s"]`, versionID)
+								link, exists := modelDoc.Find(versionLinkSelector).Find("a").First().Attr("href")
+								if !exists {
+									logger.Warn().Msgf("Version has no associated link")
+									return
 								}
-								ds, err := models.DeviceStyles(
-									models.DeviceStyleWhere.DeviceDefinitionID.EQ(dd.ID),
-									models.DeviceStyleWhere.Name.EQ(versionName),
-									models.DeviceStyleWhere.SubModel.EQ(trimName),
-								).One(ctx, db)
+
+								// Sometimes they don't URL-encode "#1" in names.
+								safeLink := strings.Replace(link, "#", "%23", -1)
+
+								var versionDoc *goquery.Document
+								if err := get(baseURL+safeLink, makeDoc(&versionDoc)); err != nil {
+									logger.Warn().Msgf("Couldn't fetch version page %s", safeLink)
+									return
+								}
+
+								from := strings.TrimSpace(versionDoc.Find("span.specs-detail-page__available-dates__from").First().Text())
+								to := strings.TrimSpace(versionDoc.Find("span.specs-detail-page__available-dates__to").First().Text())
+
+								fromTime, err := time.Parse(monthYearFormat, from)
 								if err != nil {
-									if !errors.Is(err, sql.ErrNoRows) {
-										logger.Warn().Err(err).Msgf("Failed to look up styles")
+									logger.Warn().Err(err).Msgf("From date not in the expected format")
+									return
+								}
+								fromYear := fromTime.Year()
+
+								if fromTime.Month() >= time.July {
+									fromYear++
+								}
+
+								if fromYear < minYear {
+									fromYear = minYear
+								}
+
+								toTime := time.Now()
+
+								if to != "Now" {
+									toTime, err = time.Parse(monthYearFormat, to)
+									if err != nil {
+										logger.Warn().Err(err).Msgf("To date not in the expected format")
 										return
 									}
-									ds = &models.DeviceStyle{
-										ID:                 ksuid.New().String(),
-										DeviceDefinitionID: dd.ID,
-										Name:               versionName,
-										SubModel:           trimName,
+								}
+
+								toYear := toTime.Year()
+								if toTime.Month() >= time.July {
+									toYear++
+								}
+
+								for year := fromYear; year <= toYear; year++ {
+									dd, err := getOrCreateDeviceDefinition(year)
+									if err != nil {
+										return
+									}
+									ds, err := models.DeviceStyles(
+										models.DeviceStyleWhere.DeviceDefinitionID.EQ(dd.ID),
+										models.DeviceStyleWhere.Name.EQ(versionName),
+										models.DeviceStyleWhere.SubModel.EQ(trimName),
+									).One(ctx, db)
+									if err != nil {
+										if !errors.Is(err, sql.ErrNoRows) {
+											logger.Warn().Err(err).Msgf("Failed to look up styles")
+											return
+										}
+										ds = &models.DeviceStyle{
+											ID:                 ksuid.New().String(),
+											DeviceDefinitionID: dd.ID,
+											Name:               versionName,
+											SubModel:           trimName,
+										}
+									}
+									if ds.Source == "" {
+										ds.Source = parkersSource
+										ds.ExternalStyleID = versionID
+									}
+									if err := ds.Upsert(ctx, db, true, []string{models.DeviceStyleColumns.ID}, boil.Infer(), boil.Infer()); err != nil {
+										logger.Err(err).Msgf("Failed to upsert styles")
+										return
 									}
 								}
-								if ds.Source == "" {
-									ds.Source = parkersSource
-									ds.ExternalStyleID = versionID
-								}
-								if err := ds.Upsert(ctx, db, true, []string{models.DeviceStyleColumns.ID}, boil.Infer(), boil.Infer()); err != nil {
-									logger.Err(err).Msgf("Failed to upsert styles")
-									return
-								}
-							}
-						})
+							})
 
-					})
+						})
+					}
 				}
 
 				atomic.AddUint64(&numRangesProcessed, 1)
