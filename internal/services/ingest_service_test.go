@@ -2,14 +2,15 @@ package services
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
@@ -29,10 +30,7 @@ func TestIngestDeviceStatus(t *testing.T) {
 		Buffer: make([]*Event, 0),
 	}
 
-	logger := zerolog.New(os.Stdout).With().
-		Timestamp().
-		Str("app", "devices-api").
-		Logger()
+	logger := zerolog.New(os.Stdout).With().Timestamp().Str("app", "devices-api").Logger()
 
 	ctx := context.Background()
 	pdb, db := test.SetupDatabase(ctx, t, migrationsDirRelPath)
@@ -42,7 +40,7 @@ func TestIngestDeviceStatus(t *testing.T) {
 		}
 	}()
 
-	is := NewIngestService(pdb.DBS, &logger, mes)
+	ingest := NewIngestService(pdb.DBS, &logger, mes)
 
 	scIntegration := test.SetupCreateSmartCarIntegration(t, pdb)
 	dm := test.SetupCreateMake(t, "Tesla", pdb)
@@ -56,35 +54,84 @@ func TestIngestDeviceStatus(t *testing.T) {
 	}
 	err := udai.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 	assert.NoError(t, err)
-	// "No API integration found for device 264bqKKB5rFp8ztfJw1gVkAid4x and integration 264bqJfPTi7UsdurCtRA8ucH54i"
-	err = is.processEvent(&DeviceStatusEvent{
-		Source:      "dimo/integration/" + scIntegration.ID,
-		Specversion: "1.0",
-		Subject:     ud.ID,
-		Type:        deviceStatusEventType,
-		Data:        json.RawMessage(`{"odometer": 45.1}`),
-	})
-	assert.NoError(t, err, "expected no errors from first status event")
 
-	newUDAI, _ := models.FindUserDeviceAPIIntegration(ctx, pdb.DBS().Writer, ud.ID, scIntegration.ID)
+	testCases := []struct {
+		Name                string
+		ExistingData        null.JSON
+		NewData             null.JSON
+		LastOdometerEventAt null.Time
+		ExpectedEvent       null.Float64
+	}{
+		{
+			Name:                "New reading, none prior",
+			ExistingData:        null.JSON{},
+			NewData:             null.JSONFrom([]byte(`{"odometer": 12.5}`)),
+			LastOdometerEventAt: null.Time{},
+			ExpectedEvent:       null.Float64From(12.5),
+		},
+		{
+			Name:                "Odometer changed, event off cooldown",
+			ExistingData:        null.JSONFrom([]byte(`{"odometer": 12.5}`)),
+			NewData:             null.JSONFrom([]byte(`{"odometer": 14.5}`)),
+			LastOdometerEventAt: null.TimeFrom(time.Now().Add(-2 * odometerCooldown)),
+			ExpectedEvent:       null.Float64From(14.5),
+		},
+		{
+			Name:                "Event off cooldown, odometer unchanged",
+			ExistingData:        null.JSONFrom([]byte(`{"odometer": 12.5}`)),
+			NewData:             null.JSONFrom([]byte(`{"odometer": 12.5}`)),
+			LastOdometerEventAt: null.TimeFrom(time.Now().Add(-2 * odometerCooldown)),
+			ExpectedEvent:       null.Float64{},
+		},
+		{
+			Name:                "Odometer changed, but event on cooldown",
+			ExistingData:        null.JSONFrom([]byte(`{"odometer": 12.5}`)),
+			NewData:             null.JSONFrom([]byte(`{"odometer": 14.5}`)),
+			LastOdometerEventAt: null.TimeFrom(time.Now().Add(odometerCooldown / 2)),
+			ExpectedEvent:       null.Float64{},
+		},
+	}
 
-	assert.Equal(t, models.UserDeviceAPIIntegrationStatusActive, newUDAI.Status, "integration should be set to active")
+	tx := pdb.DBS().Writer
 
-	data, _ := models.FindUserDeviceDatum(ctx, pdb.DBS().Writer, ud.ID)
+	for _, c := range testCases {
+		t.Run(c.Name, func(t *testing.T) {
+			defer func() { mes.Buffer = nil }()
 
-	assert.Equal(t, []byte(`{"odometer": 45.1}`), data.Data.JSON, "should have updated the data field")
+			datum := models.UserDeviceDatum{
+				UserDeviceID:        ud.ID,
+				Data:                c.ExistingData,
+				LastOdometerEventAt: c.LastOdometerEventAt,
+			}
 
-	assert.Equal(t, 45.1, mes.Buffer[0].Data.(OdometerEvent).Odometer)
+			err := datum.Upsert(ctx, tx, true, []string{models.UserDeviceDatumColumns.UserDeviceID}, boil.Infer(), boil.Infer())
+			if err != nil {
+				t.Fatalf("Failed setting up existing data row: %v", err)
+			}
 
-	err = is.processEvent(&DeviceStatusEvent{
-		Source:      "dimo/integration/" + scIntegration.ID,
-		Specversion: "1.0",
-		Subject:     ud.ID,
-		Type:        deviceStatusEventType,
-		Data:        json.RawMessage(`{"odometer": 55.2}`),
-	})
-	assert.NoError(t, err, "expected no errors from second status event")
+			input := &DeviceStatusEvent{
+				Source:      "dimo/integration/" + scIntegration.ID,
+				Specversion: "1.0",
+				Subject:     ud.ID,
+				Type:        deviceStatusEventType,
+				Data:        c.NewData.JSON,
+			}
 
-	assert.Equal(t, 55.2, mes.Buffer[1].Data.(OdometerEvent).Odometer)
-
+			if err := ingest.processEvent(input); err != nil {
+				t.Fatalf("Got an unexpected error processing status update: %v", err)
+			}
+			if c.ExpectedEvent.Valid {
+				if len(mes.Buffer) != 1 {
+					t.Fatalf("Expected one odometer event, but got %d", len(mes.Buffer))
+				}
+				// A bit ugly to have to cast like this.
+				actualOdometer := mes.Buffer[0].Data.(OdometerEvent).Odometer
+				if actualOdometer != c.ExpectedEvent.Float64 {
+					t.Fatalf("Expected an odometer reading of %f but got %f", c.ExpectedEvent.Float64, actualOdometer)
+				}
+			} else if len(mes.Buffer) != 0 {
+				t.Fatalf("Expected no odometer events, but got %d", len(mes.Buffer))
+			}
+		})
+	}
 }

@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -21,6 +20,8 @@ import (
 )
 
 const deviceStatusEventType = "zone.dimo.device.status.update"
+
+var odometerCooldown = time.Hour
 
 type IngestService struct {
 	db           func() *database.DBReaderWriter
@@ -45,142 +46,147 @@ func (i *IngestService) ProcessDeviceStatusMessages(messages <-chan *message.Mes
 func (i *IngestService) processMessage(msg *message.Message) error {
 	// Keep the pipeline moving no matter what.
 	defer func() { msg.Ack() }()
-
 	defer appmetrics.SmartcarIngestTotalOps.Inc()
 
 	log.Info().Msgf("Received message: %s, payload: %s", msg.UUID, string(msg.Payload))
-	e := new(DeviceStatusEvent)
 
-	err := json.Unmarshal(msg.Payload, e)
-	if err != nil {
+	event := new(DeviceStatusEvent)
+	if err := json.Unmarshal(msg.Payload, event); err != nil {
 		return errors.Wrap(err, "error parsing device event payload")
 	}
 
-	if e.Type != deviceStatusEventType {
-		return fmt.Errorf("received vehicle status event with unexpected type %s", e.Type)
+	if event.Type != deviceStatusEventType {
+		return fmt.Errorf("received vehicle status event with unexpected type %s", event.Type)
 	}
 
-	return i.processEvent(e)
+	return i.processEvent(event)
 }
 
-var integrationIDregex = regexp.MustCompile("^dimo/integration/([a-zA-Z0-9]{27})$")
+// integrationIDregexp is used to parse out the KSUID of the integration from the CloudEvent
+// source field.
+var integrationIDregexp = regexp.MustCompile("^dimo/integration/([a-zA-Z0-9]{27})$")
 
 func (i *IngestService) processEvent(event *DeviceStatusEvent) error {
 	ctx := context.Background() // should this be passed in so can cancel if application shutting down?
 
 	userDeviceID := event.Subject
-	udd := models.UserDeviceDatum{
-		UserDeviceID: userDeviceID,
-		Data:         null.JSONFrom(event.Data),
+
+	match := integrationIDregexp.FindStringSubmatch(event.Source)
+	if match == nil {
+		return fmt.Errorf("failed to parse integration from event source %q", event.Source)
 	}
-	whiteList := []string{"error_data", "updated_at"} // always update error_data, even if no errors so gets set to null
-	newOdometer, errOdo := extractOdometer(event.Data)
-	if errOdo != nil {
-		i.log.Err(errOdo).Msg("Failed to grab odometer from status update, will not update Data")
-		udd.ErrorData = null.JSONFrom(event.Data)
-	} else {
-		whiteList = append(whiteList, "data") // set data only if can find odometer, meaning good data
-	}
+	integrationID := match[1]
 
 	tx, err := i.db().Writer.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("error starting transaction: %w", err)
+		return fmt.Errorf("error beginning transaction: %w", err)
 	}
 	defer tx.Rollback() //nolint
 
-	match := integrationIDregex.FindStringSubmatch(event.Source)
-	if match == nil {
-		i.log.Error().Msgf("Failed to parse out integration from device status event source %q", event.Source)
-	} else {
-		integrationID := match[1]
-		udai, err := models.FindUserDeviceAPIIntegration(ctx, tx, userDeviceID, integrationID)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				i.log.Err(err).Msgf("No API integration found for device %s and integration %s", userDeviceID, integrationID)
-			} else {
-				i.log.Err(err).Msg("Failed to search for device integration, cannot check status")
-			}
-		} else if udai.Status != models.UserDeviceAPIIntegrationStatusActive {
-			udai.Status = models.UserDeviceAPIIntegrationStatusActive
-			if _, err := udai.Update(ctx, tx, boil.Whitelist("status")); err != nil {
-				i.log.Err(err).Msg("Failed to update user device API integration to active")
-			}
-		}
-	}
-
-	// Horribly inefficient
 	device, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
-		qm.Load(models.UserDeviceRels.DeviceDefinition), // Only needed for the odometer event.
+		qm.Load(models.UserDeviceRels.DeviceDefinition),
+		qm.Load(
+			models.UserDeviceRels.UserDeviceAPIIntegrations,
+			models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID),
+		),
+		qm.Load(models.UserDeviceRels.UserDeviceDatum),
 		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
 	).One(ctx, tx)
 	if err != nil {
-		return fmt.Errorf("couldn't find device %s for status update: %w", userDeviceID, err)
+		return fmt.Errorf("failed to find device: %w", err)
 	}
 
-	haveOldOdometer := false
-	var oldOdometer float64
-	oldUDD, err := models.FindUserDeviceDatum(ctx, tx, userDeviceID)
-	if err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			i.log.Err(err).Msg("Failed to look up old odometer value.")
-		}
-	} else if oldUDD.Data.Valid {
-		oldOdometer, err = extractOdometer(oldUDD.Data.JSON)
-		if err != nil {
-			i.log.Err(err).Msg("Failed to grab odometer from existing status update")
-		} else {
-			haveOldOdometer = true
+	if len(device.R.UserDeviceAPIIntegrations) == 0 {
+		return fmt.Errorf("can't find API integration for device %s and integration %s", userDeviceID, integrationID)
+	}
+
+	apiIntegration := device.R.UserDeviceAPIIntegrations[0]
+	if apiIntegration.Status != models.UserDeviceAPIIntegrationStatusActive {
+		apiIntegration.Status = models.UserDeviceAPIIntegrationStatusActive
+		if _, err := apiIntegration.Update(ctx, tx, boil.Infer()); err != nil {
+			return fmt.Errorf("failed to update API integration: %w", err)
 		}
 	}
 
-	err = udd.Upsert(ctx, tx, true, []string{"user_device_id"}, boil.Whitelist(whiteList...), boil.Infer())
-	if err != nil {
-		return fmt.Errorf("error upserting vehicle status event data: %w", err)
+	var newOdometer null.Float64
+	if o, err := extractOdometer(event.Data); err == nil {
+		newOdometer = null.Float64From(o)
 	}
 
-	err = tx.Commit()
-	if err != nil {
+	datum := device.R.UserDeviceDatum
+	if datum == nil {
+		datum = &models.UserDeviceDatum{
+			UserDeviceID: userDeviceID,
+		}
+	}
+
+	if newOdometer.Valid {
+		oldOdometer := null.Float64FromPtr(nil)
+		if datum.Data.Valid {
+			if o, err := extractOdometer(datum.Data.JSON); err == nil {
+				oldOdometer = null.Float64From(o)
+			}
+		}
+
+		datum.Data = null.JSONFrom(event.Data)
+		datum.ErrorData = null.JSON{}
+
+		now := time.Now()
+		odometerOffCooldown := !datum.LastOdometerEventAt.Valid || now.Sub(datum.LastOdometerEventAt.Time) >= odometerCooldown
+		odometerChanged := !oldOdometer.Valid || newOdometer.Float64 > oldOdometer.Float64
+
+		if odometerOffCooldown && odometerChanged {
+			datum.LastOdometerEventAt = null.TimeFrom(now)
+			i.emitOdometerEvent(device, integrationID, newOdometer.Float64)
+		}
+	} else {
+		datum.ErrorData = null.JSONFrom(event.Data)
+	}
+
+	if err := datum.Upsert(ctx, tx, true, []string{models.UserDeviceDatumColumns.UserDeviceID}, boil.Infer(), boil.Infer()); err != nil {
+		return fmt.Errorf("error upserting datum: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("error committing transaction: %w", err)
-	}
-
-	if errOdo == nil && (!haveOldOdometer || newOdometer != oldOdometer) {
-		// If the Smartcar /odometer endpoint returned an error, we won't have a value.
-		err = i.eventService.Emit(&Event{
-			Type:    "com.dimo.zone.device.odometer.update",
-			Subject: userDeviceID,
-			Source:  event.Source, // Should be the integration
-			Data: OdometerEvent{
-				Timestamp: time.Now(),
-				UserID:    device.UserID,
-				Device: odometerEventDevice{
-					ID:    userDeviceID,
-					Make:  device.R.DeviceDefinition.R.DeviceMake.Name,
-					Model: device.R.DeviceDefinition.Model,
-					Year:  int(device.R.DeviceDefinition.Year),
-				},
-				Odometer: newOdometer,
-			},
-		})
-		if err != nil {
-			i.log.Err(err).Msg("Failed to emit odometer event")
-		}
 	}
 
 	appmetrics.SmartcarIngestSuccessOps.Inc()
 	return nil
 }
 
-func extractOdometer(data []byte) (float64, error) {
-	var partialData struct {
-		Odometer *float64 `json:"odometer"`
+func (i *IngestService) emitOdometerEvent(device *models.UserDevice, integrationID string, odometer float64) {
+	event := &Event{
+		Type:    "com.dimo.zone.device.odometer.update",
+		Subject: device.ID,
+		Source:  "dimo/integration/" + integrationID,
+		Data: OdometerEvent{
+			Timestamp: time.Now(),
+			UserID:    device.UserID,
+			Device: odometerEventDevice{
+				ID:    device.ID,
+				Make:  device.R.DeviceDefinition.R.DeviceMake.Name,
+				Model: device.R.DeviceDefinition.Model,
+				Year:  int(device.R.DeviceDefinition.Year),
+			},
+			Odometer: odometer,
+		},
 	}
-	err := json.Unmarshal(data, &partialData)
-	if err != nil {
-		return 0, fmt.Errorf("failed to parse data payload")
+	if err := i.eventService.Emit(event); err != nil {
+		i.log.Err(err).Msgf("Failed to emit odometer event for device %s", device.ID)
+	}
+}
+
+func extractOdometer(data []byte) (float64, error) {
+	partialData := new(struct {
+		Odometer *float64 `json:"odometer"`
+	})
+	if err := json.Unmarshal(data, partialData); err != nil {
+		return 0, fmt.Errorf("failed parsing data field: %w", err)
 	}
 	if partialData.Odometer == nil {
-		return 0, fmt.Errorf("data payload did not have an odometer reading")
+		return 0, errors.New("data payload did not have an odometer reading")
 	}
 
 	return *partialData.Odometer, nil

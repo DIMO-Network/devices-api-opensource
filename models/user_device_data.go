@@ -24,58 +24,65 @@ import (
 
 // UserDeviceDatum is an object representing the database table.
 type UserDeviceDatum struct {
-	UserDeviceID string    `boil:"user_device_id" json:"user_device_id" toml:"user_device_id" yaml:"user_device_id"`
-	Data         null.JSON `boil:"data" json:"data,omitempty" toml:"data" yaml:"data,omitempty"`
-	CreatedAt    time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt    time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	ErrorData    null.JSON `boil:"error_data" json:"error_data,omitempty" toml:"error_data" yaml:"error_data,omitempty"`
+	UserDeviceID        string    `boil:"user_device_id" json:"user_device_id" toml:"user_device_id" yaml:"user_device_id"`
+	Data                null.JSON `boil:"data" json:"data,omitempty" toml:"data" yaml:"data,omitempty"`
+	CreatedAt           time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt           time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	ErrorData           null.JSON `boil:"error_data" json:"error_data,omitempty" toml:"error_data" yaml:"error_data,omitempty"`
+	LastOdometerEventAt null.Time `boil:"last_odometer_event_at" json:"last_odometer_event_at,omitempty" toml:"last_odometer_event_at" yaml:"last_odometer_event_at,omitempty"`
 
 	R *userDeviceDatumR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userDeviceDatumL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var UserDeviceDatumColumns = struct {
-	UserDeviceID string
-	Data         string
-	CreatedAt    string
-	UpdatedAt    string
-	ErrorData    string
+	UserDeviceID        string
+	Data                string
+	CreatedAt           string
+	UpdatedAt           string
+	ErrorData           string
+	LastOdometerEventAt string
 }{
-	UserDeviceID: "user_device_id",
-	Data:         "data",
-	CreatedAt:    "created_at",
-	UpdatedAt:    "updated_at",
-	ErrorData:    "error_data",
+	UserDeviceID:        "user_device_id",
+	Data:                "data",
+	CreatedAt:           "created_at",
+	UpdatedAt:           "updated_at",
+	ErrorData:           "error_data",
+	LastOdometerEventAt: "last_odometer_event_at",
 }
 
 var UserDeviceDatumTableColumns = struct {
-	UserDeviceID string
-	Data         string
-	CreatedAt    string
-	UpdatedAt    string
-	ErrorData    string
+	UserDeviceID        string
+	Data                string
+	CreatedAt           string
+	UpdatedAt           string
+	ErrorData           string
+	LastOdometerEventAt string
 }{
-	UserDeviceID: "user_device_data.user_device_id",
-	Data:         "user_device_data.data",
-	CreatedAt:    "user_device_data.created_at",
-	UpdatedAt:    "user_device_data.updated_at",
-	ErrorData:    "user_device_data.error_data",
+	UserDeviceID:        "user_device_data.user_device_id",
+	Data:                "user_device_data.data",
+	CreatedAt:           "user_device_data.created_at",
+	UpdatedAt:           "user_device_data.updated_at",
+	ErrorData:           "user_device_data.error_data",
+	LastOdometerEventAt: "user_device_data.last_odometer_event_at",
 }
 
 // Generated where
 
 var UserDeviceDatumWhere = struct {
-	UserDeviceID whereHelperstring
-	Data         whereHelpernull_JSON
-	CreatedAt    whereHelpertime_Time
-	UpdatedAt    whereHelpertime_Time
-	ErrorData    whereHelpernull_JSON
+	UserDeviceID        whereHelperstring
+	Data                whereHelpernull_JSON
+	CreatedAt           whereHelpertime_Time
+	UpdatedAt           whereHelpertime_Time
+	ErrorData           whereHelpernull_JSON
+	LastOdometerEventAt whereHelpernull_Time
 }{
-	UserDeviceID: whereHelperstring{field: "\"devices_api\".\"user_device_data\".\"user_device_id\""},
-	Data:         whereHelpernull_JSON{field: "\"devices_api\".\"user_device_data\".\"data\""},
-	CreatedAt:    whereHelpertime_Time{field: "\"devices_api\".\"user_device_data\".\"created_at\""},
-	UpdatedAt:    whereHelpertime_Time{field: "\"devices_api\".\"user_device_data\".\"updated_at\""},
-	ErrorData:    whereHelpernull_JSON{field: "\"devices_api\".\"user_device_data\".\"error_data\""},
+	UserDeviceID:        whereHelperstring{field: "\"devices_api\".\"user_device_data\".\"user_device_id\""},
+	Data:                whereHelpernull_JSON{field: "\"devices_api\".\"user_device_data\".\"data\""},
+	CreatedAt:           whereHelpertime_Time{field: "\"devices_api\".\"user_device_data\".\"created_at\""},
+	UpdatedAt:           whereHelpertime_Time{field: "\"devices_api\".\"user_device_data\".\"updated_at\""},
+	ErrorData:           whereHelpernull_JSON{field: "\"devices_api\".\"user_device_data\".\"error_data\""},
+	LastOdometerEventAt: whereHelpernull_Time{field: "\"devices_api\".\"user_device_data\".\"last_odometer_event_at\""},
 }
 
 // UserDeviceDatumRels is where relationship names are stored.
@@ -99,9 +106,9 @@ func (*userDeviceDatumR) NewStruct() *userDeviceDatumR {
 type userDeviceDatumL struct{}
 
 var (
-	userDeviceDatumAllColumns            = []string{"user_device_id", "data", "created_at", "updated_at", "error_data"}
+	userDeviceDatumAllColumns            = []string{"user_device_id", "data", "created_at", "updated_at", "error_data", "last_odometer_event_at"}
 	userDeviceDatumColumnsWithoutDefault = []string{"user_device_id"}
-	userDeviceDatumColumnsWithDefault    = []string{"data", "created_at", "updated_at", "error_data"}
+	userDeviceDatumColumnsWithDefault    = []string{"data", "created_at", "updated_at", "error_data", "last_odometer_event_at"}
 	userDeviceDatumPrimaryKeyColumns     = []string{"user_device_id"}
 	userDeviceDatumGeneratedColumns      = []string{}
 )
