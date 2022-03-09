@@ -109,7 +109,6 @@ func main() {
 			logger.Fatal().Err(err).Msg("error trying to sync edmunds")
 		}
 	case "parkers-vehicles-sync":
-		logger.Info().Msgf("Loading Parkers vehicles")
 		err = loadParkersDeviceDefinitions(ctx, &logger, settings, pdb)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error syncing with Parkers")
