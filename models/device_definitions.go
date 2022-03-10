@@ -25,7 +25,6 @@ import (
 // DeviceDefinition is an object representing the database table.
 type DeviceDefinition struct {
 	ID           string      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Make         null.String `boil:"make" json:"make,omitempty" toml:"make" yaml:"make,omitempty"`
 	Model        string      `boil:"model" json:"model" toml:"model" yaml:"model"`
 	Year         int16       `boil:"year" json:"year" toml:"year" yaml:"year"`
 	ImageURL     null.String `boil:"image_url" json:"image_url,omitempty" toml:"image_url" yaml:"image_url,omitempty"`
@@ -43,7 +42,6 @@ type DeviceDefinition struct {
 
 var DeviceDefinitionColumns = struct {
 	ID           string
-	Make         string
 	Model        string
 	Year         string
 	ImageURL     string
@@ -56,7 +54,6 @@ var DeviceDefinitionColumns = struct {
 	DeviceMakeID string
 }{
 	ID:           "id",
-	Make:         "make",
 	Model:        "model",
 	Year:         "year",
 	ImageURL:     "image_url",
@@ -71,7 +68,6 @@ var DeviceDefinitionColumns = struct {
 
 var DeviceDefinitionTableColumns = struct {
 	ID           string
-	Make         string
 	Model        string
 	Year         string
 	ImageURL     string
@@ -84,7 +80,6 @@ var DeviceDefinitionTableColumns = struct {
 	DeviceMakeID string
 }{
 	ID:           "device_definitions.id",
-	Make:         "device_definitions.make",
 	Model:        "device_definitions.model",
 	Year:         "device_definitions.year",
 	ImageURL:     "device_definitions.image_url",
@@ -122,6 +117,29 @@ func (w whereHelperstring) NIN(slice []string) qm.QueryMod {
 	return qm.WhereNotIn(fmt.Sprintf("%s NOT IN ?", w.field), values...)
 }
 
+type whereHelperint16 struct{ field string }
+
+func (w whereHelperint16) EQ(x int16) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.EQ, x) }
+func (w whereHelperint16) NEQ(x int16) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.NEQ, x) }
+func (w whereHelperint16) LT(x int16) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.LT, x) }
+func (w whereHelperint16) LTE(x int16) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LTE, x) }
+func (w whereHelperint16) GT(x int16) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.GT, x) }
+func (w whereHelperint16) GTE(x int16) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
+func (w whereHelperint16) IN(slice []int16) qm.QueryMod {
+	values := make([]interface{}, 0, len(slice))
+	for _, value := range slice {
+		values = append(values, value)
+	}
+	return qm.WhereIn(fmt.Sprintf("%s IN ?", w.field), values...)
+}
+func (w whereHelperint16) NIN(slice []int16) qm.QueryMod {
+	values := make([]interface{}, 0, len(slice))
+	for _, value := range slice {
+		values = append(values, value)
+	}
+	return qm.WhereNotIn(fmt.Sprintf("%s NOT IN ?", w.field), values...)
+}
+
 type whereHelpernull_String struct{ field string }
 
 func (w whereHelpernull_String) EQ(x null.String) qm.QueryMod {
@@ -145,29 +163,6 @@ func (w whereHelpernull_String) GTE(x null.String) qm.QueryMod {
 
 func (w whereHelpernull_String) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
 func (w whereHelpernull_String) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
-
-type whereHelperint16 struct{ field string }
-
-func (w whereHelperint16) EQ(x int16) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.EQ, x) }
-func (w whereHelperint16) NEQ(x int16) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.NEQ, x) }
-func (w whereHelperint16) LT(x int16) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.LT, x) }
-func (w whereHelperint16) LTE(x int16) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LTE, x) }
-func (w whereHelperint16) GT(x int16) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.GT, x) }
-func (w whereHelperint16) GTE(x int16) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
-func (w whereHelperint16) IN(slice []int16) qm.QueryMod {
-	values := make([]interface{}, 0, len(slice))
-	for _, value := range slice {
-		values = append(values, value)
-	}
-	return qm.WhereIn(fmt.Sprintf("%s IN ?", w.field), values...)
-}
-func (w whereHelperint16) NIN(slice []int16) qm.QueryMod {
-	values := make([]interface{}, 0, len(slice))
-	for _, value := range slice {
-		values = append(values, value)
-	}
-	return qm.WhereNotIn(fmt.Sprintf("%s NOT IN ?", w.field), values...)
-}
 
 type whereHelpernull_JSON struct{ field string }
 
@@ -225,7 +220,6 @@ func (w whereHelperbool) GTE(x bool) qm.QueryMod { return qmhelper.Where(w.field
 
 var DeviceDefinitionWhere = struct {
 	ID           whereHelperstring
-	Make         whereHelpernull_String
 	Model        whereHelperstring
 	Year         whereHelperint16
 	ImageURL     whereHelpernull_String
@@ -238,7 +232,6 @@ var DeviceDefinitionWhere = struct {
 	DeviceMakeID whereHelperstring
 }{
 	ID:           whereHelperstring{field: "\"devices_api\".\"device_definitions\".\"id\""},
-	Make:         whereHelpernull_String{field: "\"devices_api\".\"device_definitions\".\"make\""},
 	Model:        whereHelperstring{field: "\"devices_api\".\"device_definitions\".\"model\""},
 	Year:         whereHelperint16{field: "\"devices_api\".\"device_definitions\".\"year\""},
 	ImageURL:     whereHelpernull_String{field: "\"devices_api\".\"device_definitions\".\"image_url\""},
@@ -281,9 +274,9 @@ func (*deviceDefinitionR) NewStruct() *deviceDefinitionR {
 type deviceDefinitionL struct{}
 
 var (
-	deviceDefinitionAllColumns            = []string{"id", "make", "model", "year", "image_url", "metadata", "created_at", "updated_at", "source", "verified", "external_id", "device_make_id"}
+	deviceDefinitionAllColumns            = []string{"id", "model", "year", "image_url", "metadata", "created_at", "updated_at", "source", "verified", "external_id", "device_make_id"}
 	deviceDefinitionColumnsWithoutDefault = []string{"id", "model", "year", "device_make_id"}
-	deviceDefinitionColumnsWithDefault    = []string{"make", "image_url", "metadata", "created_at", "updated_at", "source", "verified", "external_id"}
+	deviceDefinitionColumnsWithDefault    = []string{"image_url", "metadata", "created_at", "updated_at", "source", "verified", "external_id"}
 	deviceDefinitionPrimaryKeyColumns     = []string{"id"}
 	deviceDefinitionGeneratedColumns      = []string{}
 )
