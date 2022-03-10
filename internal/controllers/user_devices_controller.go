@@ -76,6 +76,18 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		if err != nil {
 			return err
 		}
+
+		filteredIntegrations := []services.DeviceCompatibility{}
+		if d.CountryCode.Valid {
+			for _, integration := range dd.CompatibleIntegrations {
+				if integration.Country == d.CountryCode.String {
+					filteredIntegrations = append(filteredIntegrations, integration)
+				}
+			}
+		}
+
+		dd.CompatibleIntegrations = filteredIntegrations
+
 		rp[i] = UserDeviceFull{
 			ID:               d.ID,
 			VIN:              d.VinIdentifier.Ptr(),
