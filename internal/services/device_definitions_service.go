@@ -108,7 +108,10 @@ func (d *DeviceDefinitionService) CheckAndSetImage(dd *models.DeviceDefinition, 
 
 // UpdateDeviceDefinitionFromNHTSA pulls vin info from nhtsa, and updates the device definition metadata if the MMY from nhtsa matches ours, and the Source is not NHTSA verified
 func (d *DeviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Context, deviceDefinitionID string, vin string) error {
-	dbDeviceDef, err := models.FindDeviceDefinition(ctx, d.DBS().Reader, deviceDefinitionID)
+	dbDeviceDef, err := models.DeviceDefinitions(
+		models.DeviceDefinitionWhere.ID.EQ(deviceDefinitionID),
+		qm.Load(models.DeviceDefinitionRels.DeviceMake),
+	).One(ctx, d.DBS().Reader)
 	if err != nil {
 		return err
 	}
