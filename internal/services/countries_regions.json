@@ -26,63 +26,11 @@
     "intermediate_region_code": ""
   },
   {
-    "name": "Cayman Islands",
-    "alpha_2": "KY",
-    "alpha_3": "CYM",
-    "id": 136,
-    "iso_3166_2": "ISO 3166-2:KY",
-    "region": "Americas",
-    "sub_region": "Latin America and the Caribbean",
-    "intermediate_region": "Caribbean",
-    "region_code": 19,
-    "sub_region_code": 419,
-    "intermediate_region_code": 29
-  },
-  {
-    "name": "Dominican Republic",
-    "alpha_2": "DO",
-    "alpha_3": "DOM",
-    "id": 214,
-    "iso_3166_2": "ISO 3166-2:DO",
-    "region": "Americas",
-    "sub_region": "Latin America and the Caribbean",
-    "intermediate_region": "Caribbean",
-    "region_code": 19,
-    "sub_region_code": 419,
-    "intermediate_region_code": 29
-  },
-  {
-    "name": "Greenland",
-    "alpha_2": "GL",
-    "alpha_3": "GRL",
-    "id": 304,
-    "iso_3166_2": "ISO 3166-2:GL",
-    "region": "Americas",
-    "sub_region": "Northern America",
-    "intermediate_region": "",
-    "region_code": 19,
-    "sub_region_code": 21,
-    "intermediate_region_code": ""
-  },
-  {
     "name": "Puerto Rico",
     "alpha_2": "PR",
     "alpha_3": "PRI",
     "id": 630,
     "iso_3166_2": "ISO 3166-2:PR",
-    "region": "Americas",
-    "sub_region": "Latin America and the Caribbean",
-    "intermediate_region": "Caribbean",
-    "region_code": 19,
-    "sub_region_code": 419,
-    "intermediate_region_code": 29
-  },
-  {
-    "name": "Virgin Islands (U.S.)",
-    "alpha_2": "VI",
-    "alpha_3": "VIR",
-    "id": 850,
-    "iso_3166_2": "ISO 3166-2:VI",
     "region": "Americas",
     "sub_region": "Latin America and the Caribbean",
     "intermediate_region": "Caribbean",
@@ -117,32 +65,6 @@
     "intermediate_region_code": ""
   },
   {
-    "name": "Albania",
-    "alpha_2": "AL",
-    "alpha_3": "ALB",
-    "id": 8,
-    "iso_3166_2": "ISO 3166-2:AL",
-    "region": "Europe",
-    "sub_region": "Southern Europe",
-    "intermediate_region": "",
-    "region_code": 150,
-    "sub_region_code": 39,
-    "intermediate_region_code": ""
-  },
-  {
-    "name": "Andorra",
-    "alpha_2": "AD",
-    "alpha_3": "AND",
-    "id": 20,
-    "iso_3166_2": "ISO 3166-2:AD",
-    "region": "Europe",
-    "sub_region": "Southern Europe",
-    "intermediate_region": "",
-    "region_code": 150,
-    "sub_region_code": 39,
-    "intermediate_region_code": ""
-  },
-  {
     "name": "Austria",
     "alpha_2": "AT",
     "alpha_3": "AUT",
@@ -166,19 +88,6 @@
     "intermediate_region": "",
     "region_code": 150,
     "sub_region_code": 155,
-    "intermediate_region_code": ""
-  },
-  {
-    "name": "Bosnia and Herzegovina",
-    "alpha_2": "BA",
-    "alpha_3": "BIH",
-    "id": 70,
-    "iso_3166_2": "ISO 3166-2:BA",
-    "region": "Europe",
-    "sub_region": "Southern Europe",
-    "intermediate_region": "",
-    "region_code": 150,
-    "sub_region_code": 39,
     "intermediate_region_code": ""
   },
   {
@@ -247,19 +156,6 @@
     "intermediate_region_code": ""
   },
   {
-    "name": "Faroe Islands",
-    "alpha_2": "FO",
-    "alpha_3": "FRO",
-    "id": 234,
-    "iso_3166_2": "ISO 3166-2:FO",
-    "region": "Europe",
-    "sub_region": "Northern Europe",
-    "intermediate_region": "",
-    "region_code": 150,
-    "sub_region_code": 154,
-    "intermediate_region_code": ""
-  },
-  {
     "name": "Finland",
     "alpha_2": "FI",
     "alpha_3": "FIN",
@@ -312,19 +208,6 @@
     "intermediate_region_code": ""
   },
   {
-    "name": "Guernsey",
-    "alpha_2": "GG",
-    "alpha_3": "GGY",
-    "id": 831,
-    "iso_3166_2": "ISO 3166-2:GG",
-    "region": "Europe",
-    "sub_region": "Northern Europe",
-    "intermediate_region": "Channel Islands",
-    "region_code": 150,
-    "sub_region_code": 154,
-    "intermediate_region_code": 830
-  },
-  {
     "name": "Hungary",
     "alpha_2": "HU",
     "alpha_3": "HUN",
@@ -335,19 +218,6 @@
     "intermediate_region": "",
     "region_code": 150,
     "sub_region_code": 151,
-    "intermediate_region_code": ""
-  },
-  {
-    "name": "Iceland",
-    "alpha_2": "IS",
-    "alpha_3": "ISL",
-    "id": 352,
-    "iso_3166_2": "ISO 3166-2:IS",
-    "region": "Europe",
-    "sub_region": "Northern Europe",
-    "intermediate_region": "",
-    "region_code": 150,
-    "sub_region_code": 154,
     "intermediate_region_code": ""
   },
   {
@@ -390,19 +260,6 @@
     "intermediate_region_code": ""
   },
   {
-    "name": "Liechtenstein",
-    "alpha_2": "LI",
-    "alpha_3": "LIE",
-    "id": 438,
-    "iso_3166_2": "ISO 3166-2:LI",
-    "region": "Europe",
-    "sub_region": "Western Europe",
-    "intermediate_region": "",
-    "region_code": 150,
-    "sub_region_code": 155,
-    "intermediate_region_code": ""
-  },
-  {
     "name": "Lithuania",
     "alpha_2": "LT",
     "alpha_3": "LTU",
@@ -442,45 +299,6 @@
     "intermediate_region_code": ""
   },
   {
-    "name": "Moldova, Republic of",
-    "alpha_2": "MD",
-    "alpha_3": "MDA",
-    "id": 498,
-    "iso_3166_2": "ISO 3166-2:MD",
-    "region": "Europe",
-    "sub_region": "Eastern Europe",
-    "intermediate_region": "",
-    "region_code": 150,
-    "sub_region_code": 151,
-    "intermediate_region_code": ""
-  },
-  {
-    "name": "Monaco",
-    "alpha_2": "MC",
-    "alpha_3": "MCO",
-    "id": 492,
-    "iso_3166_2": "ISO 3166-2:MC",
-    "region": "Europe",
-    "sub_region": "Western Europe",
-    "intermediate_region": "",
-    "region_code": 150,
-    "sub_region_code": 155,
-    "intermediate_region_code": ""
-  },
-  {
-    "name": "Montenegro",
-    "alpha_2": "ME",
-    "alpha_3": "MNE",
-    "id": 499,
-    "iso_3166_2": "ISO 3166-2:ME",
-    "region": "Europe",
-    "sub_region": "Southern Europe",
-    "intermediate_region": "",
-    "region_code": 150,
-    "sub_region_code": 39,
-    "intermediate_region_code": ""
-  },
-  {
     "name": "Netherlands",
     "alpha_2": "NL",
     "alpha_3": "NLD",
@@ -491,19 +309,6 @@
     "intermediate_region": "",
     "region_code": 150,
     "sub_region_code": 155,
-    "intermediate_region_code": ""
-  },
-  {
-    "name": "North Macedonia",
-    "alpha_2": "MK",
-    "alpha_3": "MKD",
-    "id": 807,
-    "iso_3166_2": "ISO 3166-2:MK",
-    "region": "Europe",
-    "sub_region": "Southern Europe",
-    "intermediate_region": "",
-    "region_code": 150,
-    "sub_region_code": 39,
     "intermediate_region_code": ""
   },
   {
@@ -556,19 +361,6 @@
     "intermediate_region": "",
     "region_code": 150,
     "sub_region_code": 151,
-    "intermediate_region_code": ""
-  },
-  {
-    "name": "Serbia",
-    "alpha_2": "RS",
-    "alpha_3": "SRB",
-    "id": 688,
-    "iso_3166_2": "ISO 3166-2:RS",
-    "region": "Europe",
-    "sub_region": "Southern Europe",
-    "intermediate_region": "",
-    "region_code": 150,
-    "sub_region_code": 39,
     "intermediate_region_code": ""
   },
   {
@@ -634,19 +426,6 @@
     "intermediate_region": "",
     "region_code": 150,
     "sub_region_code": 155,
-    "intermediate_region_code": ""
-  },
-  {
-    "name": "Ukraine",
-    "alpha_2": "UA",
-    "alpha_3": "UKR",
-    "id": 804,
-    "iso_3166_2": "ISO 3166-2:UA",
-    "region": "Europe",
-    "sub_region": "Eastern Europe",
-    "intermediate_region": "",
-    "region_code": 150,
-    "sub_region_code": 151,
     "intermediate_region_code": ""
   }
 ]
