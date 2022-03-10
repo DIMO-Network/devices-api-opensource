@@ -264,6 +264,12 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+
+	// Baby the frontend.
+	for i := range ddNice.CompatibleIntegrations {
+		ddNice.CompatibleIntegrations[i].Country = reg.CountryCode
+	}
+
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"userDevice": UserDeviceFull{
 			ID:               ud.ID,
