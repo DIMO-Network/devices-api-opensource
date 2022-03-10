@@ -117,6 +117,19 @@
     "intermediate_region_code": ""
   },
   {
+    "name": "Cyprus",
+    "alpha_2": "CY",
+    "alpha_3": "CYP",
+    "id": "196",
+    "iso_3166_2": "ISO 3166-2:CY",
+    "region": "Asia",
+    "sub_region": "Western Asia",
+    "intermediate_region": "",
+    "region_code": "142",
+    "sub_region_code": "145",
+    "intermediate_region_code": ""
+  },
+  {
     "name": "Czechia",
     "alpha_2": "CZ",
     "alpha_3": "CZE",
