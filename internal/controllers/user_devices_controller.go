@@ -79,9 +79,12 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 
 		filteredIntegrations := []services.DeviceCompatibility{}
 		if d.CountryCode.Valid {
-			for _, integration := range dd.CompatibleIntegrations {
-				if integration.Country == d.CountryCode.String {
-					filteredIntegrations = append(filteredIntegrations, integration)
+			if countryRecord := services.FindCountry(d.CountryCode.String); countryRecord != nil {
+				for _, integration := range dd.CompatibleIntegrations {
+					if integration.Region == countryRecord.Region {
+						integration.Country = d.CountryCode.String // Faking it until the UI updates for regions.
+						filteredIntegrations = append(filteredIntegrations, integration)
+					}
 				}
 			}
 		}

@@ -30,6 +30,7 @@ type DeviceIntegration struct {
 	Capabilities       null.JSON `boil:"capabilities" json:"capabilities,omitempty" toml:"capabilities" yaml:"capabilities,omitempty"`
 	CreatedAt          time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt          time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	Region             string    `boil:"region" json:"region" toml:"region" yaml:"region"`
 
 	R *deviceIntegrationR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L deviceIntegrationL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -42,6 +43,7 @@ var DeviceIntegrationColumns = struct {
 	Capabilities       string
 	CreatedAt          string
 	UpdatedAt          string
+	Region             string
 }{
 	DeviceDefinitionID: "device_definition_id",
 	IntegrationID:      "integration_id",
@@ -49,6 +51,7 @@ var DeviceIntegrationColumns = struct {
 	Capabilities:       "capabilities",
 	CreatedAt:          "created_at",
 	UpdatedAt:          "updated_at",
+	Region:             "region",
 }
 
 var DeviceIntegrationTableColumns = struct {
@@ -58,6 +61,7 @@ var DeviceIntegrationTableColumns = struct {
 	Capabilities       string
 	CreatedAt          string
 	UpdatedAt          string
+	Region             string
 }{
 	DeviceDefinitionID: "device_integrations.device_definition_id",
 	IntegrationID:      "device_integrations.integration_id",
@@ -65,6 +69,7 @@ var DeviceIntegrationTableColumns = struct {
 	Capabilities:       "device_integrations.capabilities",
 	CreatedAt:          "device_integrations.created_at",
 	UpdatedAt:          "device_integrations.updated_at",
+	Region:             "device_integrations.region",
 }
 
 // Generated where
@@ -76,6 +81,7 @@ var DeviceIntegrationWhere = struct {
 	Capabilities       whereHelpernull_JSON
 	CreatedAt          whereHelpertime_Time
 	UpdatedAt          whereHelpertime_Time
+	Region             whereHelperstring
 }{
 	DeviceDefinitionID: whereHelperstring{field: "\"devices_api\".\"device_integrations\".\"device_definition_id\""},
 	IntegrationID:      whereHelperstring{field: "\"devices_api\".\"device_integrations\".\"integration_id\""},
@@ -83,6 +89,7 @@ var DeviceIntegrationWhere = struct {
 	Capabilities:       whereHelpernull_JSON{field: "\"devices_api\".\"device_integrations\".\"capabilities\""},
 	CreatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"device_integrations\".\"created_at\""},
 	UpdatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"device_integrations\".\"updated_at\""},
+	Region:             whereHelperstring{field: "\"devices_api\".\"device_integrations\".\"region\""},
 }
 
 // DeviceIntegrationRels is where relationship names are stored.
@@ -109,10 +116,10 @@ func (*deviceIntegrationR) NewStruct() *deviceIntegrationR {
 type deviceIntegrationL struct{}
 
 var (
-	deviceIntegrationAllColumns            = []string{"device_definition_id", "integration_id", "country", "capabilities", "created_at", "updated_at"}
-	deviceIntegrationColumnsWithoutDefault = []string{"device_definition_id", "integration_id", "country"}
+	deviceIntegrationAllColumns            = []string{"device_definition_id", "integration_id", "country", "capabilities", "created_at", "updated_at", "region"}
+	deviceIntegrationColumnsWithoutDefault = []string{"device_definition_id", "integration_id", "country", "region"}
 	deviceIntegrationColumnsWithDefault    = []string{"capabilities", "created_at", "updated_at"}
-	deviceIntegrationPrimaryKeyColumns     = []string{"device_definition_id", "integration_id", "country"}
+	deviceIntegrationPrimaryKeyColumns     = []string{"device_definition_id", "integration_id", "region"}
 	deviceIntegrationGeneratedColumns      = []string{}
 )
 
@@ -646,7 +653,7 @@ func (o *DeviceIntegration) SetDeviceDefinition(ctx context.Context, exec boil.C
 		strmangle.SetParamNames("\"", "\"", 1, []string{"device_definition_id"}),
 		strmangle.WhereClause("\"", "\"", 2, deviceIntegrationPrimaryKeyColumns),
 	)
-	values := []interface{}{related.ID, o.DeviceDefinitionID, o.IntegrationID, o.Country}
+	values := []interface{}{related.ID, o.DeviceDefinitionID, o.IntegrationID, o.Region}
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -693,7 +700,7 @@ func (o *DeviceIntegration) SetIntegration(ctx context.Context, exec boil.Contex
 		strmangle.SetParamNames("\"", "\"", 1, []string{"integration_id"}),
 		strmangle.WhereClause("\"", "\"", 2, deviceIntegrationPrimaryKeyColumns),
 	)
-	values := []interface{}{related.ID, o.DeviceDefinitionID, o.IntegrationID, o.Country}
+	values := []interface{}{related.ID, o.DeviceDefinitionID, o.IntegrationID, o.Region}
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -732,7 +739,7 @@ func DeviceIntegrations(mods ...qm.QueryMod) deviceIntegrationQuery {
 
 // FindDeviceIntegration retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindDeviceIntegration(ctx context.Context, exec boil.ContextExecutor, deviceDefinitionID string, integrationID string, country string, selectCols ...string) (*DeviceIntegration, error) {
+func FindDeviceIntegration(ctx context.Context, exec boil.ContextExecutor, deviceDefinitionID string, integrationID string, region string, selectCols ...string) (*DeviceIntegration, error) {
 	deviceIntegrationObj := &DeviceIntegration{}
 
 	sel := "*"
@@ -740,10 +747,10 @@ func FindDeviceIntegration(ctx context.Context, exec boil.ContextExecutor, devic
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from \"devices_api\".\"device_integrations\" where \"device_definition_id\"=$1 AND \"integration_id\"=$2 AND \"country\"=$3", sel,
+		"select %s from \"devices_api\".\"device_integrations\" where \"device_definition_id\"=$1 AND \"integration_id\"=$2 AND \"region\"=$3", sel,
 	)
 
-	q := queries.Raw(query, deviceDefinitionID, integrationID, country)
+	q := queries.Raw(query, deviceDefinitionID, integrationID, region)
 
 	err := q.Bind(ctx, exec, deviceIntegrationObj)
 	if err != nil {
@@ -1119,7 +1126,7 @@ func (o *DeviceIntegration) Delete(ctx context.Context, exec boil.ContextExecuto
 	}
 
 	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), deviceIntegrationPrimaryKeyMapping)
-	sql := "DELETE FROM \"devices_api\".\"device_integrations\" WHERE \"device_definition_id\"=$1 AND \"integration_id\"=$2 AND \"country\"=$3"
+	sql := "DELETE FROM \"devices_api\".\"device_integrations\" WHERE \"device_definition_id\"=$1 AND \"integration_id\"=$2 AND \"region\"=$3"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1216,7 +1223,7 @@ func (o DeviceIntegrationSlice) DeleteAll(ctx context.Context, exec boil.Context
 // Reload refetches the object from the database
 // using the primary keys with an executor.
 func (o *DeviceIntegration) Reload(ctx context.Context, exec boil.ContextExecutor) error {
-	ret, err := FindDeviceIntegration(ctx, exec, o.DeviceDefinitionID, o.IntegrationID, o.Country)
+	ret, err := FindDeviceIntegration(ctx, exec, o.DeviceDefinitionID, o.IntegrationID, o.Region)
 	if err != nil {
 		return err
 	}
@@ -1255,16 +1262,16 @@ func (o *DeviceIntegrationSlice) ReloadAll(ctx context.Context, exec boil.Contex
 }
 
 // DeviceIntegrationExists checks if the DeviceIntegration row exists.
-func DeviceIntegrationExists(ctx context.Context, exec boil.ContextExecutor, deviceDefinitionID string, integrationID string, country string) (bool, error) {
+func DeviceIntegrationExists(ctx context.Context, exec boil.ContextExecutor, deviceDefinitionID string, integrationID string, region string) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from \"devices_api\".\"device_integrations\" where \"device_definition_id\"=$1 AND \"integration_id\"=$2 AND \"country\"=$3 limit 1)"
+	sql := "select exists(select 1 from \"devices_api\".\"device_integrations\" where \"device_definition_id\"=$1 AND \"integration_id\"=$2 AND \"region\"=$3 limit 1)"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
 		fmt.Fprintln(writer, sql)
-		fmt.Fprintln(writer, deviceDefinitionID, integrationID, country)
+		fmt.Fprintln(writer, deviceDefinitionID, integrationID, region)
 	}
-	row := exec.QueryRowContext(ctx, sql, deviceDefinitionID, integrationID, country)
+	row := exec.QueryRowContext(ctx, sql, deviceDefinitionID, integrationID, region)
 
 	err := row.Scan(&exists)
 	if err != nil {

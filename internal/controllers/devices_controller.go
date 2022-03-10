@@ -161,7 +161,7 @@ func (d *DevicesController) GetIntegrationsByID(c *fiber.Ctx) error {
 				Type:         di.R.Integration.Type,
 				Style:        di.R.Integration.Style,
 				Vendor:       di.R.Integration.Vendor,
-				Country:      di.Country,
+				Region:       di.Region,
 				Capabilities: string(di.Capabilities.JSON),
 			})
 		}
@@ -279,7 +279,7 @@ func DeviceCompatibilityFromDB(dbDIS models.DeviceIntegrationSlice) []services.D
 			Type:         di.R.Integration.Type,
 			Style:        di.R.Integration.Style,
 			Vendor:       di.R.Integration.Vendor,
-			Country:      di.Country,
+			Region:       di.Region,
 			Capabilities: string(di.Capabilities.JSON),
 		}
 	}

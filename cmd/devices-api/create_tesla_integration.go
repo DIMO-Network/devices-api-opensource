@@ -14,7 +14,7 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
-var teslaCountries = []string{"USA", "CAN", "UMI"}
+var teslaRegions = []string{"Americas"}
 
 // createTeslaIntegrations ensures that we have a Tesla integration and that it is attached to all
 // Tesla device definitions in our supported countries. This behaves well if some of these records
@@ -70,22 +70,22 @@ func createTeslaIntegrations(ctx context.Context, pdb database.DbStore, logger *
 	}
 
 	for _, teslaDef := range teslaDefs {
-		integCountries := shared.NewStringSet()
+		integRegions := shared.NewStringSet()
 		for _, integ := range teslaDef.R.DeviceIntegrations {
-			integCountries.Add(integ.Country)
+			integRegions.Add(integ.Region)
 		}
 
-		for _, country := range teslaCountries {
-			if !integCountries.Contains(country) {
+		for _, region := range teslaRegions {
+			if !integRegions.Contains(region) {
 				integ := &models.DeviceIntegration{
 					DeviceDefinitionID: teslaDef.ID,
 					IntegrationID:      teslaInt.ID,
-					Country:            country,
+					Region:             region,
 				}
 				if err := integ.Insert(ctx, tx, boil.Infer()); err != nil {
-					return fmt.Errorf("failed to link integration with device definition %s in country %s: %w", teslaDef.ID, country, err)
+					return fmt.Errorf("failed to link integration with device definition %s in region %s: %w", teslaDef.ID, region, err)
 				}
-				logger.Info().Msgf("Created integration for %d %s in %s", teslaDef.Year, teslaDef.Model, country)
+				logger.Info().Msgf("Created integration for %d %s in %s", teslaDef.Year, teslaDef.Model, region)
 			}
 		}
 	}

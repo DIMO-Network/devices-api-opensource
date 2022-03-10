@@ -129,7 +129,7 @@ func SetupCreateDeviceIntegration(t *testing.T, dd *models.DeviceDefinition, int
 	di := models.DeviceIntegration{
 		DeviceDefinitionID: dd.ID,
 		IntegrationID:      integration.ID,
-		Country:            ud.CountryCode.String,
+		Region:             "Americas",
 	}
 	err := di.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
 	assert.NoError(t, err)

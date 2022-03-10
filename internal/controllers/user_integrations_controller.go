@@ -187,10 +187,19 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 		return err
 	}
 
+	if !ud.CountryCode.Valid {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("device %s does not have a country code, can't check compatibility", ud.ID))
+	}
+
+	countryRecord := services.FindCountry(ud.CountryCode.String)
+	if countryRecord == nil {
+		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("can't find compatibility region for country %s", ud.CountryCode.String))
+	}
+
 	integ, err := models.DeviceIntegrations(
 		models.DeviceIntegrationWhere.DeviceDefinitionID.EQ(ud.DeviceDefinitionID),
 		models.DeviceIntegrationWhere.IntegrationID.EQ(integrationID),
-		models.DeviceIntegrationWhere.Country.EQ(ud.CountryCode.String),
+		models.DeviceIntegrationWhere.Region.EQ(countryRecord.Region),
 		qm.Load(models.DeviceIntegrationRels.Integration),
 	).One(c.Context(), tx)
 	if err != nil {
@@ -405,6 +414,11 @@ func (udc *UserDevicesController) fixTeslaDeviceDefinition(ctx context.Context, 
 			vinMake, vinModel, vinYear,
 		)
 
+		region := ""
+		if countryRecord := services.FindCountry(ud.CountryCode.String); countryRecord != nil {
+			region = countryRecord.Region
+		}
+
 		newDD, err := models.DeviceDefinitions(
 			qm.InnerJoin(models.TableNames.DeviceMakes+" on "+models.DeviceMakeTableColumns.ID+" = "+models.DeviceDefinitionTableColumns.DeviceMakeID),
 			models.DeviceMakeWhere.Name.EQ(vinMake),
@@ -413,7 +427,7 @@ func (udc *UserDevicesController) fixTeslaDeviceDefinition(ctx context.Context, 
 			qm.Load(
 				models.DeviceDefinitionRels.DeviceIntegrations,
 				models.DeviceIntegrationWhere.IntegrationID.EQ(integ.ID),
-				models.DeviceIntegrationWhere.Country.EQ(ud.CountryCode.String),
+				models.DeviceIntegrationWhere.Region.EQ(region),
 			),
 		).One(ctx, exec)
 		if err != nil {

@@ -102,7 +102,7 @@ func setIntegrationForMatchingMakeYears(ctx context.Context, smartCarSvc *servic
 				di := models.DeviceIntegration{
 					DeviceDefinitionID: definition.ID,
 					IntegrationID:      scIntegrationID,
-					Country:            "USA",
+					Region:             "Americas",
 				}
 				err = di.Upsert(ctx, pdb.DBS().Writer, false,
 					[]string{"device_definition_id", "integration_id", "country"}, boil.Infer(), boil.Infer())
@@ -176,7 +176,7 @@ func smartCarForwardCompatibility(ctx context.Context, logger zerolog.Logger, pd
 						diGap := models.DeviceIntegration{
 							DeviceDefinitionID: gapDd.ID,
 							IntegrationID:      integrationID,
-							Country:            "USA",       // default
+							Region:             "Americas",  // default
 							Capabilities:       null.JSON{}, // we'd need to copy from previous dd?
 						}
 						err = diGap.Insert(ctx, pdb.DBS().Writer, boil.Infer())
@@ -205,7 +205,7 @@ func smartCarForwardCompatibility(ctx context.Context, logger zerolog.Logger, pd
 				diGap := models.DeviceIntegration{
 					DeviceDefinitionID: nextYearDd.ID,
 					IntegrationID:      integrationID,
-					Country:            "USA",       // default
+					Region:             "Americas",  // default
 					Capabilities:       null.JSON{}, // we'd need to copy from previous dd?
 				}
 				err = diGap.Insert(ctx, pdb.DBS().Writer, boil.Infer())

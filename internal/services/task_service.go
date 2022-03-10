@@ -285,10 +285,13 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 				t.Log.Err(err).Msg("error looking up smartcar integration for year re-assignment")
 			}
 			exists := false
-			for _, integration := range correctDD.R.DeviceIntegrations {
-				if integration.Country == ud.CountryCode.String && integration.IntegrationID == smartCarIntegrationID {
-					exists = true
-					break
+			if countryRecord := FindCountry(ud.CountryCode.String); countryRecord != nil {
+				region := countryRecord.Region
+				for _, integration := range correctDD.R.DeviceIntegrations {
+					if integration.Region == region && integration.IntegrationID == smartCarIntegrationID {
+						exists = true
+						break
+					}
 				}
 			}
 			if exists {

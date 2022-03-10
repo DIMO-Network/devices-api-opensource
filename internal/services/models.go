@@ -25,7 +25,8 @@ type DeviceCompatibility struct {
 	Type         string `json:"type"`
 	Style        string `json:"style"`
 	Vendor       string `json:"vendor"`
-	Country      string `json:"country"`
+	Region       string `json:"region"`
+	Country      string `json:"country,omitempty"`
 	Capabilities string `json:"capabilities,omitempty"`
 }
 

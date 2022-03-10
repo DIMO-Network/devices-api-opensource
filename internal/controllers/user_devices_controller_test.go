@@ -95,7 +95,7 @@ func TestUserDevicesController(t *testing.T) {
 		deviceInt := models.DeviceIntegration{
 			DeviceDefinitionID: dd.ID,
 			IntegrationID:      integration.ID,
-			Country:            "USA",
+			Region:             "Americas",
 		}
 		err = deviceInt.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 		assert.NoError(t, err, "database error")
@@ -425,7 +425,7 @@ func TestUserDevicesController(t *testing.T) {
 		di := models.DeviceIntegration{
 			DeviceDefinitionID: dd.ID,
 			IntegrationID:      teslaInt.ID,
-			Country:            "USA",
+			Region:             "Americas",
 		}
 		_ = di.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 
@@ -498,13 +498,13 @@ func TestUserDevicesController(t *testing.T) {
 		di := models.DeviceIntegration{
 			DeviceDefinitionID: dd.ID,
 			IntegrationID:      teslaInt.ID,
-			Country:            "USA",
+			Region:             "Americas",
 		}
 		_ = di.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 		di2 := models.DeviceIntegration{
 			DeviceDefinitionID: dd2.ID,
 			IntegrationID:      teslaInt.ID,
-			Country:            "USA",
+			Region:             "Americas",
 		}
 		dd.R.DeviceIntegrations = []*models.DeviceIntegration{&di, &di2}
 
