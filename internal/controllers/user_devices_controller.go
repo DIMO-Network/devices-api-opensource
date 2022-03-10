@@ -206,10 +206,16 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	if err != nil {
 		return errorResponseHandler(c, errors.Wrapf(err, "could not create user device for def_id: %s", dd.ID), fiber.StatusInternalServerError)
 	}
+	region := ""
+	if countryRecord := services.FindCountry(reg.CountryCode); countryRecord != nil {
+		region = countryRecord.Region
+	}
 	// get device integrations to return in payload - helps frontend
-	deviceInts, err := models.DeviceIntegrations(qm.Load(models.DeviceIntegrationRels.Integration),
-		qm.Where("device_definition_id = ?", dd.ID), qm.And("country = ?", reg.CountryCode)).
-		All(c.Context(), tx)
+	deviceInts, err := models.DeviceIntegrations(
+		qm.Load(models.DeviceIntegrationRels.Integration),
+		models.DeviceIntegrationWhere.DeviceDefinitionID.EQ(dd.ID),
+		models.DeviceIntegrationWhere.Region.EQ(region),
+	).All(c.Context(), tx)
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
