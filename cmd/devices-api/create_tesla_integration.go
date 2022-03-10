@@ -14,7 +14,7 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
-var teslaRegions = []string{"Americas"}
+var teslaRegions = []string{"Americas", "Europe"}
 
 // createTeslaIntegrations ensures that we have a Tesla integration and that it is attached to all
 // Tesla device definitions in our supported countries. This behaves well if some of these records
