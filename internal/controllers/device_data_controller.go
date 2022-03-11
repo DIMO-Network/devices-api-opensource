@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"database/sql"
+	"encoding/json"
 	"io"
 	"time"
 
@@ -142,7 +143,7 @@ func (d *DeviceDataController) GetHistorical30mRaw(c *fiber.Ctx) error {
 	if !exists {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
-	res, err := esquery.Search().
+	req := esquery.Search().
 		Query(esquery.Bool().Must(
 			esquery.Term("subject", udi),
 			esquery.Exists("data.odometer"),
@@ -171,8 +172,13 @@ func (d *DeviceDataController) GetHistorical30mRaw(c *fiber.Ctx) error {
 					},
 				},
 			}),
-		).
-		Run(d.es, d.es.Search.WithContext(c.Context()), d.es.Search.WithIndex(d.Settings.DeviceDataIndexName))
+		)
+	reqb, err := json.Marshal(req.Map())
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "We messed up")
+	}
+	d.log.Info().Msg(string(reqb))
+	res, err := req.Run(d.es, d.es.Search.WithContext(c.Context()), d.es.Search.WithIndex(d.Settings.DeviceDataIndexName))
 	if err != nil {
 		return err
 	}
