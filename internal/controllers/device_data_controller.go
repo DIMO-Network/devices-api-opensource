@@ -165,8 +165,8 @@ func (d *DeviceDataController) GetHistorical30mRaw(c *fiber.Ctx) error {
 							"sort": []map[string]string{
 								{"data.timestamp": "desc"},
 							},
-							"_source": []map[string][]string{
-								{"excludes": {"data.errors", "data.hasErrors"}},
+							"_source": map[string][]string{
+								"excludes": {"data.errors", "data.hasErrors"},
 							},
 						},
 					},
