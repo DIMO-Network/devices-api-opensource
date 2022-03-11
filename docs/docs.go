@@ -181,6 +181,48 @@ const docTemplate = `{
                 }
             }
         },
+        "/user/device-data/{userDeviceID}/historical-30m": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get historical data for a userDeviceID, within start and end range, taking the\nlatest status from every 30m bucket.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device-data"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user id",
+                        "name": "userDeviceID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "startDate eg 2022-01-02. if empty two weeks back",
+                        "name": "startDate",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "endDate eg 2022-03-01. if empty today",
+                        "name": "endDate",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/user/devices": {
             "post": {
                 "security": [
@@ -932,6 +974,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "region": {
                     "type": "string"
                 },
                 "style": {

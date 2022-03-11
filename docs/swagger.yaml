@@ -191,6 +191,8 @@ definitions:
         type: string
       id:
         type: string
+      region:
+        type: string
       style:
         type: string
       type:
@@ -347,6 +349,34 @@ paths:
     get:
       description: Get all historical data for a userDeviceID, within start and end
         range
+      parameters:
+      - description: user id
+        in: path
+        name: userDeviceID
+        required: true
+        type: string
+      - description: startDate eg 2022-01-02. if empty two weeks back
+        in: query
+        name: startDate
+        type: string
+      - description: endDate eg 2022-03-01. if empty today
+        in: query
+        name: endDate
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+      security:
+      - BearerAuth: []
+      tags:
+      - device-data
+  /user/device-data/{userDeviceID}/historical-30m:
+    get:
+      description: |-
+        Get historical data for a userDeviceID, within start and end range, taking the
+        latest status from every 30m bucket.
       parameters:
       - description: user id
         in: path

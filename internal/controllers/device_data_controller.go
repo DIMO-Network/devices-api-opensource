@@ -100,6 +100,89 @@ func (d *DeviceDataController) GetHistoricalRaw(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).Send(body)
 }
 
+// GetHistorical30mRaw godoc
+// @Description  Get historical data for a userDeviceID, within start and end range, taking the
+// @Description  latest status from every 30m bucket.
+// @Tags         device-data
+// @Produce      json
+// @Success      200
+// @Param        userDeviceID  path   string  true   "user id"
+// @Param        startDate     query  string  false  "startDate eg 2022-01-02. if empty two weeks back"
+// @Param        endDate       query  string  false  "endDate eg 2022-03-01. if empty today"
+// @Security     BearerAuth
+// @Router       /user/device-data/{userDeviceID}/historical-30m [get]
+func (d *DeviceDataController) GetHistorical30mRaw(c *fiber.Ctx) error {
+	const dateLayout = "2006-01-02" // date layout support by elastic
+	userID := getUserID(c)
+	udi := c.Params("userDeviceID")
+	startDate := c.Query("startDate")
+	if startDate == "" {
+		startDate = time.Now().Add(-1 * (time.Hour * 24 * 14)).Format(dateLayout)
+	} else {
+		_, err := time.Parse(dateLayout, startDate)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	}
+	endDate := c.Query("endDate")
+	if endDate == "" {
+		endDate = time.Now().Format(dateLayout)
+	} else {
+		_, err := time.Parse(dateLayout, endDate)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	}
+
+	// todo: cache this
+	exists, err := models.UserDevices(models.UserDeviceWhere.UserID.EQ(userID), models.UserDeviceWhere.ID.EQ(udi)).Exists(c.Context(), d.DBS().Reader)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+	res, err := esquery.Search().
+		Query(esquery.Bool().Must(
+			esquery.Term("subject", udi),
+			esquery.Exists("data.odometer"),
+			esquery.Range("data.timestamp").
+				Gte(startDate).
+				Lte(endDate))).
+		Size(0).
+		Aggs(
+			esquery.CustomAgg("buckets_30m", map[string]interface{}{
+				"date_histogram": map[string]interface{}{
+					"field":          "data.timestamp",
+					"fixed_interval": "30m",
+					"min_doc_count":  1,
+				},
+				"aggs": map[string]interface{}{
+					"last_status": map[string]interface{}{
+						"top_hits": map[string]interface{}{
+							"size": 1,
+							"sort": []map[string]string{
+								{"data.timestamp": "desc"},
+							},
+							"_source": []map[string][]string{
+								{"excludes": {"data.errors", "data.hasErrors"}},
+							},
+						},
+					},
+				},
+			}),
+		).
+		Run(d.es, d.es.Search.WithContext(c.Context()), d.es.Search.WithIndex(d.Settings.DeviceDataIndexName))
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	body, _ := io.ReadAll(res.Body)
+
+	c.Set("Content-type", "application/json")
+	return c.Status(fiber.StatusOK).Send(body)
+}
+
 // GetUserDeviceStatus godoc
 // @Description  Returns the latest status update for the device. May return 404 if the
 // @Description  user does not have a device with the ID, or if no status updates have come

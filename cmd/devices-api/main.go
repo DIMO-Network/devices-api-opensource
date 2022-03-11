@@ -274,6 +274,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 
 	// elastic device data
 	v1Auth.Get("/user/device-data/:userDeviceID/historical", deviceDataController.GetHistoricalRaw)
+	v1Auth.Get("/user/device-data/:userDeviceID/historical-30m", deviceDataController.GetHistorical30mRaw)
 
 	// admin / internal operations paths
 	// v1.Post("/admin/user/:user_id/devices", userDeviceControllers.AdminRegisterUserDevice)
