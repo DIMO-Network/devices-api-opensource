@@ -16,6 +16,7 @@ const baseAPIURL = "https://api.dimo.autopi.io"
 
 //go:generate mockgen -source autopi_api_service.go -destination mocks/autopi_api_service_mock.go
 type AutoPiAPIService interface {
+	GetDeviceByUnitID(unitID string) (*AutoPiDongleDevice, error)
 	GetDeviceByID(deviceID string) (*AutoPiDongleDevice, error)
 	PatchVehicleProfile(vehicleID string, profile PatchVehicleProfile) error
 	UnassociateDeviceTemplate(deviceID, templateID string) error
@@ -36,6 +37,26 @@ func NewAutoPiAPIService(settings *config.Settings) AutoPiAPIService {
 			Timeout: 10 * time.Second,
 		},
 	}
+}
+
+// GetDeviceByUnitID calls /dongle/devices/by_unit_id/{unit_id}/ to get the device for the unitID.
+// Errors if it finds none or more than one device, as there should only be one device attached to a unit.
+func (a *autoPiAPIService) GetDeviceByUnitID(unitID string) (*AutoPiDongleDevice, error) {
+	res, err := a.executeRequest(fmt.Sprintf("/dongle/devices/by_unit_id/%s/", unitID), "GET", nil)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error calling autopi api to get unit with ID %s", unitID)
+	}
+	defer res.Body.Close() // nolint
+
+	u := new(autoPiUnits)
+	err = json.NewDecoder(res.Body).Decode(u)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error decoding json from autopi api to get device by unitID %s", unitID)
+	}
+	if u.Count != 1 {
+		return nil, fmt.Errorf("expected to find only one device with autopi unitID %s", unitID)
+	}
+	return &u.Results[0], nil
 }
 
 // GetDeviceByID calls https://api.dimo.autopi.io/dongle/devices/{DEVICE_ID}/ Note that the deviceID is the autoPi one. This brings us the templateID
@@ -189,6 +210,9 @@ type AutoPiDongleDevice struct {
 	Icc                string `json:"icc"`
 	MaxDataUsage       string `json:"max_data_usage"`
 	IsBlockedByRelease string `json:"is_blocked_by_release"`
+	// only exists when get by unitID
+	HwRevision string   `json:"hw_revision"`
+	Tags       []string `json:"tags"`
 }
 
 // PatchVehicleProfile used to update vehicle profile https://api.dimo.autopi.io/#/vehicle/vehicle_profile_partial_update
@@ -203,4 +227,12 @@ type PatchVehicleProfile struct {
 type postDeviceIDs struct {
 	Devices         []string `json:"devices"`
 	UnassociateOnly bool     `json:"unassociate_only,omitempty"`
+}
+
+// autoPiUnits used when get devices by unitID, basically just a result wrapper
+type autoPiUnits struct {
+	Count    int                  `json:"count"`
+	Next     string               `json:"next"`
+	Previous string               `json:"previous"`
+	Results  []AutoPiDongleDevice `json:"results"`
 }

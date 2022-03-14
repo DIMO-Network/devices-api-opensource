@@ -91,6 +91,21 @@ func (mr *MockAutoPiAPIServiceMockRecorder) GetDeviceByID(deviceID interface{}) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDeviceByID", reflect.TypeOf((*MockAutoPiAPIService)(nil).GetDeviceByID), deviceID)
 }
 
+// GetDeviceByUnitID mocks base method.
+func (m *MockAutoPiAPIService) GetDeviceByUnitID(unitID string) (*services.AutoPiDongleDevice, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDeviceByUnitID", unitID)
+	ret0, _ := ret[0].(*services.AutoPiDongleDevice)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDeviceByUnitID indicates an expected call of GetDeviceByUnitID.
+func (mr *MockAutoPiAPIServiceMockRecorder) GetDeviceByUnitID(unitID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDeviceByUnitID", reflect.TypeOf((*MockAutoPiAPIService)(nil).GetDeviceByUnitID), unitID)
+}
+
 // PatchVehicleProfile mocks base method.
 func (m *MockAutoPiAPIService) PatchVehicleProfile(vehicleID string, profile services.PatchVehicleProfile) error {
 	m.ctrl.T.Helper()
