@@ -3,7 +3,6 @@ package test
 import (
 	"context"
 	"database/sql"
-	"log"
 	"net/http"
 	"strings"
 	"testing"
@@ -15,6 +14,7 @@ import (
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/pkg/errors"
 	"github.com/pressly/goose/v3"
 	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
@@ -22,26 +22,19 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
-func SetupDatabase(ctx context.Context, t *testing.T, migrationsDirRelPath string) (database.DbStore, *embeddedpostgres.EmbeddedPostgres) {
-	dbName := "devices_api"
+const testDbName = "devices_api"
+const testDbPort = 6669
+
+// StartAndMigrateDB used for booting up a test embed db. Migrates db schema to latest, adds function for truncating tables useful btw test runs.
+func StartAndMigrateDB(ctx context.Context, migrationsDirRelPath string) (*embeddedpostgres.EmbeddedPostgres, error) {
 	// an issue here is that if the test panics, it won't kill the embedded db: lsof -i :6669, then kill it.
 	edb := embeddedpostgres.NewDatabase(embeddedpostgres.DefaultConfig().
-		Version(embeddedpostgres.V12).Port(6669).Database(dbName))
+		Version(embeddedpostgres.V12).Port(testDbPort).Database(testDbName))
 	if err := edb.Start(); err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
 
-	settings := config.Settings{
-		LogLevel:             "info",
-		DBName:               dbName,
-		DBHost:               "localhost",
-		DBPort:               "6669",
-		DBUser:               "postgres",
-		DBPassword:           "postgres",
-		DBMaxOpenConnections: 2,
-		DBMaxIdleConnections: 2,
-		ServiceName:          "devices-api",
-	}
+	settings := getTestDbSettings()
 	// note the DBName will be used as the search path for the connection string
 	pdb := database.NewDbConnectionFromSettings(ctx, &settings, false)
 	time.Sleep(3 * time.Second) // get panic if don't have this here
@@ -54,11 +47,13 @@ func SetupDatabase(ctx context.Context, t *testing.T, migrationsDirRelPath strin
 		ALTER USER postgres SET search_path = devices_api, public;
 		SET search_path = devices_api, public;
 		`)
-	assert.Nil(t, err, "did not expect error connecting and executing query to embedded DB for schema stuff")
+	if err != nil {
+		return nil, err
+	}
 	goose.SetTableName("devices_api.migrations")
 	if err := goose.Run("up", pdb.DBS().Writer.DB, migrationsDirRelPath); err != nil {
 		_ = edb.Stop()
-		log.Fatalf("failed to apply goose migrations for test: %v\n", err)
+		return nil, errors.Wrapf(err, "failed to apply goose migrations for test")
 	}
 	// add truncate tables func
 	_, err = pdb.DBS().Writer.Exec(`
@@ -74,10 +69,46 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 `)
-	assert.NoError(t, err)
+	if err != nil {
+		return nil, err
+	}
+
+	return edb, nil
+}
+
+// GetDBConnection gets a db connection to test embed db. Note the DBName will be used as the search path for the connection string
+func GetDBConnection(ctx context.Context) database.DbStore {
+	settings := getTestDbSettings()
+	// note the DBName will be used as the search path for the connection string
+	return database.NewDbConnectionFromSettings(ctx, &settings, false)
+}
+
+func SetupDatabase(ctx context.Context, t *testing.T, migrationsDirRelPath string) (database.DbStore, *embeddedpostgres.EmbeddedPostgres) {
+	edb, err := StartAndMigrateDB(ctx, migrationsDirRelPath)
+	// an issue here is that if the test panics, it won't kill the embedded db: lsof -i :6669, then kill it.
+	if err != nil {
+		t.Fatal(err)
+	}
+	pdb := GetDBConnection(ctx)
 
 	return pdb, edb
 	// if we add code migrations, import: _ "github.com/DIMO-Network/devices-api/migrations"
+}
+
+// getTestDbSettings builds test db config.Settings object
+func getTestDbSettings() config.Settings {
+	settings := config.Settings{
+		LogLevel:             "info",
+		DBName:               testDbName,
+		DBHost:               "localhost",
+		DBPort:               "6669",
+		DBUser:               "postgres",
+		DBPassword:           "postgres",
+		DBMaxOpenConnections: 2,
+		DBMaxIdleConnections: 2,
+		ServiceName:          "devices-api",
+	}
+	return settings
 }
 
 func BuildRequest(method, url, body string) *http.Request {
@@ -91,7 +122,7 @@ func BuildRequest(method, url, body string) *http.Request {
 	return req
 }
 
-// authInjectorTestHandler injects fake jwt with sub
+// AuthInjectorTestHandler injects fake jwt with sub
 func AuthInjectorTestHandler(userID string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -104,6 +135,7 @@ func AuthInjectorTestHandler(userID string) fiber.Handler {
 	}
 }
 
+// TruncateTables truncates tables for the test db, useful to run as teardown at end of each DB dependent test.
 func TruncateTables(db *sql.DB, t *testing.T) {
 	_, err := db.Exec(`SELECT truncate_tables();`)
 	if err != nil {

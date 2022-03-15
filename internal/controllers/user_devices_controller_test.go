@@ -51,12 +51,8 @@ func TestUserDevicesController(t *testing.T) {
 		Logger()
 
 	ctx := context.Background()
-	pdb, db := test.SetupDatabase(ctx, t, migrationsDirRelPath)
-	defer func() {
-		if err := db.Stop(); err != nil {
-			t.Fatal(err)
-		}
-	}()
+	pdb := test.GetDBConnection(ctx)
+
 	deviceDefSvc := mock_services.NewMockIDeviceDefinitionService(mockCtrl)
 	taskSvc := mock_services.NewMockITaskService(mockCtrl)
 	scClient := mock_services.NewMockSmartcarClient(mockCtrl)

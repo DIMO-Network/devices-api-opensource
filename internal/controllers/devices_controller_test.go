@@ -27,8 +27,6 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
-const migrationsDirRelPath = "../../migrations"
-
 // integration tests using embedded pgsql, must be run in order
 func TestDevicesController(t *testing.T) {
 	// arrange global db and route setup
@@ -41,12 +39,8 @@ func TestDevicesController(t *testing.T) {
 		Logger()
 
 	ctx := context.Background()
-	pdb, db := test.SetupDatabase(ctx, t, migrationsDirRelPath)
-	defer func() {
-		if err := db.Stop(); err != nil {
-			t.Fatal(err)
-		}
-	}()
+	pdb := test.GetDBConnection(ctx)
+
 	nhtsaSvc := mock_services.NewMockINHTSAService(mockCtrl)
 	deviceDefSvc := mock_services.NewMockIDeviceDefinitionService(mockCtrl)
 	c := NewDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, nhtsaSvc, deviceDefSvc)

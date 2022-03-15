@@ -75,12 +75,8 @@ func TestGeofencesController(t *testing.T) {
 		Logger()
 
 	ctx := context.Background()
-	pdb, db := test.SetupDatabase(ctx, t, migrationsDirRelPath)
-	defer func() {
-		if err := db.Stop(); err != nil {
-			t.Fatal(err)
-		}
-	}()
+	pdb := test.GetDBConnection(ctx)
+
 	testUserID := "123123"
 	otherUserID := "7734"
 	producer := saramamocks.NewSyncProducer(t, sarama.NewConfig())
