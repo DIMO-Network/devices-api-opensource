@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"time"
 
@@ -47,6 +48,8 @@ func NewDeviceDataController(settings *config.Settings, dbs func() *database.DBR
 // @Tags         device-data
 // @Produce      json
 // @Success      200
+// @Failure 	 400 "invalid start or end date"
+// @Failure      404 "no device found for user with provided parameters"
 // @Param        userDeviceID  path   string  true   "user id"
 // @Param        startDate     query  string  false  "startDate eg 2022-01-02. if empty two weeks back"
 // @Param        endDate       query  string  false  "endDate eg 2022-03-01. if empty today"
@@ -81,7 +84,7 @@ func (d *DeviceDataController) GetHistoricalRaw(c *fiber.Ctx) error {
 		return err
 	}
 	if !exists {
-		return c.SendStatus(fiber.StatusBadRequest)
+		return fiber.NewError(fiber.StatusNotFound, fmt.Sprintf("No device %s found for user %s", udi, userID))
 	}
 	res, err := esquery.Search().
 		Query(esquery.Bool().Must(
@@ -109,6 +112,8 @@ func (d *DeviceDataController) GetHistoricalRaw(c *fiber.Ctx) error {
 // @Tags         device-data
 // @Produce      json
 // @Success      200
+// @Failure 	 400 "invalid start or end date"
+// @Failure      404 "no device found for user with provided parameters"
 // @Param        userDeviceID  path   string  true   "user id"
 // @Param        startDate     query  string  false  "startDate eg 2022-01-02. if empty two weeks back"
 // @Param        endDate       query  string  false  "endDate eg 2022-03-01. if empty today"
@@ -143,7 +148,7 @@ func (d *DeviceDataController) GetHistorical30mRaw(c *fiber.Ctx) error {
 		return err
 	}
 	if !exists {
-		return c.SendStatus(fiber.StatusBadRequest)
+		return fiber.NewError(fiber.StatusNotFound, fmt.Sprintf("No device %s found for user %s", udi, userID))
 	}
 	req := esquery.Search().
 		Query(esquery.Bool().Must(
@@ -197,6 +202,7 @@ func (d *DeviceDataController) GetHistorical30mRaw(c *fiber.Ctx) error {
 // @Tags         device-data
 // @Produce      json
 // @Success      200
+// @Failure      404 "no device found for user with provided parameters"
 // @Param        userDeviceID  path   string  true   "user device id"
 // @Security     BearerAuth
 // @Router       /user/device-data/{userDeviceID}/miles-driven [get]
@@ -209,7 +215,7 @@ func (d *DeviceDataController) GetDistanceDriven(c *fiber.Ctx) error {
 		return err
 	}
 	if !exists {
-		return c.SendStatus(fiber.StatusBadRequest)
+		return fiber.NewError(fiber.StatusNotFound, fmt.Sprintf("No device %s found for user %s", udi, userID))
 	}
 
 	odoStart, err := d.queryOdometer(c.Context(), esquery.OrderAsc, udi)
