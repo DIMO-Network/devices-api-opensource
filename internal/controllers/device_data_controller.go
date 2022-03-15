@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"io"
@@ -15,6 +16,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
@@ -189,6 +191,42 @@ func (d *DeviceDataController) GetHistorical30mRaw(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).Send(body)
 }
 
+// GetDistanceDriven godoc
+// @Description  Get miles driven for a userDeviceID since connected (ie. since we have data available)
+// @Description  if it returns 0 for distanceDriven it means we have no odometer data.
+// @Tags         device-data
+// @Produce      json
+// @Success      200
+// @Param        userDeviceID  path   string  true   "user device id"
+// @Security     BearerAuth
+// @Router       /user/device-data/{userDeviceID}/miles-driven [get]
+func (d *DeviceDataController) GetDistanceDriven(c *fiber.Ctx) error {
+	userID := getUserID(c)
+	udi := c.Params("userDeviceID")
+
+	exists, err := models.UserDevices(models.UserDeviceWhere.UserID.EQ(userID), models.UserDeviceWhere.ID.EQ(udi)).Exists(c.Context(), d.DBS().Reader)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+
+	odoStart, err := d.queryOdometer(c.Context(), esquery.OrderAsc, udi)
+	if err != nil {
+		return errors.Wrap(err, "error querying odometer")
+	}
+	odoEnd, err := d.queryOdometer(c.Context(), esquery.OrderDesc, udi)
+	if err != nil {
+		return errors.Wrap(err, "error querying odometer")
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"distanceDriven": odoEnd - odoStart,
+		"units":          "kilometers",
+	})
+}
+
 // GetUserDeviceStatus godoc
 // @Description  Returns the latest status update for the device. May return 404 if the
 // @Description  user does not have a device with the ID, or if no status updates have come
@@ -271,6 +309,28 @@ func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
 		}
 	}
 	return fiber.NewError(fiber.StatusBadRequest, "no active Smartcar integration found for this device")
+}
+
+// queryOdometer gets the first or last odometer reading depending on order - asc = first, desc = last
+func (d *DeviceDataController) queryOdometer(ctx context.Context, order esquery.Order, userDeviceID string) (float64, error) {
+	res, err := esquery.Search().SourceIncludes("data.odometer").
+		Query(esquery.Bool().Must(
+			esquery.Term("subject", userDeviceID),
+			esquery.Exists("data.odometer"),
+		)).
+		Size(1).
+		Sort("data.timestamp", order).
+		Run(d.es, d.es.Search.WithContext(ctx), d.es.Search.WithIndex(d.Settings.DeviceDataIndexName))
+	if err != nil {
+		return 0, err
+	}
+	defer res.Body.Close() // nolint
+	body, _ := io.ReadAll(res.Body)
+	result := gjson.GetBytes(body, "hits.hits.1._source.data.odometer")
+	if result.Exists() {
+		return result.Float(), nil
+	}
+	return 0, nil
 }
 
 func connect(settings *config.Settings) (*elasticsearch.Client, error) {
