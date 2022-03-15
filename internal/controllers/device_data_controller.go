@@ -197,7 +197,7 @@ func (d *DeviceDataController) GetHistorical30mRaw(c *fiber.Ctx) error {
 }
 
 // GetDistanceDriven godoc
-// @Description  Get miles driven for a userDeviceID since connected (ie. since we have data available)
+// @Description  Get kilometers driven for a userDeviceID since connected (ie. since we have data available)
 // @Description  if it returns 0 for distanceDriven it means we have no odometer data.
 // @Tags         device-data
 // @Produce      json
@@ -205,7 +205,7 @@ func (d *DeviceDataController) GetHistorical30mRaw(c *fiber.Ctx) error {
 // @Failure      404 "no device found for user with provided parameters"
 // @Param        userDeviceID  path   string  true   "user device id"
 // @Security     BearerAuth
-// @Router       /user/device-data/{userDeviceID}/miles-driven [get]
+// @Router       /user/device-data/{userDeviceID}/distance-driven [get]
 func (d *DeviceDataController) GetDistanceDriven(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	udi := c.Params("userDeviceID")
