@@ -84,11 +84,11 @@ ingress:
   tls: []
 resources:
   limits:
-    cpu: 2500m
-    memory: 2560Mi
+    cpu: 250m
+    memory: 256Mi
   requests:
-    cpu: 500m
-    memory: 1280Mi
+    cpu: 50m
+    memory: 128Mi
 autoscaling:
   enabled: false
   minReplicas: 1
