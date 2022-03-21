@@ -309,7 +309,7 @@ func (udc *UserDevicesController) RegisterDeviceTesla(c *fiber.Ctx, logger *zero
 		}
 
 		if conflict {
-			return fiber.NewError(fiber.StatusBadRequest, "VIN already used for another device's integration")
+			return fiber.NewError(fiber.StatusConflict, "VIN already used for another device's integration")
 		}
 	}
 

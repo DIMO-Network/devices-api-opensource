@@ -353,8 +353,8 @@ func ErrorHandler(c *fiber.Ctx, err error, logger zerolog.Logger) error {
 	logger.Err(err).Msg("caught an error")
 
 	return c.Status(code).JSON(fiber.Map{
-		"error": true,
-		"msg":   err.Error(),
+		"code":    code,
+		"message": err.Error(),
 	})
 }
 
