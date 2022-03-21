@@ -2,7 +2,7 @@ replicaCount: 2
 image:
   repository: dimozone/devices-api
   pullPolicy: IfNotPresent
-  tag: 0.4.3
+  tag: 0.4.4
 cronJob:
   enabled: true
   schedule: 0 0 * * 0
@@ -36,7 +36,7 @@ ingress:
     nginx.ingress.kubernetes.io/auth-tls-verify-client: 'on'
     nginx.ingress.kubernetes.io/enable-cors: 'true'
     nginx.ingress.kubernetes.io/cors-allow-origin: https://app.dimo.zone
-    nginx.ingress.kubernetes.io/limit-rps: "9"
+    nginx.ingress.kubernetes.io/limit-rps: '9'
     external-dns.alpha.kubernetes.io/hostname: devices-api.dimo.zone
   hosts:
     - host: devices-api.dimo.zone
