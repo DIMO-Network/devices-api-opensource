@@ -2,6 +2,8 @@ package services
 
 import (
 	"bytes"
+	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -9,20 +11,27 @@ import (
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/models"
 	"github.com/pkg/errors"
+	"github.com/segmentio/ksuid"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
-const baseAPIURL = "https://api.dimo.autopi.io"
+const (
+	autoPiBaseAPIURL  = "https://api.dimo.autopi.io"
+	AutoPiVendor      = "AutoPi"
+	AutoPiWebhookPath = "/webhooks/autopi-command"
+)
 
 //go:generate mockgen -source autopi_api_service.go -destination mocks/autopi_api_service_mock.go
 type AutoPiAPIService interface {
 	GetDeviceByUnitID(unitID string) (*AutoPiDongleDevice, error)
 	GetDeviceByID(deviceID string) (*AutoPiDongleDevice, error)
 	PatchVehicleProfile(vehicleID string, profile PatchVehicleProfile) error
-	UnassociateDeviceTemplate(deviceID, templateID string) error
-	AssociateDeviceToTemplate(deviceID, templateID string) error
-	ApplyTemplate(deviceID, templateID string) error
-	CommandSyncDevice(deviceID string) error
+	UnassociateDeviceTemplate(deviceID string, templateID int) error
+	AssociateDeviceToTemplate(deviceID string, templateID int) error
+	ApplyTemplate(deviceID string, templateID int) error
+	CommandSyncDevice(deviceID string) (*AutoPiCommandResponse, error)
 }
 
 type autoPiAPIService struct {
@@ -37,6 +46,35 @@ func NewAutoPiAPIService(settings *config.Settings) AutoPiAPIService {
 			Timeout: 10 * time.Second,
 		},
 	}
+}
+
+func GetOrCreateAutoPiIntegration(ctx context.Context, exec boil.ContextExecutor) (*models.Integration, error) {
+	const (
+		autoPiType  = "API"
+		autoPiStyle = models.IntegrationStyleAddon
+	)
+	integration, err := models.Integrations(models.IntegrationWhere.Vendor.EQ(AutoPiVendor),
+		models.IntegrationWhere.Style.EQ(autoPiStyle), models.IntegrationWhere.Type.EQ(autoPiType)).
+		One(ctx, exec)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// create
+			integration = &models.Integration{
+				ID:     ksuid.New().String(),
+				Vendor: AutoPiVendor,
+				Type:   autoPiType,
+				Style:  autoPiStyle,
+			}
+			err = integration.Insert(ctx, exec, boil.Infer())
+			if err != nil {
+				return nil, errors.Wrap(err, "error inserting autoPi integration")
+			}
+		} else {
+			return nil, errors.Wrap(err, "error fetching autoPi integration from database")
+		}
+	}
+	return integration, nil
 }
 
 // GetDeviceByUnitID calls /dongle/devices/by_unit_id/{unit_id}/ to get the device for the unitID.
@@ -88,15 +126,15 @@ func (a *autoPiAPIService) PatchVehicleProfile(vehicleID string, profile PatchVe
 }
 
 // UnassociateDeviceTemplate Unassociate the device from the existing templateID.
-func (a *autoPiAPIService) UnassociateDeviceTemplate(deviceID, templateID string) error {
+func (a *autoPiAPIService) UnassociateDeviceTemplate(deviceID string, templateID int) error {
 	p := postDeviceIDs{
 		Devices:         []string{deviceID},
 		UnassociateOnly: false,
 	}
 	j, _ := json.Marshal(p)
-	res, err := a.executeRequest(fmt.Sprintf("/dongle/templates/%s/unassociate_devices/", templateID), "POST", j)
+	res, err := a.executeRequest(fmt.Sprintf("/dongle/templates/%d/unassociate_devices/", templateID), "POST", j)
 	if err != nil {
-		return errors.Wrapf(err, "error calling autopi api to unassociate_devices. template %s", templateID)
+		return errors.Wrapf(err, "error calling autopi api to unassociate_devices. template %d", templateID)
 	}
 	defer res.Body.Close() // nolint
 
@@ -104,14 +142,14 @@ func (a *autoPiAPIService) UnassociateDeviceTemplate(deviceID, templateID string
 }
 
 // AssociateDeviceToTemplate set a new templateID on the device by doing a Patch request
-func (a *autoPiAPIService) AssociateDeviceToTemplate(deviceID, templateID string) error {
+func (a *autoPiAPIService) AssociateDeviceToTemplate(deviceID string, templateID int) error {
 	p := postDeviceIDs{
 		Devices: []string{deviceID},
 	}
 	j, _ := json.Marshal(p)
-	res, err := a.executeRequest(fmt.Sprintf("/dongle/templates/%s/", templateID), "PATCH", j)
+	res, err := a.executeRequest(fmt.Sprintf("/dongle/templates/%d/", templateID), "PATCH", j)
 	if err != nil {
-		return errors.Wrapf(err, "error calling autopi api to associate device %s with new template %s", deviceID, templateID)
+		return errors.Wrapf(err, "error calling autopi api to associate device %s with new template %d", deviceID, templateID)
 	}
 	defer res.Body.Close() // nolint
 
@@ -119,14 +157,14 @@ func (a *autoPiAPIService) AssociateDeviceToTemplate(deviceID, templateID string
 }
 
 // ApplyTemplate When device awakes, it checks if it has templates to be applied. If device is awake, this won't do anything until next cycle.
-func (a *autoPiAPIService) ApplyTemplate(deviceID, templateID string) error {
+func (a *autoPiAPIService) ApplyTemplate(deviceID string, templateID int) error {
 	p := postDeviceIDs{
 		Devices: []string{deviceID},
 	}
 	j, _ := json.Marshal(p)
-	res, err := a.executeRequest(fmt.Sprintf("/dongle/templates/%s/apply_explicit", templateID), "POST", j)
+	res, err := a.executeRequest(fmt.Sprintf("/dongle/templates/%d/apply_explicit", templateID), "POST", j)
 	if err != nil {
-		return errors.Wrapf(err, "error calling autopi api to apply template for device %s with new template %s", deviceID, templateID)
+		return errors.Wrapf(err, "error calling autopi api to apply template for device %s with new template %d", deviceID, templateID)
 	}
 	defer res.Body.Close() // nolint
 
@@ -134,15 +172,30 @@ func (a *autoPiAPIService) ApplyTemplate(deviceID, templateID string) error {
 }
 
 // CommandSyncDevice sends raw command to autopi only if it is online. Invokes syncing the pending changes (eg. template change) on the device.
-func (a *autoPiAPIService) CommandSyncDevice(deviceID string) error {
-	p := `{"command":"state.sls pending"}`
-	res, err := a.executeRequest(fmt.Sprintf("/dongle/%s/execute_raw", deviceID), "POST", []byte(p))
+func (a *autoPiAPIService) CommandSyncDevice(deviceID string) (*AutoPiCommandResponse, error) {
+	webhookURL := fmt.Sprintf("%s/api/v1%s", a.Settings.DeploymentBaseURL, AutoPiWebhookPath)
+	syncCommand := autoPiCommandRequest{
+		Command:     "state.sls pending",
+		CallbackURL: &webhookURL,
+	}
+	j, err := json.Marshal(syncCommand)
 	if err != nil {
-		return errors.Wrapf(err, "error calling autopi api to command state.sls.pending for device %s", deviceID)
+		return nil, errors.Wrap(err, "unable to marshall json for autoPiCommandRequest")
+	}
+
+	res, err := a.executeRequest(fmt.Sprintf("/dongle/%s/execute_raw", deviceID), "POST", j)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error calling autopi api to command state.sls.pending for device %s", deviceID)
 	}
 	defer res.Body.Close() // nolint
 
-	return nil
+	d := new(AutoPiCommandResponse)
+	err = json.NewDecoder(res.Body).Decode(d)
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to decode responde from autopi command")
+	}
+
+	return d, nil
 }
 
 // executeRequest calls an api endpoint with autopi creds, optional body and error handling.
@@ -153,13 +206,13 @@ func (a *autoPiAPIService) executeRequest(path, method string, body []byte) (*ht
 	if len(body) > 0 {
 		reader = bytes.NewReader(body)
 	}
-	req, err := http.NewRequest(method, baseAPIURL+path, reader)
+	req, err := http.NewRequest(method, autoPiBaseAPIURL+path, reader)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", a.Settings.AutoPiAPIToken)
+	req.Header.Set("Authorization", "APIToken "+a.Settings.AutoPiAPIToken)
 	res, err := a.HTTPClient.Do(req)
 	// handle error status codes
 	if err == nil && res != nil && res.StatusCode > 299 {
@@ -235,4 +288,16 @@ type autoPiUnits struct {
 	Next     string               `json:"next"`
 	Previous string               `json:"previous"`
 	Results  []AutoPiDongleDevice `json:"results"`
+}
+
+type autoPiCommandRequest struct {
+	Command     string  `json:"command"`
+	CallbackURL *string `json:"callback_url,omitempty"`
+	// CallbackTimeout default is 120 seconds
+	CallbackTimeout *int `json:"callback_timeout,omitempty"`
+}
+
+type AutoPiCommandResponse struct {
+	Jid     string   `json:"jid"`
+	Minions []string `json:"minions"`
 }

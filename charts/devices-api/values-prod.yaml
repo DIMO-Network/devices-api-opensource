@@ -16,7 +16,7 @@ env:
   DB_MAX_IDLE_CONNECTIONS: '15'
   SERVICE_NAME: devices-api
   JWT_KEY_SET_URL: https://auth.dimo.zone/keys
-  SWAGGER_BASE_URL: https://devices-api.dimo.zone/v1/swagger
+  DEPLOYMENT_BASE_URL: https://devices-api.dimo.zone
   TOR_PROXY_URL: socks5://tor-prod:9050
   REDIS_USER: default
   REDIS_CLUSTER_MODE: true

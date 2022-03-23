@@ -106,6 +106,7 @@ definitions:
       expiresIn:
         type: integer
       externalId:
+        description: ExternalID is the only field needed for AutoPi registrations
         type: string
       redirectURI:
         description: RedirectURI is the OAuth redirect URI used by the frontend. Not
@@ -289,6 +290,7 @@ definitions:
       expiresIn:
         type: integer
       externalId:
+        description: ExternalID is the only field needed for AutoPi registrations
         type: string
       redirectURI:
         description: RedirectURI is the OAuth redirect URI used by the frontend. Not
@@ -524,7 +526,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot'
+              $ref: '#/definitions/internal_controllers.DeviceMMYRoot'
             type: array
       tags:
       - device-definitions
@@ -649,7 +651,7 @@ paths:
         name: userDeviceIntegrationRegistration
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest'
+          $ref: '#/definitions/internal_controllers.RegisterDeviceIntegrationRequest'
       responses:
         "204":
           description: ""
@@ -724,7 +726,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse'
+            $ref: '#/definitions/internal_controllers.GetUserDeviceIntegrationResponse'
       tags:
       - user-devices
   /user/devices/{userDeviceID}/name:
@@ -825,7 +827,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.GetGeofence'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence'
             type: array
       security:
       - ApiKeyAuth: []
@@ -843,14 +845,14 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.CreateGeofence'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_controllers.CreateResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateResponse'
       security:
       - ApiKeyAuth: []
       - BearerAuth: []
@@ -888,7 +890,7 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.CreateGeofence'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence'
       produces:
       - application/json
       responses:

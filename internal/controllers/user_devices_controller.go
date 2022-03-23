@@ -427,7 +427,7 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	for _, apiInteg := range userDevice.R.UserDeviceAPIIntegrations {
 		if apiInteg.R.Integration.Vendor == services.SmartCarVendor {
 			if apiInteg.ExternalID.Valid {
-				err = udc.taskSvc.StartSmartcarDeregistrationTasks(udi, apiInteg.IntegrationID, apiInteg.ExternalID.String, apiInteg.AccessToken)
+				err = udc.taskSvc.StartSmartcarDeregistrationTasks(udi, apiInteg.IntegrationID, apiInteg.ExternalID.String, apiInteg.AccessToken.String)
 				if err != nil {
 					return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 				}
@@ -584,7 +584,7 @@ type RegisterDeviceIntegrationRequest struct {
 	Code string `json:"code"`
 	// RedirectURI is the OAuth redirect URI used by the frontend. Not used in all integrations.
 	RedirectURI string `json:"redirectURI"`
-
+	// ExternalID is the only field needed for AutoPi registrations
 	ExternalID   string `json:"externalId"`
 	AccessToken  string `json:"accessToken"`
 	ExpiresIn    int    `json:"expiresIn"`

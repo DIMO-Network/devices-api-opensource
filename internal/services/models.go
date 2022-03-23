@@ -88,3 +88,16 @@ const (
 func (v VehicleDriveType) String() string {
 	return string(v)
 }
+
+// IntegrationsMetadata represents json stored in integrations table metadata jsonb column
+type IntegrationsMetadata struct {
+	AutoPiDefaultTemplateID int `json:"auto_pi_default_template_id"`
+}
+
+// UserDeviceAPIIntegrationsMetadata represents json stored in user_device_api_integrations table metadata jsonb column
+type UserDeviceAPIIntegrationsMetadata struct {
+	AutoPiUnitID           *string `json:"auto_pi_unit_id,omitempty"`
+	AutoPiIMEI             *string `json:"imei,omitempty"`
+	AutoPiSyncCommandJobID *string `json:"auto_pi_sync_command_job_id,omitempty"`
+	AutoPiSyncCommandState *string `json:"auto_pi_sync_command_state"`
+}

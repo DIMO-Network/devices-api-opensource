@@ -204,7 +204,7 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 
 	client := smartcar.NewClient()
 	vehicleIDs, err := client.GetVehicleIDs(context.Background(), &smartcar.VehicleIDsParams{
-		Access: integ.AccessToken,
+		Access: integ.AccessToken.String,
 	})
 	if err != nil {
 		return fmt.Errorf("failed request to Smartcar for vehicle IDs: %w", err)
@@ -218,7 +218,7 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 
 	scVeh := client.NewVehicle(&smartcar.VehicleParams{
 		ID:          vehicleID,
-		AccessToken: integ.AccessToken,
+		AccessToken: integ.AccessToken.String,
 		UnitSystem:  smartcar.Metric,
 	})
 	scVIN, err := scVeh.GetVIN(context.Background())
@@ -323,7 +323,7 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 		return fmt.Errorf("failed to emit Smartcar registration event: %w", err)
 	}
 
-	err = t.smartcarWebhookClient.Subscribe(vehicleID, integ.AccessToken)
+	err = t.smartcarWebhookClient.Subscribe(vehicleID, integ.AccessToken.String)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe vehicle to webhook: %w", err)
 	}
@@ -445,7 +445,7 @@ func (t *TaskService) smartcarGetInitialData(userDeviceID, integrationID string)
 	// Use the refresh token if the access token is expired or about to expire. We are ignoring
 	// the possiblity of the refresh token also being expired. Those last for 60 days, so it
 	// shouldn't happen much.
-	if time.Until(integ.AccessExpiresAt) < 5*time.Minute {
+	if time.Until(integ.AccessExpiresAt.Time) < 5*time.Minute {
 		client := smartcar.NewClient()
 		auth := client.NewAuth(&smartcar.AuthParams{
 			ClientID:     t.Settings.SmartcarClientID,
@@ -454,15 +454,15 @@ func (t *TaskService) smartcarGetInitialData(userDeviceID, integrationID string)
 
 		var token *smartcar.Token
 		token, err = auth.ExchangeRefreshToken(context.Background(), &smartcar.ExchangeRefreshTokenParams{
-			Token: integ.RefreshToken,
+			Token: integ.RefreshToken.String,
 		})
 		if err != nil {
 			return fmt.Errorf("failed exchanging refresh token with Smartcar: %w", err)
 		}
 
-		integ.AccessToken = token.Access
-		integ.AccessExpiresAt = token.AccessExpiry
-		integ.RefreshToken = token.Refresh
+		integ.AccessToken = null.StringFrom(token.Access)
+		integ.AccessExpiresAt = null.TimeFrom(token.AccessExpiry)
+		integ.RefreshToken = null.StringFrom(token.Refresh)
 		integ.RefreshExpiresAt = null.TimeFrom(token.RefreshExpiry)
 
 		_, err = integ.Update(context.Background(), tx, boil.Infer())
@@ -471,7 +471,7 @@ func (t *TaskService) smartcarGetInitialData(userDeviceID, integrationID string)
 		}
 	}
 
-	batchBytes, err := t.batchRequest(integ.ExternalID.String, integ.AccessToken)
+	batchBytes, err := t.batchRequest(integ.ExternalID.String, integ.AccessToken.String)
 	if err != nil {
 		return fmt.Errorf("failed to make batch request to Smartcar: %w", err)
 	}

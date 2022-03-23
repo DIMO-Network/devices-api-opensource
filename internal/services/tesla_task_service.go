@@ -99,9 +99,9 @@ func (t *teslaTaskService) StartPoll(vehicle *TeslaVehicle, udai *models.UserDev
 			Type:        "zone.dimo.task.tesla.poll.credential",
 		},
 		Data: TeslaCredentials{
-			OwnerAccessToken:          udai.AccessToken,
-			OwnerAccessTokenExpiresAt: udai.AccessExpiresAt,
-			AuthRefreshToken:          udai.RefreshToken,
+			OwnerAccessToken:          udai.AccessToken.String,
+			OwnerAccessTokenExpiresAt: udai.AccessExpiresAt.Time,
+			AuthRefreshToken:          udai.RefreshToken.String,
 		},
 	}
 

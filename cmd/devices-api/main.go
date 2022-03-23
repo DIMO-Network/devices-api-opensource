@@ -212,6 +212,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	userDeviceControllers := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService, smartcarClient, teslaSvc, teslaTaskService, encrypter)
 	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer)
 	deviceDataController := controllers.NewDeviceDataController(settings, pdb.DBS, &logger)
+	webhooksController := controllers.NewWebhooksController(settings, pdb.DBS)
 
 	prometheus := fiberprometheus.New("devices-api")
 	app.Use(prometheus.Middleware)
@@ -248,6 +249,9 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1.Get("/device-definitions/:id", deviceControllers.GetDeviceDefinitionByID)
 	v1.Get("/device-definitions/:id/integrations", deviceControllers.GetIntegrationsByID)
 	v1.Get("/device-definitions", deviceControllers.GetDeviceDefinitionByMMY)
+
+	// webhooks, signature validation can be on cloudflare worker side or here...
+	v1.Post(services.AutoPiWebhookPath, webhooksController.ProcessCommand)
 
 	// secured paths
 	keyRefreshInterval := time.Hour

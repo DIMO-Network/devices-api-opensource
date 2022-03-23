@@ -54,7 +54,7 @@ func migrateSmartcarWebhooks(ctx context.Context, logger *zerolog.Logger, settin
 	for _, apiInt := range apiInts {
 		dimoID := apiInt.UserDeviceID
 		vehicleID := apiInt.ExternalID.String
-		accessToken := apiInt.AccessToken
+		accessToken := apiInt.AccessToken.String
 
 		if err := oldClient.Unsubscribe(vehicleID); err != nil {
 			logger.Err(err).Msgf("Failed to unsubscribe %s from the old webhook", dimoID)

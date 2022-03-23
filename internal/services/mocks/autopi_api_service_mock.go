@@ -35,7 +35,7 @@ func (m *MockAutoPiAPIService) EXPECT() *MockAutoPiAPIServiceMockRecorder {
 }
 
 // ApplyTemplate mocks base method.
-func (m *MockAutoPiAPIService) ApplyTemplate(deviceID, templateID string) error {
+func (m *MockAutoPiAPIService) ApplyTemplate(deviceID string, templateID int) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ApplyTemplate", deviceID, templateID)
 	ret0, _ := ret[0].(error)
@@ -49,7 +49,7 @@ func (mr *MockAutoPiAPIServiceMockRecorder) ApplyTemplate(deviceID, templateID i
 }
 
 // AssociateDeviceToTemplate mocks base method.
-func (m *MockAutoPiAPIService) AssociateDeviceToTemplate(deviceID, templateID string) error {
+func (m *MockAutoPiAPIService) AssociateDeviceToTemplate(deviceID string, templateID int) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AssociateDeviceToTemplate", deviceID, templateID)
 	ret0, _ := ret[0].(error)
@@ -63,11 +63,12 @@ func (mr *MockAutoPiAPIServiceMockRecorder) AssociateDeviceToTemplate(deviceID, 
 }
 
 // CommandSyncDevice mocks base method.
-func (m *MockAutoPiAPIService) CommandSyncDevice(deviceID string) error {
+func (m *MockAutoPiAPIService) CommandSyncDevice(deviceID string) (*services.AutoPiCommandResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CommandSyncDevice", deviceID)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(*services.AutoPiCommandResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // CommandSyncDevice indicates an expected call of CommandSyncDevice.
@@ -121,7 +122,7 @@ func (mr *MockAutoPiAPIServiceMockRecorder) PatchVehicleProfile(vehicleID, profi
 }
 
 // UnassociateDeviceTemplate mocks base method.
-func (m *MockAutoPiAPIService) UnassociateDeviceTemplate(deviceID, templateID string) error {
+func (m *MockAutoPiAPIService) UnassociateDeviceTemplate(deviceID string, templateID int) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UnassociateDeviceTemplate", deviceID, templateID)
 	ret0, _ := ret[0].(error)

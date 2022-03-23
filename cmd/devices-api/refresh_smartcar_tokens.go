@@ -44,16 +44,16 @@ func refreshSmartcarTokens(ctx context.Context, logger *zerolog.Logger, settings
 	// For each of these, try the exchange and save the result if successul.
 	for _, apiInt := range apiInts {
 		token, err := auth.ExchangeRefreshToken(context.Background(), &smartcar.ExchangeRefreshTokenParams{
-			Token: apiInt.RefreshToken,
+			Token: apiInt.RefreshToken.String,
 		})
 		if err != nil {
 			logger.Err(err).Str("externalID", apiInt.ExternalID.String).Msg("Failed refreshing Smartcar token")
 			continue
 		}
 
-		apiInt.AccessToken = token.Access
-		apiInt.AccessExpiresAt = token.AccessExpiry
-		apiInt.RefreshToken = token.Refresh
+		apiInt.AccessToken = null.StringFrom(token.Access)
+		apiInt.AccessExpiresAt = null.TimeFrom(token.AccessExpiry)
+		apiInt.RefreshToken = null.StringFrom(token.Refresh)
 		apiInt.RefreshExpiresAt = null.TimeFrom(token.RefreshExpiry)
 
 		logger.Info().Str("userDeviceId", apiInt.UserDeviceID).Str("refreshToken", token.Refresh).Msg("Refresh succeeded")

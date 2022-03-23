@@ -27,13 +27,14 @@ type UserDeviceAPIIntegration struct {
 	UserDeviceID     string      `boil:"user_device_id" json:"user_device_id" toml:"user_device_id" yaml:"user_device_id"`
 	IntegrationID    string      `boil:"integration_id" json:"integration_id" toml:"integration_id" yaml:"integration_id"`
 	Status           string      `boil:"status" json:"status" toml:"status" yaml:"status"`
-	AccessToken      string      `boil:"access_token" json:"access_token" toml:"access_token" yaml:"access_token"`
-	AccessExpiresAt  time.Time   `boil:"access_expires_at" json:"access_expires_at" toml:"access_expires_at" yaml:"access_expires_at"`
-	RefreshToken     string      `boil:"refresh_token" json:"refresh_token" toml:"refresh_token" yaml:"refresh_token"`
+	AccessToken      null.String `boil:"access_token" json:"access_token,omitempty" toml:"access_token" yaml:"access_token,omitempty"`
+	AccessExpiresAt  null.Time   `boil:"access_expires_at" json:"access_expires_at,omitempty" toml:"access_expires_at" yaml:"access_expires_at,omitempty"`
+	RefreshToken     null.String `boil:"refresh_token" json:"refresh_token,omitempty" toml:"refresh_token" yaml:"refresh_token,omitempty"`
 	RefreshExpiresAt null.Time   `boil:"refresh_expires_at" json:"refresh_expires_at,omitempty" toml:"refresh_expires_at" yaml:"refresh_expires_at,omitempty"`
 	ExternalID       null.String `boil:"external_id" json:"external_id,omitempty" toml:"external_id" yaml:"external_id,omitempty"`
 	CreatedAt        time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt        time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	Metadata         null.JSON   `boil:"metadata" json:"metadata,omitempty" toml:"metadata" yaml:"metadata,omitempty"`
 
 	R *userDeviceAPIIntegrationR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userDeviceAPIIntegrationL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -50,6 +51,7 @@ var UserDeviceAPIIntegrationColumns = struct {
 	ExternalID       string
 	CreatedAt        string
 	UpdatedAt        string
+	Metadata         string
 }{
 	UserDeviceID:     "user_device_id",
 	IntegrationID:    "integration_id",
@@ -61,6 +63,7 @@ var UserDeviceAPIIntegrationColumns = struct {
 	ExternalID:       "external_id",
 	CreatedAt:        "created_at",
 	UpdatedAt:        "updated_at",
+	Metadata:         "metadata",
 }
 
 var UserDeviceAPIIntegrationTableColumns = struct {
@@ -74,6 +77,7 @@ var UserDeviceAPIIntegrationTableColumns = struct {
 	ExternalID       string
 	CreatedAt        string
 	UpdatedAt        string
+	Metadata         string
 }{
 	UserDeviceID:     "user_device_api_integrations.user_device_id",
 	IntegrationID:    "user_device_api_integrations.integration_id",
@@ -85,6 +89,7 @@ var UserDeviceAPIIntegrationTableColumns = struct {
 	ExternalID:       "user_device_api_integrations.external_id",
 	CreatedAt:        "user_device_api_integrations.created_at",
 	UpdatedAt:        "user_device_api_integrations.updated_at",
+	Metadata:         "user_device_api_integrations.metadata",
 }
 
 // Generated where
@@ -117,24 +122,26 @@ var UserDeviceAPIIntegrationWhere = struct {
 	UserDeviceID     whereHelperstring
 	IntegrationID    whereHelperstring
 	Status           whereHelperstring
-	AccessToken      whereHelperstring
-	AccessExpiresAt  whereHelpertime_Time
-	RefreshToken     whereHelperstring
+	AccessToken      whereHelpernull_String
+	AccessExpiresAt  whereHelpernull_Time
+	RefreshToken     whereHelpernull_String
 	RefreshExpiresAt whereHelpernull_Time
 	ExternalID       whereHelpernull_String
 	CreatedAt        whereHelpertime_Time
 	UpdatedAt        whereHelpertime_Time
+	Metadata         whereHelpernull_JSON
 }{
 	UserDeviceID:     whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"user_device_id\""},
 	IntegrationID:    whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"integration_id\""},
 	Status:           whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"status\""},
-	AccessToken:      whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"access_token\""},
-	AccessExpiresAt:  whereHelpertime_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"access_expires_at\""},
-	RefreshToken:     whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"refresh_token\""},
+	AccessToken:      whereHelpernull_String{field: "\"devices_api\".\"user_device_api_integrations\".\"access_token\""},
+	AccessExpiresAt:  whereHelpernull_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"access_expires_at\""},
+	RefreshToken:     whereHelpernull_String{field: "\"devices_api\".\"user_device_api_integrations\".\"refresh_token\""},
 	RefreshExpiresAt: whereHelpernull_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"refresh_expires_at\""},
 	ExternalID:       whereHelpernull_String{field: "\"devices_api\".\"user_device_api_integrations\".\"external_id\""},
 	CreatedAt:        whereHelpertime_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"created_at\""},
 	UpdatedAt:        whereHelpertime_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"updated_at\""},
+	Metadata:         whereHelpernull_JSON{field: "\"devices_api\".\"user_device_api_integrations\".\"metadata\""},
 }
 
 // UserDeviceAPIIntegrationRels is where relationship names are stored.
@@ -161,9 +168,9 @@ func (*userDeviceAPIIntegrationR) NewStruct() *userDeviceAPIIntegrationR {
 type userDeviceAPIIntegrationL struct{}
 
 var (
-	userDeviceAPIIntegrationAllColumns            = []string{"user_device_id", "integration_id", "status", "access_token", "access_expires_at", "refresh_token", "refresh_expires_at", "external_id", "created_at", "updated_at"}
-	userDeviceAPIIntegrationColumnsWithoutDefault = []string{"user_device_id", "integration_id", "status", "access_token", "access_expires_at", "refresh_token"}
-	userDeviceAPIIntegrationColumnsWithDefault    = []string{"refresh_expires_at", "external_id", "created_at", "updated_at"}
+	userDeviceAPIIntegrationAllColumns            = []string{"user_device_id", "integration_id", "status", "access_token", "access_expires_at", "refresh_token", "refresh_expires_at", "external_id", "created_at", "updated_at", "metadata"}
+	userDeviceAPIIntegrationColumnsWithoutDefault = []string{"user_device_id", "integration_id", "status"}
+	userDeviceAPIIntegrationColumnsWithDefault    = []string{"access_token", "access_expires_at", "refresh_token", "refresh_expires_at", "external_id", "created_at", "updated_at", "metadata"}
 	userDeviceAPIIntegrationPrimaryKeyColumns     = []string{"user_device_id", "integration_id"}
 	userDeviceAPIIntegrationGeneratedColumns      = []string{}
 )

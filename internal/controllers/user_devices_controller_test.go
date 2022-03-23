@@ -280,9 +280,9 @@ func TestUserDevicesController(t *testing.T) {
 			UserDeviceID:     ud.ID,
 			IntegrationID:    smartCarInt.ID,
 			Status:           models.UserDeviceAPIIntegrationStatusActive,
-			AccessToken:      "caca-token",
-			AccessExpiresAt:  time.Now().Add(time.Duration(10) * time.Hour),
-			RefreshToken:     "caca-refresh",
+			AccessToken:      null.StringFrom("caca-token"),
+			AccessExpiresAt:  null.TimeFrom(time.Now().Add(time.Duration(10) * time.Hour)),
+			RefreshToken:     null.StringFrom("caca-refresh"),
 			RefreshExpiresAt: null.TimeFrom(time.Now().Add(time.Duration(100) * time.Hour)),
 			ExternalID:       null.StringFrom("caca-external-id"),
 		}
@@ -311,9 +311,9 @@ func TestUserDevicesController(t *testing.T) {
 			UserDeviceID:     ud.ID,
 			IntegrationID:    integration.ID,
 			Status:           models.UserDeviceAPIIntegrationStatusActive,
-			AccessToken:      "caca-token",
-			AccessExpiresAt:  time.Now().Add(time.Duration(10) * time.Hour),
-			RefreshToken:     "caca-refresh",
+			AccessToken:      null.StringFrom("caca-token"),
+			AccessExpiresAt:  null.TimeFrom(time.Now().Add(time.Duration(10) * time.Hour)),
+			RefreshToken:     null.StringFrom("caca-refresh"),
 			RefreshExpiresAt: null.TimeFrom(time.Now().Add(time.Duration(100) * time.Hour)),
 			ExternalID:       null.StringFrom("caca-external-id"),
 		}
@@ -387,10 +387,10 @@ func TestUserDevicesController(t *testing.T) {
 		}
 		apiInt, _ := models.FindUserDeviceAPIIntegration(ctx, pdb.DBS().Writer, ud.ID, integration.ID)
 
-		assert.Equal(t, "myAccess", apiInt.AccessToken)
-		assert.True(t, expiry.Equal(apiInt.AccessExpiresAt))
+		assert.Equal(t, "myAccess", apiInt.AccessToken.String)
+		assert.True(t, expiry.Equal(apiInt.AccessExpiresAt.Time))
 		assert.Equal(t, "Pending", apiInt.Status)
-		assert.Equal(t, "myRefresh", apiInt.RefreshToken)
+		assert.Equal(t, "myRefresh", apiInt.RefreshToken.String)
 		//teardown
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
 	})
@@ -465,10 +465,10 @@ func TestUserDevicesController(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Couldn't find API integration record: %v", err)
 		}
-		assert.Equal(t, "SECRETLOLabc", apiInt.AccessToken)
+		assert.Equal(t, "SECRETLOLabc", apiInt.AccessToken.String)
 		assert.Equal(t, "1145", apiInt.ExternalID.String)
-		assert.Equal(t, "SECRETLOLfffg", apiInt.RefreshToken)
-		assert.True(t, within(&apiInt.AccessExpiresAt, &expectedExpiry, 15*time.Second), "access token expires at %s, expected something close to %s", apiInt.AccessExpiresAt, expectedExpiry)
+		assert.Equal(t, "SECRETLOLfffg", apiInt.RefreshToken.String)
+		assert.True(t, within(&apiInt.AccessExpiresAt.Time, &expectedExpiry, 15*time.Second), "access token expires at %s, expected something close to %s", apiInt.AccessExpiresAt, expectedExpiry)
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
 	})
 

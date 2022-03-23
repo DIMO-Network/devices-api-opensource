@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -195,6 +196,19 @@ func SetupCreateSmartCarIntegration(t *testing.T, pdb database.DbStore) models.I
 		Type:   models.IntegrationTypeAPI,
 		Style:  models.IntegrationStyleWebhook,
 		Vendor: "SmartCar",
+	}
+	err := integration.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
+	assert.NoError(t, err, "database error")
+	return integration
+}
+
+func SetupCreateAutoPiIntegration(t *testing.T, templateID int, pdb database.DbStore) models.Integration {
+	integration := models.Integration{
+		ID:       ksuid.New().String(),
+		Vendor:   "AutoPi",
+		Type:     "API",
+		Style:    models.IntegrationStyleAddon,
+		Metadata: null.JSONFrom([]byte(fmt.Sprintf(`{"auto_pi_default_template_id": %d }`, templateID))),
 	}
 	err := integration.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
 	assert.NoError(t, err, "database error")

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/friendsofgo/errors"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -30,7 +31,8 @@ type Integration struct {
 	CreatedAt time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 	// How often can integration be called in seconds
-	RefreshLimitSecs int `boil:"refresh_limit_secs" json:"refresh_limit_secs" toml:"refresh_limit_secs" yaml:"refresh_limit_secs"`
+	RefreshLimitSecs int       `boil:"refresh_limit_secs" json:"refresh_limit_secs" toml:"refresh_limit_secs" yaml:"refresh_limit_secs"`
+	Metadata         null.JSON `boil:"metadata" json:"metadata,omitempty" toml:"metadata" yaml:"metadata,omitempty"`
 
 	R *integrationR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L integrationL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -44,6 +46,7 @@ var IntegrationColumns = struct {
 	CreatedAt        string
 	UpdatedAt        string
 	RefreshLimitSecs string
+	Metadata         string
 }{
 	ID:               "id",
 	Type:             "type",
@@ -52,6 +55,7 @@ var IntegrationColumns = struct {
 	CreatedAt:        "created_at",
 	UpdatedAt:        "updated_at",
 	RefreshLimitSecs: "refresh_limit_secs",
+	Metadata:         "metadata",
 }
 
 var IntegrationTableColumns = struct {
@@ -62,6 +66,7 @@ var IntegrationTableColumns = struct {
 	CreatedAt        string
 	UpdatedAt        string
 	RefreshLimitSecs string
+	Metadata         string
 }{
 	ID:               "integrations.id",
 	Type:             "integrations.type",
@@ -70,6 +75,7 @@ var IntegrationTableColumns = struct {
 	CreatedAt:        "integrations.created_at",
 	UpdatedAt:        "integrations.updated_at",
 	RefreshLimitSecs: "integrations.refresh_limit_secs",
+	Metadata:         "integrations.metadata",
 }
 
 // Generated where
@@ -105,6 +111,7 @@ var IntegrationWhere = struct {
 	CreatedAt        whereHelpertime_Time
 	UpdatedAt        whereHelpertime_Time
 	RefreshLimitSecs whereHelperint
+	Metadata         whereHelpernull_JSON
 }{
 	ID:               whereHelperstring{field: "\"devices_api\".\"integrations\".\"id\""},
 	Type:             whereHelperstring{field: "\"devices_api\".\"integrations\".\"type\""},
@@ -113,6 +120,7 @@ var IntegrationWhere = struct {
 	CreatedAt:        whereHelpertime_Time{field: "\"devices_api\".\"integrations\".\"created_at\""},
 	UpdatedAt:        whereHelpertime_Time{field: "\"devices_api\".\"integrations\".\"updated_at\""},
 	RefreshLimitSecs: whereHelperint{field: "\"devices_api\".\"integrations\".\"refresh_limit_secs\""},
+	Metadata:         whereHelpernull_JSON{field: "\"devices_api\".\"integrations\".\"metadata\""},
 }
 
 // IntegrationRels is where relationship names are stored.
@@ -139,9 +147,9 @@ func (*integrationR) NewStruct() *integrationR {
 type integrationL struct{}
 
 var (
-	integrationAllColumns            = []string{"id", "type", "style", "vendor", "created_at", "updated_at", "refresh_limit_secs"}
+	integrationAllColumns            = []string{"id", "type", "style", "vendor", "created_at", "updated_at", "refresh_limit_secs", "metadata"}
 	integrationColumnsWithoutDefault = []string{"id", "type", "style", "vendor"}
-	integrationColumnsWithDefault    = []string{"created_at", "updated_at", "refresh_limit_secs"}
+	integrationColumnsWithDefault    = []string{"created_at", "updated_at", "refresh_limit_secs", "metadata"}
 	integrationPrimaryKeyColumns     = []string{"id"}
 	integrationGeneratedColumns      = []string{}
 )
