@@ -50,8 +50,9 @@ func NewAutoPiAPIService(settings *config.Settings) AutoPiAPIService {
 
 func GetOrCreateAutoPiIntegration(ctx context.Context, exec boil.ContextExecutor) (*models.Integration, error) {
 	const (
-		autoPiType  = "API"
-		autoPiStyle = models.IntegrationStyleAddon
+		autoPiType        = "API"
+		autoPiStyle       = models.IntegrationStyleAddon
+		defaultTemplateID = 10
 	)
 	integration, err := models.Integrations(models.IntegrationWhere.Vendor.EQ(AutoPiVendor),
 		models.IntegrationWhere.Style.EQ(autoPiStyle), models.IntegrationWhere.Type.EQ(autoPiType)).
@@ -60,12 +61,14 @@ func GetOrCreateAutoPiIntegration(ctx context.Context, exec boil.ContextExecutor
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// create
+			im := IntegrationsMetadata{AutoPiDefaultTemplateID: defaultTemplateID}
 			integration = &models.Integration{
 				ID:     ksuid.New().String(),
 				Vendor: AutoPiVendor,
 				Type:   autoPiType,
 				Style:  autoPiStyle,
 			}
+			_ = integration.Metadata.Marshal(im)
 			err = integration.Insert(ctx, exec, boil.Infer())
 			if err != nil {
 				return nil, errors.Wrap(err, "error inserting autoPi integration")
