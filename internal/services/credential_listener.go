@@ -12,7 +12,6 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
@@ -57,8 +56,6 @@ func (i *CredentialListener) processMessage(msg *message.Message) error {
 	if msg.Payload == nil {
 		return nil
 	}
-
-	log.Info().Msgf("Received message: %s, payload: %s", msg.UUID, string(msg.Payload))
 
 	event := new(TeslaCredentialsCloudEventV1V2)
 	if err := json.Unmarshal(msg.Payload, event); err != nil {
@@ -105,6 +102,7 @@ func (i *CredentialListener) processEvent(event *TeslaCredentialsCloudEventV1V2)
 	// Upon initial connection, there will be message that we sent and there's no point in updating the database.
 	// TODO: Should we ignore these if they're expired?
 	if !integ.AccessToken.Valid || integ.AccessToken.String != accessToken {
+		i.log.Info().Msgf("Saving new credentials for device %s, integration %s", userDeviceID, integrationID)
 		integ.AccessToken = null.StringFrom(accessToken)
 		integ.RefreshToken = null.StringFrom(refreshToken)
 		integ.AccessExpiresAt = null.TimeFrom(expiry)
