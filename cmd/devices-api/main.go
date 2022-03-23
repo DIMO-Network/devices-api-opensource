@@ -251,7 +251,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1.Get("/device-definitions/:id/integrations", deviceControllers.GetIntegrationsByID)
 	v1.Get("/device-definitions", deviceControllers.GetDeviceDefinitionByMMY)
 
-	// webhooks, signature validation can be on cloudflare worker side or here...
+	// webhooks, performs signature validation
 	v1.Post(services.AutoPiWebhookPath, webhooksController.ProcessCommand)
 
 	// secured paths
