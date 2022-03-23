@@ -165,6 +165,7 @@ func main() {
 		startPrometheus(logger)
 		eventService := services.NewEventService(&logger, settings, producer)
 		startDeviceStatusConsumer(logger, settings, pdb, eventService)
+		startCredentialConsumer(logger, settings, pdb)
 		startWebAPI(logger, settings, pdb, eventService, producer)
 	}
 }
@@ -364,7 +365,7 @@ func ErrorHandler(c *fiber.Ctx, err error, logger zerolog.Logger) error {
 
 func startDeviceStatusConsumer(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore, eventService services.EventService) {
 	clusterConfig := sarama.NewConfig()
-	clusterConfig.Version = sarama.V2_6_0_0
+	clusterConfig.Version = sarama.V2_8_1_0
 	clusterConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
 
 	cfg := &kafka.Config{
@@ -376,12 +377,34 @@ func startDeviceStatusConsumer(logger zerolog.Logger, settings *config.Settings,
 	}
 	consumer, err := kafka.NewConsumer(cfg, &logger)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("could not start consumer")
+		logger.Fatal().Err(err).Msg("Could not start device status update consumer")
 	}
 	ingestSvc := services.NewIngestService(pdb.DBS, &logger, eventService)
 	consumer.Start(context.Background(), ingestSvc.ProcessDeviceStatusMessages)
 
-	logger.Info().Msg("kafka consumer started")
+	logger.Info().Msg("Device status update consumer started")
+}
+
+func startCredentialConsumer(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) {
+	clusterConfig := sarama.NewConfig()
+	clusterConfig.Version = sarama.V2_8_1_0
+	clusterConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
+
+	cfg := &kafka.Config{
+		ClusterConfig:   clusterConfig,
+		BrokerAddresses: strings.Split(settings.KafkaBrokers, ","),
+		Topic:           settings.TaskCredentialTopic,
+		GroupID:         "user-devicesYY",
+		MaxInFlight:     int64(5),
+	}
+	consumer, err := kafka.NewConsumer(cfg, &logger)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Could not start credential update consumer")
+	}
+	credService := services.NewCredentialListener(pdb.DBS, &logger)
+	consumer.Start(context.Background(), credService.ProcessCredentialsMessages)
+
+	logger.Info().Msg("Credential update consumer started")
 }
 
 func startPrometheus(logger zerolog.Logger) {

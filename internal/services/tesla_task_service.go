@@ -41,6 +41,12 @@ type TeslaCredentials struct {
 	AuthRefreshToken          string    `json:"authRefreshToken"`
 }
 
+type TeslaCredentialsV2 struct {
+	AccessToken  string    `json:"accessToken"`
+	Expiry       time.Time `json:"expiry"`
+	RefreshToken string    `json:"refreshToken"`
+}
+
 type TeslaTask struct {
 	UserDeviceID       string           `json:"userDeviceId"`
 	IntegrationID      string           `json:"integrationId"`
@@ -68,6 +74,11 @@ type TeslaCredentialsCloudEvent struct {
 	Data TeslaCredentials `json:"data"`
 }
 
+type TeslaCredentialsCloudEventV2 struct {
+	CloudEventHeaders
+	Data TeslaCredentialsV2 `json:"data"`
+}
+
 func (t *teslaTaskService) StartPoll(vehicle *TeslaVehicle, udai *models.UserDeviceAPIIntegration) error {
 	tt := TeslaTaskCloudEvent{
 		CloudEventHeaders: CloudEventHeaders{
@@ -89,19 +100,19 @@ func (t *teslaTaskService) StartPoll(vehicle *TeslaVehicle, udai *models.UserDev
 		},
 	}
 
-	tc := TeslaCredentialsCloudEvent{
+	tc := TeslaCredentialsCloudEventV2{
 		CloudEventHeaders: CloudEventHeaders{
 			ID:          ksuid.New().String(),
 			Source:      "dimo/integration/" + udai.IntegrationID,
 			SpecVersion: "1.0",
 			Subject:     udai.UserDeviceID,
 			Time:        time.Now(),
-			Type:        "zone.dimo.task.tesla.poll.credential",
+			Type:        "zone.dimo.task.tesla.poll.credential.v2",
 		},
-		Data: TeslaCredentials{
-			OwnerAccessToken:          udai.AccessToken.String,
-			OwnerAccessTokenExpiresAt: udai.AccessExpiresAt.Time,
-			AuthRefreshToken:          udai.RefreshToken.String,
+		Data: TeslaCredentialsV2{
+			AccessToken:  udai.AccessToken.String,
+			Expiry:       udai.AccessExpiresAt.Time,
+			RefreshToken: udai.RefreshToken.String,
 		},
 	}
 
