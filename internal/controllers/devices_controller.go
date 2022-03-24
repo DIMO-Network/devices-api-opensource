@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strconv"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/volatiletech/null/v8"
 	qm "github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
@@ -162,7 +164,7 @@ func (d *DevicesController) GetIntegrationsByID(c *fiber.Ctx) error {
 				Style:        di.R.Integration.Style,
 				Vendor:       di.R.Integration.Vendor,
 				Region:       di.Region,
-				Capabilities: string(di.Capabilities.JSON),
+				Capabilities: jsonOrDefault(di.Capabilities),
 			})
 		}
 	}
@@ -280,10 +282,19 @@ func DeviceCompatibilityFromDB(dbDIS models.DeviceIntegrationSlice) []services.D
 			Style:        di.R.Integration.Style,
 			Vendor:       di.R.Integration.Vendor,
 			Region:       di.Region,
-			Capabilities: string(di.Capabilities.JSON),
+			Capabilities: jsonOrDefault(di.Capabilities),
 		}
 	}
 	return compatibilities
+}
+
+// jsonOrDefault returns the raw JSON bytes if there is a value, and otherwise returns the byte
+// representation of the empty JSON object {}.
+func jsonOrDefault(j null.JSON) json.RawMessage {
+	if !j.Valid || len(j.JSON) == 0 {
+		return []byte(`{}`)
+	}
+	return j.JSON
 }
 
 type DeviceMMYRoot struct {

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 )
@@ -21,13 +22,13 @@ type DeviceDefinition struct {
 
 // DeviceCompatibility represents what systems we know this is compatible with
 type DeviceCompatibility struct {
-	ID           string `json:"id"`
-	Type         string `json:"type"`
-	Style        string `json:"style"`
-	Vendor       string `json:"vendor"`
-	Region       string `json:"region"`
-	Country      string `json:"country,omitempty"`
-	Capabilities string `json:"capabilities,omitempty"`
+	ID           string          `json:"id"`
+	Type         string          `json:"type"`
+	Style        string          `json:"style"`
+	Vendor       string          `json:"vendor"`
+	Region       string          `json:"region"`
+	Country      string          `json:"country,omitempty"`
+	Capabilities json.RawMessage `json:"capabilities"`
 }
 
 // DeviceType whether it is a vehicle or other type and basic information
