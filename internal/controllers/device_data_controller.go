@@ -43,69 +43,6 @@ func NewDeviceDataController(settings *config.Settings, dbs func() *database.DBR
 	}
 }
 
-// GetHistoricalRaw godoc
-// @Description  Get all historical data for a userDeviceID, within start and end range
-// @Tags         device-data
-// @Produce      json
-// @Success      200
-// @Failure 	 400 "invalid start or end date"
-// @Failure      404 "no device found for user with provided parameters"
-// @Param        userDeviceID  path   string  true   "user id"
-// @Param        startDate     query  string  false  "startDate eg 2022-01-02. if empty two weeks back"
-// @Param        endDate       query  string  false  "endDate eg 2022-03-01. if empty today"
-// @Security     BearerAuth
-// @Router       /user/device-data/{userDeviceID}/historical [get]
-func (d *DeviceDataController) GetHistoricalRaw(c *fiber.Ctx) error {
-	const dateLayout = "2006-01-02" // date layout support by elastic
-	userID := getUserID(c)
-	udi := c.Params("userDeviceID")
-	startDate := c.Query("startDate")
-	if startDate == "" {
-		startDate = time.Now().Add(-1 * (time.Hour * 24 * 14)).Format(dateLayout)
-	} else {
-		_, err := time.Parse(dateLayout, startDate)
-		if err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, err.Error())
-		}
-	}
-	endDate := c.Query("endDate")
-	if endDate == "" {
-		endDate = time.Now().Format(dateLayout)
-	} else {
-		_, err := time.Parse(dateLayout, endDate)
-		if err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, err.Error())
-		}
-	}
-
-	// todo: cache this
-	exists, err := models.UserDevices(models.UserDeviceWhere.UserID.EQ(userID), models.UserDeviceWhere.ID.EQ(udi)).Exists(c.Context(), d.DBS().Reader)
-	if err != nil {
-		return err
-	}
-	if !exists {
-		return fiber.NewError(fiber.StatusNotFound, fmt.Sprintf("No device %s found for user %s", udi, userID))
-	}
-	res, err := esquery.Search().
-		Query(esquery.Bool().Must(
-			esquery.Term("subject", udi),
-			esquery.Exists("data.odometer"),
-			esquery.Range("data.timestamp").
-				Gte(startDate).
-				Lte(endDate))).
-		Size(50).
-		Sort("data.timestamp", "desc").
-		Run(d.es, d.es.Search.WithContext(c.Context()), d.es.Search.WithIndex(d.Settings.DeviceDataIndexName))
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-	body, _ := io.ReadAll(res.Body)
-
-	c.Set("Content-type", "application/json")
-	return c.Status(fiber.StatusOK).Send(body)
-}
-
 // GetHistorical30mRaw godoc
 // @Description  Get historical data for a userDeviceID, within start and end range, taking the
 // @Description  latest status from every 30m bucket.
@@ -175,6 +112,101 @@ func (d *DeviceDataController) GetHistorical30mRaw(c *fiber.Ctx) error {
 							"_source": map[string][]string{
 								"excludes": {"data.errors", "data.hasErrors"},
 							},
+						},
+					},
+				},
+			}),
+		)
+
+	res, err := req.Run(d.es, d.es.Search.WithContext(c.Context()), d.es.Search.WithIndex(d.Settings.DeviceDataIndexName))
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	body, _ := io.ReadAll(res.Body)
+
+	c.Set("Content-type", "application/json")
+	return c.Status(fiber.StatusOK).Send(body)
+}
+
+// GetHistoricalRaw godoc
+// @Description  Get historical data for a userDeviceID, within start and end range, taking the
+// @Description  latest status from every 30m bucket.
+// @Tags         device-data
+// @Produce      json
+// @Success      200
+// @Failure 	 400 "invalid start or end date"
+// @Failure      404 "no device found for user with provided parameters"
+// @Param        userDeviceID  path   string  true   "user id"
+// @Param        startDate     query  string  false  "startDate eg 2022-01-02. if empty two weeks back"
+// @Param        endDate       query  string  false  "endDate eg 2022-03-01. if empty today"
+// @Param        signal        query  string  false  "odometer. if empty all"
+// @Param        interval      query  string  false  "intervals for bucketing, 30m, 60m. if empty 30m"
+// @Security     BearerAuth
+// @Router       /user/device-data/{userDeviceID}/historical [get]
+func (d *DeviceDataController) GetHistoricalRaw(c *fiber.Ctx) error {
+	const dateLayout = "2006-01-02" // date layout support by elastic
+	userID := getUserID(c)
+	udi := c.Params("userDeviceID")
+	startDate := c.Query("startDate")
+	endDate := c.Query("endDate")
+	signalName := c.Query("signal") // device signal to get from the data property in elastic
+	interval := c.Query("interval") // bucket interval aggregation
+
+	if startDate == "" {
+		startDate = time.Now().Add(-1 * (time.Hour * 24 * 14)).Format(dateLayout)
+	} else {
+		_, err := time.Parse(dateLayout, startDate)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	}
+	if endDate == "" {
+		endDate = time.Now().Format(dateLayout)
+	} else {
+		_, err := time.Parse(dateLayout, endDate)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+	}
+	if stringContainsSpecialChars(signalName) {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("You cannot query for field %s as user %s", signalName, userID))
+	}
+	if interval == "" {
+		interval = "30m"
+	}
+
+	// todo: cache this
+	exists, err := models.UserDevices(models.UserDeviceWhere.UserID.EQ(userID), models.UserDeviceWhere.ID.EQ(udi)).Exists(c.Context(), d.DBS().Reader)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fiber.NewError(fiber.StatusNotFound, fmt.Sprintf("No device %s found for user %s", udi, userID))
+	}
+	req := esquery.Search().
+		Query(esquery.Bool().Must(
+			esquery.Term("subject", udi),
+			esquery.Exists("data.odometer"),
+			esquery.Range("data.timestamp").
+				Gte(startDate).
+				Lte(endDate))).
+		Size(0).
+		Aggs(
+			esquery.CustomAgg("buckets_30m", map[string]interface{}{
+				"date_histogram": map[string]interface{}{
+					"field":          "data.timestamp",
+					"fixed_interval": interval,
+					"min_doc_count":  1,
+				},
+				"aggs": map[string]interface{}{
+					"last_status": map[string]interface{}{
+						"top_hits": map[string]interface{}{
+							"size": 1,
+							"sort": []map[string]string{
+								{"data.timestamp": "desc"},
+							},
+							"_source": getFieldQuery(signalName),
 						},
 					},
 				},
@@ -354,4 +386,24 @@ func connect(settings *config.Settings) (*elasticsearch.Client, error) {
 		EnableRetryOnTimeout: true,
 		MaxRetries:           5,
 	})
+}
+
+func getFieldQuery(signalName string) map[string][]string {
+	if signalName == "" {
+		return map[string][]string{
+			"excludes": {"data.errors", "data.hasErrors"},
+		}
+	}
+	return map[string][]string{
+		"includes": {"data." + signalName},
+	}
+}
+
+func stringContainsSpecialChars(str string) bool {
+	for _, charVariable := range str {
+		if (charVariable < 'a' || charVariable > 'z') && (charVariable < 'A' || charVariable > 'Z') {
+			return true
+		}
+	}
+	return false
 }
