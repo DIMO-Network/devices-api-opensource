@@ -26,7 +26,7 @@ func setup() *embeddedpostgres.EmbeddedPostgres {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Printf("\033[1;36m%s\033[0m", "> Setup completed\n")
+	fmt.Printf("\033[1;36m%s\033[0m", "> DB Setup completed\n")
 	return edb
 }
 

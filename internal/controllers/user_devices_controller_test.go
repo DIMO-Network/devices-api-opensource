@@ -17,10 +17,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/mock/gomock"
 	_ "github.com/lib/pq"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
-	smartcar "github.com/smartcar/go-sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
 	"github.com/volatiletech/null/v8"
@@ -61,7 +59,7 @@ func TestUserDevicesController(t *testing.T) {
 
 	testUserID := "123123"
 	testUserID2 := "3232451"
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, taskSvc, &fakeEventService{}, scClient, teslaSvc, teslaTaskService, &fakeEncrypter{})
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, taskSvc, &fakeEventService{}, scClient, teslaSvc, teslaTaskService, &fakeEncrypter{}, nil)
 	app := fiber.New()
 	app.Post("/user/devices", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceForUser)
 	app.Post("/user/devices/second", test.AuthInjectorTestHandler(testUserID2), c.RegisterDeviceForUser) // for different test user
@@ -69,7 +67,6 @@ func TestUserDevicesController(t *testing.T) {
 	app.Patch("/user/devices/:userDeviceID/vin", test.AuthInjectorTestHandler(testUserID), c.UpdateVIN)
 	app.Patch("/user/devices/:userDeviceID/name", test.AuthInjectorTestHandler(testUserID), c.UpdateName)
 	app.Post("/user/devices/:userDeviceID/commands/refresh", test.AuthInjectorTestHandler(testUserID), c.RefreshUserDeviceStatus)
-	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
 
 	deviceDefSvc.EXPECT().CheckAndSetImage(gomock.Any(), false).AnyTimes().Return(nil)
 
@@ -336,184 +333,5 @@ func TestUserDevicesController(t *testing.T) {
 		}
 		//teardown
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
-	})
-
-	t.Run("POST - Smartcar integration failure", func(t *testing.T) {
-		integration := test.SetupCreateSmartCarIntegration(t, pdb)
-		dm := test.SetupCreateMake(t, "Ford", pdb)
-		dd := test.SetupCreateDeviceDefinition(t, dm, "Mach E", 2022, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
-		test.SetupCreateDeviceIntegration(t, dd, integration, ud, pdb)
-
-		req := `{
-			"code": "qxyz",
-			"redirectURI": "http://dimo.zone/cb"
-		}`
-
-		scClient.EXPECT().ExchangeCode(gomock.Any(), "qxyz", "http://dimo.zone/cb").Times(1).Return(nil, errors.New("failure communicating with Smartcar"))
-		request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.ID, req)
-		response, _ := app.Test(request)
-		assert.Equal(t, fiber.StatusBadRequest, response.StatusCode, "should return bad request when given incorrect authorization code")
-		exists, _ := models.UserDeviceAPIIntegrationExists(ctx, pdb.DBS().Writer, ud.ID, integration.ID)
-		assert.False(t, exists, "no integration should have been created")
-		//teardown
-		test.TruncateTables(pdb.DBS().Writer.DB, t)
-	})
-
-	t.Run("POST - Smartcar integration success", func(t *testing.T) {
-		integration := test.SetupCreateSmartCarIntegration(t, pdb)
-		dm := test.SetupCreateMake(t, "Ford", pdb)
-		dd := test.SetupCreateDeviceDefinition(t, dm, "Mach E", 2022, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
-		test.SetupCreateDeviceIntegration(t, dd, integration, ud, pdb)
-		req := `{
-			"code": "qxy",
-			"redirectURI": "http://dimo.zone/cb"
-		}`
-		expiry, _ := time.Parse(time.RFC3339, "2022-03-01T12:00:00Z")
-		scClient.EXPECT().ExchangeCode(gomock.Any(), "qxy", "http://dimo.zone/cb").Times(1).Return(&smartcar.Token{
-			Access:        "myAccess",
-			AccessExpiry:  expiry,
-			Refresh:       "myRefresh",
-			RefreshExpiry: expiry.Add(24 * time.Hour),
-		}, nil)
-
-		taskSvc.EXPECT().StartSmartcarRegistrationTasks(ud.ID, integration.ID).Times(1).Return(nil)
-		request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.ID, req)
-		response, _ := app.Test(request)
-		if assert.Equal(t, fiber.StatusNoContent, response.StatusCode, "should return success") == false {
-			body, _ := ioutil.ReadAll(response.Body)
-			fmt.Println("unexpected response: " + string(body))
-		}
-		apiInt, _ := models.FindUserDeviceAPIIntegration(ctx, pdb.DBS().Writer, ud.ID, integration.ID)
-
-		assert.Equal(t, "myAccess", apiInt.AccessToken.String)
-		assert.True(t, expiry.Equal(apiInt.AccessExpiresAt.Time))
-		assert.Equal(t, "Pending", apiInt.Status)
-		assert.Equal(t, "myRefresh", apiInt.RefreshToken.String)
-		//teardown
-		test.TruncateTables(pdb.DBS().Writer.DB, t)
-	})
-
-	t.Run("POST - integration for unknown device", func(t *testing.T) {
-		integration := test.SetupCreateSmartCarIntegration(t, pdb)
-		req := `{
-			"code": "qxy",
-			"redirectURI": "http://dimo.zone/cb"
-		}`
-		request := test.BuildRequest("POST", "/user/devices/fakeDevice/integrations/"+integration.ID, req)
-		response, _ := app.Test(request)
-		assert.Equal(t, fiber.StatusBadRequest, response.StatusCode, "should fail")
-	})
-
-	t.Run("POST - register Tesla integration", func(t *testing.T) {
-		dm := test.SetupCreateMake(t, "Tesla", pdb)
-		dd := test.SetupCreateDeviceDefinition(t, dm, "Model Y", 2022, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
-		teslaInt := models.Integration{
-			ID:     ksuid.New().String(),
-			Type:   models.IntegrationTypeAPI,
-			Style:  models.IntegrationStyleOEM,
-			Vendor: "Tesla",
-		}
-		_ = teslaInt.Insert(ctx, pdb.DBS().Writer, boil.Infer())
-
-		di := models.DeviceIntegration{
-			DeviceDefinitionID: dd.ID,
-			IntegrationID:      teslaInt.ID,
-			Region:             "Americas",
-		}
-		_ = di.Insert(ctx, pdb.DBS().Writer, boil.Infer())
-
-		req := `{
-			"accessToken": "abc",
-			"externalId": "1145",
-			"expiresIn": 600,
-			"refreshToken": "fffg"
-		}`
-		request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+teslaInt.ID, req)
-
-		oV := &services.TeslaVehicle{}
-		oUdai := &models.UserDeviceAPIIntegration{}
-
-		teslaTaskService.EXPECT().StartPoll(gomock.AssignableToTypeOf(oV), gomock.AssignableToTypeOf(oUdai)).DoAndReturn(
-			func(v *services.TeslaVehicle, udai *models.UserDeviceAPIIntegration) error {
-				oV = v
-				oUdai = udai
-				return nil
-			},
-		)
-
-		teslaSvc.EXPECT().GetVehicle("abc", 1145).Return(&services.TeslaVehicle{
-			ID:        1145,
-			VehicleID: 223,
-			VIN:       "5YJYGDEF9NF010423",
-		}, nil)
-		teslaSvc.EXPECT().WakeUpVehicle("abc", 1145).Return(nil)
-		expectedExpiry := time.Now().Add(10 * time.Minute)
-		response, _ := app.Test(request)
-		assert.Equal(t, fiber.StatusNoContent, response.StatusCode, "should return success")
-
-		assert.Equal(t, 1145, oV.ID)
-		assert.Equal(t, 223, oV.VehicleID)
-
-		within := func(test, reference *time.Time, d time.Duration) bool {
-			return test.After(reference.Add(-d)) && test.Before(reference.Add(d))
-		}
-
-		apiInt, err := models.FindUserDeviceAPIIntegration(ctx, pdb.DBS().Writer, ud.ID, teslaInt.ID)
-		if err != nil {
-			t.Fatalf("Couldn't find API integration record: %v", err)
-		}
-		assert.Equal(t, "SECRETLOLabc", apiInt.AccessToken.String)
-		assert.Equal(t, "1145", apiInt.ExternalID.String)
-		assert.Equal(t, "SECRETLOLfffg", apiInt.RefreshToken.String)
-		assert.True(t, within(&apiInt.AccessExpiresAt.Time, &expectedExpiry, 15*time.Second), "access token expires at %s, expected something close to %s", apiInt.AccessExpiresAt, expectedExpiry)
-		test.TruncateTables(pdb.DBS().Writer.DB, t)
-	})
-
-	t.Run("POST - register Tesla integration, update device definition", func(t *testing.T) {
-		dm := test.SetupCreateMake(t, "Tesla", pdb)
-		dd := test.SetupCreateDeviceDefinition(t, dm, "Model Y", 2022, pdb)
-		dd.R = dd.R.NewStruct()
-		dd.R.DeviceMake = &dm
-
-		dd2 := test.SetupCreateDeviceDefinition(t, dm, "Roadster", 2010, pdb)
-
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
-		ud.R = ud.R.NewStruct()
-		ud.R.DeviceDefinition = dd
-
-		teslaInt := models.Integration{
-			ID:     ksuid.New().String(),
-			Type:   models.IntegrationTypeAPI,
-			Style:  models.IntegrationStyleOEM,
-			Vendor: "Tesla",
-		}
-		_ = teslaInt.Insert(ctx, pdb.DBS().Writer, boil.Infer())
-		di := models.DeviceIntegration{
-			DeviceDefinitionID: dd.ID,
-			IntegrationID:      teslaInt.ID,
-			Region:             "Americas",
-		}
-		_ = di.Insert(ctx, pdb.DBS().Writer, boil.Infer())
-		di2 := models.DeviceIntegration{
-			DeviceDefinitionID: dd2.ID,
-			IntegrationID:      teslaInt.ID,
-			Region:             "Americas",
-		}
-		dd.R.DeviceIntegrations = []*models.DeviceIntegration{&di, &di2}
-
-		_ = di2.Insert(ctx, pdb.DBS().Writer, boil.Infer())
-
-		err := c.fixTeslaDeviceDefinition(ctx, &logger, pdb.DBS().Writer.DB, &teslaInt, &ud, "5YJRE1A31A1P01234")
-		if err != nil {
-			t.Fatalf("Got an error while fixing device definition: %v", err)
-		}
-
-		_ = ud.Reload(ctx, pdb.DBS().Writer.DB)
-		if ud.DeviceDefinitionID != dd2.ID {
-			t.Fatalf("Failed to switch device definition to the correct one")
-		}
 	})
 }

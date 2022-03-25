@@ -31,10 +31,11 @@ type UserDevicesController struct {
 	teslaService     services.TeslaService
 	teslaTaskService services.TeslaTaskService
 	encrypter        services.Encrypter
+	autoPiSvc        services.AutoPiAPIService
 }
 
 // NewUserDevicesController constructor
-func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc services.ITaskService, eventService services.EventService, smartcarClient services.SmartcarClient, teslaSvc services.TeslaService, teslaTaskService services.TeslaTaskService, encrypter services.Encrypter) UserDevicesController {
+func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc services.ITaskService, eventService services.EventService, smartcarClient services.SmartcarClient, teslaSvc services.TeslaService, teslaTaskService services.TeslaTaskService, encrypter services.Encrypter, autoPiSvc services.AutoPiAPIService) UserDevicesController {
 	return UserDevicesController{
 		Settings:         settings,
 		DBS:              dbs,
@@ -46,6 +47,7 @@ func NewUserDevicesController(settings *config.Settings, dbs func() *database.DB
 		teslaService:     teslaSvc,
 		teslaTaskService: teslaTaskService,
 		encrypter:        encrypter,
+		autoPiSvc:        autoPiSvc,
 	}
 }
 
@@ -584,7 +586,7 @@ type RegisterDeviceIntegrationRequest struct {
 	Code string `json:"code"`
 	// RedirectURI is the OAuth redirect URI used by the frontend. Not used in all integrations.
 	RedirectURI string `json:"redirectURI"`
-	// ExternalID is the only field needed for AutoPi registrations
+	// ExternalID is the only field needed for AutoPi registrations. It is the UnitID.
 	ExternalID   string `json:"externalId"`
 	AccessToken  string `json:"accessToken"`
 	ExpiresIn    int    `json:"expiresIn"`

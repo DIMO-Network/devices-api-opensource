@@ -231,26 +231,15 @@ func (a *autoPiAPIService) executeRequest(path, method string, body []byte) (*ht
 
 // AutoPiDongleDevice https://api.dimo.autopi.io/#/dongle/dongle_devices_read
 type AutoPiDongleDevice struct {
-	ID       string `json:"id"`
-	UnitID   string `json:"unit_id"`
-	Token    string `json:"token"`
-	CallName string `json:"callName"`
-	Owner    int    `json:"owner"`
-	Vehicle  struct {
-		ID                    string `json:"id"`
-		Vin                   string `json:"vin"`
-		Display               string `json:"display"`
-		CallName              string `json:"callName"`
-		LicensePlate          string `json:"licensePlate"`
-		Model                 int    `json:"model"`
-		Make                  string `json:"make"`
-		Year                  int    `json:"year"`
-		Type                  string `json:"type"`
-		BatteryNominalVoltage int    `json:"battery_nominal_voltage"`
-	} `json:"vehicle"`
-	Display           string    `json:"display"`
-	LastCommunication time.Time `json:"last_communication"`
-	IsUpdated         string    `json:"is_updated"`
+	ID                string              `json:"id"`
+	UnitID            string              `json:"unit_id"`
+	Token             string              `json:"token"`
+	CallName          string              `json:"callName"`
+	Owner             int                 `json:"owner"`
+	Vehicle           AutoPiDongleVehicle `json:"vehicle"`
+	Display           string              `json:"display"`
+	LastCommunication time.Time           `json:"last_communication"`
+	IsUpdated         string              `json:"is_updated"`
 	Release           struct {
 		Version string `json:"version"`
 	} `json:"release"`
@@ -269,6 +258,19 @@ type AutoPiDongleDevice struct {
 	// only exists when get by unitID
 	HwRevision string   `json:"hw_revision"`
 	Tags       []string `json:"tags"`
+}
+
+type AutoPiDongleVehicle struct {
+	ID                    string `json:"id"`
+	Vin                   string `json:"vin"`
+	Display               string `json:"display"`
+	CallName              string `json:"callName"`
+	LicensePlate          string `json:"licensePlate"`
+	Model                 int    `json:"model"`
+	Make                  string `json:"make"`
+	Year                  int    `json:"year"`
+	Type                  string `json:"type"`
+	BatteryNominalVoltage int    `json:"battery_nominal_voltage"`
 }
 
 // PatchVehicleProfile used to update vehicle profile https://api.dimo.autopi.io/#/vehicle/vehicle_profile_partial_update

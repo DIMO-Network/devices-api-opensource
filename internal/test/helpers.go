@@ -26,11 +26,17 @@ import (
 const testDbName = "devices_api"
 const testDbPort = 6669
 
+// NewEmbedDBConfigured just returns the configured embed pg object, does not start db
+func NewEmbedDBConfigured() *embeddedpostgres.EmbeddedPostgres {
+	edb := embeddedpostgres.NewDatabase(embeddedpostgres.DefaultConfig().
+		Version(embeddedpostgres.V12).Port(testDbPort).Database(testDbName))
+	return edb
+}
+
 // StartAndMigrateDB used for booting up a test embed db. Migrates db schema to latest, adds function for truncating tables useful btw test runs.
 func StartAndMigrateDB(ctx context.Context, migrationsDirRelPath string) (*embeddedpostgres.EmbeddedPostgres, error) {
 	// an issue here is that if the test panics, it won't kill the embedded db: lsof -i :6669, then kill it.
-	edb := embeddedpostgres.NewDatabase(embeddedpostgres.DefaultConfig().
-		Version(embeddedpostgres.V12).Port(testDbPort).Database(testDbName))
+	edb := NewEmbedDBConfigured()
 	if err := edb.Start(); err != nil {
 		return nil, err
 	}

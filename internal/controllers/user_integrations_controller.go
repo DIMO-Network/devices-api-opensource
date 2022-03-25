@@ -254,8 +254,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		return fiber.NewError(fiber.StatusBadRequest, "unable to parse body json")
 	}
 
-	autoPiSvc := services.NewAutoPiAPIService(udc.Settings)
-	autoPiDevice, err := autoPiSvc.GetDeviceByUnitID(reqBody.ExternalID)
+	autoPiDevice, err := udc.autoPiSvc.GetDeviceByUnitID(reqBody.ExternalID)
 	if err != nil {
 		logger.Err(err).Msgf("failed to call autopi api to get autoPiDevice by unit id %s", reqBody.ExternalID)
 		return err
@@ -297,7 +296,8 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		if err != nil {
 			logger.Err(err).Msg("registerAutoPiUnit failure")
 			apiInt.Status = models.UserDeviceAPIIntegrationStatusFailed
-			_, err := apiInt.Update(c.Context(), tx, boil.Whitelist(models.UserDeviceAPIIntegrationColumns.Status, models.UserDeviceAPIIntegrationColumns.UpdatedAt))
+			_, err := apiInt.Update(c.Context(), tx,
+				boil.Whitelist(models.UserDeviceAPIIntegrationColumns.Status, models.UserDeviceAPIIntegrationColumns.UpdatedAt))
 			if err != nil {
 				logger.Err(err).Msg("unexpected database error updating autopi integration to failed")
 			}
@@ -313,30 +313,31 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	if !ud.Name.IsZero() {
 		profile.CallName = ud.Name.String
 	}
-	err = autoPiSvc.PatchVehicleProfile(autoPiDevice.Vehicle.ID, profile)
+	err = udc.autoPiSvc.PatchVehicleProfile(autoPiDevice.Vehicle.ID, profile)
 	if err != nil {
 		return errors.Wrap(err, "failed to patch autopi vehicle profile")
 	}
 	// update autopi to unassociate from current base template
-	err = autoPiSvc.UnassociateDeviceTemplate(autoPiDevice.ID, autoPiDevice.Template)
+	err = udc.autoPiSvc.UnassociateDeviceTemplate(autoPiDevice.ID, autoPiDevice.Template)
 	if err != nil {
 		return errors.Wrapf(err, "failed to unassociate template %d", autoPiDevice.Template)
 	}
 	// set our template on the autoPiDevice
-	err = autoPiSvc.AssociateDeviceToTemplate(autoPiDevice.ID, im.AutoPiDefaultTemplateID)
+	err = udc.autoPiSvc.AssociateDeviceToTemplate(autoPiDevice.ID, im.AutoPiDefaultTemplateID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to associate autoPiDevice %s to template %d", autoPiDevice.ID, im.AutoPiDefaultTemplateID)
 	}
 	// apply for next reboot
-	err = autoPiSvc.ApplyTemplate(autoPiDevice.ID, im.AutoPiDefaultTemplateID)
+	err = udc.autoPiSvc.ApplyTemplate(autoPiDevice.ID, im.AutoPiDefaultTemplateID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to apply autoPiDevice %s with template %d", autoPiDevice.ID, im.AutoPiDefaultTemplateID)
 	}
 	// send sync command in case autoPiDevice is on at this moment (should be during initial setup)
-	commandResp, err := autoPiSvc.CommandSyncDevice(autoPiDevice.ID)
+	commandResp, err := udc.autoPiSvc.CommandSyncDevice(autoPiDevice.ID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to sync changes to autoPiDevice %s", autoPiDevice.ID)
 	}
+
 	// update database with integration status
 	apiInt.Status = models.UserDeviceAPIIntegrationStatusPendingFirstData
 	udim.AutoPiSyncCommandJobID = &commandResp.Jid
@@ -345,13 +346,18 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		return errors.Wrap(err, "failed to marshall user device integration metadata")
 	}
 	apiInt.Metadata = null.JSONFrom(udimJSON)
+
 	_, err = apiInt.Update(c.Context(), tx, boil.Whitelist(models.UserDeviceAPIIntegrationColumns.Status,
 		models.UserDeviceAPIIntegrationColumns.UpdatedAt, models.UserDeviceAPIIntegrationColumns.Metadata))
 	if err != nil {
 		return errors.Wrap(err, "failed to update integration status to PendingFirstData")
 	}
 
-	return nil
+	if err = tx.Commit(); err != nil {
+		return errors.Wrap(err, "failed to commit new autopi integration")
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
 }
 
 func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, userDeviceID, integrationID string) error {
