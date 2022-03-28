@@ -37,3 +37,14 @@ type CountryInfo struct {
 	RegionCode    int    `json:"region_code"`
 	SubRegionCode int    `json:"sub_region_code"`
 }
+
+type RegionEnum string
+
+const (
+	AmericasRegion RegionEnum = "Americas"
+	EuropeRegion   RegionEnum = "Europe"
+)
+
+func (r RegionEnum) String() string {
+	return string(r)
+}

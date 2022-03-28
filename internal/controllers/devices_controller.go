@@ -26,6 +26,8 @@ type DevicesController struct {
 	log          *zerolog.Logger
 }
 
+const autoPiYearCutoff = 2000
+
 // NewDevicesController constructor
 func NewDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, nhtsaSvc services.INHTSAService, ddSvc services.IDeviceDefinitionService) DevicesController {
 	edmundsSvc := services.NewEdmundsService(settings.TorProxyURL, logger)
@@ -53,6 +55,7 @@ func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
 	}
 	all, err := models.DeviceDefinitions(qm.Where("verified = true"),
 		qm.OrderBy("device_make_id, model, year")).All(c.Context(), d.DBS().Reader)
+
 	if err != nil {
 		return err
 	}
@@ -115,28 +118,34 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 		One(c.Context(), d.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return errorResponseHandler(c, err, fiber.StatusNotFound)
+			return fiber.NewError(fiber.StatusNotFound, fmt.Sprintf("device definition with id %s not found", id))
 		}
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		return err
 	}
 
 	rp, err := NewDeviceDefinitionFromDatabase(dd)
 	if err != nil {
 		return err
 	}
+	if dd.Year >= autoPiYearCutoff {
+		rp.CompatibleIntegrations, err = services.AppendAutoPiCompatibility(c.Context(), rp.CompatibleIntegrations, d.DBS().Writer)
+		if err != nil {
+			return err
+		}
+	}
 	return c.JSON(fiber.Map{
 		"deviceDefinition": rp,
 	})
 }
 
-// GetIntegrationsByID godoc
+// GetDeviceIntegrationsByID godoc
 // @Description  gets all the available integrations for a device definition. Includes the capabilities of the device with the integration
 // @Tags           device-definitions
 // @Produce      json
 // @Param             id        path  string  true  "device definition id, KSUID format"
 // @Success      200  {object}  []services.DeviceCompatibility
 // @Router       /device-definitions/{id}/integrations [get]
-func (d *DevicesController) GetIntegrationsByID(c *fiber.Ctx) error {
+func (d *DevicesController) GetDeviceIntegrationsByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if len(id) != 27 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -150,9 +159,9 @@ func (d *DevicesController) GetIntegrationsByID(c *fiber.Ctx) error {
 		One(c.Context(), d.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return errorResponseHandler(c, err, fiber.StatusNotFound)
+			return fiber.NewError(fiber.StatusNotFound, fmt.Sprintf("no device defintion with id %s found", id))
 		}
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		return err
 	}
 	// build object for integrations that have all the info
 	var integrations []services.DeviceCompatibility
@@ -166,6 +175,12 @@ func (d *DevicesController) GetIntegrationsByID(c *fiber.Ctx) error {
 				Region:       di.Region,
 				Capabilities: jsonOrDefault(di.Capabilities),
 			})
+		}
+	}
+	if dd.Year >= autoPiYearCutoff {
+		integrations, err = services.AppendAutoPiCompatibility(c.Context(), integrations, d.DBS().Writer)
+		if err != nil {
+			return err
 		}
 	}
 	return c.JSON(fiber.Map{

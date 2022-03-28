@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/pkg/errors"
 	"github.com/segmentio/ksuid"
@@ -78,6 +79,31 @@ func GetOrCreateAutoPiIntegration(ctx context.Context, exec boil.ContextExecutor
 		}
 	}
 	return integration, nil
+}
+
+// AppendAutoPiCompatibility adds autopi compatibility for AmericasRegion and EuropeRegion regions
+func AppendAutoPiCompatibility(ctx context.Context, dcs []DeviceCompatibility, writer *database.DB) ([]DeviceCompatibility, error) {
+	integration, err := GetOrCreateAutoPiIntegration(ctx, writer)
+	if err != nil {
+		return nil, err
+	}
+	dcs = append(dcs, DeviceCompatibility{
+		ID:           integration.ID,
+		Type:         integration.Type,
+		Style:        integration.Style,
+		Vendor:       integration.Vendor,
+		Region:       AmericasRegion.String(),
+		Capabilities: nil,
+	})
+	dcs = append(dcs, DeviceCompatibility{
+		ID:           integration.ID,
+		Type:         integration.Type,
+		Style:        integration.Style,
+		Vendor:       integration.Vendor,
+		Region:       EuropeRegion.String(),
+		Capabilities: nil,
+	})
+	return dcs, nil
 }
 
 // GetDeviceByUnitID calls /dongle/devices/by_unit_id/{unit_id}/ to get the device for the unitID.
@@ -205,11 +231,7 @@ func (a *autoPiAPIService) CommandSyncDevice(deviceID string) (*AutoPiCommandRes
 // If request results in non 2xx response, will always return error with payload body in err message
 // respone should have defer response.Body.Close() after the error check as it could be nil when err is != nil
 func (a *autoPiAPIService) executeRequest(path, method string, body []byte) (*http.Response, error) {
-	reader := new(bytes.Reader)
-	if len(body) > 0 {
-		reader = bytes.NewReader(body)
-	}
-	req, err := http.NewRequest(method, autoPiBaseAPIURL+path, reader)
+	req, err := http.NewRequest(method, autoPiBaseAPIURL+path, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}

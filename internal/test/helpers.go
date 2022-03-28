@@ -180,6 +180,7 @@ func SetupCreateDeviceDefinition(t *testing.T, dm models.DeviceMake, model strin
 		DeviceMakeID: dm.ID,
 		Model:        model,
 		Year:         int16(year),
+		Verified:     true,
 	}
 	err := dd.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
 	assert.NoError(t, err, "database error")

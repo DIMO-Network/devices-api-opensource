@@ -20,6 +20,7 @@ import (
 	"github.com/segmentio/ksuid"
 	smartcar "github.com/smartcar/go-sdk"
 	"github.com/stretchr/testify/assert"
+	"github.com/tidwall/gjson"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
@@ -49,6 +50,26 @@ func TestUserIntegrationsController(t *testing.T) {
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, taskSvc, &fakeEventService{}, scClient, teslaSvc, teslaTaskService, &fakeEncrypter{}, autopiAPISvc)
 	app := fiber.New()
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
+	app.Get("/integrations", c.GetIntegrations)
+
+	t.Run("get integrations from db", func(t *testing.T) {
+		autoPiInteg := test.SetupCreateAutoPiIntegration(t, 34, pdb)
+		scInteg := test.SetupCreateSmartCarIntegration(t, pdb)
+
+		request := test.BuildRequest("GET", "/integrations", "")
+		response, err := app.Test(request)
+		assert.NoError(t, err)
+		body, _ := ioutil.ReadAll(response.Body)
+
+		assert.Equal(t, fiber.StatusOK, response.StatusCode)
+
+		jsonIntegrations := gjson.GetBytes(body, "integrations")
+		assert.True(t, jsonIntegrations.IsArray())
+		assert.Equal(t, gjson.GetBytes(body, "integrations.0.id").Str, autoPiInteg.ID)
+		assert.Equal(t, gjson.GetBytes(body, "integrations.1.id").Str, scInteg.ID)
+
+		test.TruncateTables(pdb.DBS().Writer.DB, t)
+	})
 
 	t.Run("create device integration for autopi with nothing in db returns nil, nil", func(t *testing.T) {
 		di, err := createDeviceIntegrationIfAutoPi(ctx, "123", "123", region, pdb.DBS().Writer)

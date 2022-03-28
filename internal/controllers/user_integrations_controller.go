@@ -21,7 +21,7 @@ import (
 
 // GetUserDeviceIntegration godoc
 // @Description  Receive status updates about a Smartcar integration
-// @Tags         user-devices
+// @Tags         integrations
 // @Success      200  {object}  controllers.GetUserDeviceIntegrationResponse
 // @Router       /user/devices/{userDeviceID}/integrations/{integrationID} [get]
 func (udc *UserDevicesController) GetUserDeviceIntegration(c *fiber.Ctx) error {
@@ -54,7 +54,7 @@ func (udc *UserDevicesController) GetUserDeviceIntegration(c *fiber.Ctx) error {
 
 // DeleteUserDeviceIntegration godoc
 // @Description  Remove an user device's integration
-// @Tags         user-devices
+// @Tags         integrations
 // @Success      204
 // @Router       /user/devices/{userDeviceID}/integrations/{integrationID} [delete]
 func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) error {
@@ -149,13 +149,30 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+// GetIntegrations godoc
+// @Description  gets list of integrations we have defined
+// @Tags         integrations
+// @Produce      json
+// @Success      200  {object}  models.Integration
+// @Router       /integrations [get]
+func (udc *UserDevicesController) GetIntegrations(c *fiber.Ctx) error {
+	all, err := models.Integrations(qm.Limit(100)).All(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		return errors.Wrap(err, "failed to get integrations")
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"integrations": all,
+	})
+}
+
 // RegisterDeviceIntegration godoc
 // @Description Submit credentials for registering a device with a given integration.
-// @Tags user-devices
-// @Accept json
-// @Param userDeviceIntegrationRegistration body controllers.RegisterDeviceIntegrationRequest true "Integration credentials"
-// @Success 204
-// @Router /user/devices/:userDeviceID/integrations/:integrationID [post]
+// @Tags 		integrations
+// @Accept 		json
+// @Param 		userDeviceIntegrationRegistration body controllers.RegisterDeviceIntegrationRequest true "Integration credentials"
+// @Success 	204
+// @Router 		/user/devices/:userDeviceID/integrations/:integrationID [post]
 func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	userDeviceID := c.Params("userDeviceID")
@@ -404,8 +421,6 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-var opaqueInternalError = fiber.NewError(fiber.StatusInternalServerError, "Internal error")
-
 func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, userDeviceID string, integ *models.Integration, ud *models.UserDevice) error {
 	reqBody := new(RegisterDeviceIntegrationRequest)
 	if err := c.BodyParser(reqBody); err != nil {
@@ -442,20 +457,17 @@ func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zero
 	}
 
 	if err := udc.fixTeslaDeviceDefinition(c.Context(), logger, tx, integ, ud, v.VIN); err != nil {
-		logger.Err(err).Msg("Failed to fix up device definition")
-		return opaqueInternalError
+		return errors.Wrap(err, "Failed to fix up device definition")
 	}
 
 	encAccessToken, err := udc.encrypter.Encrypt(reqBody.AccessToken)
 	if err != nil {
-		logger.Err(err).Msg("Failed encrypting access token")
-		return opaqueInternalError
+		return errors.Wrap(err, "Failed encrypting access token")
 	}
 
 	encRefreshToken, err := udc.encrypter.Encrypt(reqBody.RefreshToken)
 	if err != nil {
-		logger.Err(err).Msg("Failed encrypting refresh token")
-		return opaqueInternalError
+		return errors.Wrap(err, "Failed encrypting refresh token")
 	}
 
 	integration := models.UserDeviceAPIIntegration{

@@ -44,9 +44,9 @@ func setIntegrationForMatchingMakeYears(ctx context.Context, logger zerolog.Logg
 		region := ""
 		switch shortRegion {
 		case "US":
-			region = "Americas"
+			region = services.AmericasRegion.String()
 		case "EU":
-			region = "Europe"
+			region = services.EuropeRegion.String()
 		default:
 			continue
 		}
@@ -171,8 +171,8 @@ func smartCarForwardCompatibility(ctx context.Context, logger zerolog.Logger, pd
 						diGap := models.DeviceIntegration{
 							DeviceDefinitionID: gapDd.ID,
 							IntegrationID:      integrationID,
-							Region:             "Americas",  // default
-							Capabilities:       null.JSON{}, // we'd need to copy from previous dd?
+							Region:             services.AmericasRegion.String(), // default
+							Capabilities:       null.JSON{},                      // we'd need to copy from previous dd?
 						}
 						err = diGap.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 						if err != nil {
@@ -200,8 +200,8 @@ func smartCarForwardCompatibility(ctx context.Context, logger zerolog.Logger, pd
 				diGap := models.DeviceIntegration{
 					DeviceDefinitionID: nextYearDd.ID,
 					IntegrationID:      integrationID,
-					Region:             "Americas",  // default
-					Capabilities:       null.JSON{}, // we'd need to copy from previous dd?
+					Region:             services.AmericasRegion.String(), // default
+					Capabilities:       null.JSON{},                      // we'd need to copy from previous dd?
 				}
 				err = diGap.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 				if err != nil {

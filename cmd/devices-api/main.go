@@ -188,7 +188,7 @@ func createKafkaProducer(settings *config.Settings) (sarama.SyncProducer, error)
 func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore, eventService services.EventService, producer sarama.SyncProducer) {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			return ErrorHandler(c, err, logger)
+			return ErrorHandler(c, err, logger, settings.Environment)
 		},
 		DisableStartupMessage: true,
 		ReadBufferSize:        16000,
@@ -211,7 +211,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	taskSvc := services.NewTaskService(settings, pdb.DBS, ddSvc, eventService, &logger, producer, &smartCarSvc)
 	autoPiSvc := services.NewAutoPiAPIService(settings)
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc)
-	userDeviceControllers := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService, smartcarClient, teslaSvc, teslaTaskService, encrypter, autoPiSvc)
+	userDeviceController := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService, smartcarClient, teslaSvc, teslaTaskService, encrypter, autoPiSvc)
 	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer)
 	deviceDataController := controllers.NewDeviceDataController(settings, pdb.DBS, &logger)
 	webhooksController := controllers.NewWebhooksController(settings, pdb.DBS)
@@ -249,7 +249,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	// Device Definitions
 	v1.Get("/device-definitions/all", cacheHandler, deviceControllers.GetAllDeviceMakeModelYears)
 	v1.Get("/device-definitions/:id", deviceControllers.GetDeviceDefinitionByID)
-	v1.Get("/device-definitions/:id/integrations", deviceControllers.GetIntegrationsByID)
+	v1.Get("/device-definitions/:id/integrations", deviceControllers.GetDeviceIntegrationsByID)
 	v1.Get("/device-definitions", deviceControllers.GetDeviceDefinitionByMMY)
 
 	// webhooks, performs signature validation
@@ -265,17 +265,19 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	})
 	v1Auth := app.Group("/v1", jwtAuth)
 	// user's devices
-	v1Auth.Get("/user/devices/me", userDeviceControllers.GetUserDevices)
-	v1Auth.Post("/user/devices", userDeviceControllers.RegisterDeviceForUser)
-	v1Auth.Delete("/user/devices/:userDeviceID", userDeviceControllers.DeleteUserDevice)
-	v1Auth.Patch("/user/devices/:userDeviceID/vin", userDeviceControllers.UpdateVIN)
-	v1Auth.Patch("/user/devices/:userDeviceID/name", userDeviceControllers.UpdateName)
-	v1Auth.Patch("/user/devices/:userDeviceID/country-code", userDeviceControllers.UpdateCountryCode)
-	v1Auth.Get("/user/devices/:userDeviceID/integrations/:integrationID", userDeviceControllers.GetUserDeviceIntegration)
-	v1Auth.Delete("/user/devices/:userDeviceID/integrations/:integrationID", userDeviceControllers.DeleteUserDeviceIntegration)
-	v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID", userDeviceControllers.RegisterDeviceIntegration)
-	v1Auth.Get("/user/devices/:userDeviceID/status", userDeviceControllers.GetUserDeviceStatus)
-	v1Auth.Post("/user/devices/:userDeviceID/commands/refresh", userDeviceControllers.RefreshUserDeviceStatus)
+	v1Auth.Get("/user/devices/me", userDeviceController.GetUserDevices)
+	v1Auth.Post("/user/devices", userDeviceController.RegisterDeviceForUser)
+	v1Auth.Delete("/user/devices/:userDeviceID", userDeviceController.DeleteUserDevice)
+	v1Auth.Patch("/user/devices/:userDeviceID/vin", userDeviceController.UpdateVIN)
+	v1Auth.Patch("/user/devices/:userDeviceID/name", userDeviceController.UpdateName)
+	v1Auth.Patch("/user/devices/:userDeviceID/country-code", userDeviceController.UpdateCountryCode)
+	// device integrations
+	v1Auth.Get("/user/devices/:userDeviceID/integrations/:integrationID", userDeviceController.GetUserDeviceIntegration)
+	v1Auth.Delete("/user/devices/:userDeviceID/integrations/:integrationID", userDeviceController.DeleteUserDeviceIntegration)
+	v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID", userDeviceController.RegisterDeviceIntegration)
+	v1Auth.Get("/user/devices/:userDeviceID/status", userDeviceController.GetUserDeviceStatus)
+	v1Auth.Post("/user/devices/:userDeviceID/commands/refresh", userDeviceController.RefreshUserDeviceStatus)
+	v1Auth.Get("/integrations", userDeviceController.GetIntegrations)
 
 	// geofence
 	v1Auth.Post("/user/geofences", geofenceController.Create)
@@ -289,7 +291,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Get("/user/device-data/:userDeviceID/distance-driven", deviceDataController.GetDistanceDriven)
 
 	// admin / internal operations paths
-	// v1.Post("/admin/user/:user_id/devices", userDeviceControllers.AdminRegisterUserDevice)
+	// v1.Post("/admin/user/:user_id/devices", userDeviceController.AdminRegisterUserDevice)
 
 	logger.Info().Msg("Server started on port " + settings.Port)
 	// Start Server from a different go routine
@@ -348,15 +350,20 @@ func changeLogLevel(c *fiber.Ctx) error {
 }
 
 // ErrorHandler custom handler to log recovered errors using our logger and return json instead of string
-func ErrorHandler(c *fiber.Ctx, err error, logger zerolog.Logger) error {
+func ErrorHandler(c *fiber.Ctx, err error, logger zerolog.Logger, environment string) error {
 	code := fiber.StatusInternalServerError // Default 500 statuscode
 
-	if e, ok := err.(*fiber.Error); ok {
+	e, fiberTypeErr := err.(*fiber.Error)
+	if fiberTypeErr {
 		// Override status code if fiber.Error type
 		code = e.Code
 	}
 	c.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
 	logger.Err(err).Msg("caught an error")
+	// return an opaque error if we're in a higher level environment and we haven't specified an fiber type err.
+	if !fiberTypeErr && environment != "local" {
+		err = fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+	}
 
 	return c.Status(code).JSON(fiber.Map{
 		"code":    code,

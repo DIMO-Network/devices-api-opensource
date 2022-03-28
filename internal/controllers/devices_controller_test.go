@@ -16,15 +16,14 @@ import (
 	mock_services "github.com/DIMO-Network/devices-api/internal/services/mocks"
 	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
-	"github.com/buger/jsonparser"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/mock/gomock"
 	_ "github.com/lib/pq"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/tidwall/gjson"
 	"github.com/volatiletech/null/v8"
-	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
 // integration tests using embedded pgsql, must be run in order
@@ -48,37 +47,45 @@ func TestDevicesController(t *testing.T) {
 	app := fiber.New()
 	app.Get("/device-definitions/all", c.GetAllDeviceMakeModelYears)
 	app.Get("/device-definitions/:id", c.GetDeviceDefinitionByID)
-	app.Get("/device-definitions/:id/integrations", c.GetIntegrationsByID)
+	app.Get("/device-definitions/:id/integrations", c.GetDeviceIntegrationsByID)
 
-	createdID := ksuid.New().String()
-	dbMake := models.DeviceMake{
-		ID:   ksuid.New().String(),
-		Name: "TESLA",
-	}
-	dbErr := dbMake.Insert(ctx, pdb.DBS().Writer, boil.Infer())
-	assert.NoError(t, dbErr)
-	dbDeviceDef := models.DeviceDefinition{
-		ID:           createdID,
-		DeviceMakeID: dbMake.ID,
-		Model:        "MODEL Y",
-		Year:         2020,
-		Verified:     true,
-	}
-	dbErr = dbDeviceDef.Insert(ctx, pdb.DBS().Writer, boil.Infer())
-	assert.NoError(t, dbErr)
-	fmt.Println("created device def id: " + createdID)
+	dbMake := test.SetupCreateMake(t, "TESLA", pdb)
+	dbDeviceDef := test.SetupCreateDeviceDefinition(t, dbMake, "MODEL Y", 2020, pdb)
+	fmt.Println("created device def id: " + dbDeviceDef.ID)
+	createdID := dbDeviceDef.ID
 
-	t.Run("GET - device definition by id", func(t *testing.T) {
+	t.Run("GET - device definition by id, including autopi integration", func(t *testing.T) {
 		request, _ := http.NewRequest("GET", "/device-definitions/"+createdID, nil)
 		response, _ := app.Test(request)
 		body, _ := ioutil.ReadAll(response.Body)
 		// assert
 		assert.Equal(t, 200, response.StatusCode)
-		v, _, _, _ := jsonparser.Get(body, "deviceDefinition")
+
+		v := gjson.GetBytes(body, "deviceDefinition")
 		var dd services.DeviceDefinition
-		err := json.Unmarshal(v, &dd)
+		err := json.Unmarshal([]byte(v.Raw), &dd)
 		assert.NoError(t, err)
 		assert.Equal(t, createdID, dd.DeviceDefinitionID)
+		if assert.True(t, len(dd.CompatibleIntegrations) >= 2, "should be atleast 2 integrations for autopi") {
+			assert.Equal(t, services.AutoPiVendor, dd.CompatibleIntegrations[0].Vendor)
+			assert.Equal(t, "Americas", dd.CompatibleIntegrations[0].Region)
+			assert.Equal(t, services.AutoPiVendor, dd.CompatibleIntegrations[1].Vendor)
+			assert.Equal(t, "Europe", dd.CompatibleIntegrations[1].Region)
+		}
+	})
+	t.Run("GET - device definition by id does not add autopi compatibility for old vehicle", func(t *testing.T) {
+		dbDdOldCar := test.SetupCreateDeviceDefinition(t, dbMake, "Oldie", 1999, pdb)
+		request, _ := http.NewRequest("GET", "/device-definitions/"+dbDdOldCar.ID, nil)
+		response, _ := app.Test(request)
+		body, _ := ioutil.ReadAll(response.Body)
+		// assert
+		assert.Equal(t, 200, response.StatusCode)
+		v := gjson.GetBytes(body, "deviceDefinition")
+		var dd services.DeviceDefinition
+		err := json.Unmarshal([]byte(v.Raw), &dd)
+		assert.NoError(t, err)
+		assert.Equal(t, dbDdOldCar.ID, dd.DeviceDefinitionID)
+		assert.Len(t, dd.CompatibleIntegrations, 0, "vehicles before 2020 should not auto inject autopi integrations")
 	})
 	t.Run("GET - device integrations by id", func(t *testing.T) {
 		request, _ := http.NewRequest("GET", "/device-definitions/"+createdID+"/integrations", nil)
@@ -86,10 +93,16 @@ func TestDevicesController(t *testing.T) {
 		body, _ := ioutil.ReadAll(response.Body)
 		// assert
 		assert.Equal(t, 200, response.StatusCode)
-		v, _, _, _ := jsonparser.Get(body, "compatibleIntegrations")
+		v := gjson.GetBytes(body, "compatibleIntegrations")
 		var dc []services.DeviceCompatibility
-		err := json.Unmarshal(v, &dc)
+		err := json.Unmarshal([]byte(v.Raw), &dc)
 		assert.NoError(t, err)
+		if assert.True(t, len(dc) >= 2, "should be atleast 2 integrations for autopi") {
+			assert.Equal(t, services.AutoPiVendor, dc[0].Vendor)
+			assert.Equal(t, "Americas", dc[0].Region)
+			assert.Equal(t, services.AutoPiVendor, dc[1].Vendor)
+			assert.Equal(t, "Europe", dc[1].Region)
+		}
 	})
 	t.Run("GET 400 - device definition by id invalid", func(t *testing.T) {
 		request, _ := http.NewRequest("GET", "/device-definitions/caca", nil)
@@ -109,15 +122,16 @@ func TestDevicesController(t *testing.T) {
 		body, _ := ioutil.ReadAll(response.Body)
 		// assert
 		assert.Equal(t, 200, response.StatusCode)
-		v, _, _, _ := jsonparser.Get(body, "makes")
+		v := gjson.GetBytes(body, "makes")
 		var mmy []DeviceMMYRoot
-		err := json.Unmarshal(v, &mmy)
+		err := json.Unmarshal([]byte(v.Raw), &mmy)
 		assert.NoError(t, err)
-		assert.Len(t, mmy, 1)
-		assert.Equal(t, "TESLA", mmy[0].Make)
-		assert.Equal(t, "MODEL Y", mmy[0].Models[0].Model)
-		assert.Equal(t, int16(2020), mmy[0].Models[0].Years[0].Year)
-		assert.Equal(t, createdID, mmy[0].Models[0].Years[0].DeviceDefinitionID)
+		if assert.True(t, len(mmy) >= 1, "should be at least one device definition") {
+			assert.Equal(t, "TESLA", mmy[0].Make)
+			assert.Equal(t, "MODEL Y", mmy[0].Models[0].Model)
+			assert.Equal(t, int16(2020), mmy[0].Models[0].Years[0].Year)
+			assert.Equal(t, createdID, mmy[0].Models[0].Years[0].DeviceDefinitionID)
+		}
 	})
 }
 
