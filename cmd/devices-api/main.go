@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,11 +12,13 @@ import (
 	"time"
 
 	_ "github.com/DIMO-Network/devices-api/docs"
+	"github.com/DIMO-Network/devices-api/internal/api"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/controllers"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/kafka"
 	"github.com/DIMO-Network/devices-api/internal/services"
+	pb "github.com/DIMO-Network/shared/api/devices"
 	"github.com/DIMO-Network/zflogger"
 	"github.com/Jeffail/benthos/v3/lib/util/hash/murmur2"
 	"github.com/Shopify/sarama"
@@ -33,6 +36,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 	_ "go.uber.org/automaxprocs"
+	"google.golang.org/grpc"
 )
 
 // @title                       DIMO Devices API
@@ -293,6 +297,8 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	// admin / internal operations paths
 	// v1.Post("/admin/user/:user_id/devices", userDeviceController.AdminRegisterUserDevice)
 
+	go startGRPCServer(settings, pdb.DBS, &logger)
+
 	logger.Info().Msg("Server started on port " + settings.Port)
 	// Start Server from a different go routine
 	go func() {
@@ -320,6 +326,22 @@ func healthCheck(c *fiber.Ctx) error {
 	}
 
 	return nil
+}
+
+func startGRPCServer(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger) {
+	lis, err := net.Listen("tcp", ":"+settings.GRPCPort)
+	if err != nil {
+		logger.Fatal().Err(err).Msgf("Couldn't listen on gRPC port %s", settings.GRPCPort)
+	}
+
+	logger.Info().Msgf("Starting gRPC server on port %s", settings.GRPCPort)
+	server := grpc.NewServer()
+	pb.RegisterIntegrationServiceServer(server, api.NewIntegrationService(dbs))
+	pb.RegisterUserDeviceServiceServer(server, api.NewUserDeviceService(dbs, logger))
+
+	if err := server.Serve(lis); err != nil {
+		logger.Fatal().Err(err).Msg("gRPC server terminated unexpectedly")
+	}
 }
 
 func createKMS(settings *config.Settings, logger *zerolog.Logger) services.Encrypter {

@@ -6,6 +6,7 @@ import "fmt"
 type Settings struct {
 	Environment                    string `yaml:"ENVIRONMENT"`
 	Port                           string `yaml:"PORT"`
+	GRPCPort                       string `yaml:"GRPC_PORT"`
 	LogLevel                       string `yaml:"LOG_LEVEL"`
 	DBUser                         string `yaml:"DB_USER"`
 	DBPassword                     string `yaml:"DB_PASSWORD"`
