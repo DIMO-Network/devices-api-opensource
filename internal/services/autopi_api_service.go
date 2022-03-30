@@ -383,14 +383,6 @@ type postDeviceIDs struct {
 	UnassociateOnly bool     `json:"unassociate_only,omitempty"`
 }
 
-// autoPiUnits used when get devices by unitID, basically just a result wrapper
-type autoPiUnits struct {
-	Count    int                  `json:"count"`
-	Next     string               `json:"next"`
-	Previous string               `json:"previous"`
-	Results  []AutoPiDongleDevice `json:"results"`
-}
-
 type autoPiCommandRequest struct {
 	Command     string  `json:"command"`
 	CallbackURL *string `json:"callback_url,omitempty"`
