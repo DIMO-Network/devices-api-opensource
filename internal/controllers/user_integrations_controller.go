@@ -22,6 +22,7 @@ import (
 // @Description  Receive status updates about a Smartcar integration
 // @Tags         integrations
 // @Success      200  {object}  controllers.GetUserDeviceIntegrationResponse
+// @Security     BearerAuth
 // @Router       /user/devices/{userDeviceID}/integrations/{integrationID} [get]
 func (udc *UserDevicesController) GetUserDeviceIntegration(c *fiber.Ctx) error {
 	userID := getUserID(c)
@@ -55,6 +56,7 @@ func (udc *UserDevicesController) GetUserDeviceIntegration(c *fiber.Ctx) error {
 // @Description  Remove an user device's integration
 // @Tags         integrations
 // @Success      204
+// @Security     BearerAuth
 // @Router       /user/devices/{userDeviceID}/integrations/{integrationID} [delete]
 func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) error {
 	userID := getUserID(c)
@@ -153,6 +155,7 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 // @Tags         integrations
 // @Produce      json
 // @Success      200  {object}  models.Integration
+// @Security     BearerAuth
 // @Router       /integrations [get]
 func (udc *UserDevicesController) GetIntegrations(c *fiber.Ctx) error {
 	all, err := models.Integrations(qm.Limit(100)).All(c.Context(), udc.DBS().Reader)
@@ -171,6 +174,7 @@ func (udc *UserDevicesController) GetIntegrations(c *fiber.Ctx) error {
 // @Accept 		json
 // @Param 		AutoPiCommandRequest body controllers.AutoPiCommandRequest true "raw autopi command"
 // @Success 	200
+// @Security     BearerAuth
 // @Router 		/user/devices/:userDeviceID/autopi/command [post]
 func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
 	userID := getUserID(c)
@@ -229,6 +233,7 @@ func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
 // @Produce     json
 // @Param       jobID        path  string  true  "job id, from autopi"
 // @Success     200  {object}  services.UserDeviceAPIIntegrationJob
+// @Security     BearerAuth
 // @Router 		/user/devices/:userDeviceID/autopi/command/:jobID [get]
 func (udc *UserDevicesController) GetAutoPiCommandStatus(c *fiber.Ctx) error {
 	userID := getUserID(c)
@@ -256,6 +261,7 @@ func (udc *UserDevicesController) GetAutoPiCommandStatus(c *fiber.Ctx) error {
 // @Produce     json
 // @Param       unitID        path  string  true  "autopi unit id"
 // @Success     200
+// @Security     BearerAuth
 // @Router 		/autopi/unit/:unitID [get]
 func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 	unitID := c.Params("unitID")
@@ -285,6 +291,7 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 // @Accept 		json
 // @Param 		userDeviceIntegrationRegistration body controllers.RegisterDeviceIntegrationRequest true "Integration credentials"
 // @Success 	204
+// @Security     BearerAuth
 // @Router 		/user/devices/:userDeviceID/integrations/:integrationID [post]
 func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error {
 	userID := getUserID(c)
