@@ -1,5 +1,10 @@
 basePath: /v1
 definitions:
+  github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest:
+    properties:
+      command:
+        type: string
+    type: object
   github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence:
     properties:
       h3Indexes:
@@ -106,7 +111,8 @@ definitions:
       expiresIn:
         type: integer
       externalId:
-        description: ExternalID is the only field needed for AutoPi registrations
+        description: ExternalID is the only field needed for AutoPi registrations.
+          It is the UnitID.
         type: string
       redirectURI:
         description: RedirectURI is the OAuth redirect URI used by the frontend. Not
@@ -182,6 +188,11 @@ definitions:
       integrationId:
         type: string
       status:
+        type: string
+    type: object
+  internal_controllers.AutoPiCommandRequest:
+    properties:
+      command:
         type: string
     type: object
   internal_controllers.CreateGeofence:
@@ -290,7 +301,8 @@ definitions:
       expiresIn:
         type: integer
       externalId:
-        description: ExternalID is the only field needed for AutoPi registrations
+        description: ExternalID is the only field needed for AutoPi registrations.
+          It is the UnitID.
         type: string
       redirectURI:
         description: RedirectURI is the OAuth redirect URI used by the frontend. Not
@@ -368,10 +380,41 @@ definitions:
       status:
         type: string
     type: object
+  models.Integration:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      metadata:
+        $ref: '#/definitions/null.JSON'
+      refresh_limit_secs:
+        description: How often can integration be called in seconds
+        type: integer
+      style:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      vendor:
+        type: string
+    type: object
+  null.JSON:
+    properties:
+      json:
+        items:
+          type: integer
+        type: array
+      valid:
+        type: boolean
+    type: object
   services.DeviceCompatibility:
     properties:
       capabilities:
-        type: string
+        items:
+          type: integer
+        type: array
       country:
         type: string
       id:
@@ -442,6 +485,17 @@ definitions:
         type: string
       vehicle_type:
         description: VehicleType PASSENGER CAR, from NHTSA
+        type: string
+    type: object
+  services.UserDeviceAPIIntegrationJob:
+    properties:
+      command_job_id:
+        type: string
+      command_raw:
+        type: string
+      command_state:
+        type: string
+      last_updated:
         type: string
     type: object
 info:
@@ -526,10 +580,22 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.DeviceMMYRoot'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot'
             type: array
       tags:
       - device-definitions
+  /integrations:
+    get:
+      description: gets list of integrations we have defined
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Integration'
+      tags:
+      - integrations
   /user/device-data/{userDeviceID}/distance-driven:
     get:
       description: |-
@@ -554,8 +620,9 @@ paths:
       - device-data
   /user/device-data/{userDeviceID}/historical:
     get:
-      description: Get all historical data for a userDeviceID, within start and end
-        range
+      description: |-
+        Get historical data for a userDeviceID, within start and end range, taking the
+        latest status from every 30m bucket.
       parameters:
       - description: user id
         in: path
@@ -569,6 +636,14 @@ paths:
       - description: endDate eg 2022-03-01. if empty today
         in: query
         name: endDate
+        type: string
+      - description: odometer. if empty all
+        in: query
+        name: signal
+        type: string
+      - description: intervals for bucketing, 30m, 60m. if empty 30m
+        in: query
+        name: interval
         type: string
       produces:
       - application/json
@@ -627,19 +702,55 @@ paths:
         name: user_device
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.RegisterUserDevice'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDevice'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_controllers.RegisterUserDeviceResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDeviceResponse'
       security:
       - ApiKeyAuth: []
       - BearerAuth: []
       tags:
       - user-devices
+  /user/devices/:userDeviceID/autopi/command:
+    post:
+      consumes:
+      - application/json
+      description: Submit a raw autopi command to unit. Device must be registered
+        with autopi before this can be used
+      parameters:
+      - description: raw autopi command
+        in: body
+        name: AutoPiCommandRequest
+        required: true
+        schema:
+          $ref: '#/definitions/internal_controllers.AutoPiCommandRequest'
+      responses:
+        "200":
+          description: ""
+      tags:
+      - integrations
+  /user/devices/:userDeviceID/autopi/command/:jobID:
+    get:
+      description: gets the status of an autopi raw command by jobID
+      parameters:
+      - description: job id, from autopi
+        in: path
+        name: jobID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.UserDeviceAPIIntegrationJob'
+      tags:
+      - integrations
   /user/devices/:userDeviceID/integrations/:integrationID:
     post:
       consumes:
@@ -656,7 +767,7 @@ paths:
         "204":
           description: ""
       tags:
-      - user-devices
+      - integrations
   /user/devices/{userDeviceID}:
     delete:
       description: delete the user device record (hard delete)
@@ -702,7 +813,7 @@ paths:
         name: name
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.UpdateCountryCodeReq'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateCountryCodeReq'
       produces:
       - application/json
       responses:
@@ -719,7 +830,7 @@ paths:
         "204":
           description: ""
       tags:
-      - user-devices
+      - integrations
     get:
       description: Receive status updates about a Smartcar integration
       responses:
@@ -728,7 +839,7 @@ paths:
           schema:
             $ref: '#/definitions/internal_controllers.GetUserDeviceIntegrationResponse'
       tags:
-      - user-devices
+      - integrations
   /user/devices/{userDeviceID}/name:
     patch:
       consumes:
@@ -740,7 +851,7 @@ paths:
         name: name
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.UpdateNameReq'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateNameReq'
       - description: user id
         in: path
         name: user_device_id
@@ -786,7 +897,7 @@ paths:
         name: vin
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.UpdateVINReq'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateVINReq'
       - description: user id
         in: path
         name: userDeviceID
@@ -811,7 +922,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.UserDeviceFull'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceFull'
             type: array
       security:
       - BearerAuth: []

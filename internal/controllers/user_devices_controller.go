@@ -572,33 +572,3 @@ type UserDeviceFull struct {
 	CountryCode      *string                       `json:"countryCode"`
 	Integrations     []UserDeviceIntegrationStatus `json:"integrations"`
 }
-
-type UserDeviceIntegrationStatus struct {
-	IntegrationID string    `json:"integrationId"`
-	Status        string    `json:"status"`
-	CreatedAt     time.Time `json:"createdAt"`
-}
-
-// RegisterDeviceIntegrationRequest carries credentials used to connect the device to a given
-// integration.
-type RegisterDeviceIntegrationRequest struct {
-	// Code is an OAuth authorization code. Not used in all integrations.
-	Code string `json:"code"`
-	// RedirectURI is the OAuth redirect URI used by the frontend. Not used in all integrations.
-	RedirectURI string `json:"redirectURI"`
-	// ExternalID is the only field needed for AutoPi registrations. It is the UnitID.
-	ExternalID   string `json:"externalId"`
-	AccessToken  string `json:"accessToken"`
-	ExpiresIn    int    `json:"expiresIn"`
-	RefreshToken string `json:"refreshToken"`
-}
-
-type GetUserDeviceIntegrationResponse struct {
-	// Status is one of "Pending", "PendingFirstData", "Active", "Failed", "DuplicateIntegration".
-	Status string `json:"status"`
-	// ExternalID is the identifier used by the third party for the device. It may be absent if we
-	// haven't authorized yet.
-	ExternalID null.String `json:"externalId" swaggertype:"string"`
-	// CreatedAt is the creation time of this integration for this device.
-	CreatedAt time.Time `json:"createdAt"`
-}

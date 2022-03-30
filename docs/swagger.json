@@ -64,7 +64,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_controllers.DeviceMMYRoot"
+                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot"
                             }
                         }
                     }
@@ -130,6 +130,25 @@
                 }
             }
         },
+        "/integrations": {
+            "get": {
+                "description": "gets list of integrations we have defined",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "integrations"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Integration"
+                        }
+                    }
+                }
+            }
+        },
         "/user/device-data/{userDeviceID}/distance-driven": {
             "get": {
                 "security": [
@@ -170,7 +189,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get all historical data for a userDeviceID, within start and end range",
+                "description": "Get historical data for a userDeviceID, within start and end range, taking the\nlatest status from every 30m bucket.",
                 "produces": [
                     "application/json"
                 ],
@@ -195,6 +214,18 @@
                         "type": "string",
                         "description": "endDate eg 2022-03-01. if empty today",
                         "name": "endDate",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "odometer. if empty all",
+                        "name": "signal",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "intervals for bucketing, 30m, 60m. if empty 30m",
+                        "name": "interval",
                         "in": "query"
                     }
                 ],
@@ -286,7 +317,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.RegisterUserDevice"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDevice"
                         }
                     }
                 ],
@@ -294,7 +325,62 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.RegisterUserDeviceResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDeviceResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/devices/:userDeviceID/autopi/command": {
+            "post": {
+                "description": "Submit a raw autopi command to unit. Device must be registered with autopi before this can be used",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "integrations"
+                ],
+                "parameters": [
+                    {
+                        "description": "raw autopi command",
+                        "name": "AutoPiCommandRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.AutoPiCommandRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/user/devices/:userDeviceID/autopi/command/:jobID": {
+            "get": {
+                "description": "gets the status of an autopi raw command by jobID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "integrations"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "job id, from autopi",
+                        "name": "jobID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.UserDeviceAPIIntegrationJob"
                         }
                     }
                 }
@@ -307,7 +393,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "user-devices"
+                    "integrations"
                 ],
                 "parameters": [
                     {
@@ -347,7 +433,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_controllers.UserDeviceFull"
+                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceFull"
                             }
                         }
                     }
@@ -435,7 +521,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.UpdateCountryCodeReq"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateCountryCodeReq"
                         }
                     }
                 ],
@@ -450,7 +536,7 @@
             "get": {
                 "description": "Receive status updates about a Smartcar integration",
                 "tags": [
-                    "user-devices"
+                    "integrations"
                 ],
                 "responses": {
                     "200": {
@@ -464,7 +550,7 @@
             "delete": {
                 "description": "Remove an user device's integration",
                 "tags": [
-                    "user-devices"
+                    "integrations"
                 ],
                 "responses": {
                     "204": {
@@ -497,7 +583,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.UpdateNameReq"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateNameReq"
                         }
                     },
                     {
@@ -569,7 +655,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.UpdateVINReq"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateVINReq"
                         }
                     },
                     {
@@ -731,6 +817,14 @@
         }
     },
     "definitions": {
+        "github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest": {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string"
+                }
+            }
+        },
         "github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence": {
             "type": "object",
             "properties": {
@@ -882,7 +976,7 @@
                     "type": "integer"
                 },
                 "externalId": {
-                    "description": "ExternalID is the only field needed for AutoPi registrations",
+                    "description": "ExternalID is the only field needed for AutoPi registrations. It is the UnitID.",
                     "type": "string"
                 },
                 "redirectURI": {
@@ -997,6 +1091,14 @@
                     "type": "string"
                 },
                 "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_controllers.AutoPiCommandRequest": {
+            "type": "object",
+            "properties": {
+                "command": {
                     "type": "string"
                 }
             }
@@ -1152,7 +1254,7 @@
                     "type": "integer"
                 },
                 "externalId": {
-                    "description": "ExternalID is the only field needed for AutoPi registrations",
+                    "description": "ExternalID is the only field needed for AutoPi registrations. It is the UnitID.",
                     "type": "string"
                 },
                 "redirectURI": {
@@ -1271,11 +1373,58 @@
                 }
             }
         },
+        "models.Integration": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "$ref": "#/definitions/null.JSON"
+                },
+                "refresh_limit_secs": {
+                    "description": "How often can integration be called in seconds",
+                    "type": "integer"
+                },
+                "style": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "vendor": {
+                    "type": "string"
+                }
+            }
+        },
+        "null.JSON": {
+            "type": "object",
+            "properties": {
+                "json": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "valid": {
+                    "type": "boolean"
+                }
+            }
+        },
         "services.DeviceCompatibility": {
             "type": "object",
             "properties": {
                 "capabilities": {
-                    "type": "string"
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "country": {
                     "type": "string"
@@ -1379,6 +1528,23 @@
                 },
                 "vehicle_type": {
                     "description": "VehicleType PASSENGER CAR, from NHTSA",
+                    "type": "string"
+                }
+            }
+        },
+        "services.UserDeviceAPIIntegrationJob": {
+            "type": "object",
+            "properties": {
+                "command_job_id": {
+                    "type": "string"
+                },
+                "command_raw": {
+                    "type": "string"
+                },
+                "command_state": {
+                    "type": "string"
+                },
+                "last_updated": {
                     "type": "string"
                 }
             }

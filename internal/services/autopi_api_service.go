@@ -13,9 +13,11 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/segmentio/ksuid"
 	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
 const (
@@ -33,6 +35,7 @@ type AutoPiAPIService interface {
 	AssociateDeviceToTemplate(deviceID string, templateID int) error
 	ApplyTemplate(deviceID string, templateID int) error
 	CommandSyncDevice(deviceID string) (*AutoPiCommandResponse, error)
+	CommandRaw(deviceID string, command string) (*AutoPiCommandResponse, error)
 }
 
 type autoPiAPIService struct {
@@ -79,6 +82,41 @@ func GetOrCreateAutoPiIntegration(ctx context.Context, exec boil.ContextExecutor
 		}
 	}
 	return integration, nil
+}
+
+// FindUserDeviceAutoPiIntegration gets the user_device_api_integration record and unmarshalled metadata, returns fiber error where makes sense
+func FindUserDeviceAutoPiIntegration(ctx context.Context, exec boil.ContextExecutor, userDeviceID, userID string) (*models.UserDeviceAPIIntegration, *UserDeviceAPIIntegrationsMetadata, error) {
+	autoPiInteg, err := GetOrCreateAutoPiIntegration(ctx, exec)
+	if err != nil {
+		return nil, nil, err
+	}
+	ud, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		models.UserDeviceWhere.UserID.EQ(userID),
+		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
+	).One(ctx, exec)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("could not find device with id %s for user %s", userDeviceID, userID))
+		}
+		return nil, nil, errors.Wrap(err, "Unexpected database error searching for user device")
+	}
+	udai := new(models.UserDeviceAPIIntegration)
+	for _, apiInteg := range ud.R.UserDeviceAPIIntegrations {
+		if apiInteg.IntegrationID == autoPiInteg.ID {
+			udai = apiInteg
+		}
+	}
+	if !(udai != nil && udai.ExternalID.Valid) {
+		return nil, nil, fiber.NewError(fiber.StatusBadRequest, "user does not have an autopi integration registered for userDeviceId: "+userDeviceID)
+	}
+	// get metadata for a little later
+	md := new(UserDeviceAPIIntegrationsMetadata)
+	err = udai.Metadata.Unmarshal(md)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "metadata for user device api integrations in wrong format for unmarshal")
+	}
+	return udai, md, nil
 }
 
 // AppendAutoPiCompatibility adds autopi compatibility for AmericasRegion and EuropeRegion regions
@@ -215,6 +253,34 @@ func (a *autoPiAPIService) CommandSyncDevice(deviceID string) (*AutoPiCommandRes
 	res, err := a.executeRequest(fmt.Sprintf("/dongle/%s/execute_raw", deviceID), "POST", j)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error calling autopi api to command state.sls.pending for device %s", deviceID)
+	}
+	defer res.Body.Close() // nolint
+
+	d := new(AutoPiCommandResponse)
+	err = json.NewDecoder(res.Body).Decode(d)
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to decode responde from autopi command")
+	}
+
+	return d, nil
+}
+
+// CommandRaw sends raw command to autopi only if it is online, pending whitelisted
+func (a *autoPiAPIService) CommandRaw(deviceID string, command string) (*AutoPiCommandResponse, error) {
+	// todo: whitelist command
+	webhookURL := fmt.Sprintf("%s/api/v1%s", a.Settings.DeploymentBaseURL, AutoPiWebhookPath)
+	syncCommand := autoPiCommandRequest{
+		Command:     command,
+		CallbackURL: &webhookURL,
+	}
+	j, err := json.Marshal(syncCommand)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to marshall json for autoPiCommandRequest")
+	}
+
+	res, err := a.executeRequest(fmt.Sprintf("/dongle/%s/execute_raw", deviceID), "POST", j)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error calling autopi api to command %s for device %s", command, deviceID)
 	}
 	defer res.Body.Close() // nolint
 

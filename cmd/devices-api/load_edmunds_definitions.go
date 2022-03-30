@@ -25,7 +25,7 @@ const edmundsSource = "edmunds"
 // it doesn't find a matching styleId and MMY level id. mergeMMYMatch will lookup the definition by MMY and if find match attempt to merge instead of insert
 func loadEdmundsDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore) error {
 	//nhtsaSvc := services.NewNHTSAService()
-	//ddSvc := services.NewDeviceDefinitionService(settings, pdb.DBS, &logger, nhtsaSvc)
+	//ddSvc := services.NewDeviceDefinitionService(settings, pdb.dbs, &logger, nhtsaSvc)
 	edmundsSvc := services.NewEdmundsService(settings.TorProxyURL, logger)
 	deviceDefSvc := services.NewDeviceDefinitionService(settings.TorProxyURL, pdb.DBS, logger, nil)
 

@@ -218,7 +218,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	userDeviceController := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService, smartcarClient, teslaSvc, teslaTaskService, encrypter, autoPiSvc)
 	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer)
 	deviceDataController := controllers.NewDeviceDataController(settings, pdb.DBS, &logger)
-	webhooksController := controllers.NewWebhooksController(settings, pdb.DBS)
+	webhooksController := controllers.NewWebhooksController(settings, pdb.DBS, &logger)
 
 	prometheus := fiberprometheus.New("devices-api")
 	app.Use(prometheus.Middleware)
@@ -282,6 +282,8 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Get("/user/devices/:userDeviceID/status", userDeviceController.GetUserDeviceStatus)
 	v1Auth.Post("/user/devices/:userDeviceID/commands/refresh", userDeviceController.RefreshUserDeviceStatus)
 	v1Auth.Get("/integrations", userDeviceController.GetIntegrations)
+	v1Auth.Post("/user/devices/:userDeviceID/autopi/command", userDeviceController.SendAutoPiCommand)
+	v1Auth.Get("/user/devices/:userDeviceID/autopi/command/:jobID", userDeviceController.GetAutoPiCommandStatus)
 
 	// geofence
 	v1Auth.Post("/user/geofences", geofenceController.Create)

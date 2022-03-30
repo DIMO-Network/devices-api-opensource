@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/pkg/errors"
 	"github.com/pressly/goose/v3"
+	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/volatiletech/null/v8"
@@ -151,6 +153,14 @@ func TruncateTables(db *sql.DB, t *testing.T) {
 }
 
 /** Test Setup functions. At some point may want to move elsewhere more generic **/
+
+func Logger() *zerolog.Logger {
+	l := zerolog.New(os.Stdout).With().
+		Timestamp().
+		Str("app", "devices-api").
+		Logger()
+	return &l
+}
 
 func SetupCreateUserDevice(t *testing.T, testUserID string, dd *models.DeviceDefinition, pdb database.DbStore) models.UserDevice {
 	ud := models.UserDevice{

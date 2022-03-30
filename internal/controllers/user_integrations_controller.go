@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -166,6 +165,91 @@ func (udc *UserDevicesController) GetIntegrations(c *fiber.Ctx) error {
 	})
 }
 
+// SendAutoPiCommand godoc
+// @Description Submit a raw autopi command to unit. Device must be registered with autopi before this can be used
+// @Tags 		integrations
+// @Accept 		json
+// @Param 		AutoPiCommandRequest body controllers.AutoPiCommandRequest true "raw autopi command"
+// @Success 	200
+// @Router 		/user/devices/:userDeviceID/autopi/command [post]
+func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
+	userID := getUserID(c)
+	userDeviceID := c.Params("userDeviceID")
+	req := new(AutoPiCommandRequest)
+	err := c.BodyParser(req)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "unable to parse body json")
+	}
+
+	logger := udc.log.With().
+		Str("userId", userID).
+		Str("userDeviceId", userDeviceID).
+		Str("handler", "SendAutoPiCommand").
+		Str("autopi cmd", req.Command).
+		Logger()
+	logger.Info().Msg("Attempting to send autopi raw command")
+
+	udai, md, err := services.FindUserDeviceAutoPiIntegration(c.Context(), udc.DBS().Writer, userDeviceID, userID)
+	if err != nil {
+		logger.Err(err).Msg("error finding user device autopi integration")
+		return err
+	}
+	// call autopi
+	commandResponse, err := udc.autoPiSvc.CommandRaw(udai.ExternalID.String, req.Command)
+	if err != nil {
+		logger.Err(err).Msg("autopi returned error when calling raw command")
+		return errors.Wrapf(err, "autopi returned error when calling raw command: %s", req.Command)
+	}
+	// add job to existing jobs
+	md.AutoPiCommandJobs = append(md.AutoPiCommandJobs, services.UserDeviceAPIIntegrationJob{
+		CommandJobID: commandResponse.Jid,
+		CommandState: "sent",
+		CommandRaw:   req.Command,
+		LastUpdated:  time.Now().UTC(),
+	})
+	// update db
+	err = udai.Metadata.Marshal(md)
+	if err != nil {
+		logger.Err(err).Msg("unable to marshal metadata back into database")
+		return err
+	}
+	_, err = udai.Update(c.Context(), udc.DBS().Writer, boil.Whitelist(models.UserDeviceAPIIntegrationColumns.Metadata,
+		models.UserDeviceAPIIntegrationColumns.UpdatedAt))
+	if err != nil {
+		logger.Err(err).Msg("failed to update database")
+		return err
+	}
+
+	return c.Status(fiber.StatusOK).JSON(commandResponse)
+}
+
+// GetAutoPiCommandStatus godoc
+// @Description gets the status of an autopi raw command by jobID
+// @Tags 		integrations
+// @Produce     json
+// @Param       jobID        path  string  true  "job id, from autopi"
+// @Success     200  {object}  services.UserDeviceAPIIntegrationJob
+// @Router 		/user/devices/:userDeviceID/autopi/command/:jobID [get]
+func (udc *UserDevicesController) GetAutoPiCommandStatus(c *fiber.Ctx) error {
+	userID := getUserID(c)
+	userDeviceID := c.Params("userDeviceID")
+	jobID := c.Params("jobID")
+
+	_, md, err := services.FindUserDeviceAutoPiIntegration(c.Context(), udc.DBS().Writer, userDeviceID, userID)
+	if err != nil {
+		return err
+	}
+	if md != nil {
+		for _, job := range md.AutoPiCommandJobs {
+			if job.CommandJobID == jobID {
+				return c.Status(fiber.StatusOK).JSON(job)
+			}
+		}
+	}
+
+	return c.Status(fiber.StatusBadRequest).SendString("no job found with provided jobID")
+}
+
 // RegisterDeviceIntegration godoc
 // @Description Submit credentials for registering a device with a given integration.
 // @Tags 		integrations
@@ -289,22 +373,22 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	}
 
 	// creat the api int record, start filling it in
-	udim := services.UserDeviceAPIIntegrationsMetadata{
+	udMetadata := services.UserDeviceAPIIntegrationsMetadata{
 		AutoPiUnitID: &autoPiDevice.UnitID,
 		AutoPiIMEI:   &autoPiDevice.IMEI,
-	}
-	udimJSON, err := json.Marshal(udim)
-	if err != nil {
-		return errors.Wrap(err, "failed to marshall user device integration metadata")
 	}
 	apiInt := models.UserDeviceAPIIntegration{
 		UserDeviceID:  ud.ID,
 		IntegrationID: integration.ID,
 		ExternalID:    null.StringFrom(autoPiDevice.ID),
 		Status:        models.UserDeviceAPIIntegrationStatusPending,
-		Metadata:      null.JSONFrom(udimJSON),
 	}
-	if err := apiInt.Insert(c.Context(), tx, boil.Infer()); err != nil {
+	err = apiInt.Metadata.Marshal(udMetadata)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshall user device integration metadata")
+	}
+
+	if err = apiInt.Insert(c.Context(), tx, boil.Infer()); err != nil {
 		logger.Err(err).Msg("unexpected database error inserting new autopi integration registration")
 		return err
 	}
@@ -357,12 +441,17 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 
 	// update database with integration status
 	apiInt.Status = models.UserDeviceAPIIntegrationStatusPendingFirstData
-	udim.AutoPiSyncCommandJobID = &commandResp.Jid
-	udimJSON, err = json.Marshal(udim)
+	// add autopi job
+	udMetadata.AutoPiCommandJobs = append(udMetadata.AutoPiCommandJobs, services.UserDeviceAPIIntegrationJob{
+		CommandJobID: commandResp.Jid,
+		CommandState: "sent",
+		CommandRaw:   "state.sls pending",
+		LastUpdated:  time.Now().UTC(),
+	})
+	err = apiInt.Metadata.Marshal(udMetadata)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshall user device integration metadata")
 	}
-	apiInt.Metadata = null.JSONFrom(udimJSON)
 
 	_, err = apiInt.Update(c.Context(), tx, boil.Whitelist(models.UserDeviceAPIIntegrationColumns.Status,
 		models.UserDeviceAPIIntegrationColumns.UpdatedAt, models.UserDeviceAPIIntegrationColumns.Metadata))
@@ -612,4 +701,40 @@ func createDeviceIntegrationIfAutoPi(ctx context.Context, integrationID, deviceD
 		return &di, nil
 	}
 	return nil, nil
+}
+
+/** Structs for request / response **/
+
+type UserDeviceIntegrationStatus struct {
+	IntegrationID string    `json:"integrationId"`
+	Status        string    `json:"status"`
+	CreatedAt     time.Time `json:"createdAt"`
+}
+
+// RegisterDeviceIntegrationRequest carries credentials used to connect the device to a given
+// integration.
+type RegisterDeviceIntegrationRequest struct {
+	// Code is an OAuth authorization code. Not used in all integrations.
+	Code string `json:"code"`
+	// RedirectURI is the OAuth redirect URI used by the frontend. Not used in all integrations.
+	RedirectURI string `json:"redirectURI"`
+	// ExternalID is the only field needed for AutoPi registrations. It is the UnitID.
+	ExternalID   string `json:"externalId"`
+	AccessToken  string `json:"accessToken"`
+	ExpiresIn    int    `json:"expiresIn"`
+	RefreshToken string `json:"refreshToken"`
+}
+
+type GetUserDeviceIntegrationResponse struct {
+	// Status is one of "Pending", "PendingFirstData", "Active", "Failed", "DuplicateIntegration".
+	Status string `json:"status"`
+	// ExternalID is the identifier used by the third party for the device. It may be absent if we
+	// haven't authorized yet.
+	ExternalID null.String `json:"externalId" swaggertype:"string"`
+	// CreatedAt is the creation time of this integration for this device.
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type AutoPiCommandRequest struct {
+	Command string `json:"command"`
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"testing"
 	"time"
 
@@ -16,22 +15,17 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
 	smartcar "github.com/smartcar/go-sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
 func TestUserIntegrationsController(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-
-	logger := zerolog.New(os.Stdout).With().
-		Timestamp().
-		Str("app", "devices-api").
-		Logger()
 
 	ctx := context.Background()
 	pdb := test.GetDBConnection(ctx)
@@ -43,16 +37,16 @@ func TestUserIntegrationsController(t *testing.T) {
 	teslaTaskService := mock_services.NewMockTeslaTaskService(mockCtrl)
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(mockCtrl)
 
-	const (
-		region     = "North America"
-		testUserID = "123123"
-	)
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, taskSvc, &fakeEventService{}, scClient, teslaSvc, teslaTaskService, &fakeEncrypter{}, autopiAPISvc)
+	const testUserID = "123123"
+
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, test.Logger(), deviceDefSvc, taskSvc, &fakeEventService{}, scClient, teslaSvc, teslaTaskService, &fakeEncrypter{}, autopiAPISvc)
 	app := fiber.New()
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
 	app.Get("/integrations", c.GetIntegrations)
+	app.Post("/user/devices/:userDeviceID/autopi/command", test.AuthInjectorTestHandler(testUserID), c.SendAutoPiCommand)
+	app.Get("/user/devices/:userDeviceID/autopi/command/:jobID", test.AuthInjectorTestHandler(testUserID), c.GetAutoPiCommandStatus)
 
-	t.Run("get integrations from db", func(t *testing.T) {
+	t.Run("GET - integrations from db", func(t *testing.T) {
 		autoPiInteg := test.SetupCreateAutoPiIntegration(t, 34, pdb)
 		scInteg := test.SetupCreateSmartCarIntegration(t, pdb)
 
@@ -67,32 +61,6 @@ func TestUserIntegrationsController(t *testing.T) {
 		assert.True(t, jsonIntegrations.IsArray())
 		assert.Equal(t, gjson.GetBytes(body, "integrations.0.id").Str, autoPiInteg.ID)
 		assert.Equal(t, gjson.GetBytes(body, "integrations.1.id").Str, scInteg.ID)
-
-		test.TruncateTables(pdb.DBS().Writer.DB, t)
-	})
-
-	t.Run("create device integration for autopi with nothing in db returns nil, nil", func(t *testing.T) {
-		di, err := createDeviceIntegrationIfAutoPi(ctx, "123", "123", region, pdb.DBS().Writer)
-
-		assert.NoError(t, err)
-		assert.Nil(t, di, "expected device integration to be nil")
-
-		test.TruncateTables(pdb.DBS().Writer.DB, t)
-	})
-	t.Run("create device Integration with existing autopi integration returns new device_integration, and .R.Integration", func(t *testing.T) {
-		autoPiInteg := test.SetupCreateAutoPiIntegration(t, 34, pdb)
-		dm := test.SetupCreateMake(t, "Testla", pdb)
-		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
-		// act
-		di, err := createDeviceIntegrationIfAutoPi(ctx, autoPiInteg.ID, dd.ID, region, pdb.DBS().Writer)
-		// assert
-		assert.NoError(t, err)
-		assert.NotNilf(t, di, "device integration should not be nil")
-		assert.Equal(t, autoPiInteg.ID, di.IntegrationID)
-		assert.Equal(t, dd.ID, di.DeviceDefinitionID)
-		assert.Equal(t, region, di.Region)
-		assert.NotNilf(t, di.R.Integration, "relationship to integration should not be nil")
-		assert.Equal(t, services.AutoPiVendor, di.R.Integration.Vendor)
 
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
 	})
@@ -265,7 +233,7 @@ func TestUserIntegrationsController(t *testing.T) {
 
 		_ = di2.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 
-		err := c.fixTeslaDeviceDefinition(ctx, &logger, pdb.DBS().Writer.DB, &teslaInt, &ud, "5YJRE1A31A1P01234")
+		err := c.fixTeslaDeviceDefinition(ctx, test.Logger(), pdb.DBS().Writer.DB, &teslaInt, &ud, "5YJRE1A31A1P01234")
 		if err != nil {
 			t.Fatalf("Got an error while fixing device definition: %v", err)
 		}
@@ -321,11 +289,185 @@ func TestUserIntegrationsController(t *testing.T) {
 		err = apiInt.Metadata.Unmarshal(metadata)
 		assert.NoError(t, err)
 
-		assert.Equal(t, jobID, *metadata.AutoPiSyncCommandJobID)
+		assert.Equal(t, jobID, metadata.AutoPiCommandJobs[0].CommandJobID)
+		assert.Equal(t, "sent", metadata.AutoPiCommandJobs[0].CommandState)
+		assert.Equal(t, "state.sls pending", metadata.AutoPiCommandJobs[0].CommandRaw)
 		assert.Equal(t, deviceID, apiInt.ExternalID.String)
 		assert.Equal(t, "PendingFirstData", apiInt.Status)
 		//teardown
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
 	})
 
+	t.Run("POST - AutoPi send command", func(t *testing.T) {
+		//arrange
+		integ := test.SetupCreateAutoPiIntegration(t, 34, pdb)
+		dm := test.SetupCreateMake(t, "Testla", pdb)
+		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		test.SetupCreateDeviceIntegration(t, dd, integ, ud, pdb)
+		const deviceID = "device123"
+
+		autoPiUnit := "apunitId123"
+		udMetadata := services.UserDeviceAPIIntegrationsMetadata{
+			AutoPiUnitID: &autoPiUnit,
+			AutoPiCommandJobs: []services.UserDeviceAPIIntegrationJob{{
+				CommandJobID: "somepreviousjobId",
+				CommandState: "COMMAND_EXECUTED",
+				CommandRaw:   "raw",
+				LastUpdated:  time.Now().UTC(),
+			}},
+		}
+		udapiInt := &models.UserDeviceAPIIntegration{
+			UserDeviceID:  ud.ID,
+			IntegrationID: integ.ID,
+			Status:        models.UserDeviceAPIIntegrationStatusActive,
+			ExternalID:    null.StringFrom(deviceID),
+		}
+		_ = udapiInt.Metadata.Marshal(udMetadata)
+		err := udapiInt.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+		assert.NoError(t, err)
+
+		const jobID = "123"
+		// mock expectations
+		const cmd = "raw test"
+		autopiAPISvc.EXPECT().CommandRaw(deviceID, cmd).Return(&services.AutoPiCommandResponse{
+			Jid:     jobID,
+			Minions: nil,
+		}, nil)
+		// act: send request
+		req := fmt.Sprintf(`{
+			"command": "%s"
+		}`, cmd)
+		request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/autopi/command", req)
+		response, _ := app.Test(request)
+		body, _ := ioutil.ReadAll(response.Body)
+		//assert
+		assert.Equal(t, fiber.StatusOK, response.StatusCode)
+		jid := gjson.GetBytes(body, "jid")
+		assert.Equal(t, jobID, jid.String())
+
+		apiInt, err := models.FindUserDeviceAPIIntegration(ctx, pdb.DBS().Writer, ud.ID, integ.ID)
+		assert.NoError(t, err)
+		updatedMetadata := new(services.UserDeviceAPIIntegrationsMetadata)
+		err = apiInt.Metadata.Unmarshal(updatedMetadata)
+		assert.NoError(t, err)
+
+		if assert.Len(t, updatedMetadata.AutoPiCommandJobs, 2, "expected two jobs in metadata") {
+			assert.Equal(t, jobID, updatedMetadata.AutoPiCommandJobs[1].CommandJobID)
+			assert.Equal(t, "sent", updatedMetadata.AutoPiCommandJobs[1].CommandState)
+			assert.Equal(t, cmd, updatedMetadata.AutoPiCommandJobs[1].CommandRaw)
+		}
+		//teardown
+		test.TruncateTables(pdb.DBS().Writer.DB, t)
+	})
+
+	t.Run("GET - query autopi command previously sent", func(t *testing.T) {
+		//arrange
+		integ := test.SetupCreateAutoPiIntegration(t, 34, pdb)
+		dm := test.SetupCreateMake(t, "Testla", pdb)
+		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		test.SetupCreateDeviceIntegration(t, dd, integ, ud, pdb)
+		const deviceID = "device123"
+		const jobID = "somepreviousjobId"
+
+		autoPiUnit := "apunitId123"
+		udMetadata := services.UserDeviceAPIIntegrationsMetadata{
+			AutoPiUnitID: &autoPiUnit,
+			AutoPiCommandJobs: []services.UserDeviceAPIIntegrationJob{{
+				CommandJobID: jobID,
+				CommandState: "COMMAND_EXECUTED",
+				CommandRaw:   "raw",
+				LastUpdated:  time.Now().UTC(),
+			}},
+		}
+		udapiInt := &models.UserDeviceAPIIntegration{
+			UserDeviceID:  ud.ID,
+			IntegrationID: integ.ID,
+			Status:        models.UserDeviceAPIIntegrationStatusActive,
+			ExternalID:    null.StringFrom(deviceID),
+		}
+		_ = udapiInt.Metadata.Marshal(udMetadata)
+		err := udapiInt.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+		assert.NoError(t, err)
+
+		// act: send request
+		request := test.BuildRequest("GET", "/user/devices/"+ud.ID+"/autopi/command/"+jobID, "")
+		response, _ := app.Test(request)
+		body, _ := ioutil.ReadAll(response.Body)
+		//assert
+		assert.Equal(t, fiber.StatusOK, response.StatusCode)
+		assert.Equal(t, jobID, gjson.GetBytes(body, "command_job_id").String())
+		assert.Equal(t, "COMMAND_EXECUTED", gjson.GetBytes(body, "command_state").String())
+		assert.Equal(t, "raw", gjson.GetBytes(body, "command_raw").String())
+
+		//teardown
+		test.TruncateTables(pdb.DBS().Writer.DB, t)
+	})
+
+	t.Run("GET - query autopi no commands 400", func(t *testing.T) {
+		//arrange
+		integ := test.SetupCreateAutoPiIntegration(t, 34, pdb)
+		dm := test.SetupCreateMake(t, "Testla", pdb)
+		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		test.SetupCreateDeviceIntegration(t, dd, integ, ud, pdb)
+		const jobID = "somepreviousjobId"
+		const deviceID = "device123"
+
+		autoPiUnit := "apunitId123"
+		udMetadata := services.UserDeviceAPIIntegrationsMetadata{
+			AutoPiUnitID: &autoPiUnit,
+		}
+		udapiInt := &models.UserDeviceAPIIntegration{
+			UserDeviceID:  ud.ID,
+			IntegrationID: integ.ID,
+			Status:        models.UserDeviceAPIIntegrationStatusActive,
+			ExternalID:    null.StringFrom(deviceID),
+		}
+		_ = udapiInt.Metadata.Marshal(udMetadata)
+		err := udapiInt.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+		assert.NoError(t, err)
+
+		// act: send request
+		request := test.BuildRequest("GET", "/user/devices/"+ud.ID+"/autopi/command/"+jobID, "")
+		response, _ := app.Test(request)
+		//assert
+		assert.Equal(t, fiber.StatusBadRequest, response.StatusCode)
+
+		//teardown
+		test.TruncateTables(pdb.DBS().Writer.DB, t)
+	})
+}
+
+func Test_createDeviceIntegrationIfAutoPi(t *testing.T) {
+	ctx := context.Background()
+	pdb := test.GetDBConnection(ctx)
+	const region = "North America"
+
+	t.Run("createDeviceIntegrationIfAutoPi with nothing in db returns nil, nil", func(t *testing.T) {
+		di, err := createDeviceIntegrationIfAutoPi(ctx, "123", "123", region, pdb.DBS().Writer)
+
+		assert.NoError(t, err)
+		assert.Nil(t, di, "expected device integration to be nil")
+
+		test.TruncateTables(pdb.DBS().Writer.DB, t)
+	})
+	t.Run("createDeviceIntegrationIfAutoPi with existing autopi integration returns new device_integration, and .R.Integration", func(t *testing.T) {
+		autoPiInteg := test.SetupCreateAutoPiIntegration(t, 34, pdb)
+		dm := test.SetupCreateMake(t, "Testla", pdb)
+		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
+		// act
+		di, err := createDeviceIntegrationIfAutoPi(ctx, autoPiInteg.ID, dd.ID, region, pdb.DBS().Writer)
+		// assert
+		assert.NoError(t, err)
+		assert.NotNilf(t, di, "device integration should not be nil")
+		assert.Equal(t, autoPiInteg.ID, di.IntegrationID)
+		assert.Equal(t, dd.ID, di.DeviceDefinitionID)
+		assert.Equal(t, region, di.Region)
+		assert.NotNilf(t, di.R.Integration, "relationship to integration should not be nil")
+		assert.Equal(t, services.AutoPiVendor, di.R.Integration.Vendor)
+
+		test.TruncateTables(pdb.DBS().Writer.DB, t)
+	})
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"time"
 )
 
 // DeviceDefinition represents a device for to clients in generic form, ie. not specific to a user
@@ -97,8 +98,15 @@ type IntegrationsMetadata struct {
 
 // UserDeviceAPIIntegrationsMetadata represents json stored in user_device_api_integrations table metadata jsonb column
 type UserDeviceAPIIntegrationsMetadata struct {
-	AutoPiUnitID           *string `json:"auto_pi_unit_id,omitempty"`
-	AutoPiIMEI             *string `json:"imei,omitempty"`
-	AutoPiSyncCommandJobID *string `json:"auto_pi_sync_command_job_id,omitempty"`
-	AutoPiSyncCommandState *string `json:"auto_pi_sync_command_state"`
+	AutoPiUnitID      *string                       `json:"auto_pi_unit_id,omitempty"`
+	AutoPiIMEI        *string                       `json:"imei,omitempty"`
+	AutoPiCommandJobs []UserDeviceAPIIntegrationJob `json:"auto_pi_command_jobs"`
+}
+
+// UserDeviceAPIIntegrationJob holds the autopi webhook jobs. We only expect a handful of this per device so not breaking out to own table for now
+type UserDeviceAPIIntegrationJob struct {
+	CommandJobID string    `json:"command_job_id"`
+	CommandState string    `json:"command_state"`
+	CommandRaw   string    `json:"command_raw"`
+	LastUpdated  time.Time `json:"last_updated"`
 }
