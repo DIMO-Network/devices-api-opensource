@@ -45,6 +45,7 @@ func TestUserIntegrationsController(t *testing.T) {
 	app.Get("/integrations", c.GetIntegrations)
 	app.Post("/user/devices/:userDeviceID/autopi/command", test.AuthInjectorTestHandler(testUserID), c.SendAutoPiCommand)
 	app.Get("/user/devices/:userDeviceID/autopi/command/:jobID", test.AuthInjectorTestHandler(testUserID), c.GetAutoPiCommandStatus)
+	app.Get("/autopi/unit/:unitID", test.AuthInjectorTestHandler(testUserID), c.GetAutoPiUnitInfo)
 
 	t.Run("GET - integrations from db", func(t *testing.T) {
 		autoPiInteg := test.SetupCreateAutoPiIntegration(t, 34, pdb)
@@ -437,6 +438,36 @@ func TestUserIntegrationsController(t *testing.T) {
 
 		//teardown
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
+	})
+
+	t.Run("GET - autopi info", func(t *testing.T) {
+		// arrange
+		autopiAPISvc.EXPECT().GetDeviceByUnitID("1234").Times(1).Return(&services.AutoPiDongleDevice{
+			IsUpdated:         "true",
+			UnitID:            "1234",
+			ID:                "4321",
+			DockerReleases:    "12.23",
+			HwRevision:        "1.23",
+			Template:          10,
+			LastCommunication: time.Now(),
+			Release: struct {
+				Version string `json:"version"`
+			}(struct{ Version string }{Version: "13.1"}),
+		}, nil)
+		// act
+		request := test.BuildRequest("GET", "/autopi/unit/1234", "")
+		response, err := app.Test(request)
+		assert.NoError(t, err)
+		// assert
+		assert.Equal(t, fiber.StatusOK, response.StatusCode)
+		body, _ := ioutil.ReadAll(response.Body)
+		//assert
+		assert.Equal(t, "true", gjson.GetBytes(body, "isUpdated").String())
+		assert.Equal(t, "1234", gjson.GetBytes(body, "unitId").String())
+		assert.Equal(t, "4321", gjson.GetBytes(body, "deviceId").String())
+		assert.Equal(t, "12.23", gjson.GetBytes(body, "dockerReleases").String())
+		assert.Equal(t, "1.23", gjson.GetBytes(body, "hwRevision").String())
+		assert.Equal(t, "13.1", gjson.GetBytes(body, "releaseVersion").String())
 	})
 }
 

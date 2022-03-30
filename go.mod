@@ -12,7 +12,6 @@ require (
 	github.com/ansrivas/fiberprometheus/v2 v2.1.2
 	github.com/aquasecurity/esquery v0.2.0
 	github.com/arsmn/fiber-swagger/v2 v2.2.0
-	github.com/buger/jsonparser v1.1.1
 	github.com/elastic/go-elasticsearch/v7 v7.6.0
 	github.com/fergusstrange/embedded-postgres v1.14.0
 	github.com/friendsofgo/errors v0.9.2

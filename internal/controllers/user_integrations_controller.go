@@ -250,6 +250,35 @@ func (udc *UserDevicesController) GetAutoPiCommandStatus(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusBadRequest).SendString("no job found with provided jobID")
 }
 
+// GetAutoPiUnitInfo godoc
+// @Description gets the information about the autopi by the unitId
+// @Tags 		integrations
+// @Produce     json
+// @Param       unitID        path  string  true  "autopi unit id"
+// @Success     200  {object}
+// @Router 		/autopi/unit/:unitID [get]
+func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
+	unitID := c.Params("unitID")
+	if len(unitID) == 0 {
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+	//userID := getUserID(c)
+	unit, err := udc.autoPiSvc.GetDeviceByUnitID(unitID)
+	if err != nil {
+		return err
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"isUpdated":         unit.IsUpdated,
+		"deviceId":          unit.ID,
+		"unitId":            unit.UnitID,
+		"dockerReleases":    unit.DockerReleases,
+		"hwRevision":        unit.HwRevision,
+		"template":          unit.Template,
+		"lastCommunication": unit.LastCommunication,
+		"releaseVersion":    unit.Release.Version,
+	})
+}
+
 // RegisterDeviceIntegration godoc
 // @Description Submit credentials for registering a device with a given integration.
 // @Tags 		integrations
