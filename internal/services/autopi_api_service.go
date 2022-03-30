@@ -30,7 +30,7 @@ const (
 type AutoPiAPIService interface {
 	GetDeviceByUnitID(unitID string) (*AutoPiDongleDevice, error)
 	GetDeviceByID(deviceID string) (*AutoPiDongleDevice, error)
-	PatchVehicleProfile(vehicleID string, profile PatchVehicleProfile) error
+	PatchVehicleProfile(vehicleID int, profile PatchVehicleProfile) error
 	UnassociateDeviceTemplate(deviceID string, templateID int) error
 	AssociateDeviceToTemplate(deviceID string, templateID int) error
 	ApplyTemplate(deviceID string, templateID int) error
@@ -179,11 +179,11 @@ func (a *autoPiAPIService) GetDeviceByID(deviceID string) (*AutoPiDongleDevice, 
 }
 
 // PatchVehicleProfile https://api.dimo.autopi.io/vehicle/profile/{device.vehicle.id}/ driveType: {"ICE", "BEV", "PHEV", "HEV"}
-func (a *autoPiAPIService) PatchVehicleProfile(vehicleID string, profile PatchVehicleProfile) error {
+func (a *autoPiAPIService) PatchVehicleProfile(vehicleID int, profile PatchVehicleProfile) error {
 	j, _ := json.Marshal(profile)
-	res, err := a.executeRequest(fmt.Sprintf("/vehicle/profile/%s/", vehicleID), "PATCH", j)
+	res, err := a.executeRequest(fmt.Sprintf("/vehicle/profile/%d/", vehicleID), "PATCH", j)
 	if err != nil {
-		return errors.Wrapf(err, "error calling autopi api to patch device %s", vehicleID)
+		return errors.Wrapf(err, "error calling autopi api to patch device %d", vehicleID)
 	}
 	defer res.Body.Close() // nolint
 

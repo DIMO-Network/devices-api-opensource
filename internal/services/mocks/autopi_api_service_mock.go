@@ -123,7 +123,7 @@ func (mr *MockAutoPiAPIServiceMockRecorder) GetDeviceByUnitID(unitID interface{}
 }
 
 // PatchVehicleProfile mocks base method.
-func (m *MockAutoPiAPIService) PatchVehicleProfile(vehicleID string, profile services.PatchVehicleProfile) error {
+func (m *MockAutoPiAPIService) PatchVehicleProfile(vehicleID int, profile services.PatchVehicleProfile) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PatchVehicleProfile", vehicleID, profile)
 	ret0, _ := ret[0].(error)

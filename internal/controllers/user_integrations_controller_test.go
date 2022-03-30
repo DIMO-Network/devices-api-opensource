@@ -253,7 +253,7 @@ func TestUserIntegrationsController(t *testing.T) {
 		const jobID = "123"
 		const deviceID = "device123"
 		const unitID = "qxyautopi"
-		const vehicleID = "veh123"
+		const vehicleID = 123
 
 		req := fmt.Sprintf(`{
 			"externalId": "%s"
