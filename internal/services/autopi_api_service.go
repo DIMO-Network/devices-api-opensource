@@ -357,7 +357,7 @@ type AutoPiDongleDevice struct {
 }
 
 type AutoPiDongleVehicle struct {
-	ID                    string `json:"id"`
+	ID                    int    `json:"id"`
 	Vin                   string `json:"vin"`
 	Display               string `json:"display"`
 	CallName              string `json:"callName"`
