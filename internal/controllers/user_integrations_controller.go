@@ -255,7 +255,7 @@ func (udc *UserDevicesController) GetAutoPiCommandStatus(c *fiber.Ctx) error {
 // @Tags 		integrations
 // @Produce     json
 // @Param       unitID        path  string  true  "autopi unit id"
-// @Success     200  {object}
+// @Success     200
 // @Router 		/autopi/unit/:unitID [get]
 func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 	unitID := c.Params("unitID")
