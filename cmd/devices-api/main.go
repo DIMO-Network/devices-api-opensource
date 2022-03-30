@@ -385,7 +385,7 @@ func ErrorHandler(c *fiber.Ctx, err error, logger zerolog.Logger, environment st
 	c.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
 	logger.Err(err).Msg("caught an error")
 	// return an opaque error if we're in a higher level environment and we haven't specified an fiber type err.
-	if !fiberTypeErr && environment != "local" {
+	if !fiberTypeErr && environment == "prod" {
 		err = fiber.NewError(fiber.StatusInternalServerError, "Internal error")
 	}
 

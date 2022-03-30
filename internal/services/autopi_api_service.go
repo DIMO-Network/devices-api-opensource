@@ -159,7 +159,7 @@ func (a *autoPiAPIService) GetDeviceByUnitID(unitID string) (*AutoPiDongleDevice
 		return nil, errors.Wrapf(err, "error decoding json from autopi api to get device by unitID %s", unitID)
 	}
 	if u.Count != 1 {
-		return nil, fmt.Errorf("expected to find only one device with autopi unitID %s", unitID)
+		return nil, fmt.Errorf("expected to find exactly one device with autopi unitID %s, but instead found %d", unitID, u.Count)
 	}
 	return &u.Results[0], nil
 }
