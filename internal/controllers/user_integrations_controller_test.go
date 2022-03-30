@@ -443,10 +443,9 @@ func TestUserIntegrationsController(t *testing.T) {
 	t.Run("GET - autopi info", func(t *testing.T) {
 		// arrange
 		autopiAPISvc.EXPECT().GetDeviceByUnitID("1234").Times(1).Return(&services.AutoPiDongleDevice{
-			IsUpdated:         "true",
+			IsUpdated:         true,
 			UnitID:            "1234",
 			ID:                "4321",
-			DockerReleases:    "12.23",
 			HwRevision:        "1.23",
 			Template:          10,
 			LastCommunication: time.Now(),
@@ -465,7 +464,6 @@ func TestUserIntegrationsController(t *testing.T) {
 		assert.Equal(t, "true", gjson.GetBytes(body, "isUpdated").String())
 		assert.Equal(t, "1234", gjson.GetBytes(body, "unitId").String())
 		assert.Equal(t, "4321", gjson.GetBytes(body, "deviceId").String())
-		assert.Equal(t, "12.23", gjson.GetBytes(body, "dockerReleases").String())
 		assert.Equal(t, "1.23", gjson.GetBytes(body, "hwRevision").String())
 		assert.Equal(t, "13.1", gjson.GetBytes(body, "releaseVersion").String())
 	})

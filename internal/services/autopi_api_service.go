@@ -153,15 +153,13 @@ func (a *autoPiAPIService) GetDeviceByUnitID(unitID string) (*AutoPiDongleDevice
 	}
 	defer res.Body.Close() // nolint
 
-	u := new(autoPiUnits)
+	u := new(AutoPiDongleDevice)
 	err = json.NewDecoder(res.Body).Decode(u)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error decoding json from autopi api to get device by unitID %s", unitID)
 	}
-	if u.Count != 1 {
-		return nil, fmt.Errorf("expected to find exactly one device with autopi unitID %s, but instead found %d", unitID, u.Count)
-	}
-	return &u.Results[0], nil
+
+	return u, nil
 }
 
 // GetDeviceByID calls https://api.dimo.autopi.io/dongle/devices/{DEVICE_ID}/ Note that the deviceID is the autoPi one. This brings us the templateID
@@ -327,22 +325,32 @@ type AutoPiDongleDevice struct {
 	Vehicle           AutoPiDongleVehicle `json:"vehicle"`
 	Display           string              `json:"display"`
 	LastCommunication time.Time           `json:"last_communication"`
-	IsUpdated         string              `json:"is_updated"`
+	IsUpdated         bool                `json:"is_updated"`
 	Release           struct {
 		Version string `json:"version"`
 	} `json:"release"`
-	OpenAlerts         string `json:"open_alerts"`
-	IMEI               string `json:"imei"`
-	Template           int    `json:"template"`
-	Warnings           string `json:"warnings"`
-	KeyState           string `json:"key_state"`
-	Access             string `json:"access"`
-	DockerReleases     string `json:"docker_releases"`
-	DataUsage          string `json:"data_usage"`
-	PhoneNumber        string `json:"phone_number"`
-	Icc                string `json:"icc"`
-	MaxDataUsage       string `json:"max_data_usage"`
-	IsBlockedByRelease string `json:"is_blocked_by_release"`
+	OpenAlerts struct {
+		High     int `json:"high"`
+		Medium   int `json:"medium"`
+		Critical int `json:"critical"`
+		Low      int `json:"low"`
+	} `json:"open_alerts"`
+	IMEI     string `json:"imei"`
+	Template int    `json:"template"`
+	Warnings []struct {
+		DeviceHasNoMakeModel struct {
+			Header  string `json:"header"`
+			Message string `json:"message"`
+		} `json:"device_has_no_make_model"`
+	} `json:"warnings"`
+	KeyState           string   `json:"key_state"`
+	Access             string   `json:"access"`
+	DockerReleases     []string `json:"docker_releases"`
+	DataUsage          int      `json:"data_usage"`
+	PhoneNumber        string   `json:"phone_number"`
+	Icc                string   `json:"icc"`
+	MaxDataUsage       int      `json:"max_data_usage"`
+	IsBlockedByRelease bool     `json:"is_blocked_by_release"`
 	// only exists when get by unitID
 	HwRevision string   `json:"hw_revision"`
 	Tags       []string `json:"tags"`
