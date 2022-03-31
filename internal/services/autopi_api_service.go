@@ -341,7 +341,7 @@ type AutoPiDongleVehicle struct {
 	CallName              string `json:"callName"`
 	LicensePlate          string `json:"licensePlate"`
 	Model                 int    `json:"model"`
-	Make                  string `json:"make"`
+	Make                  int    `json:"make"`
 	Year                  int    `json:"year"`
 	Type                  string `json:"type"`
 	BatteryNominalVoltage int    `json:"battery_nominal_voltage"`
