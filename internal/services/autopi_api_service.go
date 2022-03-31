@@ -6,18 +6,18 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/DIMO-Network/devices-api/internal/database"
-	"github.com/DIMO-Network/devices-api/models"
-	"github.com/gofiber/fiber/v2"
-	"github.com/segmentio/ksuid"
-	"github.com/volatiletech/sqlboiler/v4/boil"
-	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"io/ioutil"
 	"net/http"
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/DIMO-Network/devices-api/models"
+	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
+	"github.com/segmentio/ksuid"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
 const (
@@ -156,9 +156,9 @@ func (a *autoPiAPIService) CommandSyncDevice(deviceID string) (*AutoPiCommandRes
 		return nil, errors.Wrap(err, "unable to marshall json for autoPiCommandRequest")
 	}
 
-	res, err := a.executeRequest(fmt.Sprintf("/dongle/%s/execute_raw/", deviceID), "POST", j)
+	res, err := a.executeRequest(fmt.Sprintf("/dongle/devices/%s/execute_raw/", deviceID), "POST", j)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error calling autopi api to command state.sls.pending for device %s", deviceID)
+		return nil, errors.Wrapf(err, "error calling autopi api to command state.sls pending for device %s", deviceID)
 	}
 	defer res.Body.Close() // nolint
 
@@ -184,7 +184,7 @@ func (a *autoPiAPIService) CommandRaw(deviceID string, command string) (*AutoPiC
 		return nil, errors.Wrap(err, "unable to marshall json for autoPiCommandRequest")
 	}
 
-	res, err := a.executeRequest(fmt.Sprintf("/dongle/%s/execute_raw/", deviceID), "POST", j)
+	res, err := a.executeRequest(fmt.Sprintf("/dongle/devices/%s/execute_raw/", deviceID), "POST", j)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error calling autopi api to command %s for device %s", command, deviceID)
 	}

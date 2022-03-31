@@ -42,13 +42,13 @@ func (wc *WebhooksController) ProcessCommand(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "unable to parse webhook payload")
 	}
 	if awp == nil || awp.Jid == "" || awp.DeviceID == 0 {
-		return c.Status(fiber.StatusBadRequest).SendString("invalid request payload")
+		return fiber.NewError(fiber.StatusBadRequest, "invalid autopi webhook request payload")
 	}
 
 	// hmac signature validation
 	reqSig := c.Get("X-Request-Signature")
 	if !validateSignature(wc.settings.AutoPiAPIToken, string(c.Body()), reqSig) {
-		return fiber.NewError(fiber.StatusUnauthorized, "invalid signature")
+		return fiber.NewError(fiber.StatusUnauthorized, "invalid autopi webhook signature")
 	}
 	autoPiInteg, err := services.GetOrCreateAutoPiIntegration(c.Context(), wc.dbs().Reader)
 	if err != nil {
