@@ -6,18 +6,18 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/DIMO-Network/devices-api/models"
+	"github.com/gofiber/fiber/v2"
+	"github.com/segmentio/ksuid"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"io/ioutil"
 	"net/http"
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
-	"github.com/DIMO-Network/devices-api/internal/database"
-	"github.com/DIMO-Network/devices-api/models"
-	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
-	"github.com/segmentio/ksuid"
-	"github.com/volatiletech/sqlboiler/v4/boil"
-	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
 const (
@@ -50,6 +50,177 @@ func NewAutoPiAPIService(settings *config.Settings) AutoPiAPIService {
 			Timeout: 10 * time.Second,
 		},
 	}
+}
+
+// GetDeviceByUnitID calls /dongle/devices/by_unit_id/{unit_id}/ to get the device for the unitID.
+// Errors if it finds none or more than one device, as there should only be one device attached to a unit.
+func (a *autoPiAPIService) GetDeviceByUnitID(unitID string) (*AutoPiDongleDevice, error) {
+	res, err := a.executeRequest(fmt.Sprintf("/dongle/devices/by_unit_id/%s/", unitID), "GET", nil)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error calling autopi api to get unit with ID %s", unitID)
+	}
+	defer res.Body.Close() // nolint
+
+	u := new(AutoPiDongleDevice)
+	err = json.NewDecoder(res.Body).Decode(u)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error decoding json from autopi api to get device by unitID %s", unitID)
+	}
+
+	return u, nil
+}
+
+// GetDeviceByID calls https://api.dimo.autopi.io/dongle/devices/{DEVICE_ID}/ Note that the deviceID is the autoPi one. This brings us the templateID
+func (a *autoPiAPIService) GetDeviceByID(deviceID string) (*AutoPiDongleDevice, error) {
+	res, err := a.executeRequest(fmt.Sprintf("/dongle/devices/%s/", deviceID), "GET", nil)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error calling autopi api to get device %s", deviceID)
+	}
+	defer res.Body.Close() // nolint
+
+	d := new(AutoPiDongleDevice)
+	err = json.NewDecoder(res.Body).Decode(d)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error decoding json from autopi api to get device %s", deviceID)
+	}
+	return d, nil
+}
+
+// PatchVehicleProfile https://api.dimo.autopi.io/vehicle/profile/{device.vehicle.id}/ driveType: {"ICE", "BEV", "PHEV", "HEV"}
+func (a *autoPiAPIService) PatchVehicleProfile(vehicleID int, profile PatchVehicleProfile) error {
+	j, _ := json.Marshal(profile)
+	res, err := a.executeRequest(fmt.Sprintf("/vehicle/profile/%d/", vehicleID), "PATCH", j)
+	if err != nil {
+		return errors.Wrapf(err, "error calling autopi api to patch device %d", vehicleID)
+	}
+	defer res.Body.Close() // nolint
+
+	return nil
+}
+
+// UnassociateDeviceTemplate Unassociate the device from the existing templateID.
+func (a *autoPiAPIService) UnassociateDeviceTemplate(deviceID string, templateID int) error {
+	p := postDeviceIDs{
+		Devices:         []string{deviceID},
+		UnassociateOnly: false,
+	}
+	j, _ := json.Marshal(p)
+	res, err := a.executeRequest(fmt.Sprintf("/dongle/templates/%d/unassociate_devices/", templateID), "POST", j)
+	if err != nil {
+		return errors.Wrapf(err, "error calling autopi api to unassociate_devices. template %d", templateID)
+	}
+	defer res.Body.Close() // nolint
+
+	return nil
+}
+
+// AssociateDeviceToTemplate set a new templateID on the device by doing a Patch request
+func (a *autoPiAPIService) AssociateDeviceToTemplate(deviceID string, templateID int) error {
+	p := postDeviceIDs{
+		Devices: []string{deviceID},
+	}
+	j, _ := json.Marshal(p)
+	res, err := a.executeRequest(fmt.Sprintf("/dongle/templates/%d/", templateID), "PATCH", j)
+	if err != nil {
+		return errors.Wrapf(err, "error calling autopi api to associate device %s with new template %d", deviceID, templateID)
+	}
+	defer res.Body.Close() // nolint
+
+	return nil
+}
+
+// ApplyTemplate When device awakes, it checks if it has templates to be applied. If device is awake, this won't do anything until next cycle.
+func (a *autoPiAPIService) ApplyTemplate(deviceID string, templateID int) error {
+	p := postDeviceIDs{
+		Devices: []string{deviceID},
+	}
+	j, _ := json.Marshal(p)
+	res, err := a.executeRequest(fmt.Sprintf("/dongle/templates/%d/apply_explicit/", templateID), "POST", j)
+	if err != nil {
+		return errors.Wrapf(err, "error calling autopi api to apply template for device %s with new template %d", deviceID, templateID)
+	}
+	defer res.Body.Close() // nolint
+
+	return nil
+}
+
+// CommandSyncDevice sends raw command to autopi only if it is online. Invokes syncing the pending changes (eg. template change) on the device.
+func (a *autoPiAPIService) CommandSyncDevice(deviceID string) (*AutoPiCommandResponse, error) {
+	webhookURL := fmt.Sprintf("%s/api/v1%s", a.Settings.DeploymentBaseURL, AutoPiWebhookPath)
+	syncCommand := autoPiCommandRequest{
+		Command:     "state.sls pending",
+		CallbackURL: &webhookURL,
+	}
+	j, err := json.Marshal(syncCommand)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to marshall json for autoPiCommandRequest")
+	}
+
+	res, err := a.executeRequest(fmt.Sprintf("/dongle/%s/execute_raw/", deviceID), "POST", j)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error calling autopi api to command state.sls.pending for device %s", deviceID)
+	}
+	defer res.Body.Close() // nolint
+
+	d := new(AutoPiCommandResponse)
+	err = json.NewDecoder(res.Body).Decode(d)
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to decode responde from autopi command")
+	}
+
+	return d, nil
+}
+
+// CommandRaw sends raw command to autopi only if it is online, pending whitelisted
+func (a *autoPiAPIService) CommandRaw(deviceID string, command string) (*AutoPiCommandResponse, error) {
+	// todo: whitelist command
+	webhookURL := fmt.Sprintf("%s/api/v1%s", a.Settings.DeploymentBaseURL, AutoPiWebhookPath)
+	syncCommand := autoPiCommandRequest{
+		Command:     command,
+		CallbackURL: &webhookURL,
+	}
+	j, err := json.Marshal(syncCommand)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to marshall json for autoPiCommandRequest")
+	}
+
+	res, err := a.executeRequest(fmt.Sprintf("/dongle/%s/execute_raw/", deviceID), "POST", j)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error calling autopi api to command %s for device %s", command, deviceID)
+	}
+	defer res.Body.Close() // nolint
+
+	d := new(AutoPiCommandResponse)
+	err = json.NewDecoder(res.Body).Decode(d)
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to decode responde from autopi command")
+	}
+
+	return d, nil
+}
+
+// executeRequest calls an api endpoint with autopi creds, optional body and error handling.
+// If request results in non 2xx response, will always return error with payload body in err message
+// respone should have defer response.Body.Close() after the error check as it could be nil when err is != nil
+func (a *autoPiAPIService) executeRequest(path, method string, body []byte) (*http.Response, error) {
+	req, err := http.NewRequest(method, autoPiBaseAPIURL+path, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "APIToken "+a.Settings.AutoPiAPIToken)
+	res, err := a.HTTPClient.Do(req)
+	// handle error status codes
+	if err == nil && res != nil && res.StatusCode > 299 {
+		defer res.Body.Close() //nolint
+		body, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error reading failed request body")
+		}
+		return nil, errors.Errorf("received non success status code %d with body: %s", res.StatusCode, string(body))
+	}
+	return res, err
 }
 
 func GetOrCreateAutoPiIntegration(ctx context.Context, exec boil.ContextExecutor) (*models.Integration, error) {
@@ -142,177 +313,6 @@ func AppendAutoPiCompatibility(ctx context.Context, dcs []DeviceCompatibility, w
 		Capabilities: nil,
 	})
 	return dcs, nil
-}
-
-// GetDeviceByUnitID calls /dongle/devices/by_unit_id/{unit_id}/ to get the device for the unitID.
-// Errors if it finds none or more than one device, as there should only be one device attached to a unit.
-func (a *autoPiAPIService) GetDeviceByUnitID(unitID string) (*AutoPiDongleDevice, error) {
-	res, err := a.executeRequest(fmt.Sprintf("/dongle/devices/by_unit_id/%s/", unitID), "GET", nil)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error calling autopi api to get unit with ID %s", unitID)
-	}
-	defer res.Body.Close() // nolint
-
-	u := new(AutoPiDongleDevice)
-	err = json.NewDecoder(res.Body).Decode(u)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error decoding json from autopi api to get device by unitID %s", unitID)
-	}
-
-	return u, nil
-}
-
-// GetDeviceByID calls https://api.dimo.autopi.io/dongle/devices/{DEVICE_ID}/ Note that the deviceID is the autoPi one. This brings us the templateID
-func (a *autoPiAPIService) GetDeviceByID(deviceID string) (*AutoPiDongleDevice, error) {
-	res, err := a.executeRequest(fmt.Sprintf("/dongle/devices/%s/", deviceID), "GET", nil)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error calling autopi api to get device %s", deviceID)
-	}
-	defer res.Body.Close() // nolint
-
-	d := new(AutoPiDongleDevice)
-	err = json.NewDecoder(res.Body).Decode(d)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error decoding json from autopi api to get device %s", deviceID)
-	}
-	return d, nil
-}
-
-// PatchVehicleProfile https://api.dimo.autopi.io/vehicle/profile/{device.vehicle.id}/ driveType: {"ICE", "BEV", "PHEV", "HEV"}
-func (a *autoPiAPIService) PatchVehicleProfile(vehicleID int, profile PatchVehicleProfile) error {
-	j, _ := json.Marshal(profile)
-	res, err := a.executeRequest(fmt.Sprintf("/vehicle/profile/%d/", vehicleID), "PATCH", j)
-	if err != nil {
-		return errors.Wrapf(err, "error calling autopi api to patch device %d", vehicleID)
-	}
-	defer res.Body.Close() // nolint
-
-	return nil
-}
-
-// UnassociateDeviceTemplate Unassociate the device from the existing templateID.
-func (a *autoPiAPIService) UnassociateDeviceTemplate(deviceID string, templateID int) error {
-	p := postDeviceIDs{
-		Devices:         []string{deviceID},
-		UnassociateOnly: false,
-	}
-	j, _ := json.Marshal(p)
-	res, err := a.executeRequest(fmt.Sprintf("/dongle/templates/%d/unassociate_devices/", templateID), "POST", j)
-	if err != nil {
-		return errors.Wrapf(err, "error calling autopi api to unassociate_devices. template %d", templateID)
-	}
-	defer res.Body.Close() // nolint
-
-	return nil
-}
-
-// AssociateDeviceToTemplate set a new templateID on the device by doing a Patch request
-func (a *autoPiAPIService) AssociateDeviceToTemplate(deviceID string, templateID int) error {
-	p := postDeviceIDs{
-		Devices: []string{deviceID},
-	}
-	j, _ := json.Marshal(p)
-	res, err := a.executeRequest(fmt.Sprintf("/dongle/templates/%d/", templateID), "PATCH", j)
-	if err != nil {
-		return errors.Wrapf(err, "error calling autopi api to associate device %s with new template %d", deviceID, templateID)
-	}
-	defer res.Body.Close() // nolint
-
-	return nil
-}
-
-// ApplyTemplate When device awakes, it checks if it has templates to be applied. If device is awake, this won't do anything until next cycle.
-func (a *autoPiAPIService) ApplyTemplate(deviceID string, templateID int) error {
-	p := postDeviceIDs{
-		Devices: []string{deviceID},
-	}
-	j, _ := json.Marshal(p)
-	res, err := a.executeRequest(fmt.Sprintf("/dongle/templates/%d/apply_explicit", templateID), "POST", j)
-	if err != nil {
-		return errors.Wrapf(err, "error calling autopi api to apply template for device %s with new template %d", deviceID, templateID)
-	}
-	defer res.Body.Close() // nolint
-
-	return nil
-}
-
-// CommandSyncDevice sends raw command to autopi only if it is online. Invokes syncing the pending changes (eg. template change) on the device.
-func (a *autoPiAPIService) CommandSyncDevice(deviceID string) (*AutoPiCommandResponse, error) {
-	webhookURL := fmt.Sprintf("%s/api/v1%s", a.Settings.DeploymentBaseURL, AutoPiWebhookPath)
-	syncCommand := autoPiCommandRequest{
-		Command:     "state.sls pending",
-		CallbackURL: &webhookURL,
-	}
-	j, err := json.Marshal(syncCommand)
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to marshall json for autoPiCommandRequest")
-	}
-
-	res, err := a.executeRequest(fmt.Sprintf("/dongle/%s/execute_raw", deviceID), "POST", j)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error calling autopi api to command state.sls.pending for device %s", deviceID)
-	}
-	defer res.Body.Close() // nolint
-
-	d := new(AutoPiCommandResponse)
-	err = json.NewDecoder(res.Body).Decode(d)
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to decode responde from autopi command")
-	}
-
-	return d, nil
-}
-
-// CommandRaw sends raw command to autopi only if it is online, pending whitelisted
-func (a *autoPiAPIService) CommandRaw(deviceID string, command string) (*AutoPiCommandResponse, error) {
-	// todo: whitelist command
-	webhookURL := fmt.Sprintf("%s/api/v1%s", a.Settings.DeploymentBaseURL, AutoPiWebhookPath)
-	syncCommand := autoPiCommandRequest{
-		Command:     command,
-		CallbackURL: &webhookURL,
-	}
-	j, err := json.Marshal(syncCommand)
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to marshall json for autoPiCommandRequest")
-	}
-
-	res, err := a.executeRequest(fmt.Sprintf("/dongle/%s/execute_raw", deviceID), "POST", j)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error calling autopi api to command %s for device %s", command, deviceID)
-	}
-	defer res.Body.Close() // nolint
-
-	d := new(AutoPiCommandResponse)
-	err = json.NewDecoder(res.Body).Decode(d)
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to decode responde from autopi command")
-	}
-
-	return d, nil
-}
-
-// executeRequest calls an api endpoint with autopi creds, optional body and error handling.
-// If request results in non 2xx response, will always return error with payload body in err message
-// respone should have defer response.Body.Close() after the error check as it could be nil when err is != nil
-func (a *autoPiAPIService) executeRequest(path, method string, body []byte) (*http.Response, error) {
-	req, err := http.NewRequest(method, autoPiBaseAPIURL+path, bytes.NewBuffer(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "APIToken "+a.Settings.AutoPiAPIToken)
-	res, err := a.HTTPClient.Do(req)
-	// handle error status codes
-	if err == nil && res != nil && res.StatusCode > 299 {
-		defer res.Body.Close() //nolint
-		body, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error reading failed request body")
-		}
-		return nil, errors.Errorf("received non success status code %d with body: %s", res.StatusCode, string(body))
-	}
-	return res, err
 }
 
 // AutoPiDongleDevice https://api.dimo.autopi.io/#/dongle/dongle_devices_read
