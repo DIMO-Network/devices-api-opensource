@@ -61,12 +61,19 @@ service:
       port: 8080
       targetPort: http
       protocol: TCP
+    grpc:
+      port: 8086
+      targetPort: grpc
+      protocol: TCP
 ports:
   - name: mon-http
     containerPort: 8888
     protocol: TCP
   - name: http
     containerPort: 8080
+    protocol: TCP
+  - name: grpc
+    containerPort: 8086
     protocol: TCP
 ingress:
   enabled: true
