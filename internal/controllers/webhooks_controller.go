@@ -94,7 +94,10 @@ func (wc *WebhooksController) ProcessCommand(c *fiber.Ctx) error {
 		}
 	}
 	if foundMatch {
-		wc.log.Info().Msgf("processed webhook from raw autopi command, with autopi device id %d and job id %s",
+		wc.log.Info().Msgf("processed autopi webhook from raw command, with autopi deviceId %d and jobId %s",
+			awp.DeviceID, awp.Jid)
+	} else {
+		wc.log.Warn().Msgf("received autopi webhook, but did not find a match for deviceId %d and jobId %s",
 			awp.DeviceID, awp.Jid)
 	}
 
