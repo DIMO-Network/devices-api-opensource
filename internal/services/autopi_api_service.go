@@ -146,35 +146,13 @@ func (a *autoPiAPIService) ApplyTemplate(deviceID string, templateID int) error 
 
 // CommandSyncDevice sends raw command to autopi only if it is online. Invokes syncing the pending changes (eg. template change) on the device.
 func (a *autoPiAPIService) CommandSyncDevice(deviceID string) (*AutoPiCommandResponse, error) {
-	webhookURL := fmt.Sprintf("%s/api/v1%s", a.Settings.DeploymentBaseURL, AutoPiWebhookPath)
-	syncCommand := autoPiCommandRequest{
-		Command:     "state.sls pending",
-		CallbackURL: &webhookURL,
-	}
-	j, err := json.Marshal(syncCommand)
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to marshall json for autoPiCommandRequest")
-	}
-
-	res, err := a.executeRequest(fmt.Sprintf("/dongle/devices/%s/execute_raw/", deviceID), "POST", j)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error calling autopi api to command state.sls pending for device %s", deviceID)
-	}
-	defer res.Body.Close() // nolint
-
-	d := new(AutoPiCommandResponse)
-	err = json.NewDecoder(res.Body).Decode(d)
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to decode responde from autopi command")
-	}
-
-	return d, nil
+	return a.CommandRaw(deviceID, "state.sls pending")
 }
 
 // CommandRaw sends raw command to autopi only if it is online, pending whitelisted
 func (a *autoPiAPIService) CommandRaw(deviceID string, command string) (*AutoPiCommandResponse, error) {
 	// todo: whitelist command
-	webhookURL := fmt.Sprintf("%s/api/v1%s", a.Settings.DeploymentBaseURL, AutoPiWebhookPath)
+	webhookURL := fmt.Sprintf("%s/v1%s", a.Settings.DeploymentBaseURL, AutoPiWebhookPath)
 	syncCommand := autoPiCommandRequest{
 		Command:     command,
 		CallbackURL: &webhookURL,
@@ -186,14 +164,14 @@ func (a *autoPiAPIService) CommandRaw(deviceID string, command string) (*AutoPiC
 
 	res, err := a.executeRequest(fmt.Sprintf("/dongle/devices/%s/execute_raw/", deviceID), "POST", j)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error calling autopi api to command %s for device %s", command, deviceID)
+		return nil, errors.Wrapf(err, "error calling autopi api execute_raw command %s for deviceId %s", command, deviceID)
 	}
 	defer res.Body.Close() // nolint
 
 	d := new(AutoPiCommandResponse)
 	err = json.NewDecoder(res.Body).Decode(d)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unable to decode responde from autopi command")
+		return nil, errors.Wrapf(err, "unable to decode responde from autopi api execute_raw command")
 	}
 
 	return d, nil
