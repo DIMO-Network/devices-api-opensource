@@ -1,6 +1,6 @@
 module github.com/DIMO-Network/devices-api
 
-go 1.17
+go 1.18
 
 require (
 	github.com/DIMO-Network/shared v0.1.6
