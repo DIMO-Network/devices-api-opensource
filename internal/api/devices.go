@@ -33,10 +33,28 @@ func (s *userDeviceService) GetUserDevice(ctx context.Context, req *pb.GetUserDe
 		return nil, status.Error(codes.Internal, "Internal error.")
 	}
 	pbDevice := &pb.UserDevice{
-		Id:                 dbDevice.ID,
-		UserId:             dbDevice.UserID,
-		DeviceDefinitionId: dbDevice.DeviceDefinitionID,
-		VinIdentifier:      dbDevice.VinIdentifier.Ptr(),
+		Id:     dbDevice.ID,
+		UserId: dbDevice.UserID,
 	}
 	return pbDevice, nil
+}
+
+func (s *userDeviceService) ListUserDevicesForUser(ctx context.Context, req *pb.ListUserDevicesForUserRequest) (*pb.ListUserDevicesForUserResponse, error) {
+	devices, err := models.UserDevices(models.UserDeviceWhere.UserID.EQ(req.UserId)).All(ctx, s.dbs().Reader)
+	if err != nil {
+		s.logger.Err(err).Str("userId", req.UserId).Msg("Database failure retrieving user's devices.")
+		return nil, status.Error(codes.Internal, "Internal error.")
+	}
+
+	devOut := make([]*pb.UserDevice, len(devices))
+	for i := 0; i < len(devices); i++ {
+		device := devices[i]
+		devOut[i] = &pb.UserDevice{
+			Id:     device.ID,
+			UserId: device.UserID,
+		}
+	}
+
+	list := &pb.ListUserDevicesForUserResponse{UserDevices: devOut}
+	return list, nil
 }

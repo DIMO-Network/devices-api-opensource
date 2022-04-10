@@ -3,7 +3,7 @@ module github.com/DIMO-Network/devices-api
 go 1.18
 
 require (
-	github.com/DIMO-Network/shared v0.1.6
+	github.com/DIMO-Network/shared v0.1.10
 	github.com/DIMO-Network/zflogger v1.0.0-beta
 	github.com/Shopify/sarama v1.31.1
 	github.com/ThreeDotsLabs/watermill v1.1.1
