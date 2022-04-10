@@ -12,7 +12,7 @@ import (
 func migrateDatabase(logger zerolog.Logger, settings *config.Settings, command string) {
 	var db *sql.DB
 	// setup database
-	db, err := sql.Open("postgres", settings.GetWriterDSN(false))
+	db, err := sql.Open("postgres", settings.GetWriterDSN(true))
 	defer func() {
 		if err := db.Close(); err != nil {
 			logger.Fatal().Msgf("goose: failed to close DB: %v\n", err)
@@ -28,6 +28,7 @@ func migrateDatabase(logger zerolog.Logger, settings *config.Settings, command s
 	if command == "" {
 		command = "up"
 	}
+	goose.SetTableName("devices_api.migrations")
 	if err := goose.Run(command, db, "migrations"); err != nil {
 		logger.Fatal().Msgf("failed to apply go code migrations: %v\n", err)
 	}
