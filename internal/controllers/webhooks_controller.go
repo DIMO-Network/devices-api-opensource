@@ -35,19 +35,29 @@ func NewWebhooksController(settings *config.Settings, dbs func() *database.DBRea
 
 // ProcessCommand handles the command webhook request
 func (wc *WebhooksController) ProcessCommand(c *fiber.Ctx) error {
+	logger := wc.log.With().
+		Str("payload", string(c.Body())).
+		Str("integration", "autopi").
+		Str("handler", "webhooks.ProcessCommand").
+		Logger()
+	logger.Info().Msg("attempting to process webhook request")
+	// todo more log points
 	// process payload
 	awp := new(AutoPiWebhookPayload)
 	if err := c.BodyParser(awp); err != nil {
+		logger.Err(err).Msg("unable to parse webhook")
 		// Return status 400 and error message.
 		return fiber.NewError(fiber.StatusBadRequest, "unable to parse webhook payload")
 	}
 	if awp == nil || awp.Jid == "" || awp.DeviceID == 0 {
+		logger.Error().Msg("no jobId or deviceId found in payload")
 		return fiber.NewError(fiber.StatusBadRequest, "invalid autopi webhook request payload")
 	}
 
 	// hmac signature validation
 	reqSig := c.Get("X-Request-Signature")
 	if !validateSignature(wc.settings.AutoPiAPIToken, string(c.Body()), reqSig) {
+		logger.Error().Msg("invalid webhook signature")
 		return fiber.NewError(fiber.StatusUnauthorized, "invalid autopi webhook signature")
 	}
 	autoPiInteg, err := services.GetOrCreateAutoPiIntegration(c.Context(), wc.dbs().Reader)
@@ -74,7 +84,7 @@ func (wc *WebhooksController) ProcessCommand(c *fiber.Ctx) error {
 			foundMatch = true
 			// only update status of integration if command is the sync command that we use for template setup
 			if job.CommandRaw == "state.sls pending" {
-				apiIntegration.Status = models.UserDeviceAPIIntegrationStatusPendingFirstData
+				apiIntegration.Status = models.UserDeviceAPIIntegrationStatusActive
 			}
 			udMetadata.AutoPiCommandJobs[i].CommandState = awp.State
 			udMetadata.AutoPiCommandJobs[i].LastUpdated = time.Now().UTC()
@@ -87,6 +97,7 @@ func (wc *WebhooksController) ProcessCommand(c *fiber.Ctx) error {
 				models.UserDeviceAPIIntegrationColumns.Metadata, models.UserDeviceAPIIntegrationColumns.Status,
 				models.UserDeviceAPIIntegrationColumns.UpdatedAt))
 			if err != nil {
+				logger.Err(err).Msg("failed to save user device api changes")
 				return errors.Wrap(err, "failed to save user device api changes to db from autopi webhook")
 			}
 
@@ -94,10 +105,10 @@ func (wc *WebhooksController) ProcessCommand(c *fiber.Ctx) error {
 		}
 	}
 	if foundMatch {
-		wc.log.Info().Msgf("processed autopi webhook from raw command, with autopi deviceId %d and jobId %s",
+		logger.Info().Msgf("processed webhook successfully, with autopi deviceId %d and jobId %s",
 			awp.DeviceID, awp.Jid)
 	} else {
-		wc.log.Warn().Msgf("received autopi webhook, but did not find a match for deviceId %d and jobId %s",
+		logger.Warn().Msgf("failed to process webhook because did not find a match for deviceId %d and jobId %s",
 			awp.DeviceID, awp.Jid)
 	}
 

@@ -21,7 +21,7 @@ type DevicesController struct {
 	Settings     *config.Settings
 	DBS          func() *database.DBReaderWriter
 	NHTSASvc     services.INHTSAService
-	EdmundsSvc   services.IEdmundsService
+	EdmundsSvc   services.EdmundsService
 	DeviceDefSvc services.IDeviceDefinitionService
 	log          *zerolog.Logger
 }

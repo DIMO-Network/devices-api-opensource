@@ -268,7 +268,20 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 	if len(unitID) == 0 {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
-	//userID := getUserID(c)
+	userID := getUserID(c)
+	// check if unitId has already been assigned to a different user - don't allow querying in this case
+	udai, err := models.UserDeviceAPIIntegrations(qm.Where("metadata ->> 'auto_pi_unit_id' = $1", unitID),
+		qm.Load(models.UserDeviceAPIIntegrationRels.UserDevice)).
+		One(c.Context(), udc.DBS().Reader)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	if udai != nil {
+		if udai.R.UserDevice.UserID != userID {
+			return c.SendStatus(fiber.StatusForbidden)
+		}
+	}
+
 	unit, err := udc.autoPiSvc.GetDeviceByUnitID(unitID)
 	if err != nil {
 		return err

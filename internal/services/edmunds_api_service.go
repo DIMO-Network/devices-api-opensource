@@ -4,37 +4,53 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/DIMO-Network/shared"
 	"github.com/ahmetb/go-linq/v3"
-	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 
-type IEdmundsService interface {
+type EdmundsService interface {
 	GetDefaultImageForMMY(make, model string, year int) (*string, error)
+	GetFlattenedVehicles() (*[]FlatMMYDefinition, error)
+	findImageURLByMaxWidth(sources []photosResponseSource, maxWidth int) *string
+	getAllMakes() (*makesResponse, error)
 }
 
-type EdmundsService struct {
-	baseAPIURL   string
-	torProxyURL  string
+type edmundsService struct {
 	baseMediaURL string
 	log          *zerolog.Logger
+	httpClient   shared.HTTPClientWrapper
 }
 
+const (
+	edmundsAPIURL       = "https://www.edmunds.com/gateway"
+	edmundsBaseMediaURL = "https://media.ed.edmunds-media.com" // we don't actually call this, just use it to generate image urls.
+)
+
 // NewEdmundsService if torProxyURL is empty, will not go via tor
-func NewEdmundsService(torProxyURL string, logger *zerolog.Logger) *EdmundsService {
-	return &EdmundsService{log: logger, torProxyURL: torProxyURL, baseAPIURL: "https://www.edmunds.com/gateway", baseMediaURL: "https://media.ed.edmunds-media.com"}
+func NewEdmundsService(torProxyURL string, logger *zerolog.Logger) EdmundsService {
+	h := map[string]string{
+		"Host":                 "www.edmunds.com",
+		"x-client-action-name": "edmunds-ios-anypage",
+		"Accept-Language":      "en-us",
+		"x-artifact-id":        "edmunds-ios",
+		"Accept":               "application/json",
+		"User-Agent":           "Edmunds/790 CFNetwork/1312 Darwin/21.0.0",
+		"Referer":              "https://www.edmunds.com"}
+	hcw, _ := shared.NewHTTPClientWrapper(edmundsAPIURL, torProxyURL, 10*time.Second, h, true) // ok to ignore err since only used for tor check
+
+	return &edmundsService{log: logger, httpClient: hcw, baseMediaURL: edmundsBaseMediaURL}
 }
 
 var ErrVehicleNotFound = errors.New("vehicle not found in Edmunds")
 
-func (e *EdmundsService) getAllMakes() (*makesResponse, error) {
-	res, err := e.buildAndExecuteRequest(fmt.Sprintf("%s/api/vehicle/v2/makes", e.baseAPIURL))
+func (e *edmundsService) getAllMakes() (*makesResponse, error) {
+	res, err := e.httpClient.ExecuteRequest("/api/vehicle/v2/makes", "GET", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -52,8 +68,8 @@ func (e *EdmundsService) getAllMakes() (*makesResponse, error) {
 	return &items, nil
 }
 
-func (e *EdmundsService) getModelsForMake(makeNiceName string) (*modelsResponse, error) {
-	res, err := e.buildAndExecuteRequest(fmt.Sprintf("%s/api/vehicle/v2/%s/models", e.baseAPIURL, makeNiceName))
+func (e *edmundsService) getModelsForMake(makeNiceName string) (*modelsResponse, error) {
+	res, err := e.httpClient.ExecuteRequest(fmt.Sprintf("/api/vehicle/v2/%s/models", makeNiceName), "GET", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +87,7 @@ func (e *EdmundsService) getModelsForMake(makeNiceName string) (*modelsResponse,
 	return &items, nil
 }
 
-func (e *EdmundsService) GetFlattenedVehicles() (*[]FlatMMYDefinition, error) {
+func (e *edmundsService) GetFlattenedVehicles() (*[]FlatMMYDefinition, error) {
 	makes, err := e.getAllMakes()
 	if err != nil {
 		return nil, err
@@ -128,55 +144,16 @@ func (e *EdmundsService) GetFlattenedVehicles() (*[]FlatMMYDefinition, error) {
 	return &flattened, nil
 }
 
-func (e *EdmundsService) buildAndExecuteRequest(url string) (*http.Response, error) {
-	backoffSchedule := []time.Duration{
-		1 * time.Second,
-		3 * time.Second,
-		10 * time.Second,
-	}
-
-	req, err := buildEdmundsRequest(url)
-	if err != nil {
-		return nil, errors.Wrap(err, "error creating http request")
-	}
-	var resp *http.Response
-
-	for _, backoff := range backoffSchedule {
-		resp, err = executeRequestWithTor(e.torProxyURL, req)
-		if resp != nil && resp.StatusCode == http.StatusOK && err == nil {
-			break
-		}
-		// control for err or resp being nil to log message.
-		respStatus := ""
-		errMsg := ""
-		if resp != nil {
-			respStatus = resp.Status
-		}
-		if err != nil {
-			errMsg = err.Error()
-		}
-		e.log.Warn().Msgf("Request Status: %s. error: %s. Retrying in %v", respStatus, errMsg, backoff)
-		time.Sleep(backoff)
-	}
-	if err != nil {
-		return nil, errors.Wrapf(err, "all retries failed. http url: %s", url)
-	}
-	if resp.StatusCode != fiber.StatusOK {
-		return nil, fmt.Errorf("all retries failed, last status code: %d. http url: %s", resp.StatusCode, url)
-	}
-	return resp, err
-}
-
-func (e EdmundsService) getAllPhotosForMMY(make, model, year string, overridePath *string) (*photosResponse, error) {
+func (e *edmundsService) getAllPhotosForMMY(make, model, year string, overridePath *string) (*photosResponse, error) {
 	make = strings.ReplaceAll(make, " ", "_")
 	model = strings.ReplaceAll(model, " ", "_")
 	var photosURL string
 	if overridePath != nil {
-		photosURL = e.baseAPIURL + *overridePath
+		photosURL = *overridePath
 	} else {
-		photosURL = fmt.Sprintf("%s/api/media/v2/%s/%s/%s/photos?format=json&pageSize=50", e.baseAPIURL, strings.ToLower(make), strings.ToLower(model), year)
+		photosURL = fmt.Sprintf("/api/media/v2/%s/%s/%s/photos?format=json&pageSize=50", strings.ToLower(make), strings.ToLower(model), year)
 	}
-	res, err := e.buildAndExecuteRequest(photosURL)
+	res, err := e.httpClient.ExecuteRequest(photosURL, "GET", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -197,45 +174,8 @@ func (e EdmundsService) getAllPhotosForMMY(make, model, year string, overridePat
 	return &photos, nil
 }
 
-// executeRequestWithTor executes http request checking for tor setting
-func executeRequestWithTor(torProxyURL string, req *http.Request) (*http.Response, error) {
-	var client *http.Client
-	if torProxyURL != "" {
-		proxyURL, err := url.Parse(torProxyURL)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse Tor proxy URL")
-		}
-		client = &http.Client{
-			Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)},
-		}
-	} else {
-		client = http.DefaultClient
-	}
-
-	res, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
-}
-
-func buildEdmundsRequest(url string) (*http.Request, error) {
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Host", "www.edmunds.com")
-	req.Header.Set("x-client-action-name", "edmunds-ios-anypage")
-	req.Header.Set("Accept-Language", "en-us")
-	req.Header.Set("x-artifact-id", "edmunds-ios")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "Edmunds/790 CFNetwork/1312 Darwin/21.0.0")
-	req.Header.Set("Referer", "https://www.edmunds.com")
-	return req, nil
-}
-
 // GetDefaultImageForMMY call edmunds photos api and finds the first Frontal image, returning it in size 600
-func (e EdmundsService) GetDefaultImageForMMY(make, model string, year int) (*string, error) {
+func (e *edmundsService) GetDefaultImageForMMY(make, model string, year int) (*string, error) {
 	const maxWidth = 900
 	const shotType = "FQ"
 	photos, err := e.getAllPhotosForMMY(make, model, strconv.Itoa(year), nil)
@@ -282,7 +222,7 @@ func findPhotoByShotType(photos *photosResponse, shotType string) []photosRespon
 	return nil
 }
 
-func (e *EdmundsService) findImageURLByMaxWidth(sources []photosResponseSource, maxWidth int) *string {
+func (e *edmundsService) findImageURLByMaxWidth(sources []photosResponseSource, maxWidth int) *string {
 	source := linq.From(sources).WhereT(func(p photosResponseSource) bool {
 		return maxWidth >= p.Size.Width
 	}).OrderByDescendingT(func(p photosResponseSource) int {

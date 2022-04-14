@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/DIMO-Network/shared"
 	"net"
 	"net/http"
 	"os"
@@ -56,7 +57,7 @@ func main() {
 
 	config.SetupMachineryLogging(&logger)
 
-	settings, err := config.LoadConfig("settings.yaml")
+	settings, err := shared.LoadConfig[config.Settings]("settings.yaml")
 	if err != nil {
 		logger.Fatal().Err(err).Msg("could not load settings")
 	}
@@ -66,7 +67,7 @@ func main() {
 	}
 	zerolog.SetGlobalLevel(level)
 
-	pdb := database.NewDbConnectionFromSettings(ctx, settings, true)
+	pdb := database.NewDbConnectionFromSettings(ctx, &settings, true)
 	// check db ready, this is not ideal btw, the db connection handler would be nicer if it did this.
 	totalTime := 0
 	for !pdb.IsReady() {
@@ -77,7 +78,7 @@ func main() {
 		totalTime++
 	}
 
-	producer, err := createKafkaProducer(settings)
+	producer, err := createKafkaProducer(&settings)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Could not initialize Kafka producer, terminating")
 	}
@@ -96,29 +97,29 @@ func main() {
 				command = command + " " + os.Args[3]
 			}
 		}
-		migrateDatabase(logger, settings, command)
+		migrateDatabase(logger, &settings, command)
 	case "generate-events":
-		eventService := services.NewEventService(&logger, settings, producer)
-		generateEvents(logger, settings, pdb, eventService)
+		eventService := services.NewEventService(&logger, &settings, producer)
+		generateEvents(logger, &settings, pdb, eventService)
 	case "smartcar-sync":
-		syncSmartCarCompatibility(ctx, logger, settings, pdb)
+		syncSmartCarCompatibility(ctx, logger, &settings, pdb)
 	case "create-tesla-integrations":
 		if err := createTeslaIntegrations(ctx, pdb, &logger); err != nil {
 			logger.Fatal().Err(err).Msg("Failed to create Tesla integrations")
 		}
 	case "edmunds-vehicles-sync":
 		logger.Info().Msgf("Loading edmunds vehicles for device definitions and merging MMYs")
-		err = loadEdmundsDeviceDefinitions(ctx, &logger, settings, pdb)
+		err = loadEdmundsDeviceDefinitions(ctx, &logger, &settings, pdb)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("error trying to sync edmunds")
 		}
 	case "parkers-vehicles-sync":
-		err = loadParkersDeviceDefinitions(ctx, &logger, settings, pdb)
+		err = loadParkersDeviceDefinitions(ctx, &logger, &settings, pdb)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error syncing with Parkers")
 		}
 	case "adac-vehicles-sync":
-		err = loadADACDeviceDefinitions(ctx, &logger, settings, pdb)
+		err = loadADACDeviceDefinitions(ctx, &logger, &settings, pdb)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error syncing with ADAC")
 		}
@@ -134,14 +135,14 @@ func main() {
 			overwrite = os.Args[2] == "--overwrite"
 		}
 		logger.Info().Msgf("Loading edmunds images for device definitions with overwrite: %v", overwrite)
-		loadEdmundsImages(ctx, logger, settings, pdb, overwrite)
+		loadEdmundsImages(ctx, logger, &settings, pdb, overwrite)
 	case "remake-smartcar-topic":
-		err = remakeSmartcarTopic(ctx, &logger, settings, pdb, producer)
+		err = remakeSmartcarTopic(ctx, &logger, &settings, pdb, producer)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error running Smartcar Kafka re-registration")
 		}
 	case "remake-fence-topic":
-		err = remakeFenceTopic(&logger, settings, pdb, producer)
+		err = remakeFenceTopic(&logger, &settings, pdb, producer)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error running Smartcar Kafka re-registration")
 		}
@@ -150,27 +151,27 @@ func main() {
 			logger.Fatal().Msgf("Expected two arguments, but got %d", len(os.Args[1:]))
 		}
 		oldWebhookID := os.Args[2]
-		err = migrateSmartcarWebhooks(ctx, &logger, settings, pdb, oldWebhookID)
+		err = migrateSmartcarWebhooks(ctx, &logger, &settings, pdb, oldWebhookID)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error running Smartcar webhook migration")
 		}
 	case "refresh-smartcar-tokens":
-		err = refreshSmartcarTokens(ctx, &logger, settings, pdb)
+		err = refreshSmartcarTokens(ctx, &logger, &settings, pdb)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error running Smartcar webhook migration")
 		}
 	case "search-sync-dds":
 		logger.Info().Msg("loading device definitions from our DB to elastic cluster")
-		err := loadElasticDevices(ctx, &logger, settings, pdb)
+		err := loadElasticDevices(ctx, &logger, &settings, pdb)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("error syncing with elastic")
 		}
 	default:
 		startPrometheus(logger)
-		eventService := services.NewEventService(&logger, settings, producer)
-		startDeviceStatusConsumer(logger, settings, pdb, eventService)
-		startCredentialConsumer(logger, settings, pdb)
-		startWebAPI(logger, settings, pdb, eventService, producer)
+		eventService := services.NewEventService(&logger, &settings, producer)
+		startDeviceStatusConsumer(logger, &settings, pdb, eventService)
+		startCredentialConsumer(logger, &settings, pdb)
+		startWebAPI(logger, &settings, pdb, eventService, producer)
 	}
 }
 

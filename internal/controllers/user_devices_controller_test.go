@@ -302,7 +302,7 @@ func TestUserDevicesController(t *testing.T) {
 		dm := test.SetupCreateMake(t, "Ford", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Mach E", 2022, pdb)
 		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
-		test.SetupCreateDeviceIntegration(t, dd, integration, ud, pdb)
+		test.SetupCreateDeviceIntegration(t, dd, integration, pdb)
 
 		udiai := models.UserDeviceAPIIntegration{
 			UserDeviceID:     ud.ID,

@@ -1,18 +1,16 @@
 package services
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/segmentio/ksuid"
@@ -40,22 +38,23 @@ type AutoPiAPIService interface {
 
 type autoPiAPIService struct {
 	Settings   *config.Settings
-	HTTPClient *http.Client
+	httpClient shared.HTTPClientWrapper
 }
 
 func NewAutoPiAPIService(settings *config.Settings) AutoPiAPIService {
+	h := map[string]string{"Authorization": "APIToken " + settings.AutoPiAPIToken}
+	hcw, _ := shared.NewHTTPClientWrapper(autoPiBaseAPIURL, "", 10*time.Second, h, true) // ok to ignore err since only used for tor check
+
 	return &autoPiAPIService{
-		Settings: settings,
-		HTTPClient: &http.Client{
-			Timeout: 10 * time.Second,
-		},
+		Settings:   settings,
+		httpClient: hcw,
 	}
 }
 
 // GetDeviceByUnitID calls /dongle/devices/by_unit_id/{unit_id}/ to get the device for the unitID.
 // Errors if it finds none or more than one device, as there should only be one device attached to a unit.
 func (a *autoPiAPIService) GetDeviceByUnitID(unitID string) (*AutoPiDongleDevice, error) {
-	res, err := a.executeRequest(fmt.Sprintf("/dongle/devices/by_unit_id/%s/", unitID), "GET", nil)
+	res, err := a.httpClient.ExecuteRequest(fmt.Sprintf("/dongle/devices/by_unit_id/%s/", unitID), "GET", nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error calling autopi api to get unit with ID %s", unitID)
 	}
@@ -72,7 +71,7 @@ func (a *autoPiAPIService) GetDeviceByUnitID(unitID string) (*AutoPiDongleDevice
 
 // GetDeviceByID calls https://api.dimo.autopi.io/dongle/devices/{DEVICE_ID}/ Note that the deviceID is the autoPi one. This brings us the templateID
 func (a *autoPiAPIService) GetDeviceByID(deviceID string) (*AutoPiDongleDevice, error) {
-	res, err := a.executeRequest(fmt.Sprintf("/dongle/devices/%s/", deviceID), "GET", nil)
+	res, err := a.httpClient.ExecuteRequest(fmt.Sprintf("/dongle/devices/%s/", deviceID), "GET", nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error calling autopi api to get device %s", deviceID)
 	}
@@ -89,7 +88,7 @@ func (a *autoPiAPIService) GetDeviceByID(deviceID string) (*AutoPiDongleDevice, 
 // PatchVehicleProfile https://api.dimo.autopi.io/vehicle/profile/{device.vehicle.id}/ driveType: {"ICE", "BEV", "PHEV", "HEV"}
 func (a *autoPiAPIService) PatchVehicleProfile(vehicleID int, profile PatchVehicleProfile) error {
 	j, _ := json.Marshal(profile)
-	res, err := a.executeRequest(fmt.Sprintf("/vehicle/profile/%d/", vehicleID), "PATCH", j)
+	res, err := a.httpClient.ExecuteRequest(fmt.Sprintf("/vehicle/profile/%d/", vehicleID), "PATCH", j)
 	if err != nil {
 		return errors.Wrapf(err, "error calling autopi api to patch device %d", vehicleID)
 	}
@@ -105,7 +104,7 @@ func (a *autoPiAPIService) UnassociateDeviceTemplate(deviceID string, templateID
 		UnassociateOnly: false,
 	}
 	j, _ := json.Marshal(p)
-	res, err := a.executeRequest(fmt.Sprintf("/dongle/templates/%d/unassociate_devices/", templateID), "POST", j)
+	res, err := a.httpClient.ExecuteRequest(fmt.Sprintf("/dongle/templates/%d/unassociate_devices/", templateID), "POST", j)
 	if err != nil {
 		return errors.Wrapf(err, "error calling autopi api to unassociate_devices. template %d", templateID)
 	}
@@ -120,7 +119,7 @@ func (a *autoPiAPIService) AssociateDeviceToTemplate(deviceID string, templateID
 		Devices: []string{deviceID},
 	}
 	j, _ := json.Marshal(p)
-	res, err := a.executeRequest(fmt.Sprintf("/dongle/templates/%d/", templateID), "PATCH", j)
+	res, err := a.httpClient.ExecuteRequest(fmt.Sprintf("/dongle/templates/%d/", templateID), "PATCH", j)
 	if err != nil {
 		return errors.Wrapf(err, "error calling autopi api to associate device %s with new template %d", deviceID, templateID)
 	}
@@ -135,7 +134,7 @@ func (a *autoPiAPIService) ApplyTemplate(deviceID string, templateID int) error 
 		Devices: []string{deviceID},
 	}
 	j, _ := json.Marshal(p)
-	res, err := a.executeRequest(fmt.Sprintf("/dongle/templates/%d/apply_explicit/", templateID), "POST", j)
+	res, err := a.httpClient.ExecuteRequest(fmt.Sprintf("/dongle/templates/%d/apply_explicit/", templateID), "POST", j)
 	if err != nil {
 		return errors.Wrapf(err, "error calling autopi api to apply template for device %s with new template %d", deviceID, templateID)
 	}
@@ -162,7 +161,7 @@ func (a *autoPiAPIService) CommandRaw(deviceID string, command string) (*AutoPiC
 		return nil, errors.Wrap(err, "unable to marshall json for autoPiCommandRequest")
 	}
 
-	res, err := a.executeRequest(fmt.Sprintf("/dongle/devices/%s/execute_raw/", deviceID), "POST", j)
+	res, err := a.httpClient.ExecuteRequest(fmt.Sprintf("/dongle/devices/%s/execute_raw/", deviceID), "POST", j)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error calling autopi api execute_raw command %s for deviceId %s", command, deviceID)
 	}
@@ -175,30 +174,6 @@ func (a *autoPiAPIService) CommandRaw(deviceID string, command string) (*AutoPiC
 	}
 
 	return d, nil
-}
-
-// executeRequest calls an api endpoint with autopi creds, optional body and error handling.
-// If request results in non 2xx response, will always return error with payload body in err message
-// respone should have defer response.Body.Close() after the error check as it could be nil when err is != nil
-func (a *autoPiAPIService) executeRequest(path, method string, body []byte) (*http.Response, error) {
-	req, err := http.NewRequest(method, autoPiBaseAPIURL+path, bytes.NewBuffer(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "APIToken "+a.Settings.AutoPiAPIToken)
-	res, err := a.HTTPClient.Do(req)
-	// handle error status codes
-	if err == nil && res != nil && res.StatusCode > 299 {
-		defer res.Body.Close() //nolint
-		body, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error reading failed request body")
-		}
-		return nil, errors.Errorf("received non success status code %d with body: %s", res.StatusCode, string(body))
-	}
-	return res, err
 }
 
 func GetOrCreateAutoPiIntegration(ctx context.Context, exec boil.ContextExecutor) (*models.Integration, error) {

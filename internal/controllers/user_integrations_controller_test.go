@@ -19,7 +19,6 @@ import (
 	smartcar "github.com/smartcar/go-sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
-	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
@@ -71,7 +70,7 @@ func TestUserIntegrationsController(t *testing.T) {
 		dm := test.SetupCreateMake(t, "Ford", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Mach E", 2022, pdb)
 		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
-		test.SetupCreateDeviceIntegration(t, dd, integration, ud, pdb)
+		test.SetupCreateDeviceIntegration(t, dd, integration, pdb)
 
 		req := `{
 			"code": "qxyz",
@@ -93,7 +92,7 @@ func TestUserIntegrationsController(t *testing.T) {
 		dm := test.SetupCreateMake(t, "Ford", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Mach E", 2022, pdb)
 		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
-		test.SetupCreateDeviceIntegration(t, dd, integration, ud, pdb)
+		test.SetupCreateDeviceIntegration(t, dd, integration, pdb)
 		req := `{
 			"code": "qxy",
 			"redirectURI": "http://dimo.zone/cb"
@@ -305,8 +304,9 @@ func TestUserIntegrationsController(t *testing.T) {
 		dm := test.SetupCreateMake(t, "Testla", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
 		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
-		test.SetupCreateDeviceIntegration(t, dd, integ, ud, pdb)
+		test.SetupCreateDeviceIntegration(t, dd, integ, pdb)
 		const deviceID = "device123"
+		udapiInt := test.SetupCreateUserDeviceAPIIntegration(t, "", deviceID, ud.ID, integ.ID, pdb)
 
 		autoPiUnit := "apunitId123"
 		udMetadata := services.UserDeviceAPIIntegrationsMetadata{
@@ -318,14 +318,8 @@ func TestUserIntegrationsController(t *testing.T) {
 				LastUpdated:  time.Now().UTC(),
 			}},
 		}
-		udapiInt := &models.UserDeviceAPIIntegration{
-			UserDeviceID:  ud.ID,
-			IntegrationID: integ.ID,
-			Status:        models.UserDeviceAPIIntegrationStatusActive,
-			ExternalID:    null.StringFrom(deviceID),
-		}
 		_ = udapiInt.Metadata.Marshal(udMetadata)
-		err := udapiInt.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+		_, err := udapiInt.Update(ctx, pdb.DBS().Writer, boil.Infer())
 		assert.NoError(t, err)
 
 		const jobID = "123"
@@ -368,9 +362,10 @@ func TestUserIntegrationsController(t *testing.T) {
 		dm := test.SetupCreateMake(t, "Testla", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
 		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
-		test.SetupCreateDeviceIntegration(t, dd, integ, ud, pdb)
+		test.SetupCreateDeviceIntegration(t, dd, integ, pdb)
 		const deviceID = "device123"
 		const jobID = "somepreviousjobId"
+		udapiInt := test.SetupCreateUserDeviceAPIIntegration(t, "", deviceID, ud.ID, integ.ID, pdb)
 
 		autoPiUnit := "apunitId123"
 		udMetadata := services.UserDeviceAPIIntegrationsMetadata{
@@ -382,14 +377,8 @@ func TestUserIntegrationsController(t *testing.T) {
 				LastUpdated:  time.Now().UTC(),
 			}},
 		}
-		udapiInt := &models.UserDeviceAPIIntegration{
-			UserDeviceID:  ud.ID,
-			IntegrationID: integ.ID,
-			Status:        models.UserDeviceAPIIntegrationStatusActive,
-			ExternalID:    null.StringFrom(deviceID),
-		}
 		_ = udapiInt.Metadata.Marshal(udMetadata)
-		err := udapiInt.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+		_, err := udapiInt.Update(ctx, pdb.DBS().Writer, boil.Infer())
 		assert.NoError(t, err)
 
 		// act: send request
@@ -412,23 +401,11 @@ func TestUserIntegrationsController(t *testing.T) {
 		dm := test.SetupCreateMake(t, "Testla", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
 		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
-		test.SetupCreateDeviceIntegration(t, dd, integ, ud, pdb)
+		test.SetupCreateDeviceIntegration(t, dd, integ, pdb)
 		const jobID = "somepreviousjobId"
 		const deviceID = "device123"
-
 		autoPiUnit := "apunitId123"
-		udMetadata := services.UserDeviceAPIIntegrationsMetadata{
-			AutoPiUnitID: &autoPiUnit,
-		}
-		udapiInt := &models.UserDeviceAPIIntegration{
-			UserDeviceID:  ud.ID,
-			IntegrationID: integ.ID,
-			Status:        models.UserDeviceAPIIntegrationStatusActive,
-			ExternalID:    null.StringFrom(deviceID),
-		}
-		_ = udapiInt.Metadata.Marshal(udMetadata)
-		err := udapiInt.Insert(ctx, pdb.DBS().Writer, boil.Infer())
-		assert.NoError(t, err)
+		test.SetupCreateUserDeviceAPIIntegration(t, autoPiUnit, deviceID, ud.ID, integ.ID, pdb)
 
 		// act: send request
 		request := test.BuildRequest("GET", "/user/devices/"+ud.ID+"/autopi/command/"+jobID, "")
@@ -440,7 +417,7 @@ func TestUserIntegrationsController(t *testing.T) {
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
 	})
 
-	t.Run("GET - autopi info", func(t *testing.T) {
+	t.Run("GET - autopi info - no existing udai", func(t *testing.T) {
 		// arrange
 		autopiAPISvc.EXPECT().GetDeviceByUnitID("1234").Times(1).Return(&services.AutoPiDongleDevice{
 			IsUpdated:         true,
@@ -466,6 +443,25 @@ func TestUserIntegrationsController(t *testing.T) {
 		assert.Equal(t, "4321", gjson.GetBytes(body, "deviceId").String())
 		assert.Equal(t, "1.23", gjson.GetBytes(body, "hwRevision").String())
 		assert.Equal(t, "13.1", gjson.GetBytes(body, "releaseVersion").String())
+	})
+
+	t.Run("GET - autopi info - existing udai no match user", func(t *testing.T) {
+		// arrange
+		integ := test.SetupCreateAutoPiIntegration(t, 34, pdb)
+		dm := test.SetupCreateMake(t, "Testla", pdb)
+		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
+		ud := test.SetupCreateUserDevice(t, "some-other-user", dd, pdb)
+		test.SetupCreateDeviceIntegration(t, dd, integ, pdb)
+		autoPiUnit := "apunitId123"
+		test.SetupCreateUserDeviceAPIIntegration(t, autoPiUnit, "321", ud.ID, integ.ID, pdb)
+
+		// act
+		request := test.BuildRequest("GET", "/autopi/unit/"+autoPiUnit, "")
+		response, err := app.Test(request)
+		assert.NoError(t, err)
+		// assert
+		assert.Equal(t, fiber.StatusForbidden, response.StatusCode)
+		test.TruncateTables(pdb.DBS().Writer.DB, t)
 	})
 }
 

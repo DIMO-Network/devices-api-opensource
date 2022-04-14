@@ -65,7 +65,7 @@ func TestWebhooksController_ProcessCommand(t *testing.T) {
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Model X", 2022, pdb)
 		integ := test.SetupCreateAutoPiIntegration(t, autoPiTemplateID, pdb)
 		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
-		test.SetupCreateDeviceIntegration(t, dd, integ, ud, pdb)
+		test.SetupCreateDeviceIntegration(t, dd, integ, pdb)
 		// create user device api integration
 		udMetadata := new(services.UserDeviceAPIIntegrationsMetadata)
 		udMetadata.AutoPiCommandJobs = append(udMetadata.AutoPiCommandJobs, services.UserDeviceAPIIntegrationJob{
@@ -107,7 +107,7 @@ func TestWebhooksController_ProcessCommand(t *testing.T) {
 			One(ctx, pdb.DBS().Writer)
 		assert.NoError(t, err)
 
-		assert.Equal(t, models.UserDeviceAPIIntegrationStatusPendingFirstData, updatedUdiai.Status)
+		assert.Equal(t, models.UserDeviceAPIIntegrationStatusActive, updatedUdiai.Status)
 
 		updatedMetadata := new(services.UserDeviceAPIIntegrationsMetadata)
 		err = updatedUdiai.Metadata.Unmarshal(updatedMetadata)
@@ -130,7 +130,7 @@ func TestWebhooksController_ProcessCommand(t *testing.T) {
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Model X", 2022, pdb)
 		integ := test.SetupCreateAutoPiIntegration(t, autoPiTemplateID, pdb)
 		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
-		test.SetupCreateDeviceIntegration(t, dd, integ, ud, pdb)
+		test.SetupCreateDeviceIntegration(t, dd, integ, pdb)
 		// create user device api integration
 		udMetadata := new(services.UserDeviceAPIIntegrationsMetadata)
 		udMetadata.AutoPiCommandJobs = append(udMetadata.AutoPiCommandJobs, services.UserDeviceAPIIntegrationJob{
@@ -142,7 +142,7 @@ func TestWebhooksController_ProcessCommand(t *testing.T) {
 		udiai := models.UserDeviceAPIIntegration{
 			UserDeviceID:  ud.ID,
 			IntegrationID: integ.ID,
-			Status:        models.UserDeviceAPIIntegrationStatusPending,
+			Status:        models.UserDeviceAPIIntegrationStatusPending, // assert this does not get changed since just raw command
 			ExternalID:    null.StringFrom(strconv.Itoa(autoPiDeviceID)),
 		}
 		err := udiai.Metadata.Marshal(udMetadata)

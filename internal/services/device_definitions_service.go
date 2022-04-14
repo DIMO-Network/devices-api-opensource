@@ -29,7 +29,7 @@ type IDeviceDefinitionService interface {
 
 type DeviceDefinitionService struct {
 	DBS        func() *database.DBReaderWriter
-	EdmundsSvc IEdmundsService
+	EdmundsSvc EdmundsService
 	log        *zerolog.Logger
 	nhtsaSvc   INHTSAService
 }

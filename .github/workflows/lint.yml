@@ -7,7 +7,7 @@ on:
       - main
   pull_request:
 env:
-  GOPRIVATE: github.com/DIMO-INC
+  GOPRIVATE: github.com/DIMO-Network
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 jobs:
   golangci:

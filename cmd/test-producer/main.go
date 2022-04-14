@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/DIMO-Network/shared"
 	"os"
 	"strings"
 	"time"
@@ -23,7 +24,7 @@ func main() {
 		Str("app", "devices-api-test-producer").
 		Logger()
 
-	settings, err := config.LoadConfig("settings.yaml")
+	settings, err := shared.LoadConfig[config.Settings]("settings.yaml")
 	if err != nil {
 		logger.Fatal().Err(err).Msg("could not load settings")
 	}
