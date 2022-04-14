@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/DIMO-Network/shared"
 	"net"
 	"net/http"
 	"os"
@@ -19,6 +18,7 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/kafka"
 	"github.com/DIMO-Network/devices-api/internal/services"
+	"github.com/DIMO-Network/shared"
 	pb "github.com/DIMO-Network/shared/api/devices"
 	"github.com/DIMO-Network/zflogger"
 	"github.com/Jeffail/benthos/v3/lib/util/hash/murmur2"
