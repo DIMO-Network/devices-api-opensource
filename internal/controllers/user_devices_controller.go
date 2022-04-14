@@ -117,7 +117,10 @@ func NewUserDeviceIntegrationStatusesFromDatabase(udis []*models.UserDeviceAPIIn
 		out[i] = UserDeviceIntegrationStatus{
 			IntegrationID: udi.IntegrationID,
 			Status:        udi.Status,
+			ExternalID:    udi.ExternalID,
 			CreatedAt:     udi.CreatedAt,
+			UpdatedAt:     udi.UpdatedAt,
+			Metadata:      udi.Metadata,
 		}
 	}
 
