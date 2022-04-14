@@ -9,6 +9,11 @@
     "paths": {
         "/autopi/unit/:unitID": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "gets the information about the autopi by the unitId",
                 "produces": [
                     "application/json"
@@ -89,7 +94,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot"
+                                "$ref": "#/definitions/internal_controllers.DeviceMMYRoot"
                             }
                         }
                     }
@@ -157,6 +162,11 @@
         },
         "/integrations": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "gets list of integrations we have defined",
                 "produces": [
                     "application/json"
@@ -358,6 +368,11 @@
         },
         "/user/devices/:userDeviceID/autopi/command": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Submit a raw autopi command to unit. Device must be registered with autopi before this can be used",
                 "consumes": [
                     "application/json"
@@ -385,6 +400,11 @@
         },
         "/user/devices/:userDeviceID/autopi/command/:jobID": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "gets the status of an autopi raw command by jobID",
                 "produces": [
                     "application/json"
@@ -413,6 +433,11 @@
         },
         "/user/devices/:userDeviceID/integrations/:integrationID": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Submit credentials for registering a device with a given integration.",
                 "consumes": [
                     "application/json"
@@ -559,6 +584,11 @@
         },
         "/user/devices/{userDeviceID}/integrations/{integrationID}": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Receive status updates about a Smartcar integration",
                 "tags": [
                     "integrations"
@@ -573,6 +603,11 @@
                 }
             },
             "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Remove an user device's integration",
                 "tags": [
                     "integrations"
@@ -1112,10 +1147,19 @@
                 "createdAt": {
                     "type": "string"
                 },
+                "externalId": {
+                    "type": "string"
+                },
                 "integrationId": {
                     "type": "string"
                 },
+                "metadata": {
+                    "type": "string"
+                },
                 "status": {
+                    "type": "string"
+                },
+                "updatedAt": {
                     "type": "string"
                 }
             }
@@ -1390,10 +1434,19 @@
                 "createdAt": {
                     "type": "string"
                 },
+                "externalId": {
+                    "type": "string"
+                },
                 "integrationId": {
                     "type": "string"
                 },
+                "metadata": {
+                    "type": "string"
+                },
                 "status": {
+                    "type": "string"
+                },
+                "updatedAt": {
                     "type": "string"
                 }
             }

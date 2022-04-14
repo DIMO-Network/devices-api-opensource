@@ -150,12 +150,13 @@ https://devices-api.dimo.zone
 
 ### Generating swagger / openapi spec
 
-Note that swagger must be served from fiber-swagger library v2.2.0. v2.2.4 currently does not work for us. 
+Note that swagger must be served from fiber-swagger library v2.31.1 +, since they fixed an issue in previous version. 
 
-To check what cli version you have installed: `swag --version`. As of this writing v1.8.0 is working for us. 
+To check what cli version you have installed: `swag --version`. As of this writing v1.8.1 is working for us. 
 ```bash
 go install github.com/swaggo/swag/cmd/swag@latest
-swag init -g cmd/devices-api/main.go --parseDependency --parseInternal --generatedTime true --parseDepth 2
+swag init -g cmd/devices-api/main.go --parseDependency --parseInternal --generatedTime true 
+# optionally add `--parseDepth 2` if have issues
 ```
 
 [declarative_comments_format](https://swaggo.github.io/swaggo.io/declarative_comments_format/)

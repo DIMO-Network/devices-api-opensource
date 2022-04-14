@@ -185,9 +185,15 @@ definitions:
     properties:
       createdAt:
         type: string
+      externalId:
+        type: string
       integrationId:
         type: string
+      metadata:
+        type: string
       status:
+        type: string
+      updatedAt:
         type: string
     type: object
   internal_controllers.AutoPiCommandRequest:
@@ -375,9 +381,15 @@ definitions:
     properties:
       createdAt:
         type: string
+      externalId:
+        type: string
       integrationId:
         type: string
+      metadata:
+        type: string
       status:
+        type: string
+      updatedAt:
         type: string
     type: object
   models.Integration:
@@ -517,6 +529,8 @@ paths:
       responses:
         "200":
           description: ""
+      security:
+      - BearerAuth: []
       tags:
       - integrations
   /device-definitions:
@@ -596,7 +610,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot'
+              $ref: '#/definitions/internal_controllers.DeviceMMYRoot'
             type: array
       tags:
       - device-definitions
@@ -610,6 +624,8 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/models.Integration'
+      security:
+      - BearerAuth: []
       tags:
       - integrations
   /user/device-data/{userDeviceID}/distance-driven:
@@ -747,6 +763,8 @@ paths:
       responses:
         "200":
           description: ""
+      security:
+      - BearerAuth: []
       tags:
       - integrations
   /user/devices/:userDeviceID/autopi/command/:jobID:
@@ -765,6 +783,8 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/services.UserDeviceAPIIntegrationJob'
+      security:
+      - BearerAuth: []
       tags:
       - integrations
   /user/devices/:userDeviceID/integrations/:integrationID:
@@ -782,6 +802,8 @@ paths:
       responses:
         "204":
           description: ""
+      security:
+      - BearerAuth: []
       tags:
       - integrations
   /user/devices/{userDeviceID}:
@@ -845,6 +867,8 @@ paths:
       responses:
         "204":
           description: ""
+      security:
+      - BearerAuth: []
       tags:
       - integrations
     get:
@@ -854,6 +878,8 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/internal_controllers.GetUserDeviceIntegrationResponse'
+      security:
+      - BearerAuth: []
       tags:
       - integrations
   /user/devices/{userDeviceID}/name:
