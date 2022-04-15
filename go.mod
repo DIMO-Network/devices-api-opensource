@@ -3,7 +3,7 @@ module github.com/DIMO-Network/devices-api
 go 1.18
 
 require (
-	github.com/DIMO-Network/shared v0.1.11
+	github.com/DIMO-Network/shared v0.1.12
 	github.com/DIMO-Network/zflogger v1.0.0-beta
 	github.com/Shopify/sarama v1.31.1
 	github.com/ThreeDotsLabs/watermill v1.1.1
@@ -42,7 +42,7 @@ require (
 	cloud.google.com/go/compute v1.2.0 // indirect
 	cloud.google.com/go/iam v0.1.1 // indirect
 	github.com/andybalholm/cascadia v1.3.1 // indirect
-	github.com/avast/retry-go/v4 v4.0.3 // indirect
+	github.com/avast/retry-go/v4 v4.0.4 // indirect
 	github.com/ericlagergren/decimal v0.0.0-20211103172832-aca2edc11f73 // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect

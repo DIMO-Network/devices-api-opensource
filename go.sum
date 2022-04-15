@@ -106,6 +106,8 @@ github.com/DIMO-Network/shared v0.1.10 h1:t3i3BZ3qXRHDQaIjTQwWa7YBwzwo0hy1bkWbqe
 github.com/DIMO-Network/shared v0.1.10/go.mod h1:+PkjSZ501G61fF7ArU9KP62Miq+au9eCyxFjrhlGzdg=
 github.com/DIMO-Network/shared v0.1.11 h1:fJnalMkcUr6TgUkuOaJIpiBgsWtFx+V5Vj4IM1VBmsg=
 github.com/DIMO-Network/shared v0.1.11/go.mod h1:+njjFRCGTTapQPyIPz61bLbmS8yPNFFfU8ZKRDLJ/5Y=
+github.com/DIMO-Network/shared v0.1.12 h1:XWM3dKLHTqp3b6Axt9SeUbTEVcZlrAFrRrsl0RLMOzA=
+github.com/DIMO-Network/shared v0.1.12/go.mod h1:0LYDLyOBvY4ADsXqXKIphGNHQ6WJoAtwyMqCs+5VfBg=
 github.com/DIMO-Network/zflogger v1.0.0-beta h1:SlXZmahk4tZqprjHzp14mbLQFMrOcyJ9jpLJLQk8bhw=
 github.com/DIMO-Network/zflogger v1.0.0-beta/go.mod h1:JZX9lQhjzPs9auqY+oNruiWsvhBufEopRRLWraSi148=
 github.com/DataDog/datadog-go v2.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
@@ -208,6 +210,8 @@ github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d h1:Byv0BzEl
 github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d/go.mod h1:WaHUgvxTVq04UNunO+XhnAqY/wQc+bxr74GqbsZ/Jqw=
 github.com/avast/retry-go/v4 v4.0.3 h1:bwBeaM5u3LqIDQf6+vR/eNXXit9GBGTWqMoVANiKFjo=
 github.com/avast/retry-go/v4 v4.0.3/go.mod h1:HqmLvS2VLdStPCGDFjSuZ9pzlTqVRldCI4w2dO4m1Ms=
+github.com/avast/retry-go/v4 v4.0.4 h1:38hLf0DsRXh+hOF6HbTni0+5QGTNdw9zbaMD7KAO830=
+github.com/avast/retry-go/v4 v4.0.4/go.mod h1:HqmLvS2VLdStPCGDFjSuZ9pzlTqVRldCI4w2dO4m1Ms=
 github.com/aws/aws-lambda-go v1.13.3/go.mod h1:4UKl9IzQMoD+QF79YdCuzCwp8VbmG4VAQwij/eHl5CU=
 github.com/aws/aws-lambda-go v1.28.0/go.mod h1:jJmlefzPfGnckuHdXX7/80O3BvUUi12XOkbv4w9SGLU=
 github.com/aws/aws-sdk-go v1.19.38/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
