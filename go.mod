@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/DIMO-Network/shared v0.1.12
 	github.com/DIMO-Network/zflogger v1.0.0-beta
-	github.com/Shopify/sarama v1.31.1
+	github.com/Shopify/sarama v1.32.0
 	github.com/ThreeDotsLabs/watermill v1.1.1
 	github.com/ThreeDotsLabs/watermill-kafka/v2 v2.2.1
 	github.com/ahmetb/go-linq/v3 v3.2.0
