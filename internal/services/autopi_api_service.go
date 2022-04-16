@@ -90,7 +90,7 @@ func (a *autoPiAPIService) PatchVehicleProfile(vehicleID int, profile PatchVehic
 	j, _ := json.Marshal(profile)
 	res, err := a.httpClient.ExecuteRequest(fmt.Sprintf("/vehicle/profile/%d/", vehicleID), "PATCH", j)
 	if err != nil {
-		return errors.Wrapf(err, "error calling autopi api to patch device %d", vehicleID)
+		return errors.Wrapf(err, "error calling autopi api to patch vehicle profile for vehicleID %d", vehicleID)
 	}
 	defer res.Body.Close() // nolint
 
