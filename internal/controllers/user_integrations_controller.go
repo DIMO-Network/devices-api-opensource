@@ -403,6 +403,17 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "unable to parse body json")
 	}
+	// check if an existing integration exists for the unitID
+	unitExists, err := models.UserDeviceAPIIntegrations(qm.Where("metadata ->> 'auto_pi_unit_id' = $1", reqBody.ExternalID),
+		qm.And("status IN ('Pending', 'PendingFirstData', 'Active')")). // could not get sqlboiler typed qm.AndIn to work
+		Exists(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		return err
+	}
+	if unitExists {
+		logger.Warn().Str("autoPiUnitID", reqBody.ExternalID).Msg("user tried pairing an already paired unitID")
+		return fiber.NewError(fiber.StatusBadRequest, "autopi unitID already paired")
+	}
 
 	autoPiDevice, err := udc.autoPiSvc.GetDeviceByUnitID(reqBody.ExternalID)
 	if err != nil {

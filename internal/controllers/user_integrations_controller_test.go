@@ -37,10 +37,12 @@ func TestUserIntegrationsController(t *testing.T) {
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(mockCtrl)
 
 	const testUserID = "123123"
+	const testUser2 = "someOtherUser2"
 
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, test.Logger(), deviceDefSvc, taskSvc, &fakeEventService{}, scClient, teslaSvc, teslaTaskService, &fakeEncrypter{}, autopiAPISvc)
 	app := fiber.New()
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
+	app.Post("/user2/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUser2), c.RegisterDeviceIntegration)
 	app.Get("/integrations", c.GetIntegrations)
 	app.Post("/user/devices/:userDeviceID/autopi/command", test.AuthInjectorTestHandler(testUserID), c.SendAutoPiCommand)
 	app.Get("/user/devices/:userDeviceID/autopi/command/:jobID", test.AuthInjectorTestHandler(testUserID), c.GetAutoPiCommandStatus)
@@ -294,6 +296,55 @@ func TestUserIntegrationsController(t *testing.T) {
 		assert.Equal(t, "state.sls pending", metadata.AutoPiCommandJobs[0].CommandRaw)
 		assert.Equal(t, deviceID, apiInt.ExternalID.String)
 		assert.Equal(t, "PendingFirstData", apiInt.Status)
+		//teardown
+		test.TruncateTables(pdb.DBS().Writer.DB, t)
+	})
+
+	t.Run("POST - AutoPi integration blocked same user - integration exists", func(t *testing.T) {
+		integration := test.SetupCreateAutoPiIntegration(t, 34, pdb)
+		dm := test.SetupCreateMake(t, "Testla", pdb)
+		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		const deviceID = "device123"
+		const unitID = "qxyautopi"
+		test.SetupCreateUserDeviceAPIIntegration(t, unitID, deviceID, ud.ID, integration.ID, pdb)
+
+		req := fmt.Sprintf(`{
+			"externalId": "%s"
+		}`, unitID)
+		// no calls should be made to autopi api
+
+		request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.ID, req)
+		response, _ := app.Test(request)
+		assert.Equal(t, fiber.StatusBadRequest, response.StatusCode, "should return failure")
+		body, _ := ioutil.ReadAll(response.Body)
+		fmt.Println("body response: " + string(body) + "\n")
+
+		//teardown
+		test.TruncateTables(pdb.DBS().Writer.DB, t)
+	})
+
+	t.Run("POST - AutoPi integration blocked different user - unitId exists", func(t *testing.T) {
+		integration := test.SetupCreateAutoPiIntegration(t, 34, pdb)
+		dm := test.SetupCreateMake(t, "Testla", pdb)
+		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		const deviceID = "device123"
+		const unitID = "qxyautopi"
+		test.SetupCreateUserDeviceAPIIntegration(t, unitID, deviceID, ud.ID, integration.ID, pdb)
+		ud2 := test.SetupCreateUserDevice(t, testUser2, dd, pdb)
+
+		req := fmt.Sprintf(`{
+			"externalId": "%s"
+		}`, unitID)
+		// no calls should be made to autopi api
+		request := test.BuildRequest("POST", "/user2/devices/"+ud2.ID+"/integrations/"+integration.ID, req)
+		response, err := app.Test(request)
+		assert.NoError(t, err)
+		assert.Equal(t, fiber.StatusBadRequest, response.StatusCode, "should return bad request")
+		body, _ := ioutil.ReadAll(response.Body)
+		fmt.Println("body response: " + string(body) + "\n")
+
 		//teardown
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
 	})

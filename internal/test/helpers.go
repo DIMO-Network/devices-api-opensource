@@ -241,7 +241,7 @@ func SetupCreateUserDeviceAPIIntegration(t *testing.T, autoPiUnitID, externalID,
 		ExternalID:    null.StringFrom(externalID),
 	}
 	if autoPiUnitID != "" {
-		md := fmt.Sprintf(`{"auto_pi_unit_id": %s }`, autoPiUnitID)
+		md := fmt.Sprintf(`{"auto_pi_unit_id": "%s"}`, autoPiUnitID)
 		_ = udapiInt.Metadata.UnmarshalJSON([]byte(md))
 	}
 	err := udapiInt.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
