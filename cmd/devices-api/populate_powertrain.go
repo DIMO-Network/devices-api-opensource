@@ -48,7 +48,7 @@ func populateUSAPowertrain(ctx context.Context, logger *zerolog.Logger, settings
 
 	for _, device := range devices {
 		if err := process(device); err != nil {
-			logger.Err(err).Str("userDeviceId", device.VinIdentifier.String).Msgf("Failed to update powertrain metadata.")
+			logger.Err(err).Str("userDeviceId", device.ID).Str("vin", device.VinIdentifier.String).Msg("Failed to update powertrain metadata.")
 		}
 	}
 
