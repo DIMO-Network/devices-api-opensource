@@ -166,6 +166,13 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("error syncing with elastic")
 		}
+	case "populate-usa-powertrain":
+		logger.Info().Msg("Populating USA powertrain data from VINs")
+		nhtsaSvc := services.NewNHTSAService()
+		err := populateUSAPowertrain(ctx, &logger, &settings, pdb, nhtsaSvc)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error filling in powertrain data.")
+		}
 	default:
 		startPrometheus(logger)
 		eventService := services.NewEventService(&logger, &settings, producer)
