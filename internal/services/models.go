@@ -78,17 +78,34 @@ func NewDeviceDefinitionFromNHTSA(decodedVin *NHTSADecodeVINResponse) DeviceDefi
 	return dd
 }
 
-type VehicleDriveType string
+type PowertrainType string
 
 const (
-	ICE  VehicleDriveType = "ICE"
-	HEV  VehicleDriveType = "HEV"
-	PHEV VehicleDriveType = "PHEV"
-	BEV  VehicleDriveType = "BEV"
+	ICE  PowertrainType = "ICE"
+	HEV  PowertrainType = "HEV"
+	PHEV PowertrainType = "PHEV"
+	BEV  PowertrainType = "BEV"
+	FCEV PowertrainType = "FCEV"
 )
 
-func (v VehicleDriveType) String() string {
-	return string(v)
+func (p PowertrainType) String() string {
+	return string(p)
+}
+
+func (p *PowertrainType) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+
+	// Potentially an invalid value.
+	switch bv := PowertrainType(s); bv {
+	case ICE, HEV, PHEV, BEV, FCEV:
+		*p = bv
+		return nil
+	default:
+		return fmt.Errorf("unrecognized value: %s", s)
+	}
 }
 
 // IntegrationsMetadata represents json stored in integrations table metadata jsonb column
@@ -101,6 +118,10 @@ type UserDeviceAPIIntegrationsMetadata struct {
 	AutoPiUnitID      *string                       `json:"auto_pi_unit_id,omitempty"`
 	AutoPiIMEI        *string                       `json:"imei,omitempty"`
 	AutoPiCommandJobs []UserDeviceAPIIntegrationJob `json:"auto_pi_command_jobs"`
+}
+
+type UserDeviceMetadata struct {
+	PowertrainType *PowertrainType `json:"powertrainType,omitempty"`
 }
 
 // UserDeviceAPIIntegrationJob holds the autopi webhook jobs. We only expect a handful of this per device so not breaking out to own table for now

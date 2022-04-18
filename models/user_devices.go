@@ -34,6 +34,7 @@ type UserDevice struct {
 	CreatedAt          time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt          time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 	VinConfirmed       bool        `boil:"vin_confirmed" json:"vin_confirmed" toml:"vin_confirmed" yaml:"vin_confirmed"`
+	Metadata           null.JSON   `boil:"metadata" json:"metadata,omitempty" toml:"metadata" yaml:"metadata,omitempty"`
 
 	R *userDeviceR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userDeviceL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -50,6 +51,7 @@ var UserDeviceColumns = struct {
 	CreatedAt          string
 	UpdatedAt          string
 	VinConfirmed       string
+	Metadata           string
 }{
 	ID:                 "id",
 	UserID:             "user_id",
@@ -61,6 +63,7 @@ var UserDeviceColumns = struct {
 	CreatedAt:          "created_at",
 	UpdatedAt:          "updated_at",
 	VinConfirmed:       "vin_confirmed",
+	Metadata:           "metadata",
 }
 
 var UserDeviceTableColumns = struct {
@@ -74,6 +77,7 @@ var UserDeviceTableColumns = struct {
 	CreatedAt          string
 	UpdatedAt          string
 	VinConfirmed       string
+	Metadata           string
 }{
 	ID:                 "user_devices.id",
 	UserID:             "user_devices.user_id",
@@ -85,6 +89,7 @@ var UserDeviceTableColumns = struct {
 	CreatedAt:          "user_devices.created_at",
 	UpdatedAt:          "user_devices.updated_at",
 	VinConfirmed:       "user_devices.vin_confirmed",
+	Metadata:           "user_devices.metadata",
 }
 
 // Generated where
@@ -100,6 +105,7 @@ var UserDeviceWhere = struct {
 	CreatedAt          whereHelpertime_Time
 	UpdatedAt          whereHelpertime_Time
 	VinConfirmed       whereHelperbool
+	Metadata           whereHelpernull_JSON
 }{
 	ID:                 whereHelperstring{field: "\"devices_api\".\"user_devices\".\"id\""},
 	UserID:             whereHelperstring{field: "\"devices_api\".\"user_devices\".\"user_id\""},
@@ -111,6 +117,7 @@ var UserDeviceWhere = struct {
 	CreatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"user_devices\".\"created_at\""},
 	UpdatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"user_devices\".\"updated_at\""},
 	VinConfirmed:       whereHelperbool{field: "\"devices_api\".\"user_devices\".\"vin_confirmed\""},
+	Metadata:           whereHelpernull_JSON{field: "\"devices_api\".\"user_devices\".\"metadata\""},
 }
 
 // UserDeviceRels is where relationship names are stored.
@@ -143,9 +150,9 @@ func (*userDeviceR) NewStruct() *userDeviceR {
 type userDeviceL struct{}
 
 var (
-	userDeviceAllColumns            = []string{"id", "user_id", "device_definition_id", "vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed"}
+	userDeviceAllColumns            = []string{"id", "user_id", "device_definition_id", "vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed", "metadata"}
 	userDeviceColumnsWithoutDefault = []string{"id", "user_id", "device_definition_id"}
-	userDeviceColumnsWithDefault    = []string{"vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed"}
+	userDeviceColumnsWithDefault    = []string{"vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed", "metadata"}
 	userDevicePrimaryKeyColumns     = []string{"id"}
 	userDeviceGeneratedColumns      = []string{}
 )

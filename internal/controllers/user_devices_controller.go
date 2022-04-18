@@ -32,10 +32,11 @@ type UserDevicesController struct {
 	teslaTaskService services.TeslaTaskService
 	encrypter        services.Encrypter
 	autoPiSvc        services.AutoPiAPIService
+	nhtsaService     services.INHTSAService
 }
 
 // NewUserDevicesController constructor
-func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc services.ITaskService, eventService services.EventService, smartcarClient services.SmartcarClient, teslaSvc services.TeslaService, teslaTaskService services.TeslaTaskService, encrypter services.Encrypter, autoPiSvc services.AutoPiAPIService) UserDevicesController {
+func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc services.ITaskService, eventService services.EventService, smartcarClient services.SmartcarClient, teslaSvc services.TeslaService, teslaTaskService services.TeslaTaskService, encrypter services.Encrypter, autoPiSvc services.AutoPiAPIService, nhtsaService services.INHTSAService) UserDevicesController {
 	return UserDevicesController{
 		Settings:         settings,
 		DBS:              dbs,
@@ -48,6 +49,7 @@ func NewUserDevicesController(settings *config.Settings, dbs func() *database.DB
 		teslaTaskService: teslaTaskService,
 		encrypter:        encrypter,
 		autoPiSvc:        autoPiSvc,
+		nhtsaService:     nhtsaService,
 	}
 }
 
@@ -93,6 +95,13 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 
 		dd.CompatibleIntegrations = filteredIntegrations
 
+		md := new(services.UserDeviceMetadata)
+		if d.Metadata.Valid {
+			if err := d.Metadata.Unmarshal(md); err != nil {
+				return opaqueInternalError
+			}
+		}
+
 		rp[i] = UserDeviceFull{
 			ID:               d.ID,
 			VIN:              d.VinIdentifier.Ptr(),
@@ -102,6 +111,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 			CountryCode:      d.CountryCode.Ptr(),
 			DeviceDefinition: dd,
 			Integrations:     NewUserDeviceIntegrationStatusesFromDatabase(d.R.UserDeviceAPIIntegrations),
+			Metadata:         *md,
 		}
 	}
 
@@ -289,9 +299,11 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	})
 }
 
+var opaqueInternalError = fiber.NewError(fiber.StatusBadGateway, "Internal error.")
+
 // UpdateVIN godoc
 // @Description  updates the VIN on the user device record
-// @Tags           user-devices
+// @Tags         user-devices
 // @Produce      json
 // @Accept       json
 // @Param        vin           body  controllers.UpdateVINReq  true  "VIN"
@@ -302,31 +314,75 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
-	userDevice, err := models.UserDevices(qm.Where("id = ?", udi), qm.And("user_id = ?", userID)).One(c.Context(), udc.DBS().Writer)
+
+	logger := udc.log.With().Str("route", c.Route().Path).Str("userId", userID).Str("userDeviceId", udi).Logger()
+
+	userDevice, err := models.UserDevices(
+		models.UserDeviceWhere.UserID.EQ(userID),
+		models.UserDeviceWhere.ID.EQ(udi),
+	).One(c.Context(), udc.DBS().Writer)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return errorResponseHandler(c, err, fiber.StatusNotFound)
+			return fiber.NewError(fiber.StatusNotFound, "Device not found.")
 		}
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		logger.Err(err).Msg("Database error searching for device.")
+		return opaqueInternalError
 	}
-	if userDevice.VinConfirmed || userDevice.VinIdentifier.Ptr() != nil && userDevice.CountryCode.String == "USA" {
-		return errorResponseHandler(c, errors.New("VIN cannot be changed at this point"), fiber.StatusBadRequest)
+
+	if userDevice.VinConfirmed {
+		return fiber.NewError(fiber.StatusBadRequest, "Can't update a VIN that was previously confirmed.")
 	}
-	vin := &UpdateVINReq{}
-	if err := c.BodyParser(vin); err != nil {
-		// Return status 400 and error message.
-		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+
+	vinReq := &UpdateVINReq{}
+	if err := c.BodyParser(vinReq); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Could not parse request body.")
 	}
-	if err := vin.validate(); err != nil {
-		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+	if err := vinReq.validate(); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid VIN.")
 	}
-	userDevice.VinIdentifier = null.StringFromPtr(vin.VIN)
-	_, err = userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer())
-	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+
+	userDevice.VinIdentifier = null.StringFromPtr(vinReq.VIN)
+	if _, err := userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer()); err != nil {
+		// Okay to dereference here, since we validated the field.
+		logger.Err(err).Msgf("Database error updating VIN to %s.", *vinReq.VIN)
+		return opaqueInternalError
+	}
+
+	// TODO: Genericize this for more countries.
+	if userDevice.CountryCode.Valid && userDevice.CountryCode.String == "USA" {
+		if err := udc.updateUSAPowertrain(c.Context(), userDevice); err != nil {
+			logger.Err(err).Msg("Failed to update American powertrain type.")
+		}
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func (udc *UserDevicesController) updateUSAPowertrain(ctx context.Context, userDevice *models.UserDevice) error {
+	resp, err := udc.nhtsaService.DecodeVIN(userDevice.VinIdentifier.String)
+	if err != nil {
+		return err
+	}
+
+	dt, err := resp.DriveType()
+	if err != nil {
+		return err
+	}
+
+	md := new(services.UserDeviceMetadata)
+	if err := userDevice.Metadata.Unmarshal(md); err != nil {
+		return err
+	}
+
+	md.PowertrainType = &dt
+	if err := userDevice.Metadata.Marshal(md); err != nil {
+		return err
+	}
+	if _, err := userDevice.Update(ctx, udc.DBS().Writer, boil.Infer()); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // UpdateName godoc
@@ -574,4 +630,5 @@ type UserDeviceFull struct {
 	DeviceDefinition services.DeviceDefinition     `json:"deviceDefinition"`
 	CountryCode      *string                       `json:"countryCode"`
 	Integrations     []UserDeviceIntegrationStatus `json:"integrations"`
+	Metadata         services.UserDeviceMetadata   `json:"metadata"`
 }

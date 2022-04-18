@@ -56,10 +56,11 @@ func TestUserDevicesController(t *testing.T) {
 	scClient := mock_services.NewMockSmartcarClient(mockCtrl)
 	teslaSvc := mock_services.NewMockTeslaService(mockCtrl)
 	teslaTaskService := mock_services.NewMockTeslaTaskService(mockCtrl)
+	nhtsaService := mock_services.NewMockINHTSAService(mockCtrl)
 
 	testUserID := "123123"
 	testUserID2 := "3232451"
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, taskSvc, &fakeEventService{}, scClient, teslaSvc, teslaTaskService, &fakeEncrypter{}, nil)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, taskSvc, &fakeEventService{}, scClient, teslaSvc, teslaTaskService, &fakeEncrypter{}, nil, nhtsaService)
 	app := fiber.New()
 	app.Post("/user/devices", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceForUser)
 	app.Post("/user/devices/second", test.AuthInjectorTestHandler(testUserID2), c.RegisterDeviceForUser) // for different test user
@@ -242,6 +243,15 @@ func TestUserDevicesController(t *testing.T) {
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Mach E", 2022, pdb)
 		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
 
+		evID := "4"
+		nhtsaService.EXPECT().DecodeVIN("5YJYGDEE5MF085533").Return(&services.NHTSADecodeVINResponse{
+			Results: []services.NHTSAResult{
+				{
+					VariableID: 126,
+					ValueID:    &evID,
+				},
+			},
+		}, nil)
 		payload := `{ "vin": "5YJYGDEE5MF085533" }`
 		request := test.BuildRequest("PATCH", "/user/devices/"+ud.ID+"/vin", payload)
 		response, _ := app.Test(request)
@@ -249,6 +259,12 @@ func TestUserDevicesController(t *testing.T) {
 			body, _ := ioutil.ReadAll(response.Body)
 			fmt.Println("message: " + string(body))
 		}
+		request = test.BuildRequest("GET", "/user/devices/me", "")
+		response, _ = app.Test(request)
+		body, _ := ioutil.ReadAll(response.Body)
+		fmt.Println(string(body))
+		pt := gjson.GetBytes(body, "userDevices.0.metadata.powertrainType").String()
+		assert.Equal(t, "BEV", pt)
 		//teardown
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
 	})
