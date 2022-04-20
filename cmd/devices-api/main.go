@@ -304,8 +304,8 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID", userDeviceController.RegisterDeviceIntegration)
 	v1Auth.Get("/user/devices/:userDeviceID/status", userDeviceController.GetUserDeviceStatus)
 	v1Auth.Post("/user/devices/:userDeviceID/commands/refresh", userDeviceController.RefreshUserDeviceStatus)
-	v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/unlock-door", userDeviceController.UnlockDoor)
-	v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/lock-door", userDeviceController.LockDoor)
+	// v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/unlock-door", userDeviceController.UnlockDoor)
+	// v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/lock-door", userDeviceController.LockDoor)
 	v1Auth.Get("/integrations", userDeviceController.GetIntegrations)
 	// autopi specific
 	v1Auth.Post("/user/devices/:userDeviceID/autopi/command", userDeviceController.SendAutoPiCommand)
