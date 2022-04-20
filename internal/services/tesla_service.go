@@ -13,6 +13,9 @@ import (
 type TeslaService interface {
 	GetVehicle(ownerAccessToken string, id int) (*TeslaVehicle, error)
 	WakeUpVehicle(ownerAccessToken string, id int) error
+
+	UnlockDoor(ownerAccessToken string, id int) error
+	LockDoor(ownerAccessToken string, id int) error
 }
 
 type teslaService struct {
@@ -59,6 +62,46 @@ func (t *teslaService) GetVehicle(ownerAccessToken string, id int) (*TeslaVehicl
 
 func (t *teslaService) WakeUpVehicle(ownerAccessToken string, id int) error {
 	u := fmt.Sprintf("https://owner-api.teslamotors.com/api/1/vehicles/%d/wake_up", id)
+	req, err := http.NewRequest("POST", u, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+ownerAccessToken)
+	resp, err := t.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("got status code %d waking up vehicle %d", resp.StatusCode, id)
+	}
+
+	return nil
+}
+
+func (t *teslaService) UnlockDoor(ownerAccessToken string, id int) error {
+	u := fmt.Sprintf("https://owner-api.teslamotors.com/api/1/vehicles/%d/command/door_unlock", id)
+	req, err := http.NewRequest("POST", u, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+ownerAccessToken)
+	resp, err := t.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("got status code %d waking up vehicle %d", resp.StatusCode, id)
+	}
+
+	return nil
+}
+
+func (t *teslaService) LockDoor(ownerAccessToken string, id int) error {
+	u := fmt.Sprintf("https://owner-api.teslamotors.com/api/1/vehicles/%d/command/door_lock", id)
 	req, err := http.NewRequest("POST", u, nil)
 	if err != nil {
 		return err

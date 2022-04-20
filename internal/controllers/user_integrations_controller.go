@@ -842,3 +842,129 @@ type GetUserDeviceIntegrationResponse struct {
 type AutoPiCommandRequest struct {
 	Command string `json:"command"`
 }
+
+func (udc *UserDevicesController) UnlockDoor(c *fiber.Ctx) error {
+	userID := getUserID(c)
+	userDeviceID := c.Params("userDeviceID")
+	integrationID := c.Params("integrationID")
+
+	exists, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		models.UserDeviceWhere.UserID.EQ(userID),
+	).Exists(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		udc.log.Err(err).Send()
+		return opaqueInternalError
+	}
+
+	if !exists {
+		return opaqueInternalError
+	}
+
+	teslaInt, err := models.FindIntegration(c.Context(), udc.DBS().Reader, integrationID)
+	if err != nil {
+		udc.log.Err(err).Send()
+		return opaqueInternalError
+	}
+	if teslaInt.Vendor != "Tesla" {
+		return opaqueInternalError
+	}
+
+	udai, err := models.FindUserDeviceAPIIntegration(c.Context(), udc.DBS().Reader, userDeviceID, integrationID)
+	if err != nil {
+		udc.log.Err(err).Send()
+		return opaqueInternalError
+	}
+
+	m := new(services.UserDeviceAPIIntegrationsMetadata)
+	if err := udai.Metadata.Unmarshal(m); err != nil {
+		udc.log.Err(err).Send()
+		return opaqueInternalError
+	}
+
+	if !m.EnableTeslaLock {
+		return opaqueInternalError
+	}
+
+	accessToken, err := udc.cipher.Decrypt(udai.AccessToken.String)
+	if err != nil {
+		udc.log.Err(err).Send()
+		return opaqueInternalError
+	}
+
+	id, err := strconv.Atoi(udai.ExternalID.String)
+	if err != nil {
+		udc.log.Err(err).Send()
+		return opaqueInternalError
+	}
+
+	if err := udc.teslaService.UnlockDoor(accessToken, id); err != nil {
+		udc.log.Err(err).Send()
+		return opaqueInternalError
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func (udc *UserDevicesController) LockDoor(c *fiber.Ctx) error {
+	userID := getUserID(c)
+	userDeviceID := c.Params("userDeviceID")
+	integrationID := c.Params("integrationID")
+
+	exists, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		models.UserDeviceWhere.UserID.EQ(userID),
+	).Exists(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		udc.log.Err(err).Send()
+		return opaqueInternalError
+	}
+
+	if !exists {
+		return opaqueInternalError
+	}
+
+	teslaInt, err := models.FindIntegration(c.Context(), udc.DBS().Reader, integrationID)
+	if err != nil {
+		udc.log.Err(err).Send()
+		return opaqueInternalError
+	}
+	if teslaInt.Vendor != "Tesla" {
+		return opaqueInternalError
+	}
+
+	udai, err := models.FindUserDeviceAPIIntegration(c.Context(), udc.DBS().Reader, userDeviceID, integrationID)
+	if err != nil {
+		udc.log.Err(err).Send()
+		return opaqueInternalError
+	}
+
+	m := new(services.UserDeviceAPIIntegrationsMetadata)
+	if err := udai.Metadata.Unmarshal(m); err != nil {
+		udc.log.Err(err).Send()
+		return opaqueInternalError
+	}
+
+	if !m.EnableTeslaLock {
+		return opaqueInternalError
+	}
+
+	accessToken, err := udc.cipher.Decrypt(udai.AccessToken.String)
+	if err != nil {
+		udc.log.Err(err).Send()
+		return opaqueInternalError
+	}
+
+	id, err := strconv.Atoi(udai.ExternalID.String)
+	if err != nil {
+		udc.log.Err(err).Send()
+		return opaqueInternalError
+	}
+
+	if err := udc.teslaService.LockDoor(accessToken, id); err != nil {
+		udc.log.Err(err).Send()
+		return opaqueInternalError
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
