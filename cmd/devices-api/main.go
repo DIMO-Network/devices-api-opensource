@@ -173,6 +173,21 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error filling in powertrain data.")
 		}
+	case "migrate-tesla-tasks":
+		logger.Info().Msg("Migrating Tesla tasks.")
+		teslaTaskService := services.NewTeslaTaskService(&settings, producer)
+		teslaSvc := services.NewTeslaService(&settings)
+		var cipher shared.Cipher
+		if settings.Environment == "dev" || settings.Environment == "prod" {
+			cipher = createKMS(&settings, &logger)
+		} else {
+			logger.Warn().Msg("Using ROT13 encrypter. Only use this for testing!")
+			cipher = new(shared.ROT13Cipher)
+		}
+		err := migrateTeslaTasks(ctx, &logger, &settings, pdb, teslaSvc, teslaTaskService, cipher)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error migrating tasks.")
+		}
 	default:
 		startPrometheus(logger)
 		eventService := services.NewEventService(&logger, &settings, producer)
@@ -206,12 +221,12 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		ReadBufferSize:        16000,
 	})
 
-	var encrypter services.Encrypter
+	var cipher shared.Cipher
 	if settings.Environment == "dev" || settings.Environment == "prod" {
-		encrypter = createKMS(settings, &logger)
+		cipher = createKMS(settings, &logger)
 	} else {
 		logger.Warn().Msg("Using ROT13 encrypter. Only use this for testing!")
-		encrypter = new(services.ROT13Encrypter)
+		cipher = new(shared.ROT13Cipher)
 	}
 
 	nhtsaSvc := services.NewNHTSAService()
@@ -223,7 +238,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	taskSvc := services.NewTaskService(settings, pdb.DBS, ddSvc, eventService, &logger, producer, &smartCarSvc)
 	autoPiSvc := services.NewAutoPiAPIService(settings)
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc)
-	userDeviceController := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService, smartcarClient, teslaSvc, teslaTaskService, encrypter, autoPiSvc, services.NewNHTSAService())
+	userDeviceController := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService, smartcarClient, teslaSvc, teslaTaskService, cipher, autoPiSvc, services.NewNHTSAService())
 	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer)
 	deviceDataController := controllers.NewDeviceDataController(settings, pdb.DBS, &logger)
 	webhooksController := controllers.NewWebhooksController(settings, pdb.DBS, &logger)
@@ -356,13 +371,13 @@ func startGRPCServer(settings *config.Settings, dbs func() *database.DBReaderWri
 	}
 }
 
-func createKMS(settings *config.Settings, logger *zerolog.Logger) services.Encrypter {
+func createKMS(settings *config.Settings, logger *zerolog.Logger) shared.Cipher {
 	// Need AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to be set.
 	sess := session.Must(session.NewSession(&aws.Config{
 		Region: aws.String(settings.AWSRegion),
 	}))
 
-	return &services.KMSEncrypter{
+	return &shared.KMSCipher{
 		KeyID:  settings.KMSKeyID,
 		Client: kms.New(sess),
 	}

@@ -13,6 +13,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/segmentio/ksuid"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -634,6 +635,8 @@ func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zero
 		return errors.Wrap(err, "Failed encrypting refresh token")
 	}
 
+	taskID := ksuid.New().String()
+
 	integration := models.UserDeviceAPIIntegration{
 		UserDeviceID:    userDeviceID,
 		IntegrationID:   integ.ID,
@@ -642,6 +645,7 @@ func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zero
 		AccessToken:     null.StringFrom(encAccessToken),
 		AccessExpiresAt: null.TimeFrom(time.Now().Add(time.Duration(reqBody.ExpiresIn) * time.Second)),
 		RefreshToken:    null.StringFrom(encRefreshToken), // Don't know when this expires.
+		TaskID:          null.StringFrom(taskID),
 	}
 
 	if err := integration.Insert(c.Context(), tx, boil.Infer()); err != nil {

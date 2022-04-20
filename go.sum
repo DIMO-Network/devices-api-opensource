@@ -101,8 +101,8 @@ github.com/ClickHouse/clickhouse-go v1.5.1/go.mod h1:EaI/sW7Azgz9UATzd5ZdZHRUhHg
 github.com/ClickHouse/clickhouse-go v1.5.4/go.mod h1:EaI/sW7Azgz9UATzd5ZdZHRUhHgv5+JMS9NSr2smCJI=
 github.com/DATA-DOG/go-sqlmock v1.4.1 h1:ThlnYciV1iM/V0OSF/dtkqWb6xo5qITT1TJBG1MRDJM=
 github.com/DATA-DOG/go-sqlmock v1.4.1/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
-github.com/DIMO-Network/shared v0.1.12 h1:XWM3dKLHTqp3b6Axt9SeUbTEVcZlrAFrRrsl0RLMOzA=
-github.com/DIMO-Network/shared v0.1.12/go.mod h1:0LYDLyOBvY4ADsXqXKIphGNHQ6WJoAtwyMqCs+5VfBg=
+github.com/DIMO-Network/shared v0.1.13 h1:ki12n0Q++sR7dOafdncj/XMbMAJzfFQEZ4UmCky/YKo=
+github.com/DIMO-Network/shared v0.1.13/go.mod h1:XE1y9VzWp/5uQywioG2IUs23dHzKhUZp38px/lxqeuM=
 github.com/DIMO-Network/zflogger v1.0.0-beta h1:SlXZmahk4tZqprjHzp14mbLQFMrOcyJ9jpLJLQk8bhw=
 github.com/DIMO-Network/zflogger v1.0.0-beta/go.mod h1:JZX9lQhjzPs9auqY+oNruiWsvhBufEopRRLWraSi148=
 github.com/DataDog/datadog-go v2.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
@@ -208,8 +208,8 @@ github.com/aws/aws-sdk-go v1.34.28/go.mod h1:H7NKnBqNVzoTJpGfLrQkkD+ytBA93eiDYi/
 github.com/aws/aws-sdk-go v1.37.16/go.mod h1:hcU610XS61/+aQV88ixoOzUoG7v3b31pl2zKMmprdro=
 github.com/aws/aws-sdk-go v1.42.23/go.mod h1:gyRszuZ/icHmHAVE4gc/r+cfCmhA1AD+vqfWbgI+eHs=
 github.com/aws/aws-sdk-go v1.42.31/go.mod h1:OGr6lGMAKGlG9CVrYnWYDKIyb829c6EVBRjxqjmPepc=
-github.com/aws/aws-sdk-go v1.42.50 h1:FA5pbpkLz2fdnMt+AWyHnNaIA269rqr/sYAe3WKCYN4=
-github.com/aws/aws-sdk-go v1.42.50/go.mod h1:OGr6lGMAKGlG9CVrYnWYDKIyb829c6EVBRjxqjmPepc=
+github.com/aws/aws-sdk-go v1.43.42 h1:y2Ay+hJnaybK6qsiV38tS+FnKJhb3F/3L/TZFxjbusM=
+github.com/aws/aws-sdk-go v1.43.42/go.mod h1:y4AeaBuwd2Lk+GepC1E9v0qOiTws0MIWAX4oIKwKHZo=
 github.com/aws/aws-sdk-go-v2 v0.18.0/go.mod h1:JWVYvqSMppoMJC0x5wdwiImzgXTI9FuZwxzkQq9wy+g=
 github.com/aws/aws-sdk-go-v2 v1.7.1/go.mod h1:L5LuPC1ZgDr2xQS7AmIec/Jlc7O/Y1u2KxJyNVab250=
 github.com/aws/aws-sdk-go-v2/config v1.5.0/go.mod h1:RWlPOAW3E3tbtNAqTwvSW54Of/yP3oiZXMI0xfUdjyA=

@@ -35,6 +35,7 @@ type UserDeviceAPIIntegration struct {
 	CreatedAt        time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt        time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 	Metadata         null.JSON   `boil:"metadata" json:"metadata,omitempty" toml:"metadata" yaml:"metadata,omitempty"`
+	TaskID           null.String `boil:"task_id" json:"task_id,omitempty" toml:"task_id" yaml:"task_id,omitempty"`
 
 	R *userDeviceAPIIntegrationR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userDeviceAPIIntegrationL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -52,6 +53,7 @@ var UserDeviceAPIIntegrationColumns = struct {
 	CreatedAt        string
 	UpdatedAt        string
 	Metadata         string
+	TaskID           string
 }{
 	UserDeviceID:     "user_device_id",
 	IntegrationID:    "integration_id",
@@ -64,6 +66,7 @@ var UserDeviceAPIIntegrationColumns = struct {
 	CreatedAt:        "created_at",
 	UpdatedAt:        "updated_at",
 	Metadata:         "metadata",
+	TaskID:           "task_id",
 }
 
 var UserDeviceAPIIntegrationTableColumns = struct {
@@ -78,6 +81,7 @@ var UserDeviceAPIIntegrationTableColumns = struct {
 	CreatedAt        string
 	UpdatedAt        string
 	Metadata         string
+	TaskID           string
 }{
 	UserDeviceID:     "user_device_api_integrations.user_device_id",
 	IntegrationID:    "user_device_api_integrations.integration_id",
@@ -90,6 +94,7 @@ var UserDeviceAPIIntegrationTableColumns = struct {
 	CreatedAt:        "user_device_api_integrations.created_at",
 	UpdatedAt:        "user_device_api_integrations.updated_at",
 	Metadata:         "user_device_api_integrations.metadata",
+	TaskID:           "user_device_api_integrations.task_id",
 }
 
 // Generated where
@@ -130,6 +135,7 @@ var UserDeviceAPIIntegrationWhere = struct {
 	CreatedAt        whereHelpertime_Time
 	UpdatedAt        whereHelpertime_Time
 	Metadata         whereHelpernull_JSON
+	TaskID           whereHelpernull_String
 }{
 	UserDeviceID:     whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"user_device_id\""},
 	IntegrationID:    whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"integration_id\""},
@@ -142,6 +148,7 @@ var UserDeviceAPIIntegrationWhere = struct {
 	CreatedAt:        whereHelpertime_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"created_at\""},
 	UpdatedAt:        whereHelpertime_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"updated_at\""},
 	Metadata:         whereHelpernull_JSON{field: "\"devices_api\".\"user_device_api_integrations\".\"metadata\""},
+	TaskID:           whereHelpernull_String{field: "\"devices_api\".\"user_device_api_integrations\".\"task_id\""},
 }
 
 // UserDeviceAPIIntegrationRels is where relationship names are stored.
@@ -168,9 +175,9 @@ func (*userDeviceAPIIntegrationR) NewStruct() *userDeviceAPIIntegrationR {
 type userDeviceAPIIntegrationL struct{}
 
 var (
-	userDeviceAPIIntegrationAllColumns            = []string{"user_device_id", "integration_id", "status", "access_token", "access_expires_at", "refresh_token", "refresh_expires_at", "external_id", "created_at", "updated_at", "metadata"}
+	userDeviceAPIIntegrationAllColumns            = []string{"user_device_id", "integration_id", "status", "access_token", "access_expires_at", "refresh_token", "refresh_expires_at", "external_id", "created_at", "updated_at", "metadata", "task_id"}
 	userDeviceAPIIntegrationColumnsWithoutDefault = []string{"user_device_id", "integration_id", "status"}
-	userDeviceAPIIntegrationColumnsWithDefault    = []string{"access_token", "access_expires_at", "refresh_token", "refresh_expires_at", "external_id", "created_at", "updated_at", "metadata"}
+	userDeviceAPIIntegrationColumnsWithDefault    = []string{"access_token", "access_expires_at", "refresh_token", "refresh_expires_at", "external_id", "created_at", "updated_at", "metadata", "task_id"}
 	userDeviceAPIIntegrationPrimaryKeyColumns     = []string{"user_device_id", "integration_id"}
 	userDeviceAPIIntegrationGeneratedColumns      = []string{}
 )

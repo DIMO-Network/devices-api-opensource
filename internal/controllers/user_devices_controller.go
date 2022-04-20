@@ -9,6 +9,7 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/gofiber/fiber/v2"
@@ -30,13 +31,13 @@ type UserDevicesController struct {
 	smartcarClient   services.SmartcarClient
 	teslaService     services.TeslaService
 	teslaTaskService services.TeslaTaskService
-	encrypter        services.Encrypter
+	cipher           shared.Cipher
 	autoPiSvc        services.AutoPiAPIService
 	nhtsaService     services.INHTSAService
 }
 
 // NewUserDevicesController constructor
-func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc services.ITaskService, eventService services.EventService, smartcarClient services.SmartcarClient, teslaSvc services.TeslaService, teslaTaskService services.TeslaTaskService, encrypter services.Encrypter, autoPiSvc services.AutoPiAPIService, nhtsaService services.INHTSAService) UserDevicesController {
+func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc services.ITaskService, eventService services.EventService, smartcarClient services.SmartcarClient, teslaSvc services.TeslaService, teslaTaskService services.TeslaTaskService, cipher shared.Cipher, autoPiSvc services.AutoPiAPIService, nhtsaService services.INHTSAService) UserDevicesController {
 	return UserDevicesController{
 		Settings:         settings,
 		DBS:              dbs,
@@ -47,7 +48,7 @@ func NewUserDevicesController(settings *config.Settings, dbs func() *database.DB
 		smartcarClient:   smartcarClient,
 		teslaService:     teslaSvc,
 		teslaTaskService: teslaTaskService,
-		encrypter:        encrypter,
+		cipher:           cipher,
 		autoPiSvc:        autoPiSvc,
 		nhtsaService:     nhtsaService,
 	}
