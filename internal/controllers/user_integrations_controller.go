@@ -491,11 +491,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	subLogger = subLogger.With().
 		Str("autopi deviceID", autoPiDevice.ID).
 		Str("original templateID", strconv.Itoa(autoPiDevice.Template)).Logger()
-	// make sure seen very recently
-	if !autoPiDevice.LastCommunication.UTC().After(time.Now().UTC().Add(time.Second * -100)) {
-		subLogger.Warn().Msgf("tried to pair autopi unit that did not appear to be online. Last communication: %v", autoPiDevice.LastCommunication)
-		return fiber.NewError(fiber.StatusBadRequest, "")
-	}
+
 	// validate necessary conditions:
 	//- integration metadata contains AutoPiDefaultTemplateID
 	im := new(services.IntegrationsMetadata)
