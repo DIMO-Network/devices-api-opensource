@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/services"
@@ -200,7 +201,7 @@ func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
 		return err
 	}
 	// call autopi
-	commandResponse, err := udc.autoPiSvc.CommandRaw(udai.ExternalID.String, req.Command)
+	commandResponse, err := udc.autoPiSvc.CommandRaw(udai.ExternalID.String, req.Command, true)
 	if err != nil {
 		logger.Err(err).Msg("autopi returned error when calling raw command")
 		return errors.Wrapf(err, "autopi returned error when calling raw command: %s", req.Command)
@@ -296,6 +297,70 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 		"template":          unit.Template,
 		"lastCommunication": unit.LastCommunication,
 		"releaseVersion":    unit.Release.Version,
+	})
+}
+
+// GetIsAutoPiOnline godoc
+// @Description gets whether the autopi is online right now, if already paired with a user, makes sure user has access. returns json with {"online": true/false}
+// @Tags 		integrations
+// @Produce     json
+// @Param       unitID        path  string  true  "autopi unit id"
+// @Success     200
+// @Security    BearerAuth
+// @Router 		/autopi/unit/is-online/:unitID [get]
+func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
+	unitID := c.Params("unitID")
+	if len(unitID) == 0 {
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+	userID := getUserID(c)
+	deviceID := ""
+	// check if unitId has already been assigned to a different user - don't allow querying in this case
+	udai, err := models.UserDeviceAPIIntegrations(qm.Where("metadata ->> 'auto_pi_unit_id' = $1", unitID),
+		qm.Load(models.UserDeviceAPIIntegrationRels.UserDevice)).
+		One(c.Context(), udc.DBS().Reader)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	if udai != nil {
+		if udai.R.UserDevice.UserID != userID {
+			return c.SendStatus(fiber.StatusForbidden)
+		}
+		deviceID = udai.ExternalID.String
+	}
+	if len(deviceID) == 0 {
+		unit, err := udc.autoPiSvc.GetDeviceByUnitID(unitID)
+		if err != nil {
+			return err
+		}
+		deviceID = unit.ID
+	}
+	// send command without webhook since we'll just query the jobid
+	commandResponse, err := udc.autoPiSvc.CommandRaw(deviceID, "test.ping", false)
+	if err != nil {
+		return err
+	}
+	// for loop with wait timer of 1 second at begining that calls autopi get job id
+	backoffSchedule := []time.Duration{
+		1 * time.Second,
+		1 * time.Second,
+		1 * time.Second,
+	}
+	online := false
+	for _, backoff := range backoffSchedule {
+		time.Sleep(backoff)
+		body, err := udc.autoPiSvc.GetCommandStatus(deviceID, commandResponse.Jid)
+		// if device is offline, we will get err because it will most likely return 504
+		if err != nil {
+			continue // try again if don't get a response
+		}
+		if strings.Contains(string(body), "true") {
+			online = true
+			break
+		}
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"online": online,
 	})
 }
 

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
@@ -33,7 +34,8 @@ type AutoPiAPIService interface {
 	AssociateDeviceToTemplate(deviceID string, templateID int) error
 	ApplyTemplate(deviceID string, templateID int) error
 	CommandSyncDevice(deviceID string) (*AutoPiCommandResponse, error)
-	CommandRaw(deviceID string, command string) (*AutoPiCommandResponse, error)
+	CommandRaw(deviceID string, command string, withWebhook bool) (*AutoPiCommandResponse, error)
+	GetCommandStatus(deviceID string, jobID string) ([]byte, error)
 }
 
 type autoPiAPIService struct {
@@ -145,16 +147,18 @@ func (a *autoPiAPIService) ApplyTemplate(deviceID string, templateID int) error 
 
 // CommandSyncDevice sends raw command to autopi only if it is online. Invokes syncing the pending changes (eg. template change) on the device.
 func (a *autoPiAPIService) CommandSyncDevice(deviceID string) (*AutoPiCommandResponse, error) {
-	return a.CommandRaw(deviceID, "state.sls pending")
+	return a.CommandRaw(deviceID, "state.sls pending", true)
 }
 
 // CommandRaw sends raw command to autopi only if it is online, pending whitelisted
-func (a *autoPiAPIService) CommandRaw(deviceID string, command string) (*AutoPiCommandResponse, error) {
+func (a *autoPiAPIService) CommandRaw(deviceID string, command string, withWebhook bool) (*AutoPiCommandResponse, error) {
 	// todo: whitelist command
 	webhookURL := fmt.Sprintf("%s/v1%s", a.Settings.DeploymentBaseURL, AutoPiWebhookPath)
 	syncCommand := autoPiCommandRequest{
-		Command:     command,
-		CallbackURL: &webhookURL,
+		Command: command,
+	}
+	if withWebhook {
+		syncCommand.CallbackURL = &webhookURL
 	}
 	j, err := json.Marshal(syncCommand)
 	if err != nil {
@@ -174,6 +178,18 @@ func (a *autoPiAPIService) CommandRaw(deviceID string, command string) (*AutoPiC
 	}
 
 	return d, nil
+}
+
+// GetCommandStatus gets the status of a previously sent command. returns raw body since it can change depending on command
+func (a *autoPiAPIService) GetCommandStatus(deviceID string, jobID string) ([]byte, error) {
+	res, err := a.httpClient.ExecuteRequest(fmt.Sprintf("/dongle/devices/%s/command_result/%s/", deviceID, jobID), "GET", nil)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error calling autopi api to get command status for deviceId %s", deviceID)
+	}
+	defer res.Body.Close() // nolint
+	body, _ := io.ReadAll(res.Body)
+
+	return body, nil
 }
 
 func GetOrCreateAutoPiIntegration(ctx context.Context, exec boil.ContextExecutor) (*models.Integration, error) {

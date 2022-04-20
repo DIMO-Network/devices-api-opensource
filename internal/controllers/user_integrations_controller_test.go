@@ -434,7 +434,7 @@ func TestUserIntegrationsController(t *testing.T) {
 		const jobID = "123"
 		// mock expectations
 		const cmd = "raw test"
-		autopiAPISvc.EXPECT().CommandRaw(deviceID, cmd).Return(&services.AutoPiCommandResponse{
+		autopiAPISvc.EXPECT().CommandRaw(deviceID, cmd, true).Return(&services.AutoPiCommandResponse{
 			Jid:     jobID,
 			Minions: nil,
 		}, nil)
