@@ -343,8 +343,6 @@ func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 	// for loop with wait timer of 1 second at begining that calls autopi get job id
 	backoffSchedule := []time.Duration{
 		1 * time.Second,
-		1 * time.Second,
-		1 * time.Second,
 	}
 	online := false
 	for _, backoff := range backoffSchedule {
