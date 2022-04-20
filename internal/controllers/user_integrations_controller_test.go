@@ -49,7 +49,7 @@ func TestUserIntegrationsController(t *testing.T) {
 	app.Get("/autopi/unit/:unitID", test.AuthInjectorTestHandler(testUserID), c.GetAutoPiUnitInfo)
 
 	t.Run("GET - integrations from db", func(t *testing.T) {
-		autoPiInteg := test.SetupCreateAutoPiIntegration(t, 34, pdb)
+		autoPiInteg := test.SetupCreateAutoPiIntegration(t, 34, nil, pdb)
 		scInteg := test.SetupCreateSmartCarIntegration(t, pdb)
 
 		request := test.BuildRequest("GET", "/integrations", "")
@@ -71,7 +71,7 @@ func TestUserIntegrationsController(t *testing.T) {
 		integration := test.SetupCreateSmartCarIntegration(t, pdb)
 		dm := test.SetupCreateMake(t, "Ford", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Mach E", 2022, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 		test.SetupCreateDeviceIntegration(t, dd, integration, pdb)
 
 		req := `{
@@ -93,7 +93,7 @@ func TestUserIntegrationsController(t *testing.T) {
 		integration := test.SetupCreateSmartCarIntegration(t, pdb)
 		dm := test.SetupCreateMake(t, "Ford", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Mach E", 2022, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 		test.SetupCreateDeviceIntegration(t, dd, integration, pdb)
 		req := `{
 			"code": "qxy",
@@ -138,7 +138,7 @@ func TestUserIntegrationsController(t *testing.T) {
 	t.Run("POST - register Tesla integration", func(t *testing.T) {
 		dm := test.SetupCreateMake(t, "Tesla", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Model Y", 2022, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 		teslaInt := models.Integration{
 			ID:     ksuid.New().String(),
 			Type:   models.IntegrationTypeAPI,
@@ -209,7 +209,7 @@ func TestUserIntegrationsController(t *testing.T) {
 
 		dd2 := test.SetupCreateDeviceDefinition(t, dm, "Roadster", 2010, pdb)
 
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 		ud.R = ud.R.NewStruct()
 		ud.R.DeviceDefinition = dd
 
@@ -247,10 +247,10 @@ func TestUserIntegrationsController(t *testing.T) {
 	})
 
 	t.Run("POST - AutoPi integration success", func(t *testing.T) {
-		integration := test.SetupCreateAutoPiIntegration(t, 34, pdb)
+		integration := test.SetupCreateAutoPiIntegration(t, 34, nil, pdb)
 		dm := test.SetupCreateMake(t, "Testla", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 		const jobID = "123"
 		const deviceID = "device123"
 		const unitID = "qxyautopi"
@@ -300,11 +300,67 @@ func TestUserIntegrationsController(t *testing.T) {
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
 	})
 
-	t.Run("POST - AutoPi integration blocked same user - integration exists", func(t *testing.T) {
-		integration := test.SetupCreateAutoPiIntegration(t, 34, pdb)
+	t.Run("POST - AutoPi integration success - custom Powertrain template", func(t *testing.T) {
+		evTemplateID := 12
+		powertrain := "BEV"
+		integration := test.SetupCreateAutoPiIntegration(t, 34, &evTemplateID, pdb)
 		dm := test.SetupCreateMake(t, "Testla", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, &powertrain, pdb)
+		const jobID = "123"
+		const deviceID = "device123"
+		const unitID = "qxyautopi"
+		const vehicleID = 123
+
+		req := fmt.Sprintf(`{
+			"externalId": "%s"
+		}`, unitID)
+		// setup all autoPi mock expected calls.
+		autopiAPISvc.EXPECT().GetDeviceByUnitID(unitID).Times(1).Return(&services.AutoPiDongleDevice{
+			ID:       deviceID, // device id
+			UnitID:   unitID,
+			Vehicle:  services.AutoPiDongleVehicle{ID: vehicleID}, // vehicle profile id
+			IMEI:     "IMEI321",
+			Template: 1,
+		}, nil)
+		autopiAPISvc.EXPECT().PatchVehicleProfile(vehicleID, gomock.Any()).Times(1).Return(nil)
+		autopiAPISvc.EXPECT().UnassociateDeviceTemplate(deviceID, 1).Times(1).Return(nil)
+		autopiAPISvc.EXPECT().AssociateDeviceToTemplate(deviceID, evTemplateID).Times(1).Return(nil)
+		autopiAPISvc.EXPECT().ApplyTemplate(deviceID, evTemplateID).Times(1).Return(nil)
+		autopiAPISvc.EXPECT().CommandSyncDevice(deviceID).Times(1).Return(&services.AutoPiCommandResponse{
+			Jid: jobID,
+		}, nil)
+
+		request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.ID, req)
+		response, _ := app.Test(request)
+		if assert.Equal(t, fiber.StatusNoContent, response.StatusCode, "should return success") == false {
+			body, _ := ioutil.ReadAll(response.Body)
+			fmt.Println("unexpected response: " + string(body) + "\n")
+			fmt.Println("body sent to post: " + req)
+		}
+
+		apiInt, err := models.FindUserDeviceAPIIntegration(ctx, pdb.DBS().Writer, ud.ID, integration.ID)
+		assert.NoError(t, err)
+		fmt.Printf("found user device api int: %+v", *apiInt)
+
+		metadata := new(services.UserDeviceAPIIntegrationsMetadata)
+		err = apiInt.Metadata.Unmarshal(metadata)
+		assert.NoError(t, err)
+
+		assert.Equal(t, jobID, metadata.AutoPiCommandJobs[0].CommandJobID)
+		assert.Equal(t, "sent", metadata.AutoPiCommandJobs[0].CommandState)
+		assert.Equal(t, "state.sls pending", metadata.AutoPiCommandJobs[0].CommandRaw)
+		assert.Equal(t, deviceID, apiInt.ExternalID.String)
+		assert.Equal(t, "PendingFirstData", apiInt.Status)
+		//teardown
+		test.TruncateTables(pdb.DBS().Writer.DB, t)
+	})
+
+	t.Run("POST - AutoPi integration blocked same user - integration exists", func(t *testing.T) {
+		integration := test.SetupCreateAutoPiIntegration(t, 34, nil, pdb)
+		dm := test.SetupCreateMake(t, "Testla", pdb)
+		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 		const deviceID = "device123"
 		const unitID = "qxyautopi"
 		test.SetupCreateUserDeviceAPIIntegration(t, unitID, deviceID, ud.ID, integration.ID, pdb)
@@ -325,14 +381,14 @@ func TestUserIntegrationsController(t *testing.T) {
 	})
 
 	t.Run("POST - AutoPi integration blocked different user - unitId exists", func(t *testing.T) {
-		integration := test.SetupCreateAutoPiIntegration(t, 34, pdb)
+		integration := test.SetupCreateAutoPiIntegration(t, 34, nil, pdb)
 		dm := test.SetupCreateMake(t, "Testla", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 		const deviceID = "device123"
 		const unitID = "qxyautopi"
 		test.SetupCreateUserDeviceAPIIntegration(t, unitID, deviceID, ud.ID, integration.ID, pdb)
-		ud2 := test.SetupCreateUserDevice(t, testUser2, dd, pdb)
+		ud2 := test.SetupCreateUserDevice(t, testUser2, dd, nil, pdb)
 
 		req := fmt.Sprintf(`{
 			"externalId": "%s"
@@ -351,10 +407,10 @@ func TestUserIntegrationsController(t *testing.T) {
 
 	t.Run("POST - AutoPi send command", func(t *testing.T) {
 		//arrange
-		integ := test.SetupCreateAutoPiIntegration(t, 34, pdb)
+		integ := test.SetupCreateAutoPiIntegration(t, 34, nil, pdb)
 		dm := test.SetupCreateMake(t, "Testla", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 		test.SetupCreateDeviceIntegration(t, dd, integ, pdb)
 		const deviceID = "device123"
 		udapiInt := test.SetupCreateUserDeviceAPIIntegration(t, "", deviceID, ud.ID, integ.ID, pdb)
@@ -409,10 +465,10 @@ func TestUserIntegrationsController(t *testing.T) {
 
 	t.Run("GET - query autopi command previously sent", func(t *testing.T) {
 		//arrange
-		integ := test.SetupCreateAutoPiIntegration(t, 34, pdb)
+		integ := test.SetupCreateAutoPiIntegration(t, 34, nil, pdb)
 		dm := test.SetupCreateMake(t, "Testla", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 		test.SetupCreateDeviceIntegration(t, dd, integ, pdb)
 		const deviceID = "device123"
 		const jobID = "somepreviousjobId"
@@ -448,10 +504,10 @@ func TestUserIntegrationsController(t *testing.T) {
 
 	t.Run("GET - query autopi no commands 400", func(t *testing.T) {
 		//arrange
-		integ := test.SetupCreateAutoPiIntegration(t, 34, pdb)
+		integ := test.SetupCreateAutoPiIntegration(t, 34, nil, pdb)
 		dm := test.SetupCreateMake(t, "Testla", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 		test.SetupCreateDeviceIntegration(t, dd, integ, pdb)
 		const jobID = "somepreviousjobId"
 		const deviceID = "device123"
@@ -498,10 +554,10 @@ func TestUserIntegrationsController(t *testing.T) {
 
 	t.Run("GET - autopi info - existing udai no match user", func(t *testing.T) {
 		// arrange
-		integ := test.SetupCreateAutoPiIntegration(t, 34, pdb)
+		integ := test.SetupCreateAutoPiIntegration(t, 34, nil, pdb)
 		dm := test.SetupCreateMake(t, "Testla", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
-		ud := test.SetupCreateUserDevice(t, "some-other-user", dd, pdb)
+		ud := test.SetupCreateUserDevice(t, "some-other-user", dd, nil, pdb)
 		test.SetupCreateDeviceIntegration(t, dd, integ, pdb)
 		autoPiUnit := "apunitId123"
 		test.SetupCreateUserDeviceAPIIntegration(t, autoPiUnit, "321", ud.ID, integ.ID, pdb)
@@ -530,7 +586,7 @@ func Test_createDeviceIntegrationIfAutoPi(t *testing.T) {
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
 	})
 	t.Run("createDeviceIntegrationIfAutoPi with existing autopi integration returns new device_integration, and .R.Integration", func(t *testing.T) {
-		autoPiInteg := test.SetupCreateAutoPiIntegration(t, 34, pdb)
+		autoPiInteg := test.SetupCreateAutoPiIntegration(t, 34, nil, pdb)
 		dm := test.SetupCreateMake(t, "Testla", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
 		// act

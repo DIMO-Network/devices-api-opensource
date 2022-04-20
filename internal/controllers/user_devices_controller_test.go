@@ -225,7 +225,7 @@ func TestUserDevicesController(t *testing.T) {
 		// arrange db, insert some user_devices
 		dm := test.SetupCreateMake(t, "Ford", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Mach E", 2022, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 
 		request := test.BuildRequest("GET", "/user/devices/me", "")
 		response, _ := app.Test(request)
@@ -245,7 +245,7 @@ func TestUserDevicesController(t *testing.T) {
 	t.Run("PATCH - update VIN", func(t *testing.T) {
 		dm := test.SetupCreateMake(t, "Ford", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Mach E", 2022, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 
 		evID := "4"
 		nhtsaService.EXPECT().DecodeVIN("5YJYGDEE5MF085533").Return(&services.NHTSADecodeVINResponse{
@@ -275,7 +275,7 @@ func TestUserDevicesController(t *testing.T) {
 	t.Run("PATCH - update Name", func(t *testing.T) {
 		dm := test.SetupCreateMake(t, "Ford", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Mach E", 2022, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 
 		payload := `{ "name": "Queens Charriot" }`
 		request := test.BuildRequest("PATCH", "/user/devices/"+ud.ID+"/name", payload)
@@ -290,7 +290,7 @@ func TestUserDevicesController(t *testing.T) {
 	t.Run("POST - refresh smartcar data", func(t *testing.T) {
 		dm := test.SetupCreateMake(t, "Ford", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Mach E", 2022, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 		// arrange some additional data for this to work
 		smartCarInt := test.SetupCreateSmartCarIntegration(t, pdb)
 		udiai := models.UserDeviceAPIIntegration{
@@ -321,7 +321,7 @@ func TestUserDevicesController(t *testing.T) {
 		integration := test.SetupCreateSmartCarIntegration(t, pdb)
 		dm := test.SetupCreateMake(t, "Ford", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Mach E", 2022, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 		test.SetupCreateDeviceIntegration(t, dd, integration, pdb)
 
 		udiai := models.UserDeviceAPIIntegration{

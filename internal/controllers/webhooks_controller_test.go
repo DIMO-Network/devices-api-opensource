@@ -56,8 +56,8 @@ func TestWebhooksController_ProcessCommand(t *testing.T) {
 		autoPiJobID := "AD111"
 		dm := test.SetupCreateMake(t, "Testla", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Model X", 2022, pdb)
-		integ := test.SetupCreateAutoPiIntegration(t, autoPiTemplateID, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		integ := test.SetupCreateAutoPiIntegration(t, autoPiTemplateID, nil, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 		test.SetupCreateDeviceIntegration(t, dd, integ, pdb)
 		// create user device api integration
 		udMetadata := new(services.UserDeviceAPIIntegrationsMetadata)
@@ -115,8 +115,8 @@ func TestWebhooksController_ProcessCommand(t *testing.T) {
 		autoPiJobID := "AD111"
 		dm := test.SetupCreateMake(t, "Testla", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Model X", 2022, pdb)
-		integ := test.SetupCreateAutoPiIntegration(t, autoPiTemplateID, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+		integ := test.SetupCreateAutoPiIntegration(t, autoPiTemplateID, nil, pdb)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 		test.SetupCreateDeviceIntegration(t, dd, integ, pdb)
 		// create user device api integration
 		udMetadata := new(services.UserDeviceAPIIntegrationsMetadata)

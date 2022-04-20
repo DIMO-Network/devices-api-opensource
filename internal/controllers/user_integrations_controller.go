@@ -423,7 +423,9 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		subLogger.Err(err).Msgf("failed to call autopi api to get autoPiDevice by unit id %s", reqBody.ExternalID)
 		return err
 	}
-	subLogger = subLogger.With().Str("autopi deviceID", autoPiDevice.ID).Str("original templateID", strconv.Itoa(autoPiDevice.Template)).Logger()
+	subLogger = subLogger.With().
+		Str("autopi deviceID", autoPiDevice.ID).
+		Str("original templateID", strconv.Itoa(autoPiDevice.Template)).Logger()
 	// validate necessary conditions:
 	//- integration metadata contains AutoPiDefaultTemplateID
 	im := new(services.IntegrationsMetadata)
@@ -435,6 +437,22 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	if im.AutoPiDefaultTemplateID == 0 {
 		return errors.Wrapf(err, "integration id %s does not have autopi default template id", integration.ID)
 	}
+	templateID := im.AutoPiDefaultTemplateID
+	// determine templateID to apply
+	if len(im.AutoPiPowertrainToTemplateID) > 0 {
+		udMd := new(services.UserDeviceMetadata)
+		err = ud.Metadata.Unmarshal(udMd)
+		if err != nil {
+			subLogger.Err(err).Msgf("failed to unmarshall user_device metadata id %s", ud.ID)
+			return err
+		}
+		if udMd.PowertrainType != nil {
+			if id, ok := im.AutoPiPowertrainToTemplateID[*udMd.PowertrainType]; ok {
+				templateID = id
+			}
+		}
+	}
+	subLogger = subLogger.With().Str("templateID to apply", strconv.Itoa(templateID)).Logger()
 
 	// creat the api int record, start filling it in
 	udMetadata := services.UserDeviceAPIIntegrationsMetadata{
@@ -491,18 +509,17 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 			return errors.Wrapf(err, "failed to unassociate template %d", autoPiDevice.Template)
 		}
 	}
-	subLogger = subLogger.With().Str("new templateID", strconv.Itoa(im.AutoPiDefaultTemplateID)).Logger()
 	// set our template on the autoPiDevice
-	err = udc.autoPiSvc.AssociateDeviceToTemplate(autoPiDevice.ID, im.AutoPiDefaultTemplateID)
+	err = udc.autoPiSvc.AssociateDeviceToTemplate(autoPiDevice.ID, templateID)
 	if err != nil {
 		subLogger.Err(err).Send()
-		return errors.Wrapf(err, "failed to associate autoPiDevice %s to template %d", autoPiDevice.ID, im.AutoPiDefaultTemplateID)
+		return errors.Wrapf(err, "failed to associate autoPiDevice %s to template %d", autoPiDevice.ID, templateID)
 	}
 	// apply for next reboot
-	err = udc.autoPiSvc.ApplyTemplate(autoPiDevice.ID, im.AutoPiDefaultTemplateID)
+	err = udc.autoPiSvc.ApplyTemplate(autoPiDevice.ID, templateID)
 	if err != nil {
 		subLogger.Err(err).Send()
-		return errors.Wrapf(err, "failed to apply autoPiDevice %s with template %d", autoPiDevice.ID, im.AutoPiDefaultTemplateID)
+		return errors.Wrapf(err, "failed to apply autoPiDevice %s with template %d", autoPiDevice.ID, templateID)
 	}
 	// send sync command in case autoPiDevice is on at this moment (should be during initial setup)
 	commandResp, err := udc.autoPiSvc.CommandSyncDevice(autoPiDevice.ID)

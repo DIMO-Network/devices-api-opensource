@@ -110,7 +110,8 @@ func (p *PowertrainType) UnmarshalJSON(b []byte) error {
 
 // IntegrationsMetadata represents json stored in integrations table metadata jsonb column
 type IntegrationsMetadata struct {
-	AutoPiDefaultTemplateID int `json:"auto_pi_default_template_id"`
+	AutoPiDefaultTemplateID      int                    `json:"autoPiDefaultTemplateId"`
+	AutoPiPowertrainToTemplateID map[PowertrainType]int `json:"autoPiPowertrainToTemplateId,omitempty"`
 }
 
 // UserDeviceAPIIntegrationsMetadata represents json stored in user_device_api_integrations table metadata jsonb column

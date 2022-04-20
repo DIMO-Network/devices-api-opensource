@@ -162,12 +162,15 @@ func Logger() *zerolog.Logger {
 	return &l
 }
 
-func SetupCreateUserDevice(t *testing.T, testUserID string, dd *models.DeviceDefinition, pdb database.DbStore) models.UserDevice {
+func SetupCreateUserDevice(t *testing.T, testUserID string, dd *models.DeviceDefinition, powertrain *string, pdb database.DbStore) models.UserDevice {
 	ud := models.UserDevice{
 		ID:                 ksuid.New().String(),
 		UserID:             testUserID,
 		DeviceDefinitionID: dd.ID,
 		CountryCode:        null.StringFrom("USA"),
+	}
+	if powertrain != nil {
+		ud.Metadata = null.JSONFrom([]byte(fmt.Sprintf(`{"powertrainType": "%s"}`, *powertrain)))
 	}
 	err := ud.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
 	assert.NoError(t, err)
@@ -219,13 +222,17 @@ func SetupCreateSmartCarIntegration(t *testing.T, pdb database.DbStore) models.I
 	return integration
 }
 
-func SetupCreateAutoPiIntegration(t *testing.T, templateID int, pdb database.DbStore) models.Integration {
+func SetupCreateAutoPiIntegration(t *testing.T, templateID int, evTemplateID *int, pdb database.DbStore) models.Integration {
 	integration := models.Integration{
 		ID:       ksuid.New().String(),
 		Vendor:   "AutoPi",
 		Type:     "API",
 		Style:    models.IntegrationStyleAddon,
-		Metadata: null.JSONFrom([]byte(fmt.Sprintf(`{"auto_pi_default_template_id": %d }`, templateID))),
+		Metadata: null.JSONFrom([]byte(fmt.Sprintf(`{"autoPiDefaultTemplateId": %d }`, templateID))),
+	}
+	if evTemplateID != nil {
+		integration.Metadata = null.JSONFrom([]byte(fmt.Sprintf(`{"autoPiDefaultTemplateId": %d,
+			"autoPiPowertrainToTemplateId":{"BEV": %d}}`, templateID, *evTemplateID)))
 	}
 	err := integration.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
 	assert.NoError(t, err, "database error")

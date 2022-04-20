@@ -24,13 +24,13 @@ func TestFindUserDeviceAutoPiIntegration(t *testing.T) {
 	const testUserID = "123123"
 	const autoPiDeviceID = "321"
 	autoPiUnitID := "456"
-	apInt := test.SetupCreateAutoPiIntegration(t, 10, pdb)
+	apInt := test.SetupCreateAutoPiIntegration(t, 10, nil, pdb)
 	scInt := test.SetupCreateSmartCarIntegration(t, pdb)
 	dm := test.SetupCreateMake(t, "Tesla", pdb)
 	dd := test.SetupCreateDeviceDefinition(t, dm, "Model 3", 2020, pdb)
 	test.SetupCreateDeviceIntegration(t, dd, apInt, pdb)
 	test.SetupCreateDeviceIntegration(t, dd, scInt, pdb)
-	ud := test.SetupCreateUserDevice(t, testUserID, dd, pdb)
+	ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 	// now create the api ints
 	scUdai := &models.UserDeviceAPIIntegration{
 		UserDeviceID:  ud.ID,
