@@ -625,12 +625,12 @@ func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zero
 		return errors.Wrap(err, "Failed to fix up device definition")
 	}
 
-	encAccessToken, err := udc.encrypter.Encrypt(reqBody.AccessToken)
+	encAccessToken, err := udc.cipher.Encrypt(reqBody.AccessToken)
 	if err != nil {
 		return errors.Wrap(err, "Failed encrypting access token")
 	}
 
-	encRefreshToken, err := udc.encrypter.Encrypt(reqBody.RefreshToken)
+	encRefreshToken, err := udc.cipher.Encrypt(reqBody.RefreshToken)
 	if err != nil {
 		return errors.Wrap(err, "Failed encrypting refresh token")
 	}

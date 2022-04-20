@@ -38,6 +38,10 @@ func (e *fakeEncrypter) Encrypt(s string) (string, error) {
 	return "SECRETLOL" + s, nil
 }
 
+func (e *fakeEncrypter) Decrypt(s string) (string, error) {
+	return s, nil
+}
+
 func TestUserDevicesController(t *testing.T) {
 	// arrange global db and route setup
 	mockCtrl := gomock.NewController(t)
