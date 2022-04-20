@@ -261,11 +261,12 @@ func TestUserIntegrationsController(t *testing.T) {
 		}`, unitID)
 		// setup all autoPi mock expected calls.
 		autopiAPISvc.EXPECT().GetDeviceByUnitID(unitID).Times(1).Return(&services.AutoPiDongleDevice{
-			ID:       deviceID, // device id
-			UnitID:   unitID,
-			Vehicle:  services.AutoPiDongleVehicle{ID: vehicleID}, // vehicle profile id
-			IMEI:     "IMEI321",
-			Template: 1,
+			ID:                deviceID, // device id
+			UnitID:            unitID,
+			Vehicle:           services.AutoPiDongleVehicle{ID: vehicleID}, // vehicle profile id
+			IMEI:              "IMEI321",
+			Template:          1,
+			LastCommunication: time.Now().Add(time.Second * -15).UTC(),
 		}, nil)
 		autopiAPISvc.EXPECT().PatchVehicleProfile(vehicleID, gomock.Any()).Times(1).Return(nil)
 		autopiAPISvc.EXPECT().UnassociateDeviceTemplate(deviceID, 1).Times(1).Return(nil)
@@ -317,11 +318,12 @@ func TestUserIntegrationsController(t *testing.T) {
 		}`, unitID)
 		// setup all autoPi mock expected calls.
 		autopiAPISvc.EXPECT().GetDeviceByUnitID(unitID).Times(1).Return(&services.AutoPiDongleDevice{
-			ID:       deviceID, // device id
-			UnitID:   unitID,
-			Vehicle:  services.AutoPiDongleVehicle{ID: vehicleID}, // vehicle profile id
-			IMEI:     "IMEI321",
-			Template: 1,
+			ID:                deviceID, // device id
+			UnitID:            unitID,
+			Vehicle:           services.AutoPiDongleVehicle{ID: vehicleID}, // vehicle profile id
+			IMEI:              "IMEI321",
+			Template:          1,
+			LastCommunication: time.Now().UTC().Add(time.Second * -20),
 		}, nil)
 		autopiAPISvc.EXPECT().PatchVehicleProfile(vehicleID, gomock.Any()).Times(1).Return(nil)
 		autopiAPISvc.EXPECT().UnassociateDeviceTemplate(deviceID, 1).Times(1).Return(nil)
