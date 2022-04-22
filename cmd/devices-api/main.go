@@ -188,6 +188,21 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error migrating tasks.")
 		}
+	case "restart-tesla-tasks":
+		logger.Info().Msg("Restarting Tesla tasks.")
+		teslaTaskService := services.NewTeslaTaskService(&settings, producer)
+		teslaSvc := services.NewTeslaService(&settings)
+		var cipher shared.Cipher
+		if settings.Environment == "dev" || settings.Environment == "prod" {
+			cipher = createKMS(&settings, &logger)
+		} else {
+			logger.Warn().Msg("Using ROT13 encrypter. Only use this for testing!")
+			cipher = new(shared.ROT13Cipher)
+		}
+		err := restartTeslaTasks(ctx, &logger, &settings, pdb, teslaSvc, teslaTaskService, cipher)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error restarting tasks.")
+		}
 	default:
 		startPrometheus(logger)
 		eventService := services.NewEventService(&logger, &settings, producer)
