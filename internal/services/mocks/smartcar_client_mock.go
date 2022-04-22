@@ -49,3 +49,48 @@ func (mr *MockSmartcarClientMockRecorder) ExchangeCode(ctx, code, redirectURI in
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExchangeCode", reflect.TypeOf((*MockSmartcarClient)(nil).ExchangeCode), ctx, code, redirectURI)
 }
+
+// GetEndpoints mocks base method.
+func (m *MockSmartcarClient) GetEndpoints(ctx context.Context, accessToken, id string) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetEndpoints", ctx, accessToken, id)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetEndpoints indicates an expected call of GetEndpoints.
+func (mr *MockSmartcarClientMockRecorder) GetEndpoints(ctx, accessToken, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEndpoints", reflect.TypeOf((*MockSmartcarClient)(nil).GetEndpoints), ctx, accessToken, id)
+}
+
+// GetExternalId mocks base method.
+func (m *MockSmartcarClient) GetExternalId(ctx context.Context, accessToken string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetExternalId", ctx, accessToken)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetExternalId indicates an expected call of GetExternalId.
+func (mr *MockSmartcarClientMockRecorder) GetExternalId(ctx, accessToken interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetExternalId", reflect.TypeOf((*MockSmartcarClient)(nil).GetExternalId), ctx, accessToken)
+}
+
+// GetVIN mocks base method.
+func (m *MockSmartcarClient) GetVIN(ctx context.Context, accessToken, id string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetVIN", ctx, accessToken, id)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetVIN indicates an expected call of GetVIN.
+func (mr *MockSmartcarClientMockRecorder) GetVIN(ctx, accessToken, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVIN", reflect.TypeOf((*MockSmartcarClient)(nil).GetVIN), ctx, accessToken, id)
+}

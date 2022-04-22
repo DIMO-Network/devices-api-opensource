@@ -339,9 +339,16 @@ func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
 					return fiber.NewError(fiber.StatusTooManyRequests, "rate limit for integration refresh hit")
 				}
 			}
-			err = udc.taskSvc.StartSmartcarRefresh(udi, devInteg.R.Integration.ID)
-			if err != nil {
-				return err
+			if devInteg.TaskID.Valid {
+				err = udc.smartcarTaskSvc.Refresh(devInteg)
+				if err != nil {
+					return err
+				}
+			} else {
+				err = udc.taskSvc.StartSmartcarRefresh(udi, devInteg.R.Integration.ID)
+				if err != nil {
+					return err
+				}
 			}
 			return c.SendStatus(204)
 		}

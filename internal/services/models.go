@@ -120,6 +120,7 @@ type UserDeviceAPIIntegrationsMetadata struct {
 	AutoPiIMEI        *string                       `json:"imei,omitempty"`
 	AutoPiCommandJobs []UserDeviceAPIIntegrationJob `json:"auto_pi_command_jobs"`
 	EnableTeslaLock   bool                          `json:"enableTeslaLock,omitempty"`
+	SmartcarEndpoints []string                      `json:"smartcarEndpoints,omitempty"`
 }
 
 type UserDeviceMetadata struct {

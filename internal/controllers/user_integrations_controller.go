@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -99,9 +100,13 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 
 	if apiIntegration.R.Integration.Vendor == services.SmartCarVendor {
 		if apiIntegration.ExternalID.Valid {
-			err = udc.taskSvc.StartSmartcarDeregistrationTasks(userDeviceID, integrationID, apiIntegration.ExternalID.String, apiIntegration.AccessToken.String)
-			if err != nil {
-				return err
+			if apiIntegration.TaskID.Valid {
+				udc.smartcarTaskSvc.StopPoll(apiIntegration)
+			} else {
+				err = udc.taskSvc.StartSmartcarDeregistrationTasks(userDeviceID, integrationID, apiIntegration.ExternalID.String, apiIntegration.AccessToken.String)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	} else if apiIntegration.R.Integration.Vendor == "Tesla" {
@@ -379,7 +384,7 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 		Str("userId", userID).
 		Str("userDeviceId", userDeviceID).
 		Str("integrationId", integrationID).
-		Str("handler", "RegisterIntegration").
+		Str("route", c.Route().Path).
 		Logger()
 	logger.Info().Msg("Attempting to register device integration")
 
@@ -447,7 +452,7 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 	// transaction.
 	switch deviceInteg.R.Integration.Vendor {
 	case services.SmartCarVendor:
-		return udc.registerSmartcarIntegration(c, &logger, tx, userDeviceID, integrationID)
+		return udc.registerSmartcarIntegration(c, &logger, tx, deviceInteg.R.Integration, ud)
 	case "Tesla":
 		return udc.registerDeviceTesla(c, &logger, tx, userDeviceID, deviceInteg.R.Integration, ud)
 	case services.AutoPiVendor:
@@ -623,7 +628,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, userDeviceID, integrationID string) error {
+func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, integ *models.Integration, ud *models.UserDevice) error {
 	reqBody := new(RegisterDeviceIntegrationRequest)
 	if err := c.BodyParser(reqBody); err != nil {
 		return errorResponseHandler(c, err, fiber.StatusBadRequest)
@@ -635,16 +640,44 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("failure exchanging code with Smartcar: %s", err))
 	}
 
-	// TODO: Encrypt the tokens. Note that you need the client id, client secret, and redirect
-	// URL to make use of the tokens, but plain text is still a bad idea.
-	integration := models.UserDeviceAPIIntegration{
-		UserDeviceID:     userDeviceID,
-		IntegrationID:    integrationID,
-		Status:           models.UserDeviceAPIIntegrationStatusPending,
-		AccessToken:      null.StringFrom(token.Access),
+	externalID, err := udc.smartcarClient.GetExternalId(c.Context(), token.Access)
+	if err != nil {
+		return err
+	}
+
+	vin, err := udc.smartcarClient.GetVIN(c.Context(), token.Access, externalID)
+	perms, err := udc.smartcarClient.GetEndpoints(c.Context(), token.Access, externalID)
+
+	meta := services.UserDeviceAPIIntegrationsMetadata{SmartcarEndpoints: perms}
+
+	b, err := json.Marshal(meta)
+	if err != nil {
+		return err
+	}
+
+	encAccess, err := udc.cipher.Encrypt(token.Access)
+	if err != nil {
+		return opaqueInternalError
+	}
+
+	encRefresh, err := udc.cipher.Encrypt(token.Refresh)
+	if err != nil {
+		return opaqueInternalError
+	}
+
+	taskID := ksuid.New().String()
+
+	integration := &models.UserDeviceAPIIntegration{
+		TaskID:           null.StringFrom(taskID),
+		ExternalID:       null.StringFrom(externalID),
+		UserDeviceID:     ud.ID,
+		IntegrationID:    integ.ID,
+		Status:           models.UserDeviceAPIIntegrationStatusPendingFirstData,
+		AccessToken:      null.StringFrom(encAccess),
 		AccessExpiresAt:  null.TimeFrom(token.AccessExpiry),
-		RefreshToken:     null.StringFrom(token.Refresh),
+		RefreshToken:     null.StringFrom(encRefresh),
 		RefreshExpiresAt: null.TimeFrom(token.RefreshExpiry),
+		Metadata:         null.JSONFrom(b),
 	}
 
 	if err := integration.Insert(c.Context(), tx, boil.Infer()); err != nil {
@@ -657,9 +690,34 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("failed to commit new integration: %s", err))
 	}
 
-	if err := udc.taskSvc.StartSmartcarRegistrationTasks(userDeviceID, integrationID); err != nil {
-		logger.Err(err).Msg("Unexpected error starting Smartcar Machinery tasks")
+	if err := udc.smartcarTaskSvc.StartPoll(integration); err != nil {
 		return err
+	}
+
+	err = udc.eventService.Emit(&services.Event{
+		Type:    "com.dimo.zone.device.integration.create",
+		Source:  "devices-api",
+		Subject: ud.ID,
+		Data: services.UserDeviceIntegrationEvent{
+			Timestamp: time.Now(),
+			UserID:    ud.UserID,
+			Device: services.UserDeviceEventDevice{
+				ID:    ud.ID,
+				Make:  ud.R.DeviceDefinition.R.DeviceMake.Name,
+				Model: ud.R.DeviceDefinition.Model,
+				Year:  int(ud.R.DeviceDefinition.Year),
+				VIN:   vin,
+			},
+			Integration: services.UserDeviceEventIntegration{
+				ID:     integ.ID,
+				Type:   integ.Type,
+				Style:  integ.Style,
+				Vendor: integ.Vendor,
+			},
+		},
+	})
+	if err != nil {
+		logger.Err(err).Msg("Failed sending device integration creation event")
 	}
 
 	logger.Info().Msg("Finished Smartcar device registration")
@@ -708,12 +766,12 @@ func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zero
 
 	encAccessToken, err := udc.cipher.Encrypt(reqBody.AccessToken)
 	if err != nil {
-		return errors.Wrap(err, "Failed encrypting access token")
+		return opaqueInternalError
 	}
 
 	encRefreshToken, err := udc.cipher.Encrypt(reqBody.RefreshToken)
 	if err != nil {
-		return errors.Wrap(err, "Failed encrypting refresh token")
+		return opaqueInternalError
 	}
 
 	taskID := ksuid.New().String()

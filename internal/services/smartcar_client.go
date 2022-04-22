@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/pkg/errors"
 	smartcar "github.com/smartcar/go-sdk"
 )
 
@@ -11,6 +12,9 @@ import (
 
 type SmartcarClient interface {
 	ExchangeCode(ctx context.Context, code, redirectURI string) (*smartcar.Token, error)
+	GetExternalId(ctx context.Context, accessToken string) (string, error)
+	GetEndpoints(ctx context.Context, accessToken string, id string) ([]string, error)
+	GetVIN(ctx context.Context, accessToken string, id string) (string, error)
 }
 
 type smartcarClient struct {
@@ -38,6 +42,18 @@ var smartcarScopes = []string{
 	"read_vin",
 }
 
+var scopeToEndpoints = map[string][]string{
+	"read_engine_oil":   {"/engine/oil"},
+	"read_battery":      {"/battery/capacity", "/battery"},
+	"read_charge":       {"/charge", "/battery"},
+	"read_fuel":         {"/fuel"},
+	"read_location":     {"/location"},
+	"read_odometer":     {"/odometer"},
+	"read_tires":        {"/tires/pressure"},
+	"read_vehicle_info": {"/"},
+	"read_vin":          {"/vin"},
+}
+
 func (s *smartcarClient) ExchangeCode(ctx context.Context, code, redirectURI string) (*smartcar.Token, error) {
 	client := smartcar.NewClient()
 	params := &smartcar.AuthParams{
@@ -47,4 +63,61 @@ func (s *smartcarClient) ExchangeCode(ctx context.Context, code, redirectURI str
 		Scope:        smartcarScopes,
 	}
 	return client.NewAuth(params).ExchangeCode(ctx, &smartcar.ExchangeCodeParams{Code: code})
+}
+
+func (s *smartcarClient) GetExternalId(ctx context.Context, accessToken string) (string, error) {
+	client := smartcar.NewClient()
+	ids, err := client.GetVehicleIDs(ctx, &smartcar.VehicleIDsParams{Access: accessToken})
+	if err != nil {
+		return "", err
+	}
+	if ids == nil || len(*ids) != 1 {
+		return "", errors.New("should only be one vehicle under the access token")
+	}
+	return (*ids)[0], nil
+}
+
+func (s *smartcarClient) GetEndpoints(ctx context.Context, accessToken string, id string) ([]string, error) {
+	client := smartcar.NewClient()
+	v := client.NewVehicle(&smartcar.VehicleParams{
+		ID:          id,
+		AccessToken: accessToken,
+		UnitSystem:  smartcar.Metric,
+	})
+	perms, err := v.GetPermissions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if perms == nil {
+		return nil, errors.New("nil permissions object")
+	}
+
+	endpoints := []string{}
+
+	for _, perm := range perms.Permissions {
+		scopeEndpoints, ok := scopeToEndpoints[perm]
+		if !ok {
+			continue
+		}
+		endpoints = append(endpoints, scopeEndpoints...)
+	}
+
+	return endpoints, nil
+}
+
+func (s *smartcarClient) GetVIN(ctx context.Context, accessToken string, id string) (string, error) {
+	client := smartcar.NewClient()
+	v := client.NewVehicle(&smartcar.VehicleParams{
+		ID:          id,
+		AccessToken: accessToken,
+		UnitSystem:  smartcar.Metric,
+	})
+	vin, err := v.GetVIN(ctx)
+	if err != nil {
+		return "", err
+	}
+	if vin == nil {
+		return "", errors.New("nil VIN object")
+	}
+	return vin.VIN, nil
 }

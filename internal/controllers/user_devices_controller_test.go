@@ -32,16 +32,6 @@ func (f *fakeEventService) Emit(event *services.Event) error {
 	return nil
 }
 
-type fakeEncrypter struct{}
-
-func (e *fakeEncrypter) Encrypt(s string) (string, error) {
-	return "SECRETLOL" + s, nil
-}
-
-func (e *fakeEncrypter) Decrypt(s string) (string, error) {
-	return s, nil
-}
-
 func TestUserDevicesController(t *testing.T) {
 	// arrange global db and route setup
 	mockCtrl := gomock.NewController(t)
@@ -58,13 +48,14 @@ func TestUserDevicesController(t *testing.T) {
 	deviceDefSvc := mock_services.NewMockIDeviceDefinitionService(mockCtrl)
 	taskSvc := mock_services.NewMockITaskService(mockCtrl)
 	scClient := mock_services.NewMockSmartcarClient(mockCtrl)
+	scTaskSvc := mock_services.NewMockSmartcarTaskService(mockCtrl)
 	teslaSvc := mock_services.NewMockTeslaService(mockCtrl)
 	teslaTaskService := mock_services.NewMockTeslaTaskService(mockCtrl)
 	nhtsaService := mock_services.NewMockINHTSAService(mockCtrl)
 
 	testUserID := "123123"
 	testUserID2 := "3232451"
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, taskSvc, &fakeEventService{}, scClient, teslaSvc, teslaTaskService, &fakeEncrypter{}, nil, nhtsaService)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, taskSvc, &fakeEventService{}, scClient, scTaskSvc, teslaSvc, teslaTaskService, nil, nil, nhtsaService)
 	app := fiber.New()
 	app.Post("/user/devices", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceForUser)
 	app.Post("/user/devices/second", test.AuthInjectorTestHandler(testUserID2), c.RegisterDeviceForUser) // for different test user

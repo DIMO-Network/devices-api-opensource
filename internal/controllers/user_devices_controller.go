@@ -29,6 +29,7 @@ type UserDevicesController struct {
 	taskSvc          services.ITaskService
 	eventService     services.EventService
 	smartcarClient   services.SmartcarClient
+	smartcarTaskSvc  services.SmartcarTaskService
 	teslaService     services.TeslaService
 	teslaTaskService services.TeslaTaskService
 	cipher           shared.Cipher
@@ -37,7 +38,21 @@ type UserDevicesController struct {
 }
 
 // NewUserDevicesController constructor
-func NewUserDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, ddSvc services.IDeviceDefinitionService, taskSvc services.ITaskService, eventService services.EventService, smartcarClient services.SmartcarClient, teslaSvc services.TeslaService, teslaTaskService services.TeslaTaskService, cipher shared.Cipher, autoPiSvc services.AutoPiAPIService, nhtsaService services.INHTSAService) UserDevicesController {
+func NewUserDevicesController(
+	settings *config.Settings,
+	dbs func() *database.DBReaderWriter,
+	logger *zerolog.Logger,
+	ddSvc services.IDeviceDefinitionService,
+	taskSvc services.ITaskService,
+	eventService services.EventService,
+	smartcarClient services.SmartcarClient,
+	smartcarTaskSvc services.SmartcarTaskService,
+	teslaService services.TeslaService,
+	teslaTaskService services.TeslaTaskService,
+	cipher shared.Cipher,
+	autoPiSvc services.AutoPiAPIService,
+	nhtsaService services.INHTSAService,
+) UserDevicesController {
 	return UserDevicesController{
 		Settings:         settings,
 		DBS:              dbs,
@@ -46,7 +61,8 @@ func NewUserDevicesController(settings *config.Settings, dbs func() *database.DB
 		taskSvc:          taskSvc,
 		eventService:     eventService,
 		smartcarClient:   smartcarClient,
-		teslaService:     teslaSvc,
+		smartcarTaskSvc:  smartcarTaskSvc,
+		teslaService:     teslaService,
 		teslaTaskService: teslaTaskService,
 		cipher:           cipher,
 		autoPiSvc:        autoPiSvc,
@@ -489,9 +505,16 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	for _, apiInteg := range userDevice.R.UserDeviceAPIIntegrations {
 		if apiInteg.R.Integration.Vendor == services.SmartCarVendor {
 			if apiInteg.ExternalID.Valid {
-				err = udc.taskSvc.StartSmartcarDeregistrationTasks(udi, apiInteg.IntegrationID, apiInteg.ExternalID.String, apiInteg.AccessToken.String)
-				if err != nil {
-					return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+				if apiInteg.TaskID.Valid {
+					err = udc.smartcarTaskSvc.StopPoll(apiInteg)
+					if err != nil {
+						return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+					}
+				} else {
+					err = udc.taskSvc.StartSmartcarDeregistrationTasks(udi, apiInteg.IntegrationID, apiInteg.ExternalID.String, apiInteg.AccessToken.String)
+					if err != nil {
+						return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+					}
 				}
 			}
 		} else if apiInteg.R.Integration.Vendor == "Tesla" {

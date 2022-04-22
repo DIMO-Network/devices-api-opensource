@@ -86,7 +86,7 @@ func (i *CredentialListener) processEvent(event *TeslaCredentialsCloudEventV1V2)
 	case "zone.dimo.task.tesla.poll.credential":
 		// Only devices-api ever sent these, so no point in reacting.
 		return nil
-	case "zone.dimo.task.tesla.poll.credential.v2":
+	case "zone.dimo.task.tesla.poll.credential.v2", "zone.dimo.task.smartcar.poll.credential":
 		accessToken = event.Data.AccessToken
 		refreshToken = event.Data.RefreshToken
 		expiry = event.Data.Expiry

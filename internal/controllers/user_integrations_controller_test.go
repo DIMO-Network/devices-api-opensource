@@ -12,6 +12,7 @@ import (
 	mock_services "github.com/DIMO-Network/devices-api/internal/services/mocks"
 	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
@@ -32,6 +33,7 @@ func TestUserIntegrationsController(t *testing.T) {
 	deviceDefSvc := mock_services.NewMockIDeviceDefinitionService(mockCtrl)
 	taskSvc := mock_services.NewMockITaskService(mockCtrl)
 	scClient := mock_services.NewMockSmartcarClient(mockCtrl)
+	scTaskSvc := mock_services.NewMockSmartcarTaskService(mockCtrl)
 	teslaSvc := mock_services.NewMockTeslaService(mockCtrl)
 	teslaTaskService := mock_services.NewMockTeslaTaskService(mockCtrl)
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(mockCtrl)
@@ -39,7 +41,7 @@ func TestUserIntegrationsController(t *testing.T) {
 	const testUserID = "123123"
 	const testUser2 = "someOtherUser2"
 
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, test.Logger(), deviceDefSvc, taskSvc, &fakeEventService{}, scClient, teslaSvc, teslaTaskService, &fakeEncrypter{}, autopiAPISvc, nil)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, test.Logger(), deviceDefSvc, taskSvc, &fakeEventService{}, scClient, scTaskSvc, teslaSvc, teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc, nil)
 	app := fiber.New()
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
 	app.Post("/user2/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUser2), c.RegisterDeviceIntegration)
@@ -90,6 +92,8 @@ func TestUserIntegrationsController(t *testing.T) {
 	})
 
 	t.Run("POST - Smartcar integration success", func(t *testing.T) {
+		assert := assert.New(t)
+
 		integration := test.SetupCreateSmartCarIntegration(t, pdb)
 		dm := test.SetupCreateMake(t, "Ford", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Mach E", 2022, pdb)
@@ -107,19 +111,32 @@ func TestUserIntegrationsController(t *testing.T) {
 			RefreshExpiry: expiry.Add(24 * time.Hour),
 		}, nil)
 
-		taskSvc.EXPECT().StartSmartcarRegistrationTasks(ud.ID, integration.ID).Times(1).Return(nil)
+		scClient.EXPECT().GetExternalId(gomock.Any(), "myAccess").Return("smartcar-idx", nil)
+		scClient.EXPECT().GetVIN(gomock.Any(), "myAccess", "smartcar-idx").Return("CARVIN", nil)
+		scClient.EXPECT().GetEndpoints(gomock.Any(), "myAccess", "smartcar-idx").Return([]string{"/", "/vin"}, nil)
+
+		oUdai := &models.UserDeviceAPIIntegration{}
+		scTaskSvc.EXPECT().StartPoll(gomock.AssignableToTypeOf(oUdai)).DoAndReturn(
+			func(udai *models.UserDeviceAPIIntegration) error {
+				oUdai = udai
+				return nil
+			},
+		)
+
 		request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.ID, req)
-		response, _ := app.Test(request)
-		if assert.Equal(t, fiber.StatusNoContent, response.StatusCode, "should return success") == false {
+		response, err := app.Test(request)
+		assert.NoError(err)
+		fmt.Println(response)
+		if assert.Equal(fiber.StatusNoContent, response.StatusCode, "should return success") == false {
 			body, _ := ioutil.ReadAll(response.Body)
 			fmt.Println("unexpected response: " + string(body))
 		}
 		apiInt, _ := models.FindUserDeviceAPIIntegration(ctx, pdb.DBS().Writer, ud.ID, integration.ID)
 
-		assert.Equal(t, "myAccess", apiInt.AccessToken.String)
-		assert.True(t, expiry.Equal(apiInt.AccessExpiresAt.Time))
-		assert.Equal(t, "Pending", apiInt.Status)
-		assert.Equal(t, "myRefresh", apiInt.RefreshToken.String)
+		assert.Equal("zlNpprff", apiInt.AccessToken.String)
+		assert.True(expiry.Equal(apiInt.AccessExpiresAt.Time))
+		assert.Equal("PendingFirstData", apiInt.Status)
+		assert.Equal("zlErserfu", apiInt.RefreshToken.String)
 		//teardown
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
 	})
@@ -194,9 +211,9 @@ func TestUserIntegrationsController(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Couldn't find API integration record: %v", err)
 		}
-		assert.Equal(t, "SECRETLOLabc", apiInt.AccessToken.String)
+		assert.Equal(t, "nop", apiInt.AccessToken.String)
 		assert.Equal(t, "1145", apiInt.ExternalID.String)
-		assert.Equal(t, "SECRETLOLfffg", apiInt.RefreshToken.String)
+		assert.Equal(t, "ssst", apiInt.RefreshToken.String)
 		assert.True(t, within(&apiInt.AccessExpiresAt.Time, &expectedExpiry, 15*time.Second), "access token expires at %s, expected something close to %s", apiInt.AccessExpiresAt, expectedExpiry)
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
 	})
