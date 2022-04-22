@@ -15,6 +15,8 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
+// restartTeslaTasks stops all Tesla tasks in Kafka and then starts them again with new IDs. This
+// is mostly useful when you change the format of the task.
 func restartTeslaTasks(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore, teslaSvc services.TeslaService, teslaTask services.TeslaTaskService, cipher shared.Cipher) error {
 	tesla, err := models.Integrations(models.IntegrationWhere.Vendor.EQ("Tesla")).One(ctx, pdb.DBS().Reader)
 	if err != nil {
@@ -72,7 +74,7 @@ func restartTeslaTasks(ctx context.Context, logger *zerolog.Logger, settings *co
 		success++
 	}
 
-	logger.Info().Msgf("Restared %d/%d Tesla jobs.", success, len(activeInts))
+	logger.Info().Msgf("Restarted %d/%d Tesla jobs.", success, len(activeInts))
 
 	return nil
 }
