@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
@@ -39,9 +40,16 @@ func migrateSmartcarPoll(ctx context.Context, logger *zerolog.Logger, settings *
 			continue
 		}
 
-		_, err := scClient.GetYear(ctx, integ.AccessToken.String, integ.ExternalID.String)
+		perms, err := scClient.GetEndpoints(ctx, integ.AccessToken.String, integ.ExternalID.String)
 		if err != nil {
 			logger.Err(err).Msg("Token doesn't work. Did you refresh it?")
+			continue
+		}
+
+		meta := services.UserDeviceAPIIntegrationsMetadata{SmartcarEndpoints: perms}
+		b, err := json.Marshal(meta)
+		if err != nil {
+			logger.Err(err).Msg("Couldn't marshal endpoint data.")
 			continue
 		}
 
@@ -58,6 +66,7 @@ func migrateSmartcarPoll(ctx context.Context, logger *zerolog.Logger, settings *
 		}
 
 		// Last argument is useless.
+		// Happily, this does not generate an event.
 		if err := taskSvc.StartSmartcarDeregistrationTasks(integ.UserDeviceID, integ.IntegrationID, integ.ExternalID.String, integ.AccessToken.String); err != nil {
 			logger.Err(err).Msg("Couldn't stop existing job.")
 			continue
@@ -66,6 +75,7 @@ func migrateSmartcarPoll(ctx context.Context, logger *zerolog.Logger, settings *
 		integ.AccessToken = null.StringFrom(encAccess)
 		integ.RefreshToken = null.StringFrom(encRefresh)
 		integ.TaskID = null.StringFrom(ksuid.New().String())
+		integ.Metadata = null.JSONFrom(b)
 		_, err = integ.Update(ctx, pdb.DBS().Writer, boil.Infer())
 		if err != nil {
 			logger.Err(err).Msg("Failed to update database row.")
