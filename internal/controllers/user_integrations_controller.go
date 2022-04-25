@@ -669,6 +669,9 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 		}
 	}
 
+	// Have to save this because it's not easy to re-load the relation if we do correct the device
+	// definition.
+	deviceMake := ud.R.DeviceDefinition.R.DeviceMake.Name
 	year, err := udc.smartcarClient.GetYear(c.Context(), token.Access, externalID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Error communicating with Smartcar.")
@@ -738,7 +741,7 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 			UserID:    ud.UserID,
 			Device: services.UserDeviceEventDevice{
 				ID:    ud.ID,
-				Make:  ud.R.DeviceDefinition.R.DeviceMake.Name,
+				Make:  deviceMake,
 				Model: ud.R.DeviceDefinition.Model,
 				Year:  int(ud.R.DeviceDefinition.Year),
 				VIN:   vin,
