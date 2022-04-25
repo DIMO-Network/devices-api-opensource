@@ -263,6 +263,12 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error restarting tasks.")
 		}
+	case "seed-smartcar-creds":
+		logger.Info().Msg("Filling Smartcar credential KTable.")
+		err := seedSmartcarCreds(ctx, &logger, &settings, pdb, producer)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error seeding Smartcar KTable.")
+		}
 	default:
 		startPrometheus(logger)
 		eventService := services.NewEventService(&logger, &settings, producer)
