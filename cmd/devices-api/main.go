@@ -225,6 +225,22 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error restarting tasks.")
 		}
+	case "fill-smartcar-metadata":
+		logger.Info().Msg("Filling in Smartcar metadata.")
+
+		smartcarClient := services.NewSmartcarClient(&settings)
+
+		var cipher shared.Cipher
+		if settings.Environment == "dev" || settings.Environment == "prod" {
+			cipher = createKMS(&settings, &logger)
+		} else {
+			logger.Warn().Msg("Using ROT13 encrypter. Only use this for testing!")
+			cipher = new(shared.ROT13Cipher)
+		}
+		err := fillSmartcarMetadata(ctx, &logger, &settings, pdb, smartcarClient, cipher)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error restarting tasks.")
+		}
 	default:
 		startPrometheus(logger)
 		eventService := services.NewEventService(&logger, &settings, producer)
