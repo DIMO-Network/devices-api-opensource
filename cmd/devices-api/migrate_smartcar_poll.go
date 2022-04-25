@@ -15,7 +15,7 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
-func migrateSmartcarPoll(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore, scClient services.SmartcarClient, scTaskSvc services.SmartcarTaskService, taskSvc *services.TaskService, cipher shared.Cipher) error {
+func migrateSmartcarPoll(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore, scClient services.SmartcarClient, scTaskSvc services.SmartcarTaskService, scHook *services.SmartcarWebhookClient, cipher shared.Cipher) error {
 	scInteg, err := models.Integrations(models.IntegrationWhere.Vendor.EQ("SmartCar")).One(ctx, pdb.DBS().Reader)
 	if err != nil {
 		return err
@@ -42,7 +42,7 @@ func migrateSmartcarPoll(ctx context.Context, logger *zerolog.Logger, settings *
 
 		perms, err := scClient.GetEndpoints(ctx, integ.AccessToken.String, integ.ExternalID.String)
 		if err != nil {
-			logger.Err(err).Msg("Token doesn't work. Did you refresh it?")
+			logger.Err(err).Msg("Token doesn't work.")
 			continue
 		}
 
@@ -65,10 +65,9 @@ func migrateSmartcarPoll(ctx context.Context, logger *zerolog.Logger, settings *
 			continue
 		}
 
-		// Last argument is useless.
 		// Happily, this does not generate an event.
-		if err := taskSvc.StartSmartcarDeregistrationTasks(integ.UserDeviceID, integ.IntegrationID, integ.ExternalID.String, integ.AccessToken.String); err != nil {
-			logger.Err(err).Msg("Couldn't stop existing job.")
+		if err := scHook.Unsubscribe(integ.ExternalID.String); err != nil {
+			logger.Err(err).Msg("Couldn't detach existing webhook.")
 			continue
 		}
 

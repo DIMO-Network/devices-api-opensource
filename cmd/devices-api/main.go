@@ -206,13 +206,14 @@ func main() {
 	case "migrate-smartcar-poll":
 		logger.Info().Msg("Migrating Smartcar tasks to poller.")
 
-		nhtsaSvc := services.NewNHTSAService()
 		smartcarClient := services.NewSmartcarClient(&settings)
-		ddSvc := services.NewDeviceDefinitionService(settings.TorProxyURL, pdb.DBS, &logger, nhtsaSvc)
 		scTaskSvc := services.NewSmartcarTaskService(&settings, producer)
-		eventService := services.NewEventService(&logger, &settings, producer)
-		smartCarSvc := services.NewSmartCarService(pdb.DBS, logger)
-		taskSvc := services.NewTaskService(&settings, pdb.DBS, ddSvc, eventService, &logger, producer, &smartCarSvc)
+
+		scHook := &services.SmartcarWebhookClient{
+			HTTPClient:      &http.Client{Timeout: 10 * time.Second},
+			WebhookID:       settings.SmartcarWebhookID,
+			ManagementToken: settings.SmartcarManagementToken,
+		}
 
 		var cipher shared.Cipher
 		if settings.Environment == "dev" || settings.Environment == "prod" {
@@ -221,7 +222,7 @@ func main() {
 			logger.Warn().Msg("Using ROT13 encrypter. Only use this for testing!")
 			cipher = new(shared.ROT13Cipher)
 		}
-		err := migrateSmartcarPoll(ctx, &logger, &settings, pdb, smartcarClient, scTaskSvc, taskSvc, cipher)
+		err := migrateSmartcarPoll(ctx, &logger, &settings, pdb, smartcarClient, scTaskSvc, scHook, cipher)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error restarting tasks.")
 		}
