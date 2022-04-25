@@ -250,6 +250,18 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error restarting tasks.")
 		}
+	case "stop-kafka-task":
+		if len(os.Args[1:]) != 2 {
+			logger.Fatal().Msgf("Expected an argument, the task ID.")
+		}
+		taskID := os.Args[2]
+		logger.Info().Msgf("Stopping task Smartcar %s", taskID)
+		scTaskSvc := services.NewSmartcarTaskService(&settings, producer)
+
+		err := stopKafkaTask(ctx, &logger, &settings, pdb, scTaskSvc, taskID)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error restarting tasks.")
+		}
 	default:
 		startPrometheus(logger)
 		eventService := services.NewEventService(&logger, &settings, producer)
