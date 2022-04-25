@@ -12,11 +12,10 @@ import (
 )
 
 func stopKafkaTask(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore, scTaskSvc services.SmartcarTaskService, taskID string) error {
-	integ, err := models.UserDeviceAPIIntegrations(
-		models.UserDeviceAPIIntegrationWhere.TaskID.EQ(null.StringFrom(taskID)),
-	).One(ctx, pdb.DBS().Reader.DB)
-	if err != nil {
-		return err
+	integ := &models.UserDeviceAPIIntegration{
+		TaskID:        null.StringFrom(taskID),
+		UserDeviceID:  "FAKE",
+		IntegrationID: "FAKE",
 	}
 
 	if err := scTaskSvc.StopPoll(integ); err != nil {
