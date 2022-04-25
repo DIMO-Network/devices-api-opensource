@@ -49,34 +49,6 @@ func (mr *MockTeslaServiceMockRecorder) GetVehicle(ownerAccessToken, id interfac
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVehicle", reflect.TypeOf((*MockTeslaService)(nil).GetVehicle), ownerAccessToken, id)
 }
 
-// LockDoor mocks base method.
-func (m *MockTeslaService) LockDoor(ownerAccessToken string, id int) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "LockDoor", ownerAccessToken, id)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// LockDoor indicates an expected call of LockDoor.
-func (mr *MockTeslaServiceMockRecorder) LockDoor(ownerAccessToken, id interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LockDoor", reflect.TypeOf((*MockTeslaService)(nil).LockDoor), ownerAccessToken, id)
-}
-
-// UnlockDoor mocks base method.
-func (m *MockTeslaService) UnlockDoor(ownerAccessToken string, id int) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UnlockDoor", ownerAccessToken, id)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// UnlockDoor indicates an expected call of UnlockDoor.
-func (mr *MockTeslaServiceMockRecorder) UnlockDoor(ownerAccessToken, id interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnlockDoor", reflect.TypeOf((*MockTeslaService)(nil).UnlockDoor), ownerAccessToken, id)
-}
-
 // WakeUpVehicle mocks base method.
 func (m *MockTeslaService) WakeUpVehicle(ownerAccessToken string, id int) error {
 	m.ctrl.T.Helper()
