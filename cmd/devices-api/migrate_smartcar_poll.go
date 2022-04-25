@@ -40,6 +40,8 @@ func migrateSmartcarPoll(ctx context.Context, logger *zerolog.Logger, settings *
 			continue
 		}
 
+		logger = logger.With().Str("externalId", integ.ExternalID.String).Logger()
+
 		perms, err := scClient.GetEndpoints(ctx, integ.AccessToken.String, integ.ExternalID.String)
 		if err != nil {
 			logger.Err(err).Msg("Token doesn't work.")
@@ -85,6 +87,8 @@ func migrateSmartcarPoll(ctx context.Context, logger *zerolog.Logger, settings *
 			logger.Err(err).Msg("Failed to start new task.")
 			continue
 		}
+
+		logger.Info().Msg("Successfully migrated.")
 
 		success++
 	}
