@@ -723,11 +723,6 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 		return err
 	}
 
-	if err := tx.Commit(); err != nil {
-		logger.Error().Msg("Failed to commit new integration")
-		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("failed to commit new integration: %s", err))
-	}
-
 	if err := udc.smartcarTaskSvc.StartPoll(integration); err != nil {
 		return err
 	}
@@ -756,6 +751,11 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 	})
 	if err != nil {
 		logger.Err(err).Msg("Failed sending device integration creation event")
+	}
+
+	if err := tx.Commit(); err != nil {
+		logger.Error().Msg("Failed to commit new integration")
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("failed to commit new integration: %s", err))
 	}
 
 	logger.Info().Msg("Finished Smartcar device registration")
@@ -943,6 +943,7 @@ func (udc *UserDevicesController) fixSmartcarDeviceYear(ctx context.Context, log
 	dd := ud.R.DeviceDefinition
 
 	if int(dd.Year) != year {
+		logger.Warn().Msgf("Device was attached to year %d but should be %d.", dd.Year, year)
 		region := ""
 		if countryRecord := services.FindCountry(ud.CountryCode.String); countryRecord != nil {
 			region = countryRecord.Region
