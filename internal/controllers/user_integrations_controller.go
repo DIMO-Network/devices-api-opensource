@@ -675,7 +675,7 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 	}
 
 	if err := udc.fixSmartcarDeviceYear(c.Context(), logger, tx, integ, ud, year); err != nil {
-		return errors.Wrap(err, "Failed to fix up device definition")
+		logger.Err(err).Msg("Failed to correct Smartcar device definition year.")
 	}
 
 	perms, err := udc.smartcarClient.GetEndpoints(c.Context(), token.Access, externalID)
