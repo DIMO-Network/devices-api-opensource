@@ -15,6 +15,7 @@ type SmartcarClient interface {
 	GetExternalId(ctx context.Context, accessToken string) (string, error)
 	GetEndpoints(ctx context.Context, accessToken string, id string) ([]string, error)
 	GetVIN(ctx context.Context, accessToken string, id string) (string, error)
+	GetYear(ctx context.Context, accessToken string, id string) (int, error)
 }
 
 type smartcarClient struct {
@@ -120,4 +121,21 @@ func (s *smartcarClient) GetVIN(ctx context.Context, accessToken string, id stri
 		return "", errors.New("nil VIN object")
 	}
 	return vin.VIN, nil
+}
+
+func (s *smartcarClient) GetYear(ctx context.Context, accessToken string, id string) (int, error) {
+	client := smartcar.NewClient()
+	v := client.NewVehicle(&smartcar.VehicleParams{
+		ID:          id,
+		AccessToken: accessToken,
+		UnitSystem:  smartcar.Metric,
+	})
+	info, err := v.GetInfo(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if info == nil {
+		return 0, errors.New("nil info object")
+	}
+	return info.Year, nil
 }

@@ -646,7 +646,42 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 	}
 
 	vin, err := udc.smartcarClient.GetVIN(c.Context(), token.Access, externalID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Error communicating with Smartcar.")
+	}
+
+	// Prevent users from connecting a vehicle if it's already connected through another user
+	// device object. Disabled outside of prod for ease of testing.
+	if udc.Settings.Environment == "prod" {
+		// Probably a race condition here.
+		var conflict bool
+		conflict, err = models.UserDevices(
+			models.UserDeviceWhere.ID.NEQ(ud.ID), // If you want to re-register, or register a different integration, that's okay.
+			models.UserDeviceWhere.VinIdentifier.EQ(null.StringFrom(vin)),
+			models.UserDeviceWhere.VinConfirmed.EQ(true),
+		).Exists(c.Context(), tx)
+		if err != nil {
+			return err
+		}
+
+		if conflict {
+			return fiber.NewError(fiber.StatusConflict, "VIN already used for another device's integration")
+		}
+	}
+
+	year, err := udc.smartcarClient.GetYear(c.Context(), token.Access, externalID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Error communicating with Smartcar.")
+	}
+
+	if err := udc.fixSmartcarDeviceYear(c.Context(), logger, tx, integ, ud, year); err != nil {
+		return errors.Wrap(err, "Failed to fix up device definition")
+	}
+
 	perms, err := udc.smartcarClient.GetEndpoints(c.Context(), token.Access, externalID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Error communicating with Smartcar.")
+	}
 
 	meta := services.UserDeviceAPIIntegrationsMetadata{SmartcarEndpoints: perms}
 
@@ -886,6 +921,49 @@ func (udc *UserDevicesController) fixTeslaDeviceDefinition(ctx context.Context, 
 
 		if len(newDD.R.DeviceIntegrations) == 0 {
 			return fmt.Errorf("correct device definition %s has no integration %s for country %s", newDD.ID, integ.ID, ud.CountryCode.String)
+		}
+
+		if err := ud.SetDeviceDefinition(ctx, exec, false, newDD); err != nil {
+			return fmt.Errorf("failed switching device definition to %s: %w", newDD.ID, err)
+		}
+	}
+
+	return nil
+}
+
+// fixSmartcarDeviceYear tries to use the MMY provided by Smartcar to at least correct the year of
+// the device definition used by the device.
+//
+// We do not attempt to create any new entries in integrations, device_definitions, or
+// device_integrations. This seems too dangerous to me.
+func (udc *UserDevicesController) fixSmartcarDeviceYear(ctx context.Context, logger *zerolog.Logger, exec boil.ContextExecutor, integ *models.Integration, ud *models.UserDevice, year int) error {
+	dd := ud.R.DeviceDefinition
+
+	if int(dd.Year) != year {
+		region := ""
+		if countryRecord := services.FindCountry(ud.CountryCode.String); countryRecord != nil {
+			region = countryRecord.Region
+		}
+
+		newDD, err := models.DeviceDefinitions(
+			models.DeviceDefinitionWhere.DeviceMakeID.EQ(dd.DeviceMakeID),
+			models.DeviceDefinitionWhere.Model.EQ(dd.Model),
+			models.DeviceDefinitionWhere.Year.EQ(int16(year)),
+			qm.Load(
+				models.DeviceDefinitionRels.DeviceIntegrations,
+				models.DeviceIntegrationWhere.IntegrationID.EQ(integ.ID),
+				models.DeviceIntegrationWhere.Region.EQ(region),
+			),
+		).One(ctx, exec)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return fmt.Errorf("no device definition %s, %s, %d", dd.R.DeviceMake.Name, dd.Model, year)
+			}
+			return fmt.Errorf("database error: %w", err)
+		}
+
+		if len(newDD.R.DeviceIntegrations) == 0 {
+			return fmt.Errorf("correct device definition %s has no integration %s for region %s", newDD.ID, integ.ID, region)
 		}
 
 		if err := ud.SetDeviceDefinition(ctx, exec, false, newDD); err != nil {

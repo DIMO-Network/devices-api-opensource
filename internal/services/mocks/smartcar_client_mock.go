@@ -94,3 +94,18 @@ func (mr *MockSmartcarClientMockRecorder) GetVIN(ctx, accessToken, id interface{
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVIN", reflect.TypeOf((*MockSmartcarClient)(nil).GetVIN), ctx, accessToken, id)
 }
+
+// GetYear mocks base method.
+func (m *MockSmartcarClient) GetYear(ctx context.Context, accessToken, id string) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetYear", ctx, accessToken, id)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetYear indicates an expected call of GetYear.
+func (mr *MockSmartcarClientMockRecorder) GetYear(ctx, accessToken, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetYear", reflect.TypeOf((*MockSmartcarClient)(nil).GetYear), ctx, accessToken, id)
+}
