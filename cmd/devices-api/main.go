@@ -241,6 +241,15 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error restarting tasks.")
 		}
+	case "restart-smartcar-tasks":
+		logger.Info().Msg("Restarting Smartcar")
+
+		scTaskSvc := services.NewSmartcarTaskService(&settings, producer)
+
+		err := restartSmartcarTasks(ctx, &logger, &settings, pdb, scTaskSvc)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error restarting tasks.")
+		}
 	default:
 		startPrometheus(logger)
 		eventService := services.NewEventService(&logger, &settings, producer)
