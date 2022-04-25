@@ -30,6 +30,7 @@ func refreshSmartcarTokens(ctx context.Context, logger *zerolog.Logger, settings
 		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(scIntID),
 		models.UserDeviceAPIIntegrationWhere.ExternalID.NEQ(null.StringFromPtr(nil)),
 		models.UserDeviceAPIIntegrationWhere.Status.EQ(models.UserDeviceAPIIntegrationStatusActive),
+		models.UserDeviceAPIIntegrationWhere.TaskID.IsNull(),
 	).All(ctx, db)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve all API integrations with external IDs and status Active: %w", err)
