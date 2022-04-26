@@ -50,6 +50,8 @@ func (wc *WebhooksController) ProcessCommand(c *fiber.Ctx) error {
 		logger.Error().Str("payload", string(c.Body())).Msg("no jobId or deviceId found in payload")
 		return fiber.NewError(fiber.StatusBadRequest, "invalid autopi webhook request payload")
 	}
+	logger = logger.With().Str("autopi deviceID", apwDeviceID.String()).Str("state", apwState.String()).Str("jobID", apwJID.String()).Logger()
+
 	// hmac signature validation
 	reqSig := c.Get("X-Request-Signature")
 	if !validateSignature(wc.settings.AutoPiAPIToken, string(c.Body()), reqSig) {
@@ -77,6 +79,7 @@ func (wc *WebhooksController) ProcessCommand(c *fiber.Ctx) error {
 
 	for i, job := range udMetadata.AutoPiCommandJobs {
 		if job.CommandJobID == apwJID.String() {
+
 			foundMatch = true
 			// only update status of integration if command is the sync command that we use for template setup
 			if job.CommandRaw == "state.sls pending" && strings.EqualFold(apwState.String(), "COMMAND_EXECUTED") {
