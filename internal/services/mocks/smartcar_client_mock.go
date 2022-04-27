@@ -65,19 +65,19 @@ func (mr *MockSmartcarClientMockRecorder) GetEndpoints(ctx, accessToken, id inte
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEndpoints", reflect.TypeOf((*MockSmartcarClient)(nil).GetEndpoints), ctx, accessToken, id)
 }
 
-// GetExternalId mocks base method.
-func (m *MockSmartcarClient) GetExternalId(ctx context.Context, accessToken string) (string, error) {
+// GetExternalID mocks base method.
+func (m *MockSmartcarClient) GetExternalID(ctx context.Context, accessToken string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetExternalId", ctx, accessToken)
+	ret := m.ctrl.Call(m, "GetExternalID", ctx, accessToken)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetExternalId indicates an expected call of GetExternalId.
-func (mr *MockSmartcarClientMockRecorder) GetExternalId(ctx, accessToken interface{}) *gomock.Call {
+// GetExternalID indicates an expected call of GetExternalID.
+func (mr *MockSmartcarClientMockRecorder) GetExternalID(ctx, accessToken interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetExternalId", reflect.TypeOf((*MockSmartcarClient)(nil).GetExternalId), ctx, accessToken)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetExternalID", reflect.TypeOf((*MockSmartcarClient)(nil).GetExternalID), ctx, accessToken)
 }
 
 // GetVIN mocks base method.

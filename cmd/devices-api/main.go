@@ -404,9 +404,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Get("/user/device-data/:userDeviceID/historical-30m", deviceDataController.GetHistorical30mRaw)
 	v1Auth.Get("/user/device-data/:userDeviceID/distance-driven", deviceDataController.GetDistanceDriven)
 
-	// admin / internal operations paths
-	// v1.Post("/admin/user/:user_id/devices", userDeviceController.AdminRegisterUserDevice)
-
 	go startGRPCServer(settings, pdb.DBS, &logger)
 
 	logger.Info().Msg("Server started on port " + settings.Port)

@@ -101,7 +101,10 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 	if apiIntegration.R.Integration.Vendor == services.SmartCarVendor {
 		if apiIntegration.ExternalID.Valid {
 			if apiIntegration.TaskID.Valid {
-				udc.smartcarTaskSvc.StopPoll(apiIntegration)
+				err = udc.smartcarTaskSvc.StopPoll(apiIntegration)
+				if err != nil {
+					return err
+				}
 			} else {
 				err = udc.taskSvc.StartSmartcarDeregistrationTasks(userDeviceID, integrationID, apiIntegration.ExternalID.String, apiIntegration.AccessToken.String)
 				if err != nil {
@@ -640,7 +643,7 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("failure exchanging code with Smartcar: %s", err))
 	}
 
-	externalID, err := udc.smartcarClient.GetExternalId(c.Context(), token.Access)
+	externalID, err := udc.smartcarClient.GetExternalID(c.Context(), token.Access)
 	if err != nil {
 		return err
 	}

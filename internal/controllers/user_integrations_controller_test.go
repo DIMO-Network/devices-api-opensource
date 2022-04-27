@@ -111,7 +111,7 @@ func TestUserIntegrationsController(t *testing.T) {
 			RefreshExpiry: expiry.Add(24 * time.Hour),
 		}, nil)
 
-		scClient.EXPECT().GetExternalId(gomock.Any(), "myAccess").Return("smartcar-idx", nil)
+		scClient.EXPECT().GetExternalID(gomock.Any(), "myAccess").Return("smartcar-idx", nil)
 		scClient.EXPECT().GetVIN(gomock.Any(), "myAccess", "smartcar-idx").Return("CARVIN", nil)
 		scClient.EXPECT().GetEndpoints(gomock.Any(), "myAccess", "smartcar-idx").Return([]string{"/", "/vin"}, nil)
 
