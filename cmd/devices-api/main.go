@@ -141,6 +141,11 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error running Smartcar Kafka re-registration")
 		}
+	case "remake-autopi-topic":
+		err = remakeAutoPiTopic(ctx, &logger, &settings, pdb, producer)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error running AutoPi Kafka re-registration")
+		}
 	case "remake-fence-topic":
 		err = remakeFenceTopic(&logger, &settings, pdb, producer)
 		if err != nil {
