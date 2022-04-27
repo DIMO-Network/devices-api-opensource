@@ -28,6 +28,11 @@ func migrateDatabase(logger zerolog.Logger, settings *config.Settings, command s
 	if command == "" {
 		command = "up"
 	}
+	// todo manually run sql to create devices_api schema
+	_, err = db.Exec("CREATE SCHEMA IF NOT EXISTS devices_api;")
+	if err != nil {
+		logger.Fatal().Err(err).Msg("could not create schema")
+	}
 	goose.SetTableName("devices_api.migrations")
 	if err := goose.Run(command, db, "migrations"); err != nil {
 		logger.Fatal().Msgf("failed to apply go code migrations: %v\n", err)

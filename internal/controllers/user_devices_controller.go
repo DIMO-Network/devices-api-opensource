@@ -22,19 +22,20 @@ import (
 )
 
 type UserDevicesController struct {
-	Settings         *config.Settings
-	DBS              func() *database.DBReaderWriter
-	DeviceDefSvc     services.IDeviceDefinitionService
-	log              *zerolog.Logger
-	taskSvc          services.ITaskService
-	eventService     services.EventService
-	smartcarClient   services.SmartcarClient
-	smartcarTaskSvc  services.SmartcarTaskService
-	teslaService     services.TeslaService
-	teslaTaskService services.TeslaTaskService
-	cipher           shared.Cipher
-	autoPiSvc        services.AutoPiAPIService
-	nhtsaService     services.INHTSAService
+	Settings              *config.Settings
+	DBS                   func() *database.DBReaderWriter
+	DeviceDefSvc          services.IDeviceDefinitionService
+	log                   *zerolog.Logger
+	taskSvc               services.ITaskService
+	eventService          services.EventService
+	smartcarClient        services.SmartcarClient
+	smartcarTaskSvc       services.SmartcarTaskService
+	teslaService          services.TeslaService
+	teslaTaskService      services.TeslaTaskService
+	cipher                shared.Cipher
+	autoPiSvc             services.AutoPiAPIService
+	nhtsaService          services.INHTSAService
+	autoPiIngestRegistrar services.IngestRegistrar
 }
 
 // NewUserDevicesController constructor
@@ -52,21 +53,23 @@ func NewUserDevicesController(
 	cipher shared.Cipher,
 	autoPiSvc services.AutoPiAPIService,
 	nhtsaService services.INHTSAService,
+	autoPiIngestRegistrar services.IngestRegistrar,
 ) UserDevicesController {
 	return UserDevicesController{
-		Settings:         settings,
-		DBS:              dbs,
-		log:              logger,
-		DeviceDefSvc:     ddSvc,
-		taskSvc:          taskSvc,
-		eventService:     eventService,
-		smartcarClient:   smartcarClient,
-		smartcarTaskSvc:  smartcarTaskSvc,
-		teslaService:     teslaService,
-		teslaTaskService: teslaTaskService,
-		cipher:           cipher,
-		autoPiSvc:        autoPiSvc,
-		nhtsaService:     nhtsaService,
+		Settings:              settings,
+		DBS:                   dbs,
+		log:                   logger,
+		DeviceDefSvc:          ddSvc,
+		taskSvc:               taskSvc,
+		eventService:          eventService,
+		smartcarClient:        smartcarClient,
+		smartcarTaskSvc:       smartcarTaskSvc,
+		teslaService:          teslaService,
+		teslaTaskService:      teslaTaskService,
+		cipher:                cipher,
+		autoPiSvc:             autoPiSvc,
+		nhtsaService:          nhtsaService,
+		autoPiIngestRegistrar: autoPiIngestRegistrar,
 	}
 }
 
@@ -522,6 +525,12 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 				if err := udc.teslaTaskService.StopPoll(apiInteg); err != nil {
 					return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 				}
+			}
+		} else if apiInteg.R.Integration.Vendor == services.AutoPiVendor {
+			err = udc.autoPiIngestRegistrar.Deregister(apiInteg.ExternalID.String, apiInteg.UserDeviceID, apiInteg.IntegrationID)
+			if err != nil {
+				udc.log.Err(err).Msgf("unexpected error deregistering autopi device from ingest. userDeviceID: %s", apiInteg.UserDeviceID)
+				return err
 			}
 		} else {
 			udc.log.Warn().Msgf("Don't know how to deregister integration %s for device %s", apiInteg.IntegrationID, udi)

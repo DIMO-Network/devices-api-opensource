@@ -13,6 +13,7 @@ import (
 
 const migrationsDirRelPath = "../../migrations"
 
+// TestMain used to centralize setup that will run for all tests in this package
 func TestMain(m *testing.M) {
 	edb := setup()
 	code := m.Run()
@@ -20,7 +21,7 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// setup runs once for all tests in this package
+// setup runs once for all tests in this package. This allows us to only bring the DB up once.
 func setup() *embeddedpostgres.EmbeddedPostgres {
 	edb, err := test.StartAndMigrateDB(context.Background(), migrationsDirRelPath)
 	if err != nil {

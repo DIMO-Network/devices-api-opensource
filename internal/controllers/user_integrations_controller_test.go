@@ -37,11 +37,12 @@ func TestUserIntegrationsController(t *testing.T) {
 	teslaSvc := mock_services.NewMockTeslaService(mockCtrl)
 	teslaTaskService := mock_services.NewMockTeslaTaskService(mockCtrl)
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(mockCtrl)
+	autoPiIngest := mock_services.NewMockIngestRegistrar(mockCtrl)
 
 	const testUserID = "123123"
 	const testUser2 = "someOtherUser2"
 
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, test.Logger(), deviceDefSvc, taskSvc, &fakeEventService{}, scClient, scTaskSvc, teslaSvc, teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc, nil)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, test.Logger(), deviceDefSvc, taskSvc, &fakeEventService{}, scClient, scTaskSvc, teslaSvc, teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc, nil, autoPiIngest)
 	app := fiber.New()
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
 	app.Post("/user2/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUser2), c.RegisterDeviceIntegration)
@@ -114,6 +115,7 @@ func TestUserIntegrationsController(t *testing.T) {
 		scClient.EXPECT().GetExternalID(gomock.Any(), "myAccess").Return("smartcar-idx", nil)
 		scClient.EXPECT().GetVIN(gomock.Any(), "myAccess", "smartcar-idx").Return("CARVIN", nil)
 		scClient.EXPECT().GetEndpoints(gomock.Any(), "myAccess", "smartcar-idx").Return([]string{"/", "/vin"}, nil)
+		scClient.EXPECT().GetYear(gomock.Any(), "myAccess", "smartcar-idx").Return(2022, nil)
 
 		oUdai := &models.UserDeviceAPIIntegration{}
 		scTaskSvc.EXPECT().StartPoll(gomock.AssignableToTypeOf(oUdai)).DoAndReturn(
@@ -292,6 +294,7 @@ func TestUserIntegrationsController(t *testing.T) {
 		autopiAPISvc.EXPECT().CommandSyncDevice(deviceID).Times(1).Return(&services.AutoPiCommandResponse{
 			Jid: jobID,
 		}, nil)
+		autoPiIngest.EXPECT().Register(deviceID, ud.ID, integration.ID).Return(nil)
 
 		request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.ID, req)
 		response, _ := app.Test(request)
@@ -349,6 +352,7 @@ func TestUserIntegrationsController(t *testing.T) {
 		autopiAPISvc.EXPECT().CommandSyncDevice(deviceID).Times(1).Return(&services.AutoPiCommandResponse{
 			Jid: jobID,
 		}, nil)
+		autoPiIngest.EXPECT().Register(deviceID, ud.ID, integration.ID).Return(nil)
 
 		request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.ID, req)
 		response, _ := app.Test(request)

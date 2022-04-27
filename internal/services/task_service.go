@@ -18,7 +18,6 @@ import (
 	"github.com/RichardKnop/machinery/v1/tasks"
 	"github.com/Shopify/sarama"
 	"github.com/rs/zerolog"
-	"github.com/segmentio/ksuid"
 	smartcar "github.com/smartcar/go-sdk"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
@@ -43,7 +42,7 @@ type TaskService struct {
 	Log                   *zerolog.Logger
 	Machinery             *machinery.Server
 	DeviceDefSvc          IDeviceDefinitionService
-	IngestRegistrar       SmartcarIngestRegistrar
+	IngestRegistrar       IngestRegistrar
 	eventService          EventService
 	smartCarSvc           *SmartCarService
 	smartcarWebhookClient *SmartcarWebhookClient
@@ -56,9 +55,6 @@ const smartcarConnectVehicleTask = "smartcar_connect_vehicle"
 const smartcarGetInitialDataTask = "smartcar_get_initial_data"
 const smartcarDisconnectVehicleTask = "smartcar_disconnect_vehicle"
 const failIntegrationTask = "fail_integration"
-
-const ingestSmartcarRegistrationTopic = "table.device.integration.smartcar"
-const smartcarRegistrationEventType = "zone.dimo.device.integration.smartcar.register"
 
 type batchRequest struct {
 	Requests []batchRequestRequest `json:"requests"`
@@ -92,58 +88,6 @@ type CloudEventMessage struct {
 	Time        time.Time   `json:"time"`
 	Type        string      `json:"type"`
 	Data        interface{} `json:"data"`
-}
-
-// SmartcarIngestRegistrar is an interface to the table.device.integration.smartcar topic, a
-// compacted Kafka topic keyed by Smartcar vehicle ID. The ingest service needs to match
-// these IDs to our device IDs.
-type SmartcarIngestRegistrar struct {
-	Producer sarama.SyncProducer
-}
-
-func (s *SmartcarIngestRegistrar) Register(smartcarID, userDeviceID, integrationID string) error {
-	data := struct {
-		DeviceID   string `json:"deviceId"`
-		ExternalID string `json:"externalId"`
-	}{userDeviceID, smartcarID}
-	value := CloudEventMessage{
-		ID:          ksuid.New().String(),
-		Source:      "dimo/integration/" + integrationID,
-		Subject:     userDeviceID,
-		SpecVersion: "1.0",
-		Time:        time.Now(),
-		Type:        smartcarRegistrationEventType,
-		Data:        data,
-	}
-	valueb, err := json.Marshal(value)
-	if err != nil {
-		return fmt.Errorf("failed to serialize JSON body: %w", err)
-	}
-	message := &sarama.ProducerMessage{
-		Topic: ingestSmartcarRegistrationTopic,
-		Key:   sarama.StringEncoder(smartcarID),
-		Value: sarama.ByteEncoder(valueb),
-	}
-	_, _, err = s.Producer.SendMessage(message)
-	if err != nil {
-		return fmt.Errorf("failed sending to Kafka: %w", err)
-	}
-
-	return nil
-}
-
-func (s *SmartcarIngestRegistrar) Deregister(smartcarID, userDeviceID, integrationID string) error {
-	message := &sarama.ProducerMessage{
-		Topic: ingestSmartcarRegistrationTopic,
-		Key:   sarama.StringEncoder(smartcarID),
-		Value: nil, // Delete from compacted topic.
-	}
-	_, _, err := s.Producer.SendMessage(message)
-	if err != nil {
-		return fmt.Errorf("failed sending to Kafka: %w", err)
-	}
-
-	return nil
 }
 
 // batchRequest makes a batch information request to Smartcar using the given Smartcar vehicle ID.
@@ -625,7 +569,7 @@ func NewTaskService(settings *config.Settings, dbs func() *database.DBReaderWrit
 		Log:          logger,
 		DeviceDefSvc: deviceDefSvc,
 		// Maybe lift this up.
-		IngestRegistrar: SmartcarIngestRegistrar{Producer: producer},
+		IngestRegistrar: NewIngestRegistrar(Smartcar, producer),
 		eventService:    eventService,
 		smartCarSvc:     smartCarSvc,
 		smartcarWebhookClient: &SmartcarWebhookClient{

@@ -309,7 +309,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		logger.Warn().Msg("Using ROT13 encrypter. Only use this for testing!")
 		cipher = new(shared.ROT13Cipher)
 	}
-
+	// services
 	nhtsaSvc := services.NewNHTSAService()
 	ddSvc := services.NewDeviceDefinitionService(settings.TorProxyURL, pdb.DBS, &logger, nhtsaSvc)
 	smartCarSvc := services.NewSmartCarService(pdb.DBS, logger)
@@ -319,8 +319,10 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	teslaSvc := services.NewTeslaService(settings)
 	taskSvc := services.NewTaskService(settings, pdb.DBS, ddSvc, eventService, &logger, producer, &smartCarSvc)
 	autoPiSvc := services.NewAutoPiAPIService(settings)
+	autoPiIngest := services.NewIngestRegistrar(services.AutoPi, producer)
+	// controllers
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc)
-	userDeviceController := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService, smartcarClient, scTaskSvc, teslaSvc, teslaTaskService, cipher, autoPiSvc, services.NewNHTSAService())
+	userDeviceController := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService, smartcarClient, scTaskSvc, teslaSvc, teslaTaskService, cipher, autoPiSvc, services.NewNHTSAService(), autoPiIngest)
 	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer)
 	deviceDataController := controllers.NewDeviceDataController(settings, pdb.DBS, &logger)
 	webhooksController := controllers.NewWebhooksController(settings, pdb.DBS, &logger)

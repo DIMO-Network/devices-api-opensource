@@ -14,7 +14,7 @@ import (
 )
 
 func remakeSmartcarTopic(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore, producer sarama.SyncProducer) error {
-	reg := services.SmartcarIngestRegistrar{Producer: producer}
+	reg := services.NewIngestRegistrar(services.Smartcar, producer)
 	db := pdb.DBS().Reader
 
 	// Grab the Smartcar integration ID, there should be exactly one.

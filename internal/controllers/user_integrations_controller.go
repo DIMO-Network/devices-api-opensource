@@ -118,6 +118,12 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 				return err
 			}
 		}
+	} else if apiIntegration.R.Integration.Vendor == services.AutoPiVendor {
+		err = udc.autoPiIngestRegistrar.Deregister(apiIntegration.ExternalID.String, apiIntegration.UserDeviceID, apiIntegration.IntegrationID)
+		if err != nil {
+			udc.log.Err(err).Msgf("unexpected error deregistering autopi device from ingest. userDeviceID: %s", apiIntegration.UserDeviceID)
+			return err
+		}
 	} else {
 		udc.log.Warn().Msgf("Don't know how to deregister integration %s for device %s", apiIntegration.IntegrationID, userDeviceID)
 	}
@@ -625,6 +631,12 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	if err = tx.Commit(); err != nil {
 		subLogger.Err(err).Send()
 		return errors.Wrap(err, "failed to commit new autopi integration")
+	}
+	// send kafka message to autopi ingest registrar
+	err = udc.autoPiIngestRegistrar.Register(autoPiDevice.ID, ud.ID, integration.ID)
+	if err != nil {
+		subLogger.Err(err).Msg("unexpected autopi ingest registrar error producing message to register")
+		return err
 	}
 	subLogger.Info().Msg("succesfully registered autoPi integration. Now waiting on webhook for successful command.")
 
