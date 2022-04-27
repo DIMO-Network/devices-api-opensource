@@ -70,7 +70,6 @@ func migrateSmartcarPoll(ctx context.Context, logger *zerolog.Logger, settings *
 		// Happily, this does not generate an event.
 		if err := scHook.Unsubscribe(integ.ExternalID.String); err != nil {
 			logger.Err(err).Msg("Couldn't detach existing webhook.")
-			continue
 		}
 
 		integ.AccessToken = null.StringFrom(encAccess)
