@@ -266,7 +266,8 @@ func TestUserIntegrationsController(t *testing.T) {
 	})
 
 	t.Run("POST - AutoPi integration success", func(t *testing.T) {
-		integration := test.SetupCreateAutoPiIntegration(t, 34, nil, pdb)
+		const templateID = 34
+		integration := test.SetupCreateAutoPiIntegration(t, templateID, nil, pdb)
 		dm := test.SetupCreateMake(t, "Testla", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
 		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
@@ -317,6 +318,7 @@ func TestUserIntegrationsController(t *testing.T) {
 		assert.Equal(t, "state.sls pending", metadata.AutoPiCommandJobs[0].CommandRaw)
 		assert.Equal(t, deviceID, apiInt.ExternalID.String)
 		assert.Equal(t, "PendingFirstData", apiInt.Status)
+		assert.Equal(t, templateID, *metadata.AutoPiTemplateApplied)
 		//teardown
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
 	})
@@ -375,6 +377,7 @@ func TestUserIntegrationsController(t *testing.T) {
 		assert.Equal(t, "state.sls pending", metadata.AutoPiCommandJobs[0].CommandRaw)
 		assert.Equal(t, deviceID, apiInt.ExternalID.String)
 		assert.Equal(t, "PendingFirstData", apiInt.Status)
+		assert.Equal(t, evTemplateID, *metadata.AutoPiTemplateApplied)
 		//teardown
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
 	})

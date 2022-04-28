@@ -534,8 +534,9 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 
 	// creat the api int record, start filling it in
 	udMetadata := services.UserDeviceAPIIntegrationsMetadata{
-		AutoPiUnitID: &autoPiDevice.UnitID,
-		AutoPiIMEI:   &autoPiDevice.IMEI,
+		AutoPiUnitID:          &autoPiDevice.UnitID,
+		AutoPiIMEI:            &autoPiDevice.IMEI,
+		AutoPiTemplateApplied: &templateID,
 	}
 	apiInt := models.UserDeviceAPIIntegration{
 		UserDeviceID:  ud.ID,
@@ -549,7 +550,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	}
 
 	if err = apiInt.Insert(c.Context(), tx, boil.Infer()); err != nil {
-		subLogger.Err(err).Msg("unexpected database error inserting new autopi integration registration")
+		subLogger.Err(err).Msg("database error inserting new autopi integration registration")
 		return err
 	}
 	// update integration record as failed if errors after this
@@ -557,10 +558,17 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		if err != nil {
 			subLogger.Err(err).Msg("registerAutoPiUnit failure")
 			apiInt.Status = models.UserDeviceAPIIntegrationStatusFailed
+			msg := err.Error()
+			udMetadata.AutoPiRegistrationError = &msg
+			_ = apiInt.Metadata.Marshal(udMetadata)
 			_, err := apiInt.Update(c.Context(), tx,
 				boil.Whitelist(models.UserDeviceAPIIntegrationColumns.Status, models.UserDeviceAPIIntegrationColumns.UpdatedAt))
 			if err != nil {
-				subLogger.Err(err).Msg("unexpected database error updating autopi integration to failed")
+				subLogger.Err(err).Msg("database error updating autopi integration to failed")
+			}
+			err = tx.Commit()
+			if err != nil {
+				subLogger.Err(err).Msg("transaction error updating autopi integration to failed")
 			}
 		}
 	}()
@@ -635,7 +643,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	// send kafka message to autopi ingest registrar
 	err = udc.autoPiIngestRegistrar.Register(autoPiDevice.ID, ud.ID, integration.ID)
 	if err != nil {
-		subLogger.Err(err).Msg("unexpected autopi ingest registrar error producing message to register")
+		subLogger.Err(err).Msg("autopi ingest registrar error producing message to register")
 		return err
 	}
 	subLogger.Info().Msg("succesfully registered autoPi integration. Now waiting on webhook for successful command.")
