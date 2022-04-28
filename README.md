@@ -71,7 +71,7 @@ go install github.com/volatiletech/sqlboiler/v4/drivers/sqlboiler-psql@latest
 
 To generate the models:
 ```bash
-sqlboiler psql --no-tests
+sqlboiler psql --no-tests --wipe
 ```
 *Make sure you're running the docker image (ie. docker compose up)
 
