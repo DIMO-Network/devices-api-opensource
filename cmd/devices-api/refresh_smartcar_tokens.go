@@ -55,7 +55,6 @@ func refreshSmartcarTokens(ctx context.Context, logger *zerolog.Logger, settings
 		apiInt.AccessToken = null.StringFrom(token.Access)
 		apiInt.AccessExpiresAt = null.TimeFrom(token.AccessExpiry)
 		apiInt.RefreshToken = null.StringFrom(token.Refresh)
-		apiInt.RefreshExpiresAt = null.TimeFrom(token.RefreshExpiry)
 
 		logger.Info().Str("userDeviceId", apiInt.UserDeviceID).Str("refreshToken", token.Refresh).Msg("Refresh succeeded")
 

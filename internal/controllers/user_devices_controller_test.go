@@ -286,14 +286,13 @@ func TestUserDevicesController(t *testing.T) {
 		// arrange some additional data for this to work
 		smartCarInt := test.SetupCreateSmartCarIntegration(t, pdb)
 		udiai := models.UserDeviceAPIIntegration{
-			UserDeviceID:     ud.ID,
-			IntegrationID:    smartCarInt.ID,
-			Status:           models.UserDeviceAPIIntegrationStatusActive,
-			AccessToken:      null.StringFrom("caca-token"),
-			AccessExpiresAt:  null.TimeFrom(time.Now().Add(time.Duration(10) * time.Hour)),
-			RefreshToken:     null.StringFrom("caca-refresh"),
-			RefreshExpiresAt: null.TimeFrom(time.Now().Add(time.Duration(100) * time.Hour)),
-			ExternalID:       null.StringFrom("caca-external-id"),
+			UserDeviceID:    ud.ID,
+			IntegrationID:   smartCarInt.ID,
+			Status:          models.UserDeviceAPIIntegrationStatusActive,
+			AccessToken:     null.StringFrom("caca-token"),
+			AccessExpiresAt: null.TimeFrom(time.Now().Add(time.Duration(10) * time.Hour)),
+			RefreshToken:    null.StringFrom("caca-refresh"),
+			ExternalID:      null.StringFrom("caca-external-id"),
 		}
 		_ = udiai.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 		// arrange mock
@@ -317,14 +316,13 @@ func TestUserDevicesController(t *testing.T) {
 		test.SetupCreateDeviceIntegration(t, dd, integration, pdb)
 
 		udiai := models.UserDeviceAPIIntegration{
-			UserDeviceID:     ud.ID,
-			IntegrationID:    integration.ID,
-			Status:           models.UserDeviceAPIIntegrationStatusActive,
-			AccessToken:      null.StringFrom("caca-token"),
-			AccessExpiresAt:  null.TimeFrom(time.Now().Add(time.Duration(10) * time.Hour)),
-			RefreshToken:     null.StringFrom("caca-refresh"),
-			RefreshExpiresAt: null.TimeFrom(time.Now().Add(time.Duration(100) * time.Hour)),
-			ExternalID:       null.StringFrom("caca-external-id"),
+			UserDeviceID:    ud.ID,
+			IntegrationID:   integration.ID,
+			Status:          models.UserDeviceAPIIntegrationStatusActive,
+			AccessToken:     null.StringFrom("caca-token"),
+			AccessExpiresAt: null.TimeFrom(time.Now().Add(time.Duration(10) * time.Hour)),
+			RefreshToken:    null.StringFrom("caca-refresh"),
+			ExternalID:      null.StringFrom("caca-external-id"),
 		}
 		_ = udiai.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 		// arrange data to cause condition

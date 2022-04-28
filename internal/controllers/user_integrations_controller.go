@@ -729,16 +729,15 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 	taskID := ksuid.New().String()
 
 	integration := &models.UserDeviceAPIIntegration{
-		TaskID:           null.StringFrom(taskID),
-		ExternalID:       null.StringFrom(externalID),
-		UserDeviceID:     ud.ID,
-		IntegrationID:    integ.ID,
-		Status:           models.UserDeviceAPIIntegrationStatusPendingFirstData,
-		AccessToken:      null.StringFrom(encAccess),
-		AccessExpiresAt:  null.TimeFrom(token.AccessExpiry),
-		RefreshToken:     null.StringFrom(encRefresh),
-		RefreshExpiresAt: null.TimeFrom(token.RefreshExpiry),
-		Metadata:         null.JSONFrom(b),
+		TaskID:          null.StringFrom(taskID),
+		ExternalID:      null.StringFrom(externalID),
+		UserDeviceID:    ud.ID,
+		IntegrationID:   integ.ID,
+		Status:          models.UserDeviceAPIIntegrationStatusPendingFirstData,
+		AccessToken:     null.StringFrom(encAccess),
+		AccessExpiresAt: null.TimeFrom(token.AccessExpiry),
+		RefreshToken:    null.StringFrom(encRefresh),
+		Metadata:        null.JSONFrom(b),
 	}
 
 	if err := integration.Insert(c.Context(), tx, boil.Infer()); err != nil {
