@@ -852,7 +852,7 @@ func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zero
 		return err
 	}
 
-	ud.VinIdentifier = null.StringFrom(v.VIN)
+	ud.VinIdentifier = null.StringFrom(strings.ToUpper(v.VIN))
 	ud.VinConfirmed = true
 	_, err = ud.Update(c.Context(), tx, boil.Infer())
 	if err != nil {

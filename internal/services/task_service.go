@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/DIMO-Network/shared"
@@ -247,7 +248,7 @@ func (t *TaskService) smartcarConnectVehicle(userDeviceID, integrationID string)
 		}
 	}
 
-	ud.VinIdentifier = null.StringFrom(vin.String())
+	ud.VinIdentifier = null.StringFrom(strings.ToUpper(vin.String()))
 	ud.VinConfirmed = true
 	_, err = ud.Update(context.Background(), tx, boil.Infer())
 	if err != nil {

@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
@@ -361,7 +362,7 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid VIN.")
 	}
 
-	userDevice.VinIdentifier = null.StringFromPtr(vinReq.VIN)
+	userDevice.VinIdentifier = null.StringFrom(strings.ToUpper(*vinReq.VIN))
 	if _, err := userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer()); err != nil {
 		// Okay to dereference here, since we validated the field.
 		logger.Err(err).Msgf("Database error updating VIN to %s.", *vinReq.VIN)
