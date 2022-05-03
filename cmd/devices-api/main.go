@@ -274,6 +274,19 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error seeding Smartcar KTable.")
 		}
+	case "seed-smartcar-user-id":
+		logger.Info().Msg("Filling in Smartcar user IDs.")
+		var cipher shared.Cipher
+		if settings.Environment == "dev" || settings.Environment == "prod" {
+			cipher = createKMS(&settings, &logger)
+		} else {
+			logger.Warn().Msg("Using ROT13 encrypter. Only use this for testing!")
+			cipher = new(shared.ROT13Cipher)
+		}
+		err := seedSmartcarUserID(ctx, &logger, pdb, cipher)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error filling in Smartcar IDs.")
+		}
 	default:
 		startPrometheus(logger)
 		eventService := services.NewEventService(&logger, &settings, producer)
