@@ -138,14 +138,20 @@ func insertStyles(ctx context.Context, logger *zerolog.Logger, vehicle services.
 	}
 	// loop and compare
 	for _, edmundsStyle := range vehicle.Styles {
+		// check if style already exists
 		matchFound := false
 		for _, existingStyle := range existingStyles {
 			if existingStyle.ExternalStyleID == strconv.Itoa(edmundsStyle.StyleID) {
 				matchFound = true
+				break
+			}
+			if existingStyle.Name == edmundsStyle.Name && existingStyle.SubModel == edmundsStyle.Trim && existingStyle.Source == edmundsSource {
+				matchFound = true
+				break
 			}
 		}
+		// insert edmundsStyle if does not exist
 		if !matchFound {
-			// insert edmundsStyle
 			newStyle := models.DeviceStyle{
 				ID:                 ksuid.New().String(),
 				DeviceDefinitionID: deviceDefinitionID,
@@ -156,7 +162,8 @@ func insertStyles(ctx context.Context, logger *zerolog.Logger, vehicle services.
 			}
 			err = newStyle.Insert(ctx, tx, boil.Infer())
 			if err != nil {
-				return errors.Wrapf(err, "error inserting new device style %+v", edmundsStyle)
+				// just warn, as sometimes we get duplicate styles with different style ID's, and we want to continue
+				logger.Warn().Err(err).Msgf("error inserting new device style %+v", edmundsStyle)
 			}
 			logger.Info().Msgf("inserted new style: %s %s for existing dd: %s", newStyle.Name, newStyle.SubModel, deviceDefinitionID)
 		}
