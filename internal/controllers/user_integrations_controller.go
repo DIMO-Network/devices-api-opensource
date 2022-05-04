@@ -663,6 +663,11 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("failure exchanging code with Smartcar: %s", err))
 	}
 
+	scUserID, err := udc.smartcarClient.GetUserID(c.Context(), token.Access)
+	if err != nil {
+		return err
+	}
+
 	externalID, err := udc.smartcarClient.GetExternalID(c.Context(), token.Access)
 	if err != nil {
 		return err
@@ -709,7 +714,10 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 		return fiber.NewError(fiber.StatusInternalServerError, "Error communicating with Smartcar.")
 	}
 
-	meta := services.UserDeviceAPIIntegrationsMetadata{SmartcarEndpoints: perms}
+	meta := services.UserDeviceAPIIntegrationsMetadata{
+		SmartcarUserID:    &scUserID,
+		SmartcarEndpoints: perms,
+	}
 
 	b, err := json.Marshal(meta)
 	if err != nil {

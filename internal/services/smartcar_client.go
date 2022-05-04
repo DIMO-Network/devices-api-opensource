@@ -12,6 +12,7 @@ import (
 
 type SmartcarClient interface {
 	ExchangeCode(ctx context.Context, code, redirectURI string) (*smartcar.Token, error)
+	GetUserID(ctx context.Context, accessToken string) (string, error)
 	GetExternalID(ctx context.Context, accessToken string) (string, error)
 	GetEndpoints(ctx context.Context, accessToken string, id string) ([]string, error)
 	GetVIN(ctx context.Context, accessToken string, id string) (string, error)
@@ -64,6 +65,18 @@ func (s *smartcarClient) ExchangeCode(ctx context.Context, code, redirectURI str
 		Scope:        smartcarScopes,
 	}
 	return client.NewAuth(params).ExchangeCode(ctx, &smartcar.ExchangeCodeParams{Code: code})
+}
+
+func (s *smartcarClient) GetUserID(ctx context.Context, accessToken string) (string, error) {
+	client := smartcar.NewClient()
+	id, err := client.GetUserID(ctx, &smartcar.UserIDParams{Access: accessToken})
+	if err != nil {
+		return "", err
+	}
+	if id == nil {
+		return "", errors.New("no error from Smartcar and yet no user id")
+	}
+	return *id, nil
 }
 
 func (s *smartcarClient) GetExternalID(ctx context.Context, accessToken string) (string, error) {
