@@ -57,7 +57,12 @@ func startTeslaTask(ctx context.Context, logger *zerolog.Logger, settings *confi
 
 	var accessT string
 	if udai.AccessExpiresAt.Time.Before(time.Now().Add(time.Minute)) {
-		newToken, err := exchangeTeslaRefresh(udai.RefreshToken.String)
+		oldRefresh, err := cipher.Decrypt(udai.RefreshToken.String)
+		if err != nil {
+			return err
+		}
+
+		newToken, err := exchangeTeslaRefresh(oldRefresh)
 		if err != nil {
 			return err
 		}
