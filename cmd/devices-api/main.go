@@ -287,6 +287,25 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error filling in Smartcar IDs.")
 		}
+	case "start-idle-tesla-task":
+		if len(os.Args[1:]) != 2 {
+			logger.Fatal().Msgf("Expected an argument, the device ID.")
+		}
+		deviceID := os.Args[2]
+		logger.Info().Msgf("Starting job for Tesla %s again.", deviceID)
+		teslaTaskService := services.NewTeslaTaskService(&settings, producer)
+		teslaSvc := services.NewTeslaService(&settings)
+		var cipher shared.Cipher
+		if settings.Environment == "dev" || settings.Environment == "prod" {
+			cipher = createKMS(&settings, &logger)
+		} else {
+			logger.Warn().Msg("Using ROT13 encrypter. Only use this for testing!")
+			cipher = new(shared.ROT13Cipher)
+		}
+		err := startTeslaTask(ctx, &logger, &settings, pdb, teslaSvc, teslaTaskService, deviceID, cipher)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error starting task.")
+		}
 	default:
 		startPrometheus(logger)
 		eventService := services.NewEventService(&logger, &settings, producer)
