@@ -89,6 +89,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		qm.Load("DeviceDefinition.DeviceIntegrations"),
 		qm.Load("DeviceDefinition.DeviceIntegrations.Integration"),
 		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
+		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
 		qm.OrderBy("created_at"),
 	).
 		All(c.Context(), udc.DBS().Reader)
@@ -152,6 +153,9 @@ func NewUserDeviceIntegrationStatusesFromDatabase(udis []*models.UserDeviceAPIIn
 			CreatedAt:     udi.CreatedAt,
 			UpdatedAt:     udi.UpdatedAt,
 			Metadata:      udi.Metadata,
+		}
+		if udi.R != nil && udi.R.Integration != nil {
+			out[i].IntegrationVendor = udi.R.Integration.Vendor
 		}
 	}
 

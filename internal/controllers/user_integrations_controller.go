@@ -1028,12 +1028,13 @@ func createDeviceIntegrationIfAutoPi(ctx context.Context, integrationID, deviceD
 /** Structs for request / response **/
 
 type UserDeviceIntegrationStatus struct {
-	IntegrationID string    `json:"integrationId"`
-	Status        string    `json:"status"`
-	CreatedAt     time.Time `json:"createdAt"`
-	ExternalID    *string   `json:"externalId"`
-	UpdatedAt     time.Time `json:"updatedAt"`
-	Metadata      null.JSON `json:"metadata" swaggertype:"string"`
+	IntegrationID     string    `json:"integrationId"`
+	Status            string    `json:"status"`
+	CreatedAt         time.Time `json:"createdAt"`
+	ExternalID        *string   `json:"externalId"`
+	UpdatedAt         time.Time `json:"updatedAt"`
+	Metadata          null.JSON `json:"metadata" swaggertype:"string"`
+	IntegrationVendor string    `json:"integrationVendor"`
 }
 
 // RegisterDeviceIntegrationRequest carries credentials used to connect the device to a given

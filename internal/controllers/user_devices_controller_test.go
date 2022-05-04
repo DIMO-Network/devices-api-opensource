@@ -218,6 +218,8 @@ func TestUserDevicesController(t *testing.T) {
 		dm := test.SetupCreateMake(t, "Ford", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Mach E", 2022, pdb)
 		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
+		integ := test.SetupCreateAutoPiIntegration(t, 10, nil, pdb)
+		_ = test.SetupCreateUserDeviceAPIIntegration(t, "123", "device123", ud.ID, integ.ID, pdb)
 
 		request := test.BuildRequest("GET", "/user/devices/me", "")
 		response, _ := app.Test(request)
@@ -231,6 +233,9 @@ func TestUserDevicesController(t *testing.T) {
 			assert.True(t, id.Exists(), "expected to find the ID")
 			assert.Equal(t, ud.ID, id.String(), "expected user device ID to match")
 		}
+		assert.Equal(t, integ.ID, gjson.GetBytes(body, "userDevices.0.integrations.0.integrationId").String())
+		assert.Equal(t, "device123", gjson.GetBytes(body, "userDevices.0.integrations.0.externalId").String())
+		assert.Equal(t, integ.Vendor, gjson.GetBytes(body, "userDevices.0.integrations.0.integrationVendor").String())
 		//teardown
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
 	})
