@@ -753,6 +753,13 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 		return err
 	}
 
+	ud.VinIdentifier = null.StringFrom(strings.ToUpper(vin))
+	ud.VinConfirmed = true
+	_, err = ud.Update(c.Context(), tx, boil.Infer())
+	if err != nil {
+		return err
+	}
+
 	if err := udc.smartcarTaskSvc.StartPoll(integration); err != nil {
 		return err
 	}
