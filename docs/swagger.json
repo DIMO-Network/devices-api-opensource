@@ -124,7 +124,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot"
+                                "$ref": "#/definitions/internal_controllers.DeviceMMYRoot"
                             }
                         }
                     }
@@ -786,7 +786,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence"
+                                "$ref": "#/definitions/internal_controllers.GetGeofence"
                             }
                         }
                     }
@@ -818,7 +818,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence"
+                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
                         }
                     }
                 ],
@@ -826,7 +826,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateResponse"
+                            "$ref": "#/definitions/internal_controllers.CreateResponse"
                         }
                     }
                 }
@@ -866,7 +866,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence"
+                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
                         }
                     }
                 ],
@@ -1186,6 +1186,9 @@
                 "integrationId": {
                     "type": "string"
                 },
+                "integrationVendor": {
+                    "type": "string"
+                },
                 "metadata": {
                     "type": "string"
                 },
@@ -1476,6 +1479,9 @@
                 "integrationId": {
                     "type": "string"
                 },
+                "integrationVendor": {
+                    "type": "string"
+                },
                 "metadata": {
                     "type": "string"
                 },
@@ -1649,16 +1655,16 @@
         "services.UserDeviceAPIIntegrationJob": {
             "type": "object",
             "properties": {
-                "command_job_id": {
+                "commandJobId": {
                     "type": "string"
                 },
-                "command_raw": {
+                "commandRaw": {
                     "type": "string"
                 },
-                "command_state": {
+                "commandState": {
                     "type": "string"
                 },
-                "last_updated": {
+                "lastUpdated": {
                     "type": "string"
                 }
             }

@@ -191,6 +191,8 @@ definitions:
         type: string
       integrationId:
         type: string
+      integrationVendor:
+        type: string
       metadata:
         type: string
       status:
@@ -389,6 +391,8 @@ definitions:
         type: string
       integrationId:
         type: string
+      integrationVendor:
+        type: string
       metadata:
         type: string
       status:
@@ -505,13 +509,13 @@ definitions:
     type: object
   services.UserDeviceAPIIntegrationJob:
     properties:
-      command_job_id:
+      commandJobId:
         type: string
-      command_raw:
+      commandRaw:
         type: string
-      command_state:
+      commandState:
         type: string
-      last_updated:
+      lastUpdated:
         type: string
     type: object
   services.UserDeviceMetadata:
@@ -638,7 +642,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot'
+              $ref: '#/definitions/internal_controllers.DeviceMMYRoot'
             type: array
       tags:
       - device-definitions
@@ -1008,7 +1012,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence'
+              $ref: '#/definitions/internal_controllers.GetGeofence'
             type: array
       security:
       - ApiKeyAuth: []
@@ -1026,14 +1030,14 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence'
+          $ref: '#/definitions/internal_controllers.CreateGeofence'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateResponse'
+            $ref: '#/definitions/internal_controllers.CreateResponse'
       security:
       - ApiKeyAuth: []
       - BearerAuth: []
@@ -1071,7 +1075,7 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence'
+          $ref: '#/definitions/internal_controllers.CreateGeofence'
       produces:
       - application/json
       responses:
