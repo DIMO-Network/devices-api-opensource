@@ -268,6 +268,16 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error restarting tasks.")
 		}
+	case "stop-task-by-key":
+		if len(os.Args[1:]) != 2 {
+			logger.Fatal().Msgf("Expected an argument, the task key.")
+		}
+		taskKey := os.Args[2]
+		logger.Info().Msgf("Stopping task %s", taskKey)
+		err := stopTaskByKey(ctx, &logger, &settings, pdb, taskKey, producer)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error stopping task.")
+		}
 	case "seed-smartcar-creds":
 		logger.Info().Msg("Filling Smartcar credential KTable.")
 		err := seedSmartcarCreds(ctx, &logger, &settings, pdb, producer)

@@ -14,7 +14,9 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
+	"github.com/Shopify/sarama"
 	"github.com/rs/zerolog"
+	"github.com/segmentio/ksuid"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"golang.org/x/oauth2"
@@ -30,6 +32,46 @@ func stopKafkaTask(ctx context.Context, logger *zerolog.Logger, settings *config
 	if err := scTaskSvc.StopPoll(integ); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func stopTaskByKey(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore, taskKey string, producer sarama.SyncProducer) error {
+	tt := struct {
+		services.CloudEventHeaders
+		Data interface{} `json:"data"`
+	}{
+		CloudEventHeaders: services.CloudEventHeaders{
+			ID:          ksuid.New().String(),
+			Source:      "dimo/integration/FAKE",
+			SpecVersion: "1.0",
+			Subject:     "FAKE",
+			Time:        time.Now(),
+			Type:        "zone.dimo.task.tesla.poll.stop",
+		},
+		Data: struct {
+			TaskID        string `json:"taskId"`
+			UserDeviceID  string `json:"userDeviceId"`
+			IntegrationID string `json:"integrationId"`
+		}{
+			TaskID:        taskKey,
+			UserDeviceID:  "FAKE",
+			IntegrationID: "FAKE",
+		},
+	}
+
+	ttb, err := json.Marshal(tt)
+	if err != nil {
+		return err
+	}
+
+	producer.SendMessage(
+		&sarama.ProducerMessage{
+			Topic: settings.TaskStopTopic,
+			Key:   sarama.StringEncoder(taskKey),
+			Value: sarama.ByteEncoder(ttb),
+		},
+	)
 
 	return nil
 }
