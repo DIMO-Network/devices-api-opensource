@@ -651,49 +651,57 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+var smartcarCallErr = fiber.NewError(fiber.StatusInternalServerError, "Error communicating with Smartcar.")
+
 func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, integ *models.Integration, ud *models.UserDevice) error {
 	reqBody := new(RegisterDeviceIntegrationRequest)
 	if err := c.BodyParser(reqBody); err != nil {
-		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+		return fiber.NewError(fiber.StatusBadRequest, "Couldn't parse request JSON body.")
 	}
 
 	token, err := udc.smartcarClient.ExchangeCode(c.Context(), reqBody.Code, reqBody.RedirectURI)
 	if err != nil {
-		logger.Err(err).Msg("Error exchanging authorization code with Smartcar")
-		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("failure exchanging code with Smartcar: %s", err))
+		logger.Err(err).Msg("Failed to exchange authorization code with Smartcar.")
+		// This may not be the user's fault, but 400 for now.
+		return fiber.NewError(fiber.StatusBadRequest, "Failed to exchange authorization code with Smartcar.")
 	}
 
 	scUserID, err := udc.smartcarClient.GetUserID(c.Context(), token.Access)
 	if err != nil {
-		return err
+		logger.Err(err).Msg("Failed to retrieve user ID from Smartcar.")
+		return smartcarCallErr
 	}
 
 	externalID, err := udc.smartcarClient.GetExternalID(c.Context(), token.Access)
 	if err != nil {
-		return err
+		logger.Err(err).Msg("Failed to retrieve vehicle ID from Smartcar.")
+		return smartcarCallErr
 	}
 
 	vin, err := udc.smartcarClient.GetVIN(c.Context(), token.Access, externalID)
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "Error communicating with Smartcar.")
+		logger.Err(err).Msg("Failed to retrieve VIN from Smartcar.")
+		return smartcarCallErr
 	}
 
 	// Prevent users from connecting a vehicle if it's already connected through another user
 	// device object. Disabled outside of prod for ease of testing.
 	if udc.Settings.Environment == "prod" {
-		// Probably a race condition here.
-		var conflict bool
-		conflict, err = models.UserDevices(
+		// Probably a race condition here. Need to either lock something or impose a greater
+		// isolation level.
+		conflict, err := models.UserDevices(
 			models.UserDeviceWhere.ID.NEQ(ud.ID), // If you want to re-register, or register a different integration, that's okay.
 			models.UserDeviceWhere.VinIdentifier.EQ(null.StringFrom(vin)),
 			models.UserDeviceWhere.VinConfirmed.EQ(true),
 		).Exists(c.Context(), tx)
 		if err != nil {
-			return err
+			logger.Err(err).Msg("Failed to search for VIN conflicts.")
+			return opaqueInternalError
 		}
 
 		if conflict {
-			return fiber.NewError(fiber.StatusConflict, "VIN already used for another device's integration")
+			logger.Error().Msg("VIN %s already in use.")
+			return fiber.NewError(fiber.StatusConflict, fmt.Sprintf("VIN %s in use by a previously connected device.", vin))
 		}
 	}
 
@@ -702,7 +710,7 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 	deviceMake := ud.R.DeviceDefinition.R.DeviceMake.Name
 	year, err := udc.smartcarClient.GetYear(c.Context(), token.Access, externalID)
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "Error communicating with Smartcar.")
+		return smartcarCallErr
 	}
 
 	if err := udc.fixSmartcarDeviceYear(c.Context(), logger, tx, integ, ud, year); err != nil {
@@ -711,7 +719,7 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 
 	perms, err := udc.smartcarClient.GetEndpoints(c.Context(), token.Access, externalID)
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "Error communicating with Smartcar.")
+		return smartcarCallErr
 	}
 
 	meta := services.UserDeviceAPIIntegrationsMetadata{
@@ -749,19 +757,20 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 	}
 
 	if err := integration.Insert(c.Context(), tx, boil.Infer()); err != nil {
-		logger.Err(err).Msg("Unexpected database error inserting new Smartcar integration registration")
-		return err
+		logger.Err(err).Msg("Unexpected database error inserting new Smartcar integration registration.")
+		return opaqueInternalError
 	}
 
 	ud.VinIdentifier = null.StringFrom(strings.ToUpper(vin))
 	ud.VinConfirmed = true
 	_, err = ud.Update(c.Context(), tx, boil.Infer())
 	if err != nil {
-		return err
+		return opaqueInternalError
 	}
 
 	if err := udc.smartcarTaskSvc.StartPoll(integration); err != nil {
-		return err
+		logger.Err(err).Msg("Couldn't start Smartcar polling.")
+		return opaqueInternalError
 	}
 
 	err = udc.eventService.Emit(&services.Event{
@@ -787,15 +796,15 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 		},
 	})
 	if err != nil {
-		logger.Err(err).Msg("Failed sending device integration creation event")
+		logger.Err(err).Msg("Failed to emit integration registration event.")
 	}
 
 	if err := tx.Commit(); err != nil {
-		logger.Error().Msg("Failed to commit new integration")
-		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("failed to commit new integration: %s", err))
+		logger.Error().Msg("Failed to commit new user device integration.")
+		return opaqueInternalError
 	}
 
-	logger.Info().Msg("Finished Smartcar device registration")
+	logger.Info().Msg("Finished Smartcar device registration.")
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
