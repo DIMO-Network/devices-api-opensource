@@ -260,27 +260,56 @@ func FindUserDeviceAutoPiIntegration(ctx context.Context, exec boil.ContextExecu
 }
 
 // AppendAutoPiCompatibility adds autopi compatibility for AmericasRegion and EuropeRegion regions
-func AppendAutoPiCompatibility(ctx context.Context, dcs []DeviceCompatibility, writer *database.DB) ([]DeviceCompatibility, error) {
+func AppendAutoPiCompatibility(ctx context.Context, dcs []DeviceCompatibility, deviceDefinitionID string, writer *database.DB) ([]DeviceCompatibility, error) {
 	integration, err := GetOrCreateAutoPiIntegration(ctx, writer)
 	if err != nil {
 		return nil, err
 	}
-	dcs = append(dcs, DeviceCompatibility{
-		ID:           integration.ID,
-		Type:         integration.Type,
-		Style:        integration.Style,
-		Vendor:       integration.Vendor,
-		Region:       AmericasRegion.String(),
-		Capabilities: nil,
-	})
-	dcs = append(dcs, DeviceCompatibility{
-		ID:           integration.ID,
-		Type:         integration.Type,
-		Style:        integration.Style,
-		Vendor:       integration.Vendor,
-		Region:       EuropeRegion.String(),
-		Capabilities: nil,
-	})
+	containsAutoPiInt := false
+	for _, dc := range dcs {
+		if dc.ID == integration.ID {
+			containsAutoPiInt = true
+			break
+		}
+	}
+	if !containsAutoPiInt {
+		// insert into db
+		di := models.DeviceIntegration{
+			DeviceDefinitionID: deviceDefinitionID,
+			IntegrationID:      integration.ID,
+			Region:             AmericasRegion.String(),
+		}
+		err = di.Insert(ctx, writer, boil.Infer())
+		if err != nil {
+			return nil, err
+		}
+		di = models.DeviceIntegration{
+			DeviceDefinitionID: deviceDefinitionID,
+			IntegrationID:      integration.ID,
+			Region:             EuropeRegion.String(),
+		}
+		err = di.Insert(ctx, writer, boil.Infer())
+		if err != nil {
+			return nil, err
+		}
+		// prepare return object for api
+		dcs = append(dcs, DeviceCompatibility{
+			ID:           integration.ID,
+			Type:         integration.Type,
+			Style:        integration.Style,
+			Vendor:       integration.Vendor,
+			Region:       AmericasRegion.String(),
+			Capabilities: nil,
+		})
+		dcs = append(dcs, DeviceCompatibility{
+			ID:           integration.ID,
+			Type:         integration.Type,
+			Style:        integration.Style,
+			Vendor:       integration.Vendor,
+			Region:       EuropeRegion.String(),
+			Capabilities: nil,
+		})
+	}
 	return dcs, nil
 }
 

@@ -63,3 +63,25 @@ func TestFindUserDeviceAutoPiIntegration(t *testing.T) {
 	// check some values
 	test.TruncateTables(pdb.DBS().Writer.DB, t)
 }
+
+func TestAppendAutoPiCompatibility(t *testing.T) {
+	ctx := context.Background()
+	pdb, db := test.SetupDatabase(ctx, t, migrationsDirRelPath)
+	defer func() {
+		if err := db.Stop(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	dm := test.SetupCreateMake(t, "Ford", pdb)
+	dd := test.SetupCreateDeviceDefinition(t, dm, "MachE", 2020, pdb)
+	var dcs []DeviceCompatibility
+	compatibility, err := AppendAutoPiCompatibility(ctx, dcs, dd.ID, pdb.DBS().Writer)
+
+	assert.NoError(t, err)
+	assert.Len(t, compatibility, 2)
+	all, err := models.DeviceIntegrations().All(ctx, pdb.DBS().Reader)
+	assert.NoError(t, err)
+	assert.Len(t, all, 2)
+
+	test.TruncateTables(pdb.DBS().Writer.DB, t)
+}

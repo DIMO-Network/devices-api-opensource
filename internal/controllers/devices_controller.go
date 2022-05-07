@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
@@ -127,8 +128,8 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	if dd.Year >= autoPiYearCutoff {
-		rp.CompatibleIntegrations, err = services.AppendAutoPiCompatibility(c.Context(), rp.CompatibleIntegrations, d.DBS().Writer)
+	if dd.Year >= autoPiYearCutoff && !strings.EqualFold(dd.R.DeviceMake.Name, "Tesla") {
+		rp.CompatibleIntegrations, err = services.AppendAutoPiCompatibility(c.Context(), rp.CompatibleIntegrations, dd.ID, d.DBS().Writer)
 		if err != nil {
 			return err
 		}
@@ -155,6 +156,7 @@ func (d *DevicesController) GetDeviceIntegrationsByID(c *fiber.Ctx) error {
 	dd, err := models.DeviceDefinitions(
 		qm.Where("id = ?", id),
 		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
+		qm.Load(models.DeviceDefinitionRels.DeviceMake),
 		qm.Load("DeviceIntegrations.Integration")).
 		One(c.Context(), d.DBS().Reader)
 	if err != nil {
@@ -177,8 +179,8 @@ func (d *DevicesController) GetDeviceIntegrationsByID(c *fiber.Ctx) error {
 			})
 		}
 	}
-	if dd.Year >= autoPiYearCutoff {
-		integrations, err = services.AppendAutoPiCompatibility(c.Context(), integrations, d.DBS().Writer)
+	if dd.Year >= autoPiYearCutoff && !strings.EqualFold(dd.R.DeviceMake.Name, "Tesla") {
+		integrations, err = services.AppendAutoPiCompatibility(c.Context(), integrations, dd.ID, d.DBS().Writer)
 		if err != nil {
 			return err
 		}
