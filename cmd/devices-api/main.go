@@ -316,6 +316,25 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error starting task.")
 		}
+	case "redo-smartcar-token":
+		if len(os.Args[1:]) != 2 {
+			logger.Fatal().Msgf("Expected an argument, the device ID.")
+		}
+		userDeviceID := os.Args[2]
+		smartcarClient := services.NewSmartcarClient(&settings)
+		logger.Info().Msgf("Redoing token for %s.", userDeviceID)
+
+		var cipher shared.Cipher
+		if settings.Environment == "dev" || settings.Environment == "prod" {
+			cipher = createKMS(&settings, &logger)
+		} else {
+			logger.Warn().Msg("Using ROT13 encrypter. Only use this for testing!")
+			cipher = new(shared.ROT13Cipher)
+		}
+		err := redoSmartcarToken(ctx, &logger, &settings, pdb, cipher, producer, userDeviceID, smartcarClient)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error redoing token.")
+		}
 	default:
 		startPrometheus(logger)
 		eventService := services.NewEventService(&logger, &settings, producer)
