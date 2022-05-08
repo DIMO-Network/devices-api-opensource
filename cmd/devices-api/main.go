@@ -151,20 +151,6 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error running Smartcar Kafka re-registration")
 		}
-	case "migrate-smartcar-webhooks":
-		if len(os.Args[1:]) != 2 {
-			logger.Fatal().Msgf("Expected two arguments, but got %d", len(os.Args[1:]))
-		}
-		oldWebhookID := os.Args[2]
-		err = migrateSmartcarWebhooks(ctx, &logger, &settings, pdb, oldWebhookID)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Error running Smartcar webhook migration")
-		}
-	case "refresh-smartcar-tokens":
-		err = refreshSmartcarTokens(ctx, &logger, &settings, pdb)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Error running Smartcar webhook migration")
-		}
 	case "search-sync-dds":
 		logger.Info().Msg("loading device definitions from our DB to elastic cluster")
 		err := loadElasticDevices(ctx, &logger, &settings, pdb)
@@ -178,96 +164,6 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error filling in powertrain data.")
 		}
-	case "migrate-tesla-tasks":
-		logger.Info().Msg("Migrating Tesla tasks.")
-		teslaTaskService := services.NewTeslaTaskService(&settings, producer)
-		teslaSvc := services.NewTeslaService(&settings)
-		var cipher shared.Cipher
-		if settings.Environment == "dev" || settings.Environment == "prod" {
-			cipher = createKMS(&settings, &logger)
-		} else {
-			logger.Warn().Msg("Using ROT13 encrypter. Only use this for testing!")
-			cipher = new(shared.ROT13Cipher)
-		}
-		err := migrateTeslaTasks(ctx, &logger, &settings, pdb, teslaSvc, teslaTaskService, cipher)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Error migrating tasks.")
-		}
-	case "restart-tesla-tasks":
-		logger.Info().Msg("Restarting Tesla tasks.")
-		teslaTaskService := services.NewTeslaTaskService(&settings, producer)
-		teslaSvc := services.NewTeslaService(&settings)
-		var cipher shared.Cipher
-		if settings.Environment == "dev" || settings.Environment == "prod" {
-			cipher = createKMS(&settings, &logger)
-		} else {
-			logger.Warn().Msg("Using ROT13 encrypter. Only use this for testing!")
-			cipher = new(shared.ROT13Cipher)
-		}
-		err := restartTeslaTasks(ctx, &logger, &settings, pdb, teslaSvc, teslaTaskService, cipher)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Error restarting tasks.")
-		}
-	case "migrate-smartcar-poll":
-		logger.Info().Msg("Migrating Smartcar tasks to poller.")
-
-		smartcarClient := services.NewSmartcarClient(&settings)
-		scTaskSvc := services.NewSmartcarTaskService(&settings, producer)
-
-		scHook := &services.SmartcarWebhookClient{
-			HTTPClient:      &http.Client{Timeout: 10 * time.Second},
-			WebhookID:       settings.SmartcarWebhookID,
-			ManagementToken: settings.SmartcarManagementToken,
-		}
-
-		var cipher shared.Cipher
-		if settings.Environment == "dev" || settings.Environment == "prod" {
-			cipher = createKMS(&settings, &logger)
-		} else {
-			logger.Warn().Msg("Using ROT13 encrypter. Only use this for testing!")
-			cipher = new(shared.ROT13Cipher)
-		}
-		err := migrateSmartcarPoll(ctx, &logger, &settings, pdb, smartcarClient, scTaskSvc, scHook, cipher)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Error restarting tasks.")
-		}
-	case "fill-smartcar-metadata":
-		logger.Info().Msg("Filling in Smartcar metadata.")
-
-		smartcarClient := services.NewSmartcarClient(&settings)
-
-		var cipher shared.Cipher
-		if settings.Environment == "dev" || settings.Environment == "prod" {
-			cipher = createKMS(&settings, &logger)
-		} else {
-			logger.Warn().Msg("Using ROT13 encrypter. Only use this for testing!")
-			cipher = new(shared.ROT13Cipher)
-		}
-		err := fillSmartcarMetadata(ctx, &logger, &settings, pdb, smartcarClient, cipher)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Error restarting tasks.")
-		}
-	case "restart-smartcar-tasks":
-		logger.Info().Msg("Restarting Smartcar")
-
-		scTaskSvc := services.NewSmartcarTaskService(&settings, producer)
-
-		err := restartSmartcarTasks(ctx, &logger, &settings, pdb, scTaskSvc)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Error restarting tasks.")
-		}
-	case "stop-kafka-task":
-		if len(os.Args[1:]) != 2 {
-			logger.Fatal().Msgf("Expected an argument, the task ID.")
-		}
-		taskID := os.Args[2]
-		logger.Info().Msgf("Stopping task Smartcar %s", taskID)
-		scTaskSvc := services.NewSmartcarTaskService(&settings, producer)
-
-		err := stopKafkaTask(ctx, &logger, &settings, pdb, scTaskSvc, taskID)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Error restarting tasks.")
-		}
 	case "stop-task-by-key":
 		if len(os.Args[1:]) != 2 {
 			logger.Fatal().Msgf("Expected an argument, the task key.")
@@ -277,63 +173,6 @@ func main() {
 		err := stopTaskByKey(ctx, &logger, &settings, pdb, taskKey, producer)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error stopping task.")
-		}
-	case "seed-smartcar-creds":
-		logger.Info().Msg("Filling Smartcar credential KTable.")
-		err := seedSmartcarCreds(ctx, &logger, &settings, pdb, producer)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Error seeding Smartcar KTable.")
-		}
-	case "seed-smartcar-user-id":
-		logger.Info().Msg("Filling in Smartcar user IDs.")
-		var cipher shared.Cipher
-		if settings.Environment == "dev" || settings.Environment == "prod" {
-			cipher = createKMS(&settings, &logger)
-		} else {
-			logger.Warn().Msg("Using ROT13 encrypter. Only use this for testing!")
-			cipher = new(shared.ROT13Cipher)
-		}
-		err := seedSmartcarUserID(ctx, &logger, pdb, cipher)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Error filling in Smartcar IDs.")
-		}
-	case "start-idle-tesla-task":
-		if len(os.Args[1:]) != 2 {
-			logger.Fatal().Msgf("Expected an argument, the device ID.")
-		}
-		deviceID := os.Args[2]
-		logger.Info().Msgf("Starting job for Tesla %s again.", deviceID)
-		teslaTaskService := services.NewTeslaTaskService(&settings, producer)
-		teslaSvc := services.NewTeslaService(&settings)
-		var cipher shared.Cipher
-		if settings.Environment == "dev" || settings.Environment == "prod" {
-			cipher = createKMS(&settings, &logger)
-		} else {
-			logger.Warn().Msg("Using ROT13 encrypter. Only use this for testing!")
-			cipher = new(shared.ROT13Cipher)
-		}
-		err := startTeslaTask(ctx, &logger, &settings, pdb, teslaSvc, teslaTaskService, deviceID, cipher)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Error starting task.")
-		}
-	case "redo-smartcar-token":
-		if len(os.Args[1:]) != 2 {
-			logger.Fatal().Msgf("Expected an argument, the device ID.")
-		}
-		userDeviceID := os.Args[2]
-		smartcarClient := services.NewSmartcarClient(&settings)
-		logger.Info().Msgf("Redoing token for %s.", userDeviceID)
-
-		var cipher shared.Cipher
-		if settings.Environment == "dev" || settings.Environment == "prod" {
-			cipher = createKMS(&settings, &logger)
-		} else {
-			logger.Warn().Msg("Using ROT13 encrypter. Only use this for testing!")
-			cipher = new(shared.ROT13Cipher)
-		}
-		err := redoSmartcarToken(ctx, &logger, &settings, pdb, cipher, producer, userDeviceID, smartcarClient)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Error redoing token.")
 		}
 	default:
 		startPrometheus(logger)
