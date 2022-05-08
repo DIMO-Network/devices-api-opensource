@@ -55,7 +55,7 @@ func redoSmartcarToken(ctx context.Context, logger *zerolog.Logger, settings *co
 	if err != nil {
 		return err
 	}
-	logger.Info().Str("userDeviceID", userDeviceID).Str("newRefreshToken", newToken.Refresh)
+	logger.Info().Str("userDeviceID", userDeviceID).Str("newRefreshToken", newToken.Refresh).Msg("Exchanged token.")
 
 	externalID, err := smartcarClient.GetExternalID(ctx, newToken.Access)
 	if err != nil {

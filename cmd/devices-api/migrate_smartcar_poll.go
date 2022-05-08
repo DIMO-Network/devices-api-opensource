@@ -48,7 +48,13 @@ func migrateSmartcarPoll(ctx context.Context, logger *zerolog.Logger, settings *
 			continue
 		}
 
-		meta := services.UserDeviceAPIIntegrationsMetadata{SmartcarEndpoints: perms}
+		scUser, err := scClient.GetUserID(ctx, integ.AccessToken.String)
+		if err != nil {
+			logger.Err(err).Msg("Token doesn't work.")
+			continue
+		}
+
+		meta := services.UserDeviceAPIIntegrationsMetadata{SmartcarEndpoints: perms, SmartcarUserID: &scUser}
 		b, err := json.Marshal(meta)
 		if err != nil {
 			logger.Err(err).Msg("Couldn't marshal endpoint data.")
