@@ -39,11 +39,12 @@ func TestUserIntegrationsController(t *testing.T) {
 	teslaTaskService := mock_services.NewMockTeslaTaskService(mockCtrl)
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(mockCtrl)
 	autoPiIngest := mock_services.NewMockIngestRegistrar(mockCtrl)
+	autoPiTaskSvc := mock_services.NewMockAutoPiTaskService(mockCtrl)
 
 	const testUserID = "123123"
 	const testUser2 = "someOtherUser2"
 
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, test.Logger(), deviceDefSvc, taskSvc, &fakeEventService{}, scClient, scTaskSvc, teslaSvc, teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc, nil, autoPiIngest)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, test.Logger(), deviceDefSvc, taskSvc, &fakeEventService{}, scClient, scTaskSvc, teslaSvc, teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc, nil, autoPiIngest, autoPiTaskSvc)
 	app := fiber.New()
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
 	app.Post("/user2/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUser2), c.RegisterDeviceIntegration)

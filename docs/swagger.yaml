@@ -429,6 +429,28 @@ definitions:
       valid:
         type: boolean
     type: object
+  services.AutoPiCommandJob:
+    properties:
+      commandJobId:
+        type: string
+      commandRaw:
+        type: string
+      commandState:
+        type: string
+      lastUpdated:
+        type: string
+    type: object
+  services.AutoPiTask:
+    properties:
+      code:
+        type: integer
+      description:
+        type: string
+      status:
+        type: string
+      taskId:
+        type: string
+    type: object
   services.DeviceCompatibility:
     properties:
       capabilities:
@@ -507,17 +529,6 @@ definitions:
         description: VehicleType PASSENGER CAR, from NHTSA
         type: string
     type: object
-  services.UserDeviceAPIIntegrationJob:
-    properties:
-      commandJobId:
-        type: string
-      commandRaw:
-        type: string
-      commandState:
-        type: string
-      lastUpdated:
-        type: string
-    type: object
   services.UserDeviceMetadata:
     properties:
       powertrainType:
@@ -528,6 +539,27 @@ info:
   title: DIMO Devices API
   version: "1.0"
 paths:
+  /autopi/task/:taskID:
+    get:
+      description: gets the status of an autopi related task. In future could be other
+        tasks too?
+      parameters:
+      - description: task id
+        in: path
+        name: taskID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.AutoPiTask'
+      security:
+      - BearerAuth: []
+      tags:
+      - integrations
   /autopi/unit/:unitID:
     get:
       description: gets the information about the autopi by the unitId
@@ -546,7 +578,7 @@ paths:
       - BearerAuth: []
       tags:
       - integrations
-  /autopi/unit/is-online/:unitID:
+  /autopi/unit/:unitID/is-online:
     get:
       description: 'gets whether the autopi is online right now, if already paired
         with a user, makes sure user has access. returns json with {"online": true/false}'
@@ -561,6 +593,27 @@ paths:
       responses:
         "200":
           description: ""
+      security:
+      - BearerAuth: []
+      tags:
+      - integrations
+  /autopi/unit/:unitID/update:
+    post:
+      description: checks to see if autopi unit needs to be updated, and starts update
+        process if so.
+      parameters:
+      - description: autopi unit id
+        in: path
+        name: unitID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.AutoPiTask'
       security:
       - BearerAuth: []
       tags:
@@ -642,7 +695,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.DeviceMMYRoot'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot'
             type: array
       tags:
       - device-definitions
@@ -766,14 +819,14 @@ paths:
         name: user_device
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.RegisterUserDevice'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDevice'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_controllers.RegisterUserDeviceResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDeviceResponse'
       security:
       - ApiKeyAuth: []
       - BearerAuth: []
@@ -814,7 +867,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/services.UserDeviceAPIIntegrationJob'
+            $ref: '#/definitions/services.AutoPiCommandJob'
       security:
       - BearerAuth: []
       tags:
@@ -883,7 +936,7 @@ paths:
         name: name
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.UpdateCountryCodeReq'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateCountryCodeReq'
       produces:
       - application/json
       responses:
@@ -925,7 +978,7 @@ paths:
         name: name
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.UpdateNameReq'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateNameReq'
       - description: user id
         in: path
         name: user_device_id
@@ -971,7 +1024,7 @@ paths:
         name: vin
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.UpdateVINReq'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateVINReq'
       - description: user id
         in: path
         name: userDeviceID
@@ -996,7 +1049,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.UserDeviceFull'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceFull'
             type: array
       security:
       - BearerAuth: []
@@ -1012,7 +1065,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.GetGeofence'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence'
             type: array
       security:
       - ApiKeyAuth: []
@@ -1030,14 +1083,14 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.CreateGeofence'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_controllers.CreateResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateResponse'
       security:
       - ApiKeyAuth: []
       - BearerAuth: []
@@ -1075,7 +1128,7 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.CreateGeofence'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence'
       produces:
       - application/json
       responses:

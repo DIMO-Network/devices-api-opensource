@@ -37,6 +37,7 @@ type UserDevicesController struct {
 	autoPiSvc             services.AutoPiAPIService
 	nhtsaService          services.INHTSAService
 	autoPiIngestRegistrar services.IngestRegistrar
+	autoPiTaskService     services.AutoPiTaskService
 }
 
 // NewUserDevicesController constructor
@@ -55,6 +56,7 @@ func NewUserDevicesController(
 	autoPiSvc services.AutoPiAPIService,
 	nhtsaService services.INHTSAService,
 	autoPiIngestRegistrar services.IngestRegistrar,
+	autoPiTaskService services.AutoPiTaskService,
 ) UserDevicesController {
 	return UserDevicesController{
 		Settings:              settings,
@@ -71,6 +73,7 @@ func NewUserDevicesController(
 		autoPiSvc:             autoPiSvc,
 		nhtsaService:          nhtsaService,
 		autoPiIngestRegistrar: autoPiIngestRegistrar,
+		autoPiTaskService:     autoPiTaskService,
 	}
 }
 

@@ -300,7 +300,7 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 // @Param       unitID        path  string  true  "autopi unit id"
 // @Success     200
 // @Security    BearerAuth
-// @Router 		/autopi/unit/is-online/:unitID [get]
+// @Router 		/autopi/unit/:unitID/is-online [get]
 func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 	unitID := c.Params("unitID")
 	if len(unitID) == 0 {
@@ -365,6 +365,89 @@ func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"online": online,
 	})
+}
+
+// StartAutoPiUpdateTask godoc
+// @Description checks to see if autopi unit needs to be updated, and starts update process if so.
+// @Tags 		integrations
+// @Produce     json
+// @Param       unitID        path  string  true  "autopi unit id", ie. physical barcode
+// @Success     200  {object}  services.AutoPiTask
+// @Security    BearerAuth
+// @Router 		/autopi/unit/:unitID/update [post]
+func (udc *UserDevicesController) StartAutoPiUpdateTask(c *fiber.Ctx) error {
+	unitID := c.Params("unitID") // save in task
+	if len(unitID) == 0 {
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+	userID := getUserID(c)
+	deviceID := ""
+	//userDeviceID := ""
+	// -- same code as above method
+	// check if unitId has already been assigned to a different user - don't allow querying in this case
+	udai, err := models.UserDeviceAPIIntegrations(qm.Where("metadata ->> 'auto_pi_unit_id' = $1", unitID),
+		qm.Load(models.UserDeviceAPIIntegrationRels.UserDevice)).
+		One(c.Context(), udc.DBS().Reader)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	if udai != nil {
+		if udai.R.UserDevice.UserID != userID {
+			return c.SendStatus(fiber.StatusForbidden)
+		}
+		deviceID = udai.ExternalID.String
+		//userDeviceID = udai.UserDeviceID
+	}
+	if len(deviceID) == 0 {
+		unit, err := udc.autoPiSvc.GetDeviceByUnitID(unitID)
+		if err != nil {
+			return err
+		}
+		deviceID = unit.ID
+		if unit.IsUpdated {
+			return c.JSON(services.AutoPiTask{
+				TaskID:      "0",
+				Status:      "already up to date",
+				Description: "autopi device is already up to date running version " + unit.Release.Version,
+				Code:        -1,
+			})
+		}
+	}
+	// -- end same code as above method.
+	taskID, err := udc.autoPiTaskService.StartAutoPiUpdate(c.Context(), deviceID, userID, unitID)
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(services.AutoPiTask{
+		TaskID:      taskID,
+		Status:      "Pending",
+		Description: "",
+		Code:        100,
+	})
+}
+
+// GetAutoPiTask godoc
+// @Description gets the status of an autopi related task. In future could be other tasks too?
+// @Tags 		integrations
+// @Produce     json
+// @Param       taskID        path  string  true  "task id", returned from endpoint that starts a task
+// @Success     200  {object}  services.AutoPiTask
+// @Security    BearerAuth
+// @Router 		/autopi/task/:taskID [get]
+func (udc *UserDevicesController) GetAutoPiTask(c *fiber.Ctx) error {
+	taskID := c.Params("taskID") // save in task
+	if len(taskID) == 0 {
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+	//userID := getUserID(c)
+	task, err := udc.autoPiTaskService.GetTaskStatus(c.Context(), taskID)
+	if err != nil {
+		return err
+	}
+
+	// todo somewhere need to check this userID has access to that taskID
+	return c.JSON(task)
 }
 
 // RegisterDeviceIntegration godoc
@@ -1079,4 +1162,7 @@ type GetUserDeviceIntegrationResponse struct {
 
 type AutoPiCommandRequest struct {
 	Command string `json:"command"`
+}
+
+type AutoPiCreateTaskResp struct {
 }
