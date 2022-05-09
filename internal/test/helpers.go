@@ -257,3 +257,16 @@ func SetupCreateUserDeviceAPIIntegration(t *testing.T, autoPiUnitID, externalID,
 	assert.NoError(t, err)
 	return udapiInt
 }
+
+func SetupCreateAutoPiJob(t *testing.T, jobID, deviceID, cmd, userDeviceID string, pdb database.DbStore) *models.AutopiJob {
+	autopiJob := models.AutopiJob{
+		ID:             jobID,
+		AutopiDeviceID: deviceID,
+		Command:        cmd,
+		State:          "sent",
+		UserDeviceID:   null.StringFrom(userDeviceID),
+	}
+	err := autopiJob.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
+	assert.NoError(t, err)
+	return &autopiJob
+}

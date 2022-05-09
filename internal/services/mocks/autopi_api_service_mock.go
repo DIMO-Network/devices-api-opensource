@@ -5,9 +5,11 @@
 package mock_services
 
 import (
+	context "context"
 	reflect "reflect"
 
 	services "github.com/DIMO-Network/devices-api/internal/services"
+	models "github.com/DIMO-Network/devices-api/models"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -63,48 +65,64 @@ func (mr *MockAutoPiAPIServiceMockRecorder) AssociateDeviceToTemplate(deviceID, 
 }
 
 // CommandRaw mocks base method.
-func (m *MockAutoPiAPIService) CommandRaw(deviceID, command string, withWebhook bool) (*services.AutoPiCommandResponse, error) {
+func (m *MockAutoPiAPIService) CommandRaw(ctx context.Context, deviceID, command, userDeviceID string) (*services.AutoPiCommandResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CommandRaw", deviceID, command, withWebhook)
+	ret := m.ctrl.Call(m, "CommandRaw", ctx, deviceID, command, userDeviceID)
 	ret0, _ := ret[0].(*services.AutoPiCommandResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CommandRaw indicates an expected call of CommandRaw.
-func (mr *MockAutoPiAPIServiceMockRecorder) CommandRaw(deviceID, command, withWebhook interface{}) *gomock.Call {
+func (mr *MockAutoPiAPIServiceMockRecorder) CommandRaw(ctx, deviceID, command, userDeviceID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CommandRaw", reflect.TypeOf((*MockAutoPiAPIService)(nil).CommandRaw), deviceID, command, withWebhook)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CommandRaw", reflect.TypeOf((*MockAutoPiAPIService)(nil).CommandRaw), ctx, deviceID, command, userDeviceID)
 }
 
 // CommandSyncDevice mocks base method.
-func (m *MockAutoPiAPIService) CommandSyncDevice(deviceID string) (*services.AutoPiCommandResponse, error) {
+func (m *MockAutoPiAPIService) CommandSyncDevice(ctx context.Context, deviceID, userDeviceID string) (*services.AutoPiCommandResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CommandSyncDevice", deviceID)
+	ret := m.ctrl.Call(m, "CommandSyncDevice", ctx, deviceID, userDeviceID)
 	ret0, _ := ret[0].(*services.AutoPiCommandResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CommandSyncDevice indicates an expected call of CommandSyncDevice.
-func (mr *MockAutoPiAPIServiceMockRecorder) CommandSyncDevice(deviceID interface{}) *gomock.Call {
+func (mr *MockAutoPiAPIServiceMockRecorder) CommandSyncDevice(ctx, deviceID, userDeviceID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CommandSyncDevice", reflect.TypeOf((*MockAutoPiAPIService)(nil).CommandSyncDevice), deviceID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CommandSyncDevice", reflect.TypeOf((*MockAutoPiAPIService)(nil).CommandSyncDevice), ctx, deviceID, userDeviceID)
 }
 
 // GetCommandStatus mocks base method.
-func (m *MockAutoPiAPIService) GetCommandStatus(deviceID, jobID string) ([]byte, error) {
+func (m *MockAutoPiAPIService) GetCommandStatus(ctx context.Context, jobID string) (*services.AutoPiCommandJob, *models.AutopiJob, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetCommandStatus", deviceID, jobID)
+	ret := m.ctrl.Call(m, "GetCommandStatus", ctx, jobID)
+	ret0, _ := ret[0].(*services.AutoPiCommandJob)
+	ret1, _ := ret[1].(*models.AutopiJob)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetCommandStatus indicates an expected call of GetCommandStatus.
+func (mr *MockAutoPiAPIServiceMockRecorder) GetCommandStatus(ctx, jobID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCommandStatus", reflect.TypeOf((*MockAutoPiAPIService)(nil).GetCommandStatus), ctx, jobID)
+}
+
+// GetCommandStatusFromAutoPi mocks base method.
+func (m *MockAutoPiAPIService) GetCommandStatusFromAutoPi(deviceID, jobID string) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCommandStatusFromAutoPi", deviceID, jobID)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetCommandStatus indicates an expected call of GetCommandStatus.
-func (mr *MockAutoPiAPIServiceMockRecorder) GetCommandStatus(deviceID, jobID interface{}) *gomock.Call {
+// GetCommandStatusFromAutoPi indicates an expected call of GetCommandStatusFromAutoPi.
+func (mr *MockAutoPiAPIServiceMockRecorder) GetCommandStatusFromAutoPi(deviceID, jobID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCommandStatus", reflect.TypeOf((*MockAutoPiAPIService)(nil).GetCommandStatus), deviceID, jobID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCommandStatusFromAutoPi", reflect.TypeOf((*MockAutoPiAPIService)(nil).GetCommandStatusFromAutoPi), deviceID, jobID)
 }
 
 // GetDeviceByID mocks base method.
@@ -163,4 +181,19 @@ func (m *MockAutoPiAPIService) UnassociateDeviceTemplate(deviceID string, templa
 func (mr *MockAutoPiAPIServiceMockRecorder) UnassociateDeviceTemplate(deviceID, templateID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnassociateDeviceTemplate", reflect.TypeOf((*MockAutoPiAPIService)(nil).UnassociateDeviceTemplate), deviceID, templateID)
+}
+
+// UpdateJob mocks base method.
+func (m *MockAutoPiAPIService) UpdateJob(ctx context.Context, jobID, newState string) (*models.AutopiJob, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateJob", ctx, jobID, newState)
+	ret0, _ := ret[0].(*models.AutopiJob)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateJob indicates an expected call of UpdateJob.
+func (mr *MockAutoPiAPIServiceMockRecorder) UpdateJob(ctx, jobID, newState interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateJob", reflect.TypeOf((*MockAutoPiAPIService)(nil).UpdateJob), ctx, jobID, newState)
 }

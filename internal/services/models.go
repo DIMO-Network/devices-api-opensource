@@ -116,24 +116,26 @@ type IntegrationsMetadata struct {
 
 // UserDeviceAPIIntegrationsMetadata represents json stored in user_device_api_integrations table metadata jsonb column
 type UserDeviceAPIIntegrationsMetadata struct {
-	AutoPiUnitID            *string                       `json:"autoPiUnitId,omitempty"`
-	AutoPiIMEI              *string                       `json:"imei,omitempty"`
-	AutoPiCommandJobs       []UserDeviceAPIIntegrationJob `json:"autoPiCommandJobs,omitempty"`
-	AutoPiTemplateApplied   *int                          `json:"AutoPiTemplateApplied,omitempty"`
-	EnableTeslaLock         bool                          `json:"enableTeslaLock,omitempty"`
-	SmartcarEndpoints       []string                      `json:"smartcarEndpoints,omitempty"`
-	AutoPiRegistrationError *string                       `json:"autoPiRegistrationError,omitempty"`
-	SmartcarUserID          *string                       `json:"smartcarUserId,omitempty"`
+	AutoPiUnitID            *string  `json:"autoPiUnitId,omitempty"`
+	AutoPiIMEI              *string  `json:"imei,omitempty"`
+	AutoPiTemplateApplied   *int     `json:"autoPiTemplateApplied,omitempty"`
+	AutoPiSubStatus         *string  `json:"autoPiSubStatus,omitempty"`
+	AutoPiRegistrationError *string  `json:"autoPiRegistrationError,omitempty"`
+	EnableTeslaLock         bool     `json:"enableTeslaLock,omitempty"`
+	SmartcarEndpoints       []string `json:"smartcarEndpoints,omitempty"`
+	SmartcarUserID          *string  `json:"smartcarUserId,omitempty"`
 }
 
 type UserDeviceMetadata struct {
 	PowertrainType *PowertrainType `json:"powertrainType,omitempty"`
 }
 
-// UserDeviceAPIIntegrationJob holds the autopi webhook jobs. We only expect a handful of this per device so not breaking out to own table for now
-type UserDeviceAPIIntegrationJob struct {
-	CommandJobID string    `json:"commandJobId"`
-	CommandState string    `json:"commandState"`
-	CommandRaw   string    `json:"commandRaw"`
-	LastUpdated  time.Time `json:"lastUpdated"`
+// todo: consider moving below to controllers and have service just return db object
+
+// AutoPiCommandJob holds the autopi webhook jobs in a format for returning to clients
+type AutoPiCommandJob struct {
+	CommandJobID string     `json:"commandJobId"`
+	CommandState string     `json:"commandState"`
+	CommandRaw   string     `json:"commandRaw"`
+	LastUpdated  *time.Time `json:"lastUpdated"`
 }

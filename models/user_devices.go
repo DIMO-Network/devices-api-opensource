@@ -124,11 +124,13 @@ var UserDeviceWhere = struct {
 var UserDeviceRels = struct {
 	DeviceDefinition          string
 	UserDeviceDatum           string
+	AutopiJobs                string
 	UserDeviceAPIIntegrations string
 	UserDeviceToGeofences     string
 }{
 	DeviceDefinition:          "DeviceDefinition",
 	UserDeviceDatum:           "UserDeviceDatum",
+	AutopiJobs:                "AutopiJobs",
 	UserDeviceAPIIntegrations: "UserDeviceAPIIntegrations",
 	UserDeviceToGeofences:     "UserDeviceToGeofences",
 }
@@ -137,6 +139,7 @@ var UserDeviceRels = struct {
 type userDeviceR struct {
 	DeviceDefinition          *DeviceDefinition             `boil:"DeviceDefinition" json:"DeviceDefinition" toml:"DeviceDefinition" yaml:"DeviceDefinition"`
 	UserDeviceDatum           *UserDeviceDatum              `boil:"UserDeviceDatum" json:"UserDeviceDatum" toml:"UserDeviceDatum" yaml:"UserDeviceDatum"`
+	AutopiJobs                AutopiJobSlice                `boil:"AutopiJobs" json:"AutopiJobs" toml:"AutopiJobs" yaml:"AutopiJobs"`
 	UserDeviceAPIIntegrations UserDeviceAPIIntegrationSlice `boil:"UserDeviceAPIIntegrations" json:"UserDeviceAPIIntegrations" toml:"UserDeviceAPIIntegrations" yaml:"UserDeviceAPIIntegrations"`
 	UserDeviceToGeofences     UserDeviceToGeofenceSlice     `boil:"UserDeviceToGeofences" json:"UserDeviceToGeofences" toml:"UserDeviceToGeofences" yaml:"UserDeviceToGeofences"`
 }
@@ -463,6 +466,27 @@ func (o *UserDevice) UserDeviceDatum(mods ...qm.QueryMod) userDeviceDatumQuery {
 	return query
 }
 
+// AutopiJobs retrieves all the autopi_job's AutopiJobs with an executor.
+func (o *UserDevice) AutopiJobs(mods ...qm.QueryMod) autopiJobQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"devices_api\".\"autopi_jobs\".\"user_device_id\"=?", o.ID),
+	)
+
+	query := AutopiJobs(queryMods...)
+	queries.SetFrom(query.Query, "\"devices_api\".\"autopi_jobs\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"devices_api\".\"autopi_jobs\".*"})
+	}
+
+	return query
+}
+
 // UserDeviceAPIIntegrations retrieves all the user_device_api_integration's UserDeviceAPIIntegrations with an executor.
 func (o *UserDevice) UserDeviceAPIIntegrations(mods ...qm.QueryMod) userDeviceAPIIntegrationQuery {
 	var queryMods []qm.QueryMod
@@ -700,6 +724,104 @@ func (userDeviceL) LoadUserDeviceDatum(ctx context.Context, e boil.ContextExecut
 				local.R.UserDeviceDatum = foreign
 				if foreign.R == nil {
 					foreign.R = &userDeviceDatumR{}
+				}
+				foreign.R.UserDevice = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadAutopiJobs allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (userDeviceL) LoadAutopiJobs(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserDevice interface{}, mods queries.Applicator) error {
+	var slice []*UserDevice
+	var object *UserDevice
+
+	if singular {
+		object = maybeUserDevice.(*UserDevice)
+	} else {
+		slice = *maybeUserDevice.(*[]*UserDevice)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &userDeviceR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &userDeviceR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.ID) {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`devices_api.autopi_jobs`),
+		qm.WhereIn(`devices_api.autopi_jobs.user_device_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load autopi_jobs")
+	}
+
+	var resultSlice []*AutopiJob
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice autopi_jobs")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on autopi_jobs")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for autopi_jobs")
+	}
+
+	if len(autopiJobAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.AutopiJobs = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &autopiJobR{}
+			}
+			foreign.R.UserDevice = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if queries.Equal(local.ID, foreign.UserDeviceID) {
+				local.R.AutopiJobs = append(local.R.AutopiJobs, foreign)
+				if foreign.R == nil {
+					foreign.R = &autopiJobR{}
 				}
 				foreign.R.UserDevice = local
 				break
@@ -1001,6 +1123,133 @@ func (o *UserDevice) SetUserDeviceDatum(ctx context.Context, exec boil.ContextEx
 	} else {
 		related.R.UserDevice = o
 	}
+	return nil
+}
+
+// AddAutopiJobs adds the given related objects to the existing relationships
+// of the user_device, optionally inserting them as new records.
+// Appends related to o.R.AutopiJobs.
+// Sets related.R.UserDevice appropriately.
+func (o *UserDevice) AddAutopiJobs(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*AutopiJob) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			queries.Assign(&rel.UserDeviceID, o.ID)
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"devices_api\".\"autopi_jobs\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"user_device_id"}),
+				strmangle.WhereClause("\"", "\"", 2, autopiJobPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			queries.Assign(&rel.UserDeviceID, o.ID)
+		}
+	}
+
+	if o.R == nil {
+		o.R = &userDeviceR{
+			AutopiJobs: related,
+		}
+	} else {
+		o.R.AutopiJobs = append(o.R.AutopiJobs, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &autopiJobR{
+				UserDevice: o,
+			}
+		} else {
+			rel.R.UserDevice = o
+		}
+	}
+	return nil
+}
+
+// SetAutopiJobs removes all previously related items of the
+// user_device replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.UserDevice's AutopiJobs accordingly.
+// Replaces o.R.AutopiJobs with related.
+// Sets related.R.UserDevice's AutopiJobs accordingly.
+func (o *UserDevice) SetAutopiJobs(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*AutopiJob) error {
+	query := "update \"devices_api\".\"autopi_jobs\" set \"user_device_id\" = null where \"user_device_id\" = $1"
+	values := []interface{}{o.ID}
+	if boil.IsDebug(ctx) {
+		writer := boil.DebugWriterFrom(ctx)
+		fmt.Fprintln(writer, query)
+		fmt.Fprintln(writer, values)
+	}
+	_, err := exec.ExecContext(ctx, query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	if o.R != nil {
+		for _, rel := range o.R.AutopiJobs {
+			queries.SetScanner(&rel.UserDeviceID, nil)
+			if rel.R == nil {
+				continue
+			}
+
+			rel.R.UserDevice = nil
+		}
+
+		o.R.AutopiJobs = nil
+	}
+	return o.AddAutopiJobs(ctx, exec, insert, related...)
+}
+
+// RemoveAutopiJobs relationships from objects passed in.
+// Removes related items from R.AutopiJobs (uses pointer comparison, removal does not keep order)
+// Sets related.R.UserDevice.
+func (o *UserDevice) RemoveAutopiJobs(ctx context.Context, exec boil.ContextExecutor, related ...*AutopiJob) error {
+	if len(related) == 0 {
+		return nil
+	}
+
+	var err error
+	for _, rel := range related {
+		queries.SetScanner(&rel.UserDeviceID, nil)
+		if rel.R != nil {
+			rel.R.UserDevice = nil
+		}
+		if _, err = rel.Update(ctx, exec, boil.Whitelist("user_device_id")); err != nil {
+			return err
+		}
+	}
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.AutopiJobs {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.AutopiJobs)
+			if ln > 1 && i < ln-1 {
+				o.R.AutopiJobs[i] = o.R.AutopiJobs[ln-1]
+			}
+			o.R.AutopiJobs = o.R.AutopiJobs[:ln-1]
+			break
+		}
+	}
+
 	return nil
 }
 

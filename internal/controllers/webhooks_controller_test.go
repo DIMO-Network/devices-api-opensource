@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang/mock/gomock"
 	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/volatiletech/null/v8"
@@ -20,9 +20,12 @@ import (
 func TestWebhooksController_ProcessCommand(t *testing.T) {
 	ctx := context.Background()
 	pdb := test.GetDBConnection(ctx)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
 
 	token := "BobbyHarry"
-	c := NewWebhooksController(&config.Settings{AutoPiAPIToken: token}, pdb.DBS, test.Logger())
+	autopiAPISvc := services.NewAutoPiAPIService(&config.Settings{AutoPiAPIToken: "xxx"}, pdb.DBS)
+	c := NewWebhooksController(&config.Settings{AutoPiAPIToken: token}, pdb.DBS, test.Logger(), autopiAPISvc)
 	app := fiber.New()
 	app.Post(services.AutoPiWebhookPath, c.ProcessCommand)
 
@@ -60,22 +63,15 @@ func TestWebhooksController_ProcessCommand(t *testing.T) {
 		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 		test.SetupCreateDeviceIntegration(t, dd, integ, pdb)
 		// create user device api integration
-		udMetadata := new(services.UserDeviceAPIIntegrationsMetadata)
-		udMetadata.AutoPiCommandJobs = append(udMetadata.AutoPiCommandJobs, services.UserDeviceAPIIntegrationJob{
-			CommandJobID: autoPiJobID,
-			CommandState: "sent",
-			CommandRaw:   "state.sls pending",
-			LastUpdated:  time.Now().UTC(),
-		})
+		_ = test.SetupCreateAutoPiJob(t, autoPiJobID, autoPiDeviceID, "state.sls pending", ud.ID, pdb)
+
 		udiai := models.UserDeviceAPIIntegration{
 			UserDeviceID:  ud.ID,
 			IntegrationID: integ.ID,
 			Status:        models.UserDeviceAPIIntegrationStatusPending,
 			ExternalID:    null.StringFrom(autoPiDeviceID),
 		}
-		err := udiai.Metadata.Marshal(udMetadata)
-		assert.NoError(t, err)
-		err = udiai.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+		err := udiai.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 		assert.NoError(t, err)
 
 		// act
@@ -94,16 +90,21 @@ func TestWebhooksController_ProcessCommand(t *testing.T) {
 			One(ctx, pdb.DBS().Writer)
 		assert.NoError(t, err)
 
-		assert.Equal(t, models.UserDeviceAPIIntegrationStatusActive, updatedUdiai.Status)
+		assert.Equal(t, models.UserDeviceAPIIntegrationStatusPendingFirstData, updatedUdiai.Status)
 
-		updatedMetadata := new(services.UserDeviceAPIIntegrationsMetadata)
-		err = updatedUdiai.Metadata.Unmarshal(updatedMetadata)
+		metadata := new(services.UserDeviceAPIIntegrationsMetadata)
+		err = updatedUdiai.Metadata.Unmarshal(metadata)
 		assert.NoError(t, err)
-		assert.Len(t, updatedMetadata.AutoPiCommandJobs, 1)
-		assert.Equal(t, "COMMAND_EXECUTED", updatedMetadata.AutoPiCommandJobs[0].CommandState)
-		assert.Equal(t, autoPiJobID, updatedMetadata.AutoPiCommandJobs[0].CommandJobID)
-		assert.NotEqual(t, udMetadata.AutoPiCommandJobs[0].LastUpdated.String(), updatedMetadata.AutoPiCommandJobs[0].LastUpdated.String(),
-			"expected updated job to have later time than original job")
+		assert.Equal(t, services.TemplateConfirmed.String(), *metadata.AutoPiSubStatus)
+
+		job, err := models.AutopiJobs(models.AutopiJobWhere.ID.EQ(autoPiJobID)).One(ctx, pdb.DBS().Reader)
+		assert.NoError(t, err)
+
+		assert.NotNilf(t, job, "autopi job should not be nil")
+		assert.Equal(t, "COMMAND_EXECUTED", job.State)
+		assert.Equal(t, autoPiJobID, job.ID)
+		assert.NotEqual(t, job.CommandLastUpdated.Time.String(), job.CreatedAt.String(),
+			"expected updated job to have later time than when originally created")
 		// teardown
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
 	})
@@ -119,22 +120,15 @@ func TestWebhooksController_ProcessCommand(t *testing.T) {
 		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 		test.SetupCreateDeviceIntegration(t, dd, integ, pdb)
 		// create user device api integration
-		udMetadata := new(services.UserDeviceAPIIntegrationsMetadata)
-		udMetadata.AutoPiCommandJobs = append(udMetadata.AutoPiCommandJobs, services.UserDeviceAPIIntegrationJob{
-			CommandJobID: autoPiJobID,
-			CommandState: "sent",
-			CommandRaw:   "some raw command",
-			LastUpdated:  time.Now().UTC(),
-		})
+		_ = test.SetupCreateAutoPiJob(t, autoPiJobID, autoPiDeviceID, "some raw command", ud.ID, pdb)
+
 		udiai := models.UserDeviceAPIIntegration{
 			UserDeviceID:  ud.ID,
 			IntegrationID: integ.ID,
 			Status:        models.UserDeviceAPIIntegrationStatusPending, // assert this does not get changed since just raw command
 			ExternalID:    null.StringFrom(autoPiDeviceID),
 		}
-		err := udiai.Metadata.Marshal(udMetadata)
-		assert.NoError(t, err)
-		err = udiai.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+		err := udiai.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 		assert.NoError(t, err)
 
 		// act
@@ -155,14 +149,12 @@ func TestWebhooksController_ProcessCommand(t *testing.T) {
 
 		assert.Equal(t, models.UserDeviceAPIIntegrationStatusPending, updatedUdiai.Status) // this should not change for regular raw commands
 
-		updatedMetadata := new(services.UserDeviceAPIIntegrationsMetadata)
-		err = updatedUdiai.Metadata.Unmarshal(updatedMetadata)
+		job, err := models.AutopiJobs(models.AutopiJobWhere.ID.EQ(autoPiJobID)).One(ctx, pdb.DBS().Reader)
 		assert.NoError(t, err)
-		assert.Len(t, updatedMetadata.AutoPiCommandJobs, 1)
-		assert.Equal(t, "COMMAND_EXECUTED", updatedMetadata.AutoPiCommandJobs[0].CommandState)
-		assert.Equal(t, autoPiJobID, updatedMetadata.AutoPiCommandJobs[0].CommandJobID)
-		assert.NotEqual(t, udMetadata.AutoPiCommandJobs[0].LastUpdated.String(), updatedMetadata.AutoPiCommandJobs[0].LastUpdated.String(),
-			"expected updated job to have later time than original job")
+		assert.Equal(t, "COMMAND_EXECUTED", job.State)
+		assert.Equal(t, autoPiJobID, job.ID)
+		assert.NotEqual(t, job.CommandLastUpdated.Time.String(), udiai.UpdatedAt.String(),
+			"expected updated job to have later time than original integration")
 		// teardown
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
 	})

@@ -20,6 +20,7 @@ import (
 	smartcar "github.com/smartcar/go-sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
@@ -271,10 +272,13 @@ func TestUserIntegrationsController(t *testing.T) {
 		dm := test.SetupCreateMake(t, "Testla", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
 		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
-		const jobID = "123"
-		const deviceID = "device123"
-		const unitID = "qxyautopi"
-		const vehicleID = 123
+		const (
+			jobID     = "123"
+			deviceID  = "device123"
+			unitID    = "qxyautopi"
+			vehicleID = 123
+			imei      = "IMEI321"
+		)
 
 		req := fmt.Sprintf(`{
 			"externalId": "%s"
@@ -284,7 +288,7 @@ func TestUserIntegrationsController(t *testing.T) {
 			ID:                deviceID, // device id
 			UnitID:            unitID,
 			Vehicle:           services.AutoPiDongleVehicle{ID: vehicleID}, // vehicle profile id
-			IMEI:              "IMEI321",
+			IMEI:              imei,
 			Template:          1,
 			LastCommunication: time.Now().Add(time.Second * -15).UTC(),
 		}, nil)
@@ -292,13 +296,17 @@ func TestUserIntegrationsController(t *testing.T) {
 		autopiAPISvc.EXPECT().UnassociateDeviceTemplate(deviceID, 1).Times(1).Return(nil)
 		autopiAPISvc.EXPECT().AssociateDeviceToTemplate(deviceID, 34).Times(1).Return(nil)
 		autopiAPISvc.EXPECT().ApplyTemplate(deviceID, 34).Times(1).Return(nil)
-		autopiAPISvc.EXPECT().CommandSyncDevice(deviceID).Times(1).Return(&services.AutoPiCommandResponse{
+		autopiAPISvc.EXPECT().CommandSyncDevice(gomock.Any(), deviceID, ud.ID).Times(1).Return(&services.AutoPiCommandResponse{
 			Jid: jobID,
 		}, nil)
 		autoPiIngest.EXPECT().Register(deviceID, ud.ID, integration.ID).Return(nil)
 
 		request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.ID, req)
-		response, _ := app.Test(request)
+		response, err := app.Test(request)
+		assert.NoError(t, err)
+		if err != nil {
+			t.Fail()
+		}
 		if assert.Equal(t, fiber.StatusNoContent, response.StatusCode, "should return success") == false {
 			body, _ := ioutil.ReadAll(response.Body)
 			fmt.Println("unexpected response: " + string(body) + "\n")
@@ -313,12 +321,12 @@ func TestUserIntegrationsController(t *testing.T) {
 		err = apiInt.Metadata.Unmarshal(metadata)
 		assert.NoError(t, err)
 
-		assert.Equal(t, jobID, metadata.AutoPiCommandJobs[0].CommandJobID)
-		assert.Equal(t, "sent", metadata.AutoPiCommandJobs[0].CommandState)
-		assert.Equal(t, "state.sls pending", metadata.AutoPiCommandJobs[0].CommandRaw)
 		assert.Equal(t, deviceID, apiInt.ExternalID.String)
-		assert.Equal(t, "PendingFirstData", apiInt.Status)
+		assert.Equal(t, "Pending", apiInt.Status)
 		assert.Equal(t, templateID, *metadata.AutoPiTemplateApplied)
+		assert.Equal(t, unitID, *metadata.AutoPiUnitID)
+		assert.Equal(t, imei, *metadata.AutoPiIMEI)
+		assert.Equal(t, services.PendingTemplateConfirm.String(), *metadata.AutoPiSubStatus)
 		//teardown
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
 	})
@@ -330,10 +338,12 @@ func TestUserIntegrationsController(t *testing.T) {
 		dm := test.SetupCreateMake(t, "Testla", pdb)
 		dd := test.SetupCreateDeviceDefinition(t, dm, "Model 4", 2022, pdb)
 		ud := test.SetupCreateUserDevice(t, testUserID, dd, &powertrain, pdb)
-		const jobID = "123"
-		const deviceID = "device123"
-		const unitID = "qxyautopi"
-		const vehicleID = 123
+		const (
+			jobID     = "123"
+			deviceID  = "device123"
+			unitID    = "qxyautopi"
+			vehicleID = 123
+		)
 
 		req := fmt.Sprintf(`{
 			"externalId": "%s"
@@ -351,7 +361,7 @@ func TestUserIntegrationsController(t *testing.T) {
 		autopiAPISvc.EXPECT().UnassociateDeviceTemplate(deviceID, 1).Times(1).Return(nil)
 		autopiAPISvc.EXPECT().AssociateDeviceToTemplate(deviceID, evTemplateID).Times(1).Return(nil)
 		autopiAPISvc.EXPECT().ApplyTemplate(deviceID, evTemplateID).Times(1).Return(nil)
-		autopiAPISvc.EXPECT().CommandSyncDevice(deviceID).Times(1).Return(&services.AutoPiCommandResponse{
+		autopiAPISvc.EXPECT().CommandSyncDevice(gomock.Any(), deviceID, ud.ID).Times(1).Return(&services.AutoPiCommandResponse{
 			Jid: jobID,
 		}, nil)
 		autoPiIngest.EXPECT().Register(deviceID, ud.ID, integration.ID).Return(nil)
@@ -372,11 +382,8 @@ func TestUserIntegrationsController(t *testing.T) {
 		err = apiInt.Metadata.Unmarshal(metadata)
 		assert.NoError(t, err)
 
-		assert.Equal(t, jobID, metadata.AutoPiCommandJobs[0].CommandJobID)
-		assert.Equal(t, "sent", metadata.AutoPiCommandJobs[0].CommandState)
-		assert.Equal(t, "state.sls pending", metadata.AutoPiCommandJobs[0].CommandRaw)
 		assert.Equal(t, deviceID, apiInt.ExternalID.String)
-		assert.Equal(t, "PendingFirstData", apiInt.Status)
+		assert.Equal(t, "Pending", apiInt.Status)
 		assert.Equal(t, evTemplateID, *metadata.AutoPiTemplateApplied)
 		//teardown
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
@@ -444,21 +451,33 @@ func TestUserIntegrationsController(t *testing.T) {
 		autoPiUnit := "apunitId123"
 		udMetadata := services.UserDeviceAPIIntegrationsMetadata{
 			AutoPiUnitID: &autoPiUnit,
-			AutoPiCommandJobs: []services.UserDeviceAPIIntegrationJob{{
-				CommandJobID: "somepreviousjobId",
-				CommandState: "COMMAND_EXECUTED",
-				CommandRaw:   "raw",
-				LastUpdated:  time.Now().UTC(),
-			}},
 		}
 		_ = udapiInt.Metadata.Marshal(udMetadata)
 		_, err := udapiInt.Update(ctx, pdb.DBS().Writer, boil.Infer())
 		assert.NoError(t, err)
+		autoPiJob := models.AutopiJob{
+			ID:                 "somepreviousjobId",
+			AutopiDeviceID:     deviceID,
+			Command:            "raw",
+			State:              "COMMAND_EXECUTED",
+			CommandLastUpdated: null.TimeFrom(time.Now().UTC()),
+			UserDeviceID:       null.StringFrom(ud.ID),
+		}
+		err = autoPiJob.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+		assert.NoError(t, err)
+		// test job can be retrieved
+		apSvc := services.NewAutoPiAPIService(&config.Settings{}, pdb.DBS)
+		status, _, err := apSvc.GetCommandStatus(ctx, "somepreviousjobId")
+		assert.NoError(t, err)
+		assert.Equal(t, "somepreviousjobId", status.CommandJobID)
+		assert.Equal(t, "sent", status.CommandState)
+		assert.Equal(t, "raw", status.CommandRaw)
 
+		// test sending a command from api
 		const jobID = "123"
 		// mock expectations
 		const cmd = "raw test"
-		autopiAPISvc.EXPECT().CommandRaw(deviceID, cmd, true).Return(&services.AutoPiCommandResponse{
+		autopiAPISvc.EXPECT().CommandRaw(ctx, deviceID, cmd, ud.ID).Return(&services.AutoPiCommandResponse{
 			Jid:     jobID,
 			Minions: nil,
 		}, nil)
@@ -474,17 +493,6 @@ func TestUserIntegrationsController(t *testing.T) {
 		jid := gjson.GetBytes(body, "jid")
 		assert.Equal(t, jobID, jid.String())
 
-		apiInt, err := models.FindUserDeviceAPIIntegration(ctx, pdb.DBS().Writer, ud.ID, integ.ID)
-		assert.NoError(t, err)
-		updatedMetadata := new(services.UserDeviceAPIIntegrationsMetadata)
-		err = apiInt.Metadata.Unmarshal(updatedMetadata)
-		assert.NoError(t, err)
-
-		if assert.Len(t, updatedMetadata.AutoPiCommandJobs, 2, "expected two jobs in metadata") {
-			assert.Equal(t, jobID, updatedMetadata.AutoPiCommandJobs[1].CommandJobID)
-			assert.Equal(t, "sent", updatedMetadata.AutoPiCommandJobs[1].CommandState)
-			assert.Equal(t, cmd, updatedMetadata.AutoPiCommandJobs[1].CommandRaw)
-		}
 		//teardown
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
 	})
@@ -498,20 +506,17 @@ func TestUserIntegrationsController(t *testing.T) {
 		test.SetupCreateDeviceIntegration(t, dd, integ, pdb)
 		const deviceID = "device123"
 		const jobID = "somepreviousjobId"
-		udapiInt := test.SetupCreateUserDeviceAPIIntegration(t, "", deviceID, ud.ID, integ.ID, pdb)
+		_ = test.SetupCreateUserDeviceAPIIntegration(t, "", deviceID, ud.ID, integ.ID, pdb)
 
-		autoPiUnit := "apunitId123"
-		udMetadata := services.UserDeviceAPIIntegrationsMetadata{
-			AutoPiUnitID: &autoPiUnit,
-			AutoPiCommandJobs: []services.UserDeviceAPIIntegrationJob{{
-				CommandJobID: jobID,
-				CommandState: "COMMAND_EXECUTED",
-				CommandRaw:   "raw",
-				LastUpdated:  time.Now().UTC(),
-			}},
+		autoPiJob := models.AutopiJob{
+			ID:                 jobID,
+			AutopiDeviceID:     deviceID,
+			Command:            "raw",
+			State:              "COMMAND_EXECUTED",
+			CommandLastUpdated: null.TimeFrom(time.Now().UTC()),
+			UserDeviceID:       null.StringFrom(ud.ID),
 		}
-		_ = udapiInt.Metadata.Marshal(udMetadata)
-		_, err := udapiInt.Update(ctx, pdb.DBS().Writer, boil.Infer())
+		err := autoPiJob.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 		assert.NoError(t, err)
 
 		// act: send request

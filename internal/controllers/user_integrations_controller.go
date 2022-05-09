@@ -209,35 +209,16 @@ func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
 		Logger()
 	logger.Info().Msg("Attempting to send autopi raw command")
 
-	udai, md, err := services.FindUserDeviceAutoPiIntegration(c.Context(), udc.DBS().Writer, userDeviceID, userID)
+	udai, _, err := services.FindUserDeviceAutoPiIntegration(c.Context(), udc.DBS().Writer, userDeviceID, userID)
 	if err != nil {
 		logger.Err(err).Msg("error finding user device autopi integration")
 		return err
 	}
 	// call autopi
-	commandResponse, err := udc.autoPiSvc.CommandRaw(udai.ExternalID.String, req.Command, true)
+	commandResponse, err := udc.autoPiSvc.CommandRaw(c.Context(), udai.ExternalID.String, req.Command, userDeviceID)
 	if err != nil {
 		logger.Err(err).Msg("autopi returned error when calling raw command")
 		return errors.Wrapf(err, "autopi returned error when calling raw command: %s", req.Command)
-	}
-	// add job to existing jobs
-	md.AutoPiCommandJobs = append(md.AutoPiCommandJobs, services.UserDeviceAPIIntegrationJob{
-		CommandJobID: commandResponse.Jid,
-		CommandState: "sent",
-		CommandRaw:   req.Command,
-		LastUpdated:  time.Now().UTC(),
-	})
-	// update db
-	err = udai.Metadata.Marshal(md)
-	if err != nil {
-		logger.Err(err).Msg("unable to marshal metadata back into database")
-		return err
-	}
-	_, err = udai.Update(c.Context(), udc.DBS().Writer, boil.Whitelist(models.UserDeviceAPIIntegrationColumns.Metadata,
-		models.UserDeviceAPIIntegrationColumns.UpdatedAt))
-	if err != nil {
-		logger.Err(err).Msg("failed to update database")
-		return err
 	}
 
 	return c.Status(fiber.StatusOK).JSON(commandResponse)
@@ -248,27 +229,25 @@ func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
 // @Tags 		integrations
 // @Produce     json
 // @Param       jobID        path  string  true  "job id, from autopi"
-// @Success     200  {object}  services.UserDeviceAPIIntegrationJob
+// @Success     200  {object}  services.AutoPiCommandJob
 // @Security     BearerAuth
 // @Router 		/user/devices/:userDeviceID/autopi/command/:jobID [get]
 func (udc *UserDevicesController) GetAutoPiCommandStatus(c *fiber.Ctx) error {
-	userID := getUserID(c)
+	_ = getUserID(c)
 	userDeviceID := c.Params("userDeviceID")
 	jobID := c.Params("jobID")
 
-	_, md, err := services.FindUserDeviceAutoPiIntegration(c.Context(), udc.DBS().Writer, userDeviceID, userID)
+	job, dbJob, err := udc.autoPiSvc.GetCommandStatus(c.Context(), jobID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.Status(fiber.StatusBadRequest).SendString("no job found with provided jobID")
+		}
 		return err
 	}
-	if md != nil {
-		for _, job := range md.AutoPiCommandJobs {
-			if job.CommandJobID == jobID {
-				return c.Status(fiber.StatusOK).JSON(job)
-			}
-		}
+	if dbJob.UserDeviceID.String != userDeviceID {
+		return c.Status(fiber.StatusBadRequest).SendString("no job found")
 	}
-
-	return c.Status(fiber.StatusBadRequest).SendString("no job found with provided jobID")
+	return c.Status(fiber.StatusOK).JSON(job)
 }
 
 // GetAutoPiUnitInfo godoc
@@ -329,6 +308,7 @@ func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 	}
 	userID := getUserID(c)
 	deviceID := ""
+	userDeviceID := ""
 	// check if unitId has already been assigned to a different user - don't allow querying in this case
 	udai, err := models.UserDeviceAPIIntegrations(qm.Where("metadata ->> 'auto_pi_unit_id' = $1", unitID),
 		qm.Load(models.UserDeviceAPIIntegrationRels.UserDevice)).
@@ -341,6 +321,7 @@ func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 			return c.SendStatus(fiber.StatusForbidden)
 		}
 		deviceID = udai.ExternalID.String
+		userDeviceID = udai.UserDeviceID
 	}
 	if len(deviceID) == 0 {
 		unit, err := udc.autoPiSvc.GetDeviceByUnitID(unitID)
@@ -350,24 +331,34 @@ func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 		deviceID = unit.ID
 	}
 	// send command without webhook since we'll just query the jobid
-	commandResponse, err := udc.autoPiSvc.CommandRaw(deviceID, "test.ping", false)
+	commandResponse, err := udc.autoPiSvc.CommandRaw(c.Context(), deviceID, "test.ping", userDeviceID)
 	if err != nil {
 		return err
 	}
 	// for loop with wait timer of 1 second at begining that calls autopi get job id
 	backoffSchedule := []time.Duration{
+		2 * time.Second,
+		1 * time.Second,
+		1 * time.Second,
+		1 * time.Second,
+		1 * time.Second,
 		1 * time.Second,
 	}
 	online := false
 	for _, backoff := range backoffSchedule {
 		time.Sleep(backoff)
-		body, err := udc.autoPiSvc.GetCommandStatus(deviceID, commandResponse.Jid)
-		// if device is offline, we will get err because it will most likely return 504
+		job, _, err := udc.autoPiSvc.GetCommandStatus(c.Context(), commandResponse.Jid)
 		if err != nil {
-			continue // try again if don't get a response
+			if errors.Is(err, sql.ErrNoRows) {
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "job id not found"})
+			}
+			continue // try again if error
 		}
-		if strings.Contains(string(body), "true") {
+		if job.CommandState == "COMMAND_EXECUTED" {
 			online = true
+			break
+		}
+		if job.CommandState == "TIMEOUT" {
 			break
 		}
 	}
@@ -516,6 +507,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		return errors.Wrapf(err, "integration id %s does not have autopi default template id", integration.ID)
 	}
 	templateID := im.AutoPiDefaultTemplateID
+
 	// determine templateID to apply
 	if len(im.AutoPiPowertrainToTemplateID) > 0 {
 		udMd := new(services.UserDeviceMetadata)
@@ -531,7 +523,6 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		}
 	}
 	subLogger = subLogger.With().Str("templateID to apply", strconv.Itoa(templateID)).Logger()
-
 	// creat the api int record, start filling it in
 	udMetadata := services.UserDeviceAPIIntegrationsMetadata{
 		AutoPiUnitID:          &autoPiDevice.UnitID,
@@ -553,6 +544,8 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		subLogger.Err(err).Msg("database error inserting new autopi integration registration")
 		return err
 	}
+
+	substatus := services.QueriedDeviceOk
 	// update integration record as failed if errors after this
 	defer func() {
 		if err != nil {
@@ -560,6 +553,8 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 			apiInt.Status = models.UserDeviceAPIIntegrationStatusFailed
 			msg := err.Error()
 			udMetadata.AutoPiRegistrationError = &msg
+			ss := substatus.String()
+			udMetadata.AutoPiSubStatus = &ss
 			_ = apiInt.Metadata.Marshal(udMetadata)
 			_, err := apiInt.Update(c.Context(), tx,
 				boil.Whitelist(models.UserDeviceAPIIntegrationColumns.Status, models.UserDeviceAPIIntegrationColumns.UpdatedAt))
@@ -587,6 +582,8 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		subLogger.Err(err).Send()
 		return errors.Wrap(err, "failed to patch autopi vehicle profile")
 	}
+
+	substatus = services.PatchedVehicleProfile
 	// update autopi to unassociate from current base template
 	if autoPiDevice.Template > 0 {
 		err = udc.autoPiSvc.UnassociateDeviceTemplate(autoPiDevice.ID, autoPiDevice.Template)
@@ -601,36 +598,31 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		subLogger.Err(err).Send()
 		return errors.Wrapf(err, "failed to associate autoPiDevice %s to template %d", autoPiDevice.ID, templateID)
 	}
+	substatus = services.AssociatedDeviceToTemplate
 	// apply for next reboot
 	err = udc.autoPiSvc.ApplyTemplate(autoPiDevice.ID, templateID)
 	if err != nil {
 		subLogger.Err(err).Send()
 		return errors.Wrapf(err, "failed to apply autoPiDevice %s with template %d", autoPiDevice.ID, templateID)
 	}
+	substatus = services.AppliedTemplate
 	// send sync command in case autoPiDevice is on at this moment (should be during initial setup)
-	commandResp, err := udc.autoPiSvc.CommandSyncDevice(autoPiDevice.ID)
+	_, err = udc.autoPiSvc.CommandSyncDevice(c.Context(), autoPiDevice.ID, ud.ID)
 	if err != nil {
 		subLogger.Err(err).Send()
 		return errors.Wrapf(err, "failed to sync changes to autoPiDevice %s", autoPiDevice.ID)
 	}
 
-	// update database with integration status
-	apiInt.Status = models.UserDeviceAPIIntegrationStatusPendingFirstData
-	// add autopi job
-	udMetadata.AutoPiCommandJobs = append(udMetadata.AutoPiCommandJobs, services.UserDeviceAPIIntegrationJob{
-		CommandJobID: commandResp.Jid,
-		CommandState: "sent",
-		CommandRaw:   "state.sls pending",
-		LastUpdated:  time.Now().UTC(),
-	})
+	substatus = services.PendingTemplateConfirm
+	ss := substatus.String()
+	udMetadata.AutoPiSubStatus = &ss
 	err = apiInt.Metadata.Marshal(udMetadata)
 	if err != nil {
-		subLogger.Err(err).Send()
 		return errors.Wrap(err, "failed to marshall user device integration metadata")
 	}
 
-	_, err = apiInt.Update(c.Context(), tx, boil.Whitelist(models.UserDeviceAPIIntegrationColumns.Status,
-		models.UserDeviceAPIIntegrationColumns.UpdatedAt, models.UserDeviceAPIIntegrationColumns.Metadata))
+	_, err = apiInt.Update(c.Context(), tx, boil.Whitelist(models.UserDeviceAPIIntegrationColumns.Metadata,
+		models.UserDeviceAPIIntegrationColumns.UpdatedAt))
 	if err != nil {
 		subLogger.Err(err).Send()
 		return errors.Wrap(err, "failed to update integration status to PendingFirstData")

@@ -223,14 +223,14 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	teslaTaskService := services.NewTeslaTaskService(settings, producer)
 	teslaSvc := services.NewTeslaService(settings)
 	taskSvc := services.NewTaskService(settings, pdb.DBS, ddSvc, eventService, &logger, producer, &smartCarSvc)
-	autoPiSvc := services.NewAutoPiAPIService(settings)
+	autoPiSvc := services.NewAutoPiAPIService(settings, pdb.DBS)
 	autoPiIngest := services.NewIngestRegistrar(services.AutoPi, producer)
 	// controllers
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc)
 	userDeviceController := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService, smartcarClient, scTaskSvc, teslaSvc, teslaTaskService, cipher, autoPiSvc, services.NewNHTSAService(), autoPiIngest)
 	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer)
 	deviceDataController := controllers.NewDeviceDataController(settings, pdb.DBS, &logger)
-	webhooksController := controllers.NewWebhooksController(settings, pdb.DBS, &logger)
+	webhooksController := controllers.NewWebhooksController(settings, pdb.DBS, &logger, autoPiSvc)
 
 	prometheus := fiberprometheus.New("devices-api")
 	app.Use(prometheus.Middleware)

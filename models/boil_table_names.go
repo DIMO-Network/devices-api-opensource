@@ -4,6 +4,7 @@
 package models
 
 var TableNames = struct {
+	AutopiJobs                string
 	DeviceDefinitions         string
 	DeviceIntegrations        string
 	DeviceMakes               string
@@ -15,6 +16,7 @@ var TableNames = struct {
 	UserDeviceToGeofence      string
 	UserDevices               string
 }{
+	AutopiJobs:                "autopi_jobs",
 	DeviceDefinitions:         "device_definitions",
 	DeviceIntegrations:        "device_integrations",
 	DeviceMakes:               "device_makes",

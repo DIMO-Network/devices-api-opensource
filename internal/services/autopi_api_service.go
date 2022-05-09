@@ -15,6 +15,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/segmentio/ksuid"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
@@ -33,23 +34,27 @@ type AutoPiAPIService interface {
 	UnassociateDeviceTemplate(deviceID string, templateID int) error
 	AssociateDeviceToTemplate(deviceID string, templateID int) error
 	ApplyTemplate(deviceID string, templateID int) error
-	CommandSyncDevice(deviceID string) (*AutoPiCommandResponse, error)
-	CommandRaw(deviceID string, command string, withWebhook bool) (*AutoPiCommandResponse, error)
-	GetCommandStatus(deviceID string, jobID string) ([]byte, error)
+	CommandSyncDevice(ctx context.Context, deviceID, userDeviceID string) (*AutoPiCommandResponse, error)
+	CommandRaw(ctx context.Context, deviceID, command, userDeviceID string) (*AutoPiCommandResponse, error)
+	GetCommandStatus(ctx context.Context, jobID string) (*AutoPiCommandJob, *models.AutopiJob, error)
+	GetCommandStatusFromAutoPi(deviceID string, jobID string) ([]byte, error)
+	UpdateJob(ctx context.Context, jobID, newState string) (*models.AutopiJob, error)
 }
 
 type autoPiAPIService struct {
 	Settings   *config.Settings
 	httpClient shared.HTTPClientWrapper
+	dbs        func() *database.DBReaderWriter
 }
 
-func NewAutoPiAPIService(settings *config.Settings) AutoPiAPIService {
+func NewAutoPiAPIService(settings *config.Settings, dbs func() *database.DBReaderWriter) AutoPiAPIService {
 	h := map[string]string{"Authorization": "APIToken " + settings.AutoPiAPIToken}
 	hcw, _ := shared.NewHTTPClientWrapper(autoPiBaseAPIURL, "", 10*time.Second, h, true) // ok to ignore err since only used for tor check
 
 	return &autoPiAPIService{
 		Settings:   settings,
 		httpClient: hcw,
+		dbs:        dbs,
 	}
 }
 
@@ -146,20 +151,19 @@ func (a *autoPiAPIService) ApplyTemplate(deviceID string, templateID int) error 
 }
 
 // CommandSyncDevice sends raw command to autopi only if it is online. Invokes syncing the pending changes (eg. template change) on the device.
-func (a *autoPiAPIService) CommandSyncDevice(deviceID string) (*AutoPiCommandResponse, error) {
-	return a.CommandRaw(deviceID, "state.sls pending", true)
+func (a *autoPiAPIService) CommandSyncDevice(ctx context.Context, deviceID, userDeviceID string) (*AutoPiCommandResponse, error) {
+	return a.CommandRaw(ctx, deviceID, "state.sls pending", userDeviceID)
 }
 
-// CommandRaw sends raw command to autopi only if it is online, pending whitelisted
-func (a *autoPiAPIService) CommandRaw(deviceID string, command string, withWebhook bool) (*AutoPiCommandResponse, error) {
+// CommandRaw sends raw command to autopi and saves in autopi_jobs. If device is offline command will eventually timeout.
+func (a *autoPiAPIService) CommandRaw(ctx context.Context, deviceID, command, userDeviceID string) (*AutoPiCommandResponse, error) {
 	// todo: whitelist command
 	webhookURL := fmt.Sprintf("%s/v1%s", a.Settings.DeploymentBaseURL, AutoPiWebhookPath)
 	syncCommand := autoPiCommandRequest{
-		Command: command,
+		Command:     command,
+		CallbackURL: &webhookURL,
 	}
-	if withWebhook {
-		syncCommand.CallbackURL = &webhookURL
-	}
+
 	j, err := json.Marshal(syncCommand)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to marshall json for autoPiCommandRequest")
@@ -177,11 +181,41 @@ func (a *autoPiAPIService) CommandRaw(deviceID string, command string, withWebho
 		return nil, errors.Wrapf(err, "unable to decode responde from autopi api execute_raw command")
 	}
 
+	// insert job
+	autoPiJob := models.AutopiJob{
+		ID:             d.Jid,
+		Command:        command,
+		AutopiDeviceID: deviceID,
+	}
+	if len(userDeviceID) > 0 {
+		autoPiJob.UserDeviceID = null.StringFrom(userDeviceID)
+	}
+	err = autoPiJob.Insert(ctx, a.dbs().Writer, boil.Infer())
+	if err != nil {
+		return nil, err
+	}
+
 	return d, nil
 }
 
-// GetCommandStatus gets the status of a previously sent command. returns raw body since it can change depending on command
-func (a *autoPiAPIService) GetCommandStatus(deviceID string, jobID string) ([]byte, error) {
+// UpdateJob updates the state of a autopi job on our end
+func (a *autoPiAPIService) UpdateJob(ctx context.Context, jobID, newState string) (*models.AutopiJob, error) {
+	autopiJob, err := models.AutopiJobs(models.AutopiJobWhere.ID.EQ(jobID)).One(ctx, a.dbs().Reader)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error finding autopi job")
+	}
+	// update the job state
+	autopiJob.State = newState
+	autopiJob.CommandLastUpdated = null.TimeFrom(time.Now().UTC())
+	_, err = autopiJob.Update(ctx, a.dbs().Writer, boil.Infer())
+	if err != nil {
+		return nil, errors.Wrapf(err, "error updating autopi job")
+	}
+	return autopiJob, nil
+}
+
+// GetCommandStatusFromAutoPi gets the status of a previously sent command by calling autopi. returns raw body since it can change depending on command
+func (a *autoPiAPIService) GetCommandStatusFromAutoPi(deviceID string, jobID string) ([]byte, error) {
 	res, err := a.httpClient.ExecuteRequest(fmt.Sprintf("/dongle/devices/%s/command_result/%s/", deviceID, jobID), "GET", nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error calling autopi api to get command status for deviceId %s", deviceID)
@@ -192,6 +226,21 @@ func (a *autoPiAPIService) GetCommandStatus(deviceID string, jobID string) ([]by
 	return body, nil
 }
 
+// GetCommandStatus gets job state from our database, which is updated by autopi webhooks.
+func (a *autoPiAPIService) GetCommandStatus(ctx context.Context, jobID string) (*AutoPiCommandJob, *models.AutopiJob, error) {
+	autoPiJob, err := models.AutopiJobs(models.AutopiJobWhere.ID.EQ(jobID)).One(ctx, a.dbs().Reader)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &AutoPiCommandJob{
+		CommandJobID: autoPiJob.ID,
+		CommandState: autoPiJob.State,
+		CommandRaw:   autoPiJob.Command,
+		LastUpdated:  autoPiJob.CommandLastUpdated.Ptr(),
+	}, autoPiJob, nil
+}
+
+// GetOrCreateAutoPiIntegration looks or creates in the integrations table
 func GetOrCreateAutoPiIntegration(ctx context.Context, exec boil.ContextExecutor) (*models.Integration, error) {
 	const (
 		autoPiType        = "API"
@@ -391,4 +440,22 @@ type autoPiCommandRequest struct {
 type AutoPiCommandResponse struct {
 	Jid     string   `json:"jid"`
 	Minions []string `json:"minions"`
+}
+
+// AutoPiSubStatusEnum integration sub-status
+type AutoPiSubStatusEnum string
+
+const (
+	PendingSoftwareUpdate      AutoPiSubStatusEnum = "PendingSoftwareUpdate"
+	CompletedSoftwareUpdate    AutoPiSubStatusEnum = "CompletedSoftwareUpdate"
+	QueriedDeviceOk            AutoPiSubStatusEnum = "QueriedDeviceOk"
+	PatchedVehicleProfile      AutoPiSubStatusEnum = "PatchedVehicleProfile"
+	AssociatedDeviceToTemplate AutoPiSubStatusEnum = "AssociatedDeviceToTemplate"
+	AppliedTemplate            AutoPiSubStatusEnum = "AppliedTemplate"
+	PendingTemplateConfirm     AutoPiSubStatusEnum = "PendingTemplateConfirm"
+	TemplateConfirmed          AutoPiSubStatusEnum = "TemplateConfirmed"
+)
+
+func (r AutoPiSubStatusEnum) String() string {
+	return string(r)
 }
