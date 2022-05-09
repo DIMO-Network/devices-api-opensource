@@ -174,6 +174,25 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error stopping task.")
 		}
+	case "start-smartcar-from-refresh":
+		if len(os.Args[1:]) != 2 {
+			logger.Fatal().Msgf("Expected an argument, the device ID.")
+		}
+		userDeviceID := os.Args[2]
+		logger.Info().Msgf("Trying to start Smartcar task for %s.", userDeviceID)
+		var cipher shared.Cipher
+		if settings.Environment == "dev" || settings.Environment == "prod" {
+			cipher = createKMS(&settings, &logger)
+		} else {
+			logger.Warn().Msg("Using ROT13 encrypter. Only use this for testing!")
+			cipher = new(shared.ROT13Cipher)
+		}
+		scClient := services.NewSmartcarClient(&settings)
+		scTask := services.NewSmartcarTaskService(&settings, producer)
+		if err := startSmartcarFromRefresh(ctx, &logger, &settings, pdb, cipher, userDeviceID, scClient, scTask); err != nil {
+			logger.Fatal().Err(err).Msg("Error starting Smartcar task.")
+		}
+		logger.Info().Msgf("Successfully started Smartcar task for %s.", userDeviceID)
 	default:
 		startPrometheus(logger)
 		eventService := services.NewEventService(&logger, &settings, producer)
