@@ -36,10 +36,10 @@ func (m *MockAutoPiTaskService) EXPECT() *MockAutoPiTaskServiceMockRecorder {
 }
 
 // GetTaskStatus mocks base method.
-func (m *MockAutoPiTaskService) GetTaskStatus(ctx context.Context, taskID string) (services.AutoPiTask, error) {
+func (m *MockAutoPiTaskService) GetTaskStatus(ctx context.Context, taskID string) (*services.AutoPiTask, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTaskStatus", ctx, taskID)
-	ret0, _ := ret[0].(services.AutoPiTask)
+	ret0, _ := ret[0].(*services.AutoPiTask)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -63,4 +63,16 @@ func (m *MockAutoPiTaskService) StartAutoPiUpdate(ctx context.Context, deviceID,
 func (mr *MockAutoPiTaskServiceMockRecorder) StartAutoPiUpdate(ctx, deviceID, userID, unitID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartAutoPiUpdate", reflect.TypeOf((*MockAutoPiTaskService)(nil).StartAutoPiUpdate), ctx, deviceID, userID, unitID)
+}
+
+// StartConsumer mocks base method.
+func (m *MockAutoPiTaskService) StartConsumer(ctx context.Context) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "StartConsumer", ctx)
+}
+
+// StartConsumer indicates an expected call of StartConsumer.
+func (mr *MockAutoPiTaskServiceMockRecorder) StartConsumer(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartConsumer", reflect.TypeOf((*MockAutoPiTaskService)(nil).StartConsumer), ctx)
 }

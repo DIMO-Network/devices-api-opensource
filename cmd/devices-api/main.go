@@ -244,7 +244,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	taskSvc := services.NewTaskService(settings, pdb.DBS, ddSvc, eventService, &logger, producer, &smartCarSvc)
 	autoPiSvc := services.NewAutoPiAPIService(settings, pdb.DBS)
 	autoPiIngest := services.NewIngestRegistrar(services.AutoPi, producer)
-	autoPiTaskService := services.NewAutoPiTaskService(settings)
+	autoPiTaskService := services.NewAutoPiTaskService(settings, autoPiSvc, logger)
 	// controllers
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc)
 	userDeviceController := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService, smartcarClient, scTaskSvc, teslaSvc, teslaTaskService, cipher, autoPiSvc, services.NewNHTSAService(), autoPiIngest, autoPiTaskService)
@@ -344,6 +344,9 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 			logger.Fatal().Err(err)
 		}
 	}()
+	// start task consumer for autopi
+	autoPiTaskService.StartConsumer(context.Background())
+
 	c := make(chan os.Signal, 1)                    // Create channel to signify a signal being sent with length of 1
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM) // When an interrupt or termination signal is sent, notify the channel
 	<-c                                             // This blocks the main thread until an interrupt is received

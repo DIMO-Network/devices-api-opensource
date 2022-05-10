@@ -1163,6 +1163,3 @@ type GetUserDeviceIntegrationResponse struct {
 type AutoPiCommandRequest struct {
 	Command string `json:"command"`
 }
-
-type AutoPiCreateTaskResp struct {
-}
