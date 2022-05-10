@@ -715,8 +715,8 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		subLogger.Err(err).Send()
 		return errors.Wrap(err, "failed to commit new autopi integration")
 	}
-	// send kafka message to autopi ingest registrar
-	err = udc.autoPiIngestRegistrar.Register(autoPiDevice.ID, ud.ID, integration.ID)
+	// send kafka message to autopi ingest registrar. Note we're using the UnitID for the data stream join.
+	err = udc.autoPiIngestRegistrar.Register(autoPiDevice.UnitID, ud.ID, integration.ID)
 	if err != nil {
 		subLogger.Err(err).Msg("autopi ingest registrar error producing message to register")
 		return err

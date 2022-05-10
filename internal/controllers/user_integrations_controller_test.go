@@ -300,7 +300,7 @@ func TestUserIntegrationsController(t *testing.T) {
 		autopiAPISvc.EXPECT().CommandSyncDevice(gomock.Any(), deviceID, ud.ID).Times(1).Return(&services.AutoPiCommandResponse{
 			Jid: jobID,
 		}, nil)
-		autoPiIngest.EXPECT().Register(deviceID, ud.ID, integration.ID).Return(nil)
+		autoPiIngest.EXPECT().Register(unitID, ud.ID, integration.ID).Return(nil)
 
 		request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.ID, req)
 		response, err := app.Test(request)
