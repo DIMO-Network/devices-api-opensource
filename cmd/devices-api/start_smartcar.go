@@ -10,6 +10,7 @@ import (
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
 	"github.com/rs/zerolog"
+	smartcar "github.com/smartcar/go-sdk"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
@@ -29,7 +30,13 @@ func startSmartcarFromRefresh(ctx context.Context, logger *zerolog.Logger, setti
 		return fmt.Errorf("couldn't find a Smartcar integration for %s: %w", userDeviceID, err)
 	}
 
-	newToken, err := scClient.ExchangeCode(ctx, udai.RefreshToken.String, "")
+	authClient := smartcar.NewClient().NewAuth(&smartcar.AuthParams{
+		ClientID:     settings.SmartcarClientID,
+		ClientSecret: settings.SmartcarClientSecret,
+		// Don't need anything else.
+	})
+
+	newToken, err := authClient.ExchangeRefreshToken(ctx, &smartcar.ExchangeRefreshTokenParams{Token: udai.RefreshToken.String})
 	if err != nil {
 		return fmt.Errorf("couldn't exchange refresh token with Smartcar: %w", err)
 	}
