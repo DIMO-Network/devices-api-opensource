@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/Shopify/sarama"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/null/v8"
 )
@@ -37,7 +37,15 @@ func remakeAutoPiTopic(ctx context.Context, logger *zerolog.Logger, settings *co
 
 	// For each of these send a new registration message, keyed by autopi device ID.
 	for _, apiInt := range apiInts {
-		if err := reg.Register(apiInt.ExternalID.String, apiInt.UserDeviceID, apIntID); err != nil {
+		md := new(services.UserDeviceAPIIntegrationsMetadata)
+		err := apiInt.Metadata.Unmarshal(md)
+		if err != nil {
+			return errors.Wrap(err, "unable to unmarshall userDeviceAPIINtegrations Metadata")
+		}
+		if md.AutoPiUnitID == nil {
+			return fmt.Errorf("failed to register AutoPi-DIMO id link for device %s. autoPi unitID is nil", apiInt.UserDeviceID)
+		}
+		if err := reg.Register(*md.AutoPiUnitID, apiInt.UserDeviceID, apIntID); err != nil {
 			return fmt.Errorf("failed to register AutoPi-DIMO id link for device %s: %w", apiInt.UserDeviceID, err)
 		}
 	}
