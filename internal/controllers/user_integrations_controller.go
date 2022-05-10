@@ -407,9 +407,9 @@ func (udc *UserDevicesController) StartAutoPiUpdateTask(c *fiber.Ctx) error {
 		if unit.IsUpdated {
 			return c.JSON(services.AutoPiTask{
 				TaskID:      "0",
-				Status:      "already up to date",
+				Status:      string(services.Success),
 				Description: "autopi device is already up to date running version " + unit.Release.Version,
-				Code:        -1,
+				Code:        200,
 			})
 		}
 	}
