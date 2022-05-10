@@ -243,7 +243,7 @@ func (a *autoPiAPIService) GetCommandStatus(ctx context.Context, jobID string) (
 // GetOrCreateAutoPiIntegration looks or creates in the integrations table
 func GetOrCreateAutoPiIntegration(ctx context.Context, exec boil.ContextExecutor) (*models.Integration, error) {
 	const (
-		autoPiType        = "API"
+		autoPiType        = models.IntegrationTypeHardware
 		autoPiStyle       = models.IntegrationStyleAddon
 		defaultTemplateID = 10
 	)
