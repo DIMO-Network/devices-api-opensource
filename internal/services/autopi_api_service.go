@@ -390,14 +390,14 @@ type AutoPiDongleDevice struct {
 			Message string `json:"message"`
 		} `json:"device_has_no_make_model"`
 	} `json:"warnings"`
-	KeyState           string   `json:"key_state"`
-	Access             string   `json:"access"`
-	DockerReleases     []string `json:"docker_releases"`
-	DataUsage          int      `json:"data_usage"`
-	PhoneNumber        string   `json:"phone_number"`
-	Icc                string   `json:"icc"`
-	MaxDataUsage       int      `json:"max_data_usage"`
-	IsBlockedByRelease bool     `json:"is_blocked_by_release"`
+	KeyState           string `json:"key_state"`
+	Access             string `json:"access"`
+	DockerReleases     []int  `json:"docker_releases"`
+	DataUsage          int    `json:"data_usage"`
+	PhoneNumber        string `json:"phone_number"`
+	Icc                string `json:"icc"`
+	MaxDataUsage       int    `json:"max_data_usage"`
+	IsBlockedByRelease bool   `json:"is_blocked_by_release"`
 	// only exists when get by unitID
 	HwRevision string   `json:"hw_revision"`
 	Tags       []string `json:"tags"`
