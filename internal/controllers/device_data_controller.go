@@ -90,7 +90,11 @@ func (d *DeviceDataController) GetHistorical30mRaw(c *fiber.Ctx) error {
 	req := esquery.Search().
 		Query(esquery.Bool().Must(
 			esquery.Term("subject", udi),
-			esquery.Exists("data.odometer"),
+			// filter by OR latitude
+			esquery.Bool().Should(
+				esquery.Exists("data.odometer"),
+				esquery.Exists("data.latitude"),
+			),
 			esquery.Range("data.timestamp").
 				Gte(startDate).
 				Lte(endDate))).
@@ -187,7 +191,10 @@ func (d *DeviceDataController) GetHistoricalRaw(c *fiber.Ctx) error {
 	req := esquery.Search().
 		Query(esquery.Bool().Must(
 			esquery.Term("subject", udi),
-			esquery.Exists("data.odometer"),
+			esquery.Bool().Should(
+				esquery.Exists("data.odometer"),
+				esquery.Exists("data.latitude"),
+			),
 			esquery.Range("data.timestamp").
 				Gte(startDate).
 				Lte(endDate))).

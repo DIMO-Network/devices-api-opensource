@@ -234,8 +234,8 @@ type AutoPiTask struct {
 type TaskStatusEnum string
 
 const (
-	Pending   TaskStatusEnum = "PENDING"
-	InProcess TaskStatusEnum = "INPROCESS"
-	Success   TaskStatusEnum = "SUCCESS"
-	Failure   TaskStatusEnum = "FAILURE"
+	Pending   TaskStatusEnum = "Pending"
+	InProcess TaskStatusEnum = "InProcess"
+	Success   TaskStatusEnum = "Success"
+	Failure   TaskStatusEnum = "Failure"
 )
