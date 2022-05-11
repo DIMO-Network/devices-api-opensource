@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
@@ -31,28 +30,32 @@ const (
 
 func NewAutoPiTaskService(settings *config.Settings, autoPiSvc AutoPiAPIService, logger zerolog.Logger) AutoPiTaskService {
 	// setup redis connection
-	var redisConn string
-	if settings.RedisPassword == "" {
-		redisConn = fmt.Sprintf("redis://%s", settings.RedisURL)
-	} else {
-		redisConn = fmt.Sprintf("redis://%s@%s", settings.RedisPassword, settings.RedisURL)
-	}
 	var tlsConfig *tls.Config
 	if settings.RedisTLS {
 		tlsConfig = new(tls.Config)
 	}
-	// going with version 8, in case have issues...
-	var Redis = redis.NewClient(&redis.Options{
-		Addr:      redisConn,
-		TLSConfig: tlsConfig,
-	})
+	var r StandardRedis
+	// handle redis cluster in prod
+	if settings.Environment == "prod" {
+		r = redis.NewClusterClient(&redis.ClusterOptions{
+			Addrs:     []string{settings.RedisURL},
+			Password:  settings.RedisPassword,
+			TLSConfig: tlsConfig,
+		})
+	} else {
+		r = redis.NewClient(&redis.Options{
+			Addr:      settings.RedisURL,
+			Password:  settings.RedisPassword,
+			TLSConfig: tlsConfig,
+		})
+	}
 
 	var QueueFactory = redisq.NewFactory()
 	const workerQueueName = "autopi-worker"
 	// Create a queue.
 	mainQueue := QueueFactory.RegisterQueue(&taskq.QueueOptions{
 		Name:  workerQueueName,
-		Redis: Redis, // go-redis client
+		Redis: r, // go-redis client
 	})
 	// register task, handler would be below as
 	ats := &autoPiTaskService{
@@ -67,8 +70,9 @@ func NewAutoPiTaskService(settings *config.Settings, autoPiSvc AutoPiAPIService,
 			return ats.ProcessUpdate(ctx, taskID, deviceID, userID, unitID)
 		},
 	})
+
 	ats.UpdateAutoPiTask = updateTask
-	ats.Redis = Redis
+	ats.Redis = r
 	return ats
 }
 
@@ -76,7 +80,7 @@ type autoPiTaskService struct {
 	Settings         *config.Settings
 	MainQueue        taskq.Queue
 	UpdateAutoPiTask *taskq.Task
-	Redis            *redis.Client
+	Redis            StandardRedis
 	autoPiSvc        AutoPiAPIService
 	log              zerolog.Logger
 }
@@ -239,3 +243,17 @@ const (
 	Success   TaskStatusEnum = "Success"
 	Failure   TaskStatusEnum = "Failure"
 )
+
+type StandardRedis interface {
+	Del(ctx context.Context, keys ...string) *redis.IntCmd
+	SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd
+	Pipelined(ctx context.Context, fn func(pipe redis.Pipeliner) error) ([]redis.Cmder, error)
+
+	// Eval Required by redislock
+	Eval(ctx context.Context, script string, keys []string, args ...interface{}) *redis.Cmd
+	EvalSha(ctx context.Context, sha1 string, keys []string, args ...interface{}) *redis.Cmd
+	ScriptExists(ctx context.Context, scripts ...string) *redis.BoolSliceCmd
+	ScriptLoad(ctx context.Context, script string) *redis.StringCmd
+	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
+	Get(ctx context.Context, key string) *redis.StringCmd
+}
