@@ -28,11 +28,9 @@ func NewIngestRegistrar(integrationType IntegrationTypeEnum, producer sarama.Syn
 	case Smartcar:
 		eventType = smartcarRegistrationEventType
 		ingestTopic = ingestSmartcarRegistrationTopic
-		break
 	case AutoPi:
 		eventType = autoPiRegistrationEventType
 		ingestTopic = ingestAutoPiRegistrationTopic
-		break
 	}
 
 	return &ingestRegistrar{eventType: eventType, ingestTopic: ingestTopic, Producer: producer}

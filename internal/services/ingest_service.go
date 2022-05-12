@@ -157,8 +157,12 @@ func (i *IngestService) processEvent(event *DeviceStatusEvent) error {
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("error committing transaction: %w", err)
 	}
-
-	appmetrics.SmartcarIngestSuccessOps.Inc()
+	if integration.Vendor == SmartCarVendor {
+		appmetrics.SmartcarIngestSuccessOps.Inc()
+	}
+	if integration.Vendor == AutoPiVendor {
+		appmetrics.AutoPiIngestSuccessOps.Inc()
+	}
 	return nil
 }
 

@@ -59,8 +59,8 @@ func NewAutoPiTaskService(settings *config.Settings, autoPiSvc AutoPiAPIService,
 	})
 	// register task, handler would be below as
 	ats := &autoPiTaskService{
-		Settings:  settings,
-		MainQueue: mainQueue,
+		settings:  settings,
+		mainQueue: mainQueue,
 		autoPiSvc: autoPiSvc,
 		log:       logger.With().Str("worker queue", workerQueueName).Logger(),
 	}
@@ -69,18 +69,21 @@ func NewAutoPiTaskService(settings *config.Settings, autoPiSvc AutoPiAPIService,
 		Handler: func(ctx context.Context, taskID, deviceID, userID, unitID string) error {
 			return ats.ProcessUpdate(ctx, taskID, deviceID, userID, unitID)
 		},
+		RetryLimit: 5,
+		MinBackoff: time.Second * 30,
+		MaxBackoff: time.Minute * 2,
 	})
 
-	ats.UpdateAutoPiTask = updateTask
-	ats.Redis = r
+	ats.updateAutoPiTask = updateTask
+	ats.redis = r
 	return ats
 }
 
 type autoPiTaskService struct {
-	Settings         *config.Settings
-	MainQueue        taskq.Queue
-	UpdateAutoPiTask *taskq.Task
-	Redis            StandardRedis
+	settings         *config.Settings
+	mainQueue        taskq.Queue
+	updateAutoPiTask *taskq.Task
+	redis            StandardRedis
 	autoPiSvc        AutoPiAPIService
 	log              zerolog.Logger
 }
@@ -88,13 +91,13 @@ type autoPiTaskService struct {
 // StartAutoPiUpdate produces a task
 func (ats *autoPiTaskService) StartAutoPiUpdate(ctx context.Context, deviceID, userID, unitID string) (taskID string, err error) {
 	taskID = ksuid.New().String()
-	msg := ats.UpdateAutoPiTask.WithArgs(ctx, taskID, deviceID, userID, unitID)
+	msg := ats.updateAutoPiTask.WithArgs(ctx, taskID, deviceID, userID, unitID)
 	msg.Name = taskID
-	err = ats.MainQueue.Add(msg)
+	err = ats.mainQueue.Add(msg)
 	if err != nil {
 		return "", err
 	}
-	err = ats.updateTaskState(taskID, "", Pending, 100, nil)
+	err = ats.updateTaskState(taskID, "waiting for task to be processed", Pending, 100, nil)
 	if err != nil {
 		return taskID, err
 	}
@@ -103,7 +106,7 @@ func (ats *autoPiTaskService) StartAutoPiUpdate(ctx context.Context, deviceID, u
 }
 
 func (ats *autoPiTaskService) StartConsumer(ctx context.Context) {
-	if err := ats.MainQueue.Consumer().Start(ctx); err != nil {
+	if err := ats.mainQueue.Consumer().Start(ctx); err != nil {
 		ats.log.Err(err).Msg("consumer failed")
 	}
 	ats.log.Info().Msg("started autopi tasks consumer")
@@ -112,7 +115,7 @@ func (ats *autoPiTaskService) StartConsumer(ctx context.Context) {
 // GetTaskStatus gets the status from the redis backend - is there a way to do this? multistep
 func (ats *autoPiTaskService) GetTaskStatus(ctx context.Context, taskID string) (task *AutoPiTask, err error) {
 	// problem is taskq does not have a way to retrieve a task, and we want to persist state as we move along the task
-	taskRaw := ats.Redis.Get(ctx, buildAutoPiTaskRedisKey(taskID))
+	taskRaw := ats.redis.Get(ctx, buildAutoPiTaskRedisKey(taskID))
 	if taskRaw == nil {
 		return nil, errors.New("task not found")
 	}
@@ -128,11 +131,15 @@ func (ats *autoPiTaskService) GetTaskStatus(ctx context.Context, taskID string) 
 	return apTask, nil
 }
 
-// ProcessUpdate handles the task when consumed
+// ProcessUpdate handles the autopi update task when consumed
 func (ats *autoPiTaskService) ProcessUpdate(ctx context.Context, taskID, deviceID, userID, unitID string) error {
-	// todo check if receive ctx cancel - means we should start task again on next restart
+	// check for ctx.Done in channel etc but in non-blocking way? to then return err if so to retry on next app reboot
 
-	log := ats.log.With().Str("handler", updateAutoPiTask+"_ProcessUpdate").Str("taskID", taskID).Str("deviceID", deviceID).Logger()
+	log := ats.log.With().Str("handler", updateAutoPiTask+"_ProcessUpdate").
+		Str("taskID", taskID).
+		Str("userID", userID).
+		Str("unitID", unitID).
+		Str("deviceID", deviceID).Logger()
 	// store the userID?
 	log.Info().Msg("Started processing autopi update")
 
@@ -141,16 +148,12 @@ func (ats *autoPiTaskService) ProcessUpdate(ctx context.Context, taskID, deviceI
 		log.Err(err).Msg("failed to persist state to redis")
 		return err
 	}
-	//send command to update device (2M timeout)
+	//send command to update device, retry after 1m if get an error
 	cmd, err := ats.autoPiSvc.CommandRaw(ctx, deviceID, "minionutil.update_release", "")
 	if err != nil {
-		time.Sleep(time.Minute)
-		cmd, err = ats.autoPiSvc.CommandRaw(ctx, deviceID, "minionutil.update_release", "")
-		if err != nil {
-			log.Err(err).Msg("failed to call autopi api svc with update command")
-			_ = ats.updateTaskState(taskID, "autopi api call failed after retries", Failure, 500, err)
-			return err
-		}
+		log.Err(err).Msg("failed to call autopi api svc with update command")
+		_ = ats.updateTaskState(taskID, "autopi api call failed", Failure, 500, err)
+		return err
 	}
 	//check that command did not timeout
 	backoffSchedule := []time.Duration{
@@ -174,8 +177,9 @@ func (ats *autoPiTaskService) ProcessUpdate(ctx context.Context, taskID, deviceI
 			_ = ats.updateTaskState(taskID, "autopi update job received by device", InProcess, 120, nil)
 			break
 		}
+		// this is what ended up hitting for me during update.
 		if job.CommandState == "TIMEOUT" {
-			_ = ats.updateTaskState(taskID, "autopi update job timed out, check device online", Failure, 400, nil)
+			_ = ats.updateTaskState(taskID, "autopi update job timed out, device may be offline or rebooting", Failure, 400, nil)
 			log.Warn().Msg("autopi update job timed out and did not reach device")
 			return errors.New("job timeout")
 		}
@@ -185,7 +189,7 @@ func (ats *autoPiTaskService) ProcessUpdate(ctx context.Context, taskID, deviceI
 	backoffSchedule = []time.Duration{
 		35 * time.Second,
 		30 * time.Second,
-		60 * time.Second,
+		30 * time.Second,
 		60 * time.Second,
 		60 * time.Second,
 		60 * time.Second,
@@ -203,26 +207,32 @@ func (ats *autoPiTaskService) ProcessUpdate(ctx context.Context, taskID, deviceI
 		}
 	}
 	// if we got here we could not validate update was applied
-	_ = ats.updateTaskState(taskID, "could not confirm update applied within 5 minutes", Failure, 420, nil)
-
-	return nil
+	_ = ats.updateTaskState(taskID, "could not confirm update applied, will not retry task again.", Failure, 504, nil)
+	return nil // by not returning error, task will not be processed again.
 }
 
 func (ats *autoPiTaskService) updateTaskState(taskID, description string, status TaskStatusEnum, code int, err error) error {
+	updateCnt := 0
+	existing, _ := ats.GetTaskStatus(context.Background(), taskID)
+	if existing != nil {
+		updateCnt = existing.Updates + 1
+	}
 	t := AutoPiTask{
 		TaskID:      taskID,
 		Status:      string(status),
 		Description: description,
 		Code:        code, // need enum with codes
+		UpdatedAt:   time.Now().UTC(),
+		Updates:     updateCnt,
 	}
 	if err != nil {
-		t.Error = err.Error()
+		*t.Error = err.Error()
 	}
 	jb, errM := json.Marshal(t)
 	if errM != nil {
 		return errM
 	}
-	set := ats.Redis.Set(context.Background(), buildAutoPiTaskRedisKey(taskID), jb, time.Hour*72)
+	set := ats.redis.Set(context.Background(), buildAutoPiTaskRedisKey(taskID), jb, time.Hour*72)
 	return set.Err()
 }
 
@@ -232,11 +242,14 @@ func buildAutoPiTaskRedisKey(taskID string) string {
 
 // AutoPiTask describes a task that is being worked on asynchronously for autopi
 type AutoPiTask struct {
-	TaskID      string `json:"taskId"`
-	Status      string `json:"status"`
-	Description string `json:"description"`
-	Code        int    `json:"code"`
-	Error       string `json:"error"`
+	TaskID      string    `json:"taskId"`
+	Status      string    `json:"status"`
+	Description string    `json:"description"`
+	Code        int       `json:"code"`
+	Error       *string   `json:"error,omitempty"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+	// Updates increments every time the job was updated.
+	Updates int `json:"updates"`
 }
 
 type TaskStatusEnum string
@@ -248,6 +261,7 @@ const (
 	Failure   TaskStatusEnum = "Failure"
 )
 
+// StandardRedis combines methods of redis client and what taskq expects so can use it for both clustered redis client and regular client
 type StandardRedis interface {
 	Del(ctx context.Context, keys ...string) *redis.IntCmd
 	SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd
