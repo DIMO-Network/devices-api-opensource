@@ -71,7 +71,7 @@ func NewAutoPiTaskService(settings *config.Settings, autoPiSvc AutoPiAPIService,
 		},
 		RetryLimit: 5,
 		MinBackoff: time.Second * 30,
-		MaxBackoff: time.Minute * 2,
+		MaxBackoff: time.Minute,
 	})
 
 	ats.updateAutoPiTask = updateTask
