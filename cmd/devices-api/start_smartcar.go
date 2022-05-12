@@ -10,6 +10,7 @@ import (
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
 	"github.com/rs/zerolog"
+	"github.com/segmentio/ksuid"
 	smartcar "github.com/smartcar/go-sdk"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
@@ -77,8 +78,10 @@ func startSmartcarFromRefresh(ctx context.Context, logger *zerolog.Logger, setti
 	udai.AccessToken = null.StringFrom(encAccess)
 	udai.RefreshToken = null.StringFrom(encRefresh)
 	udai.AccessExpiresAt = null.TimeFrom(newToken.AccessExpiry)
+	udai.TaskID = null.StringFrom(ksuid.New().String())
+
 	if err := udai.Metadata.Marshal(meta); err != nil {
-		return fmt.Errorf("couldn't serialize udated integration metadata: %w", err)
+		return fmt.Errorf("couldn't serialize updated integration metadata: %w", err)
 	}
 
 	if _, err := udai.Update(ctx, db, boil.Infer()); err != nil {
