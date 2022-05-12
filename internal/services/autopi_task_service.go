@@ -218,7 +218,11 @@ func (ats *autoPiTaskService) updateTaskState(taskID, description string, status
 	if err != nil {
 		t.Error = err.Error()
 	}
-	set := ats.Redis.Set(context.Background(), buildAutoPiTaskRedisKey(taskID), t, time.Hour*72)
+	jb, errM := json.Marshal(t)
+	if errM != nil {
+		return errM
+	}
+	set := ats.Redis.Set(context.Background(), buildAutoPiTaskRedisKey(taskID), jb, time.Hour*72)
 	return set.Err()
 }
 
