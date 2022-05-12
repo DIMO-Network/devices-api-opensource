@@ -205,9 +205,10 @@ func (ats *autoPiTaskService) ProcessUpdate(ctx context.Context, taskID, deviceI
 			log.Info().Msg("Succesfully applied autopi update")
 			return nil
 		}
+		_ = ats.updateTaskState(taskID, "waiting for autopi to update, query not showing as updated yet", InProcess, 130, nil)
 	}
 	// if we got here we could not validate update was applied
-	_ = ats.updateTaskState(taskID, "could not confirm update applied, will not retry task again.", Failure, 504, nil)
+	_ = ats.updateTaskState(taskID, "update command sent ok, but could not confirm update applied. retries exceeded", Failure, 504, nil)
 	return nil // by not returning error, task will not be processed again.
 }
 
