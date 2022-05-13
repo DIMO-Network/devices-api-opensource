@@ -139,7 +139,7 @@ func (i *IngestService) processEvent(event *DeviceStatusEvent) error {
 		i.processOdometer(datum, newOdometer, device, integrationID)
 	}
 	// do smartcar
-	if integration.Vendor == SmartCarVendor {
+	if integration.Vendor == SmartCarVendor || integration.Vendor == TeslaVendor {
 		if newOdometer.Valid {
 			datum.Data = null.JSONFrom(event.Data)
 			datum.ErrorData = null.JSON{}
