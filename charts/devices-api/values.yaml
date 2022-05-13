@@ -45,6 +45,7 @@ env:
   DEVICE_STATUS_TOPIC: topic.device.status
   TASK_STOP_TOPIC: table.task.stop
   TASK_CREDENTIAL_TOPIC: table.task.credential
+  TASK_STATUS_TOPIC: topic.task.status
   PRIVACY_FENCE_TOPIC: table.device.privacyfence
   EVENTS_TOPIC: topic.event
   DEVICE_DATA_INDEX_NAME: device-status-dev*

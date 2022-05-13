@@ -34,6 +34,7 @@ type Settings struct {
 	TaskRunNowTopic                string `yaml:"TASK_RUN_NOW_TOPIC"`
 	TaskStopTopic                  string `yaml:"TASK_STOP_TOPIC"`
 	TaskCredentialTopic            string `yaml:"TASK_CREDENTIAL_TOPIC"`
+	TaskStatusTopic                string `yaml:"TASK_STATUS_TOPIC"`
 	EventsTopic                    string `yaml:"EVENTS_TOPIC"`
 	ElasticSearchAppSearchHost     string `yaml:"ELASTIC_SEARCH_APP_SEARCH_HOST"`
 	ElasticSearchAppSearchToken    string `yaml:"ELASTIC_SEARCH_APP_SEARCH_TOKEN"`

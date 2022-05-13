@@ -65,6 +65,7 @@ func (i *CredentialListener) processMessage(msg *message.Message) error {
 	return i.processEvent(event)
 }
 
+// Usual format of the source field in CloudEvents for anything related to an integration.
 const sourcePrefix = "dimo/integration/"
 
 func (i *CredentialListener) processEvent(event *TeslaCredentialsCloudEventV1V2) error {

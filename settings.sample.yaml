@@ -16,6 +16,7 @@ INGEST_SMARTCAR_TOPIC: topic.interface.ingest.smartcar
 DEVICE_STATUS_TOPIC: topic.device.status
 TASK_RUN_NOW_TOPIC: topic.task.run.now
 TASK_STOP_TOPIC: table.task.stop
+TASK_STATUS_TOPIC: topic.task.status
 TASK_CREDENTIAL_TOPIC: table.task.credential
 PRIVACY_FENCE_TOPIC: table.device.privacyfence
 REDIS_URL: localhost:6379

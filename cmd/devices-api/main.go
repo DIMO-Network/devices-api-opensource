@@ -198,6 +198,7 @@ func main() {
 		eventService := services.NewEventService(&logger, &settings, producer)
 		startDeviceStatusConsumer(logger, &settings, pdb, eventService)
 		startCredentialConsumer(logger, &settings, pdb)
+		startTaskStatusConsumer(logger, &settings, pdb)
 		startWebAPI(logger, &settings, pdb, eventService, producer)
 	}
 }
@@ -478,6 +479,28 @@ func startCredentialConsumer(logger zerolog.Logger, settings *config.Settings, p
 	consumer.Start(context.Background(), credService.ProcessCredentialsMessages)
 
 	logger.Info().Msg("Credential update consumer started")
+}
+
+func startTaskStatusConsumer(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) {
+	clusterConfig := sarama.NewConfig()
+	clusterConfig.Version = sarama.V2_8_1_0
+	clusterConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
+
+	cfg := &kafka.Config{
+		ClusterConfig:   clusterConfig,
+		BrokerAddresses: strings.Split(settings.KafkaBrokers, ","),
+		Topic:           settings.TaskStatusTopic,
+		GroupID:         "user-devices",
+		MaxInFlight:     int64(5),
+	}
+	consumer, err := kafka.NewConsumer(cfg, &logger)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Could not start credential update consumer")
+	}
+	taskStatusService := services.NewTaskStatusListener(pdb.DBS, &logger)
+	consumer.Start(context.Background(), taskStatusService.ProcessTaskUpdates)
+
+	logger.Info().Msg("Task status consumer started")
 }
 
 func startPrometheus(logger zerolog.Logger) {
