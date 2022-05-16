@@ -11,6 +11,7 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
@@ -75,13 +76,8 @@ func (i *TaskStatusListener) processEvent(event *TaskStatusCloudEvent) error {
 	}
 	integrationID := strings.TrimPrefix(event.Source, sourcePrefix)
 
-	var newStatus string
-
 	// Just one case for now.
-	if event.Data.Status == models.UserDeviceAPIIntegrationStatusAuthenticationFailure {
-		// We are translating because the frontend doesn't support this state yet.
-		newStatus = models.UserDeviceAPIIntegrationStatusFailed
-	} else {
+	if event.Data.Status != models.UserDeviceAPIIntegrationStatusAuthenticationFailure {
 		return fmt.Errorf("unexpected task status %s", event.Data.Status)
 	}
 
@@ -92,7 +88,13 @@ func (i *TaskStatusListener) processEvent(event *TaskStatusCloudEvent) error {
 
 	i.log.Info().Str("userDeviceId", userDeviceID).Msg("Setting Smartcar integration to failed because credentials have changed.")
 
-	integ.Status = newStatus
+	if integ.TaskID.Valid && integ.TaskID.String == event.Data.TaskID {
+		// Maybe you've restarted the task with new credentials already.
+		// TODO: Delete credentials entry?
+		integ.TaskID = null.String{}
+	}
+	// Using this instead of the provided "AuthenticationFailure" because the frontend doesn't support it yet.
+	integ.Status = models.UserDeviceAPIIntegrationStatusFailed
 	if _, err := integ.Update(context.Background(), i.db().Writer, boil.Infer()); err != nil {
 		return err
 	}
