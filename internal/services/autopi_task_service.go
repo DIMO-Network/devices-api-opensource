@@ -227,7 +227,8 @@ func (ats *autoPiTaskService) updateTaskState(taskID, description string, status
 		Updates:     updateCnt,
 	}
 	if err != nil {
-		*t.Error = err.Error()
+		errstr := err.Error()
+		t.Error = &errstr
 	}
 	jb, errM := json.Marshal(t)
 	if errM != nil {
