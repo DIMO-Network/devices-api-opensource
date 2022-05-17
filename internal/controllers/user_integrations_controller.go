@@ -414,7 +414,7 @@ func (udc *UserDevicesController) StartAutoPiUpdateTask(c *fiber.Ctx) error {
 		}
 	}
 	// -- end same code as above method.
-	taskID, err := udc.autoPiTaskService.StartAutoPiUpdate(c.Context(), deviceID, userID, unitID)
+	taskID, err := udc.autoPiTaskService.StartAutoPiUpdate(deviceID, userID, unitID)
 	if err != nil {
 		return err
 	}

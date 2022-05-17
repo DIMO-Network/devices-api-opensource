@@ -18,7 +18,7 @@ import (
 
 //go:generate mockgen -source autopi_task_service.go -destination mocks/autopi_task_service_mock.go
 type AutoPiTaskService interface {
-	StartAutoPiUpdate(ctx context.Context, deviceID, userID, unitID string) (taskID string, err error)
+	StartAutoPiUpdate(deviceID, userID, unitID string) (taskID string, err error)
 	GetTaskStatus(ctx context.Context, taskID string) (task *AutoPiTask, err error)
 	StartConsumer(ctx context.Context)
 }
@@ -89,9 +89,9 @@ type autoPiTaskService struct {
 }
 
 // StartAutoPiUpdate produces a task
-func (ats *autoPiTaskService) StartAutoPiUpdate(ctx context.Context, deviceID, userID, unitID string) (taskID string, err error) {
+func (ats *autoPiTaskService) StartAutoPiUpdate(deviceID, userID, unitID string) (taskID string, err error) {
 	taskID = ksuid.New().String()
-	msg := ats.updateAutoPiTask.WithArgs(ctx, taskID, deviceID, userID, unitID)
+	msg := ats.updateAutoPiTask.WithArgs(context.Background(), taskID, deviceID, userID, unitID)
 	msg.Name = taskID
 	err = ats.mainQueue.Add(msg)
 	if err != nil {
