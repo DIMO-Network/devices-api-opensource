@@ -94,7 +94,7 @@ func (i *TaskStatusListener) processEvent(event *TaskStatusCloudEvent) error {
 		integ.TaskID = null.String{}
 	}
 	// Using this instead of the provided "AuthenticationFailure" because the frontend doesn't support it yet.
-	integ.Status = models.UserDeviceAPIIntegrationStatusFailed
+	integ.Status = models.UserDeviceAPIIntegrationStatusAuthenticationFailure
 	if _, err := integ.Update(context.Background(), i.db().Writer, boil.Infer()); err != nil {
 		return err
 	}
