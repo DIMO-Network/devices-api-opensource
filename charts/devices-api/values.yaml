@@ -95,10 +95,10 @@ ingress:
 resources:
   limits:
     cpu: 250m
-    memory: 256Mi
+    memory: 384Mi
   requests:
-    cpu: 50m
-    memory: 128Mi
+    cpu: 100m
+    memory: 192Mi
 autoscaling:
   enabled: false
   minReplicas: 1
