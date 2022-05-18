@@ -16,7 +16,7 @@ VER_RC    := $(shell echo $(VER_PATCH) | cut -f2 -d-)
 DATE      := $(shell date +"%Y-%m-%dT%H:%M:%SZ")
 
 LD_FLAGS   =
-GO_FLAGS   = -gcflags '-N -l'
+GO_FLAGS   =
 DOCS_FLAGS =
 
 APPS = devices-api

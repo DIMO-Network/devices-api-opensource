@@ -346,13 +346,14 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		}
 	}()
 	// start task consumer for autopi
-	autoPiTaskService.StartConsumer(context.Background())
+	ctx := context.Background()
+	autoPiTaskService.StartConsumer(ctx)
 
 	c := make(chan os.Signal, 1)                    // Create channel to signify a signal being sent with length of 1
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM) // When an interrupt or termination signal is sent, notify the channel
 	<-c                                             // This blocks the main thread until an interrupt is received
 	logger.Info().Msg("Gracefully shutting down and running cleanup tasks...")
-	autoPiTaskService.Close()
+	_ = ctx.Done()
 	_ = app.Shutdown()
 	_ = pdb.DBS().Writer.Close()
 	_ = pdb.DBS().Reader.Close()
