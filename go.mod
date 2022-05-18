@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/DIMO-Network/shared v0.1.14
+	github.com/DIMO-Network/taskq/v3 v3.2.9-0.20220518232021-f5d4b8c5538f
 	github.com/DIMO-Network/zflogger v1.0.0-beta
 	github.com/Shopify/sarama v1.32.0
 	github.com/ThreeDotsLabs/watermill v1.1.1
@@ -31,7 +32,6 @@ require (
 	github.com/swaggo/swag v1.8.1
 	github.com/tidwall/gjson v1.14.0
 	github.com/tidwall/sjson v1.2.4
-	github.com/vmihailenco/taskq/v3 v3.2.8
 	github.com/volatiletech/null/v8 v8.1.2
 	github.com/volatiletech/sqlboiler/v4 v4.8.6
 	github.com/volatiletech/strmangle v0.0.1
@@ -43,7 +43,7 @@ require (
 	cloud.google.com/go/iam v0.1.1 // indirect
 	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/avast/retry-go/v4 v4.0.4 // indirect
-	github.com/bsm/redislock v0.7.1 // indirect
+	github.com/bsm/redislock v0.7.2 // indirect
 	github.com/capnm/sysinfo v0.0.0-20130621111458-5909a53897f3 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/ericlagergren/decimal v0.0.0-20211103172832-aca2edc11f73 // indirect
@@ -54,6 +54,7 @@ require (
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.3.5 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
+	github.com/vmihailenco/taskq/v3 v3.2.8 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.0 // indirect
 	github.com/xdg-go/stringprep v1.0.2 // indirect
@@ -66,7 +67,7 @@ require (
 	cloud.google.com/go/kms v1.2.0 // indirect
 	cloud.google.com/go/pubsub v1.18.0 // indirect
 	github.com/RichardKnop/logging v0.0.0-20190827224416-1a693bdd4fae // indirect
-	github.com/aws/aws-sdk-go v1.43.42
+	github.com/aws/aws-sdk-go v1.43.45
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bradfitz/gomemcache v0.0.0-20220106215444-fb4bf637b56d // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
@@ -74,7 +75,7 @@ require (
 	github.com/eapache/go-resiliency v1.2.0 // indirect
 	github.com/eapache/go-xerial-snappy v0.0.0-20180814174437-776d5712da21 // indirect
 	github.com/eapache/queue v1.1.0 // indirect
-	github.com/go-redis/redis/v8 v8.11.4
+	github.com/go-redis/redis/v8 v8.11.5
 	github.com/go-redsync/redsync/v4 v4.5.0 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
