@@ -59,10 +59,11 @@ func NewAutoPiTaskService(settings *config.Settings, autoPiSvc AutoPiAPIService,
 	})
 	// register task, handler would be below as
 	ats := &autoPiTaskService{
-		settings:  settings,
-		mainQueue: mainQueue,
-		autoPiSvc: autoPiSvc,
-		log:       logger.With().Str("worker queue", workerQueueName).Logger(),
+		settings:     settings,
+		mainQueue:    mainQueue,
+		autoPiSvc:    autoPiSvc,
+		queueFactory: QueueFactory,
+		log:          logger.With().Str("worker queue", workerQueueName).Logger(),
 	}
 	updateTask := taskq.RegisterTask(&taskq.TaskOptions{
 		Name: updateAutoPiTask,
@@ -81,6 +82,7 @@ func NewAutoPiTaskService(settings *config.Settings, autoPiSvc AutoPiAPIService,
 
 type autoPiTaskService struct {
 	settings         *config.Settings
+	queueFactory     taskq.Factory
 	mainQueue        taskq.Queue
 	updateAutoPiTask *taskq.Task
 	redis            StandardRedis
@@ -106,7 +108,7 @@ func (ats *autoPiTaskService) StartAutoPiUpdate(deviceID, userID, unitID string)
 }
 
 func (ats *autoPiTaskService) StartConsumer(ctx context.Context) {
-	if err := ats.mainQueue.Consumer().Start(context.Background()); err != nil {
+	if err := ats.queueFactory.StartConsumers(context.Background()); err != nil {
 		ats.log.Err(err).Msg("consumer failed")
 	}
 	ats.log.Info().Msg("started autopi tasks consumer")
