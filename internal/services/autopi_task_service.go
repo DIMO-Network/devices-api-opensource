@@ -105,8 +105,8 @@ func (ats *autoPiTaskService) StartAutoPiUpdate(deviceID, userID, unitID string)
 	return taskID, nil
 }
 
-func (ats *autoPiTaskService) StartConsumer(ctx context.Context) {
-	if err := ats.mainQueue.Consumer().Start(ctx); err != nil {
+func (ats *autoPiTaskService) StartConsumer(_ context.Context) {
+	if err := ats.mainQueue.Consumer().Start(context.Background()); err != nil {
 		ats.log.Err(err).Msg("consumer failed")
 	}
 	ats.log.Info().Msg("started autopi tasks consumer")
