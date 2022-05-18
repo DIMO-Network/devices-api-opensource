@@ -105,7 +105,7 @@ func (ats *autoPiTaskService) StartAutoPiUpdate(deviceID, userID, unitID string)
 	return taskID, nil
 }
 
-func (ats *autoPiTaskService) StartConsumer(_ context.Context) {
+func (ats *autoPiTaskService) StartConsumer(ctx context.Context) {
 	if err := ats.mainQueue.Consumer().Start(context.Background()); err != nil {
 		ats.log.Err(err).Msg("consumer failed")
 	}
@@ -115,7 +115,7 @@ func (ats *autoPiTaskService) StartConsumer(_ context.Context) {
 // GetTaskStatus gets the status from the redis backend - is there a way to do this? multistep
 func (ats *autoPiTaskService) GetTaskStatus(ctx context.Context, taskID string) (task *AutoPiTask, err error) {
 	// problem is taskq does not have a way to retrieve a task, and we want to persist state as we move along the task
-	taskRaw := ats.redis.Get(ctx, buildAutoPiTaskRedisKey(taskID))
+	taskRaw := ats.redis.Get(context.Background(), buildAutoPiTaskRedisKey(taskID))
 	if taskRaw == nil {
 		return nil, errors.New("task not found")
 	}
@@ -149,7 +149,7 @@ func (ats *autoPiTaskService) ProcessUpdate(ctx context.Context, taskID, deviceI
 		return err
 	}
 	//send command to update device, retry after 1m if get an error
-	cmd, err := ats.autoPiSvc.CommandRaw(ctx, deviceID, "minionutil.update_release", "")
+	cmd, err := ats.autoPiSvc.CommandRaw(context.Background(), deviceID, "minionutil.update_release", "")
 	if err != nil {
 		log.Err(err).Msg("failed to call autopi api svc with update command")
 		_ = ats.updateTaskState(taskID, "autopi api call failed", Failure, 500, err)
@@ -164,7 +164,7 @@ func (ats *autoPiTaskService) ProcessUpdate(ctx context.Context, taskID, deviceI
 	}
 	for _, backoff := range backoffSchedule {
 		time.Sleep(backoff)
-		job, _, err := ats.autoPiSvc.GetCommandStatus(ctx, cmd.Jid)
+		job, _, err := ats.autoPiSvc.GetCommandStatus(context.Background(), cmd.Jid)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				_ = ats.updateTaskState(taskID, "autopi job was not found in db", Failure, 500, err)
