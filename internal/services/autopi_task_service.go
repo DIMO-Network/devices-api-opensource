@@ -69,7 +69,7 @@ func NewAutoPiTaskService(settings *config.Settings, autoPiSvc AutoPiAPIService,
 	updateTask := taskq.RegisterTask(&taskq.TaskOptions{
 		Name: updateAutoPiTask,
 		Handler: func(ctx context.Context, taskID, deviceID, userID, unitID string) error {
-			ats.log.Msgf("LOUX %v", ctx)
+			ats.log.Info().Msgf("LOUX %v", ctx)
 			return ats.ProcessUpdate(ctx, taskID, deviceID, userID, unitID)
 		},
 		RetryLimit: 5,
