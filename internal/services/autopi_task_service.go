@@ -21,6 +21,7 @@ type AutoPiTaskService interface {
 	StartAutoPiUpdate(deviceID, userID, unitID string) (taskID string, err error)
 	GetTaskStatus(ctx context.Context, taskID string) (task *AutoPiTask, err error)
 	StartConsumer(ctx context.Context)
+	Close()
 }
 
 // task names
@@ -105,6 +106,10 @@ func (ats *autoPiTaskService) StartAutoPiUpdate(deviceID, userID, unitID string)
 	}
 
 	return taskID, nil
+}
+
+func (ats *autoPiTaskService) Close() {
+	ats.queueFactory.Close()
 }
 
 func (ats *autoPiTaskService) StartConsumer(ctx context.Context) {
