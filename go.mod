@@ -4,7 +4,6 @@ go 1.18
 
 require (
 	github.com/DIMO-Network/shared v0.1.14
-	github.com/DIMO-Network/taskq/v3 v3.2.9-0.20220518232021-f5d4b8c5538f
 	github.com/DIMO-Network/zflogger v1.0.0-beta
 	github.com/Shopify/sarama v1.32.0
 	github.com/ThreeDotsLabs/watermill v1.1.1
@@ -32,6 +31,7 @@ require (
 	github.com/swaggo/swag v1.8.1
 	github.com/tidwall/gjson v1.14.0
 	github.com/tidwall/sjson v1.2.4
+	github.com/vmihailenco/taskq/v3 v3.2.8
 	github.com/volatiletech/null/v8 v8.1.2
 	github.com/volatiletech/sqlboiler/v4 v4.8.6
 	github.com/volatiletech/strmangle v0.0.1
@@ -54,7 +54,6 @@ require (
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.3.5 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
-	github.com/vmihailenco/taskq/v3 v3.2.8 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.0 // indirect
 	github.com/xdg-go/stringprep v1.0.2 // indirect
@@ -155,4 +154,4 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
-replace github.com/vmihailenco/taskq/v3 => github.com/DIMO-Network/taskq/v3 v3.2.8-dimofix
+replace github.com/vmihailenco/taskq/v3 v3.2.8 => github.com/DIMO-Network/taskq/v3 v3.2.9-0.20220518233332-179b5552605f

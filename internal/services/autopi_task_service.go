@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
-	"github.com/DIMO-Network/taskq/v3"
-	"github.com/DIMO-Network/taskq/v3/redisq"
 	"github.com/go-redis/redis/v8"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
+	"github.com/vmihailenco/taskq/v3"
+	"github.com/vmihailenco/taskq/v3/redisq"
 )
 
 //go:generate mockgen -source autopi_task_service.go -destination mocks/autopi_task_service_mock.go
