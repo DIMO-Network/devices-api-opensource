@@ -448,7 +448,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.RegisterUserDevice"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDevice"
                         }
                     }
                 ],
@@ -456,7 +456,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.RegisterUserDeviceResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDeviceResponse"
                         }
                     }
                 }
@@ -579,7 +579,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_controllers.UserDeviceFull"
+                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceFull"
                             }
                         }
                     }
@@ -667,7 +667,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.UpdateCountryCodeReq"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateCountryCodeReq"
                         }
                     }
                 ],
@@ -739,7 +739,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.UpdateNameReq"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateNameReq"
                         }
                     },
                     {
@@ -782,7 +782,10 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.DeviceSnapshot"
+                        }
                     }
                 }
             }
@@ -811,7 +814,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.UpdateVINReq"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateVINReq"
                         }
                     },
                     {
@@ -852,7 +855,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence"
+                                "$ref": "#/definitions/internal_controllers.GetGeofence"
                             }
                         }
                     }
@@ -884,7 +887,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence"
+                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
                         }
                     }
                 ],
@@ -892,7 +895,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateResponse"
+                            "$ref": "#/definitions/internal_controllers.CreateResponse"
                         }
                     }
                 }
@@ -932,7 +935,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence"
+                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
                         }
                     }
                 ],
@@ -1052,6 +1055,44 @@
                     "items": {
                         "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceModelYear"
                     }
+                }
+            }
+        },
+        "github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot": {
+            "type": "object",
+            "properties": {
+                "batteryCapacity": {
+                    "type": "integer"
+                },
+                "charging": {
+                    "type": "boolean"
+                },
+                "fuelPercentRemaining": {
+                    "type": "number"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                },
+                "odometer": {
+                    "type": "number"
+                },
+                "oil": {
+                    "type": "number"
+                },
+                "range": {
+                    "type": "number"
+                },
+                "recordCreatedAt": {
+                    "type": "string"
+                },
+                "recordUpdatedAt": {
+                    "type": "string"
+                },
+                "tirePressure": {
+                    "$ref": "#/definitions/smartcar.TirePressure"
                 }
             }
         },
@@ -1345,6 +1386,44 @@
                     "items": {
                         "$ref": "#/definitions/internal_controllers.DeviceModelYear"
                     }
+                }
+            }
+        },
+        "internal_controllers.DeviceSnapshot": {
+            "type": "object",
+            "properties": {
+                "batteryCapacity": {
+                    "type": "integer"
+                },
+                "charging": {
+                    "type": "boolean"
+                },
+                "fuelPercentRemaining": {
+                    "type": "number"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                },
+                "odometer": {
+                    "type": "number"
+                },
+                "oil": {
+                    "type": "number"
+                },
+                "range": {
+                    "type": "number"
+                },
+                "recordCreatedAt": {
+                    "type": "string"
+                },
+                "recordUpdatedAt": {
+                    "type": "string"
+                },
+                "tirePressure": {
+                    "$ref": "#/definitions/smartcar.TirePressure"
                 }
             }
         },
@@ -1766,6 +1845,36 @@
             "type": "object",
             "properties": {
                 "powertrainType": {
+                    "type": "string"
+                }
+            }
+        },
+        "smartcar.TirePressure": {
+            "type": "object",
+            "properties": {
+                "age": {
+                    "description": "Deprecated: Should use DataAge instead of Age",
+                    "type": "string"
+                },
+                "backLeft": {
+                    "type": "number"
+                },
+                "backRight": {
+                    "type": "number"
+                },
+                "dataAge": {
+                    "type": "string"
+                },
+                "frontLeft": {
+                    "type": "number"
+                },
+                "frontRight": {
+                    "type": "number"
+                },
+                "requestId": {
+                    "type": "string"
+                },
+                "unitSystem": {
                     "type": "string"
                 }
             }

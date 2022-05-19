@@ -278,7 +278,7 @@ func (d *DeviceDataController) GetDistanceDriven(c *fiber.Ctx) error {
 // @Tags         user-devices
 // @Produce      json
 // @Param        user_device_id  path  string  true  "user device ID"
-// @Success      200
+// @Success      200 {object} controllers.DeviceSnapshot
 // @Security     BearerAuth
 // @Router       /user/devices/{userDeviceID}/status [get]
 func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
