@@ -17,8 +17,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	smartcar "github.com/smartcar/go-sdk"
 	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
@@ -287,7 +287,6 @@ func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 	userDevice, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(udi),
 		models.UserDeviceWhere.UserID.EQ(userID),
-		qm.Load(models.UserDeviceRels.UserDeviceDatum),
 	).One(c.Context(), udc.DBS().Writer)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -295,19 +294,80 @@ func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 		}
 		return err
 	}
-
-	if userDevice.R.UserDeviceDatum == nil || !userDevice.R.UserDeviceDatum.Data.Valid {
+	deviceData, err := models.UserDeviceData(models.UserDeviceDatumWhere.UserDeviceID.EQ(userDevice.ID),
+		qm.OrderBy("updated_at asc")).All(c.Context(), udc.DBS().Reader)
+	if errors.Is(err, sql.ErrNoRows) || len(deviceData) == 0 || !deviceData[0].Data.Valid {
 		return fiber.NewError(fiber.StatusNotFound, "no status updates yet")
 	}
-	// date formatting defaults to encoding/json
-	json, _ := sjson.Set(string(userDevice.R.UserDeviceDatum.Data.JSON), "recordUpdatedAt", userDevice.R.UserDeviceDatum.UpdatedAt)
-	json, _ = sjson.Set(json, "recordCreatedAt", userDevice.R.UserDeviceDatum.CreatedAt)
-	if userDevice.R.UserDeviceDatum.ErrorData.Valid {
-		json, _ = sjson.Set(json, "errorData", userDevice.R.UserDeviceDatum.ErrorData)
+	if err != nil {
+		return err
 	}
-
-	c.Set("Content-Type", "application/json")
-	return c.Send([]byte(json))
+	// how should we handle the errorData, if at all?
+	ds := DeviceSnapshot{}
+	// merging data: foreach order by updatedAt desc, only set property if it exists in json data
+	for _, datum := range deviceData {
+		if datum.Data.Valid {
+			// note this means the date updated we sent may be inaccurate if have both smartcar and autopi
+			if ds.RecordUpdatedAt.IsZero() {
+				ds.RecordCreatedAt = &datum.CreatedAt
+				ds.RecordUpdatedAt = &datum.UpdatedAt
+			}
+			// note we are assuming json property names are same accross smartcar, tesla, autopi, AND same types eg. int / float / string
+			// we could use reflection and just have single line assuming json name in struct matches what is in data
+			charging := gjson.GetBytes(datum.Data.JSON, "charging")
+			if charging.Exists() {
+				c := charging.Bool()
+				ds.Charging = &c
+			}
+			fuelPercentRemaining := gjson.GetBytes(datum.Data.JSON, "fuelPercentRemaining")
+			if fuelPercentRemaining.Exists() {
+				f := fuelPercentRemaining.Float()
+				ds.FuelPercentRemaining = &f
+			}
+			batteryCapacity := gjson.GetBytes(datum.Data.JSON, "batteryCapacity")
+			if batteryCapacity.Exists() {
+				b := batteryCapacity.Int()
+				ds.BatteryCapacity = &b
+			}
+			oilLevel := gjson.GetBytes(datum.Data.JSON, "oil")
+			if oilLevel.Exists() {
+				o := oilLevel.Float()
+				ds.OilLevel = &o
+			}
+			odometer := gjson.GetBytes(datum.Data.JSON, "odometer")
+			if odometer.Exists() {
+				o := odometer.Float()
+				ds.Odometer = &o
+			}
+			latitude := gjson.GetBytes(datum.Data.JSON, "latitude")
+			if latitude.Exists() {
+				l := latitude.Float()
+				ds.Latitude = &l
+			}
+			longitude := gjson.GetBytes(datum.Data.JSON, "longitude")
+			if longitude.Exists() {
+				l := longitude.Float()
+				ds.Longitude = &l
+			}
+			rangeG := gjson.GetBytes(datum.Data.JSON, "range")
+			if rangeG.Exists() {
+				r := rangeG.Float()
+				ds.Range = &r
+			}
+			// TirePressure
+			tires := gjson.GetBytes(datum.Data.JSON, "tires")
+			if tires.Exists() {
+				// weird thing here is in example payloads these are all ints, but the smartcar lib has as floats
+				ds.TirePressure = &smartcar.TirePressure{
+					FrontLeft:  tires.Get("frontLeft").Float(),
+					FrontRight: tires.Get("frontRight").Float(),
+					BackLeft:   tires.Get("backLeft").Float(),
+					BackRight:  tires.Get("backRight").Float(),
+				}
+			}
+		}
+	}
+	return c.JSON(ds)
 }
 
 // RefreshUserDeviceStatus godoc
@@ -420,4 +480,20 @@ func stringContainsSpecialChars(str string) bool {
 		}
 	}
 	return false
+}
+
+// DeviceSnapshot is the response object for device status endpoint
+// https://docs.google.com/document/d/1DYzzTOR9WA6WJNoBnwpKOoxfmrVwPWNLv0x0MkjIAqY/edit#heading=h.dnp7xngl47bw
+type DeviceSnapshot struct {
+	Charging             *bool                  `json:"charging,omitempty"`
+	FuelPercentRemaining *float64               `json:"fuelPercentRemaining,omitempty"`
+	BatteryCapacity      *int64                 `json:"batteryCapacity,omitempty"`
+	OilLevel             *float64               `json:"oil,omitempty"`
+	Odometer             *float64               `json:"odometer,omitempty"`
+	Latitude             *float64               `json:"latitude,omitempty"`
+	Longitude            *float64               `json:"longitude,omitempty"`
+	Range                *float64               `json:"range,omitempty"`
+	RecordUpdatedAt      *time.Time             `json:"recordUpdatedAt,omitempty"`
+	RecordCreatedAt      *time.Time             `json:"recordCreatedAt,omitempty"`
+	TirePressure         *smartcar.TirePressure `json:"tirePressure,omitempty"`
 }

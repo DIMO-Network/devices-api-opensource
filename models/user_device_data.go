@@ -24,12 +24,13 @@ import (
 
 // UserDeviceDatum is an object representing the database table.
 type UserDeviceDatum struct {
-	UserDeviceID        string    `boil:"user_device_id" json:"user_device_id" toml:"user_device_id" yaml:"user_device_id"`
-	Data                null.JSON `boil:"data" json:"data,omitempty" toml:"data" yaml:"data,omitempty"`
-	CreatedAt           time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt           time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	ErrorData           null.JSON `boil:"error_data" json:"error_data,omitempty" toml:"error_data" yaml:"error_data,omitempty"`
-	LastOdometerEventAt null.Time `boil:"last_odometer_event_at" json:"last_odometer_event_at,omitempty" toml:"last_odometer_event_at" yaml:"last_odometer_event_at,omitempty"`
+	UserDeviceID        string      `boil:"user_device_id" json:"user_device_id" toml:"user_device_id" yaml:"user_device_id"`
+	Data                null.JSON   `boil:"data" json:"data,omitempty" toml:"data" yaml:"data,omitempty"`
+	CreatedAt           time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt           time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	ErrorData           null.JSON   `boil:"error_data" json:"error_data,omitempty" toml:"error_data" yaml:"error_data,omitempty"`
+	LastOdometerEventAt null.Time   `boil:"last_odometer_event_at" json:"last_odometer_event_at,omitempty" toml:"last_odometer_event_at" yaml:"last_odometer_event_at,omitempty"`
+	IntegrationID       null.String `boil:"integration_id" json:"integration_id,omitempty" toml:"integration_id" yaml:"integration_id,omitempty"`
 
 	R *userDeviceDatumR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userDeviceDatumL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -42,6 +43,7 @@ var UserDeviceDatumColumns = struct {
 	UpdatedAt           string
 	ErrorData           string
 	LastOdometerEventAt string
+	IntegrationID       string
 }{
 	UserDeviceID:        "user_device_id",
 	Data:                "data",
@@ -49,6 +51,7 @@ var UserDeviceDatumColumns = struct {
 	UpdatedAt:           "updated_at",
 	ErrorData:           "error_data",
 	LastOdometerEventAt: "last_odometer_event_at",
+	IntegrationID:       "integration_id",
 }
 
 var UserDeviceDatumTableColumns = struct {
@@ -58,6 +61,7 @@ var UserDeviceDatumTableColumns = struct {
 	UpdatedAt           string
 	ErrorData           string
 	LastOdometerEventAt string
+	IntegrationID       string
 }{
 	UserDeviceID:        "user_device_data.user_device_id",
 	Data:                "user_device_data.data",
@@ -65,6 +69,7 @@ var UserDeviceDatumTableColumns = struct {
 	UpdatedAt:           "user_device_data.updated_at",
 	ErrorData:           "user_device_data.error_data",
 	LastOdometerEventAt: "user_device_data.last_odometer_event_at",
+	IntegrationID:       "user_device_data.integration_id",
 }
 
 // Generated where
@@ -76,6 +81,7 @@ var UserDeviceDatumWhere = struct {
 	UpdatedAt           whereHelpertime_Time
 	ErrorData           whereHelpernull_JSON
 	LastOdometerEventAt whereHelpernull_Time
+	IntegrationID       whereHelpernull_String
 }{
 	UserDeviceID:        whereHelperstring{field: "\"devices_api\".\"user_device_data\".\"user_device_id\""},
 	Data:                whereHelpernull_JSON{field: "\"devices_api\".\"user_device_data\".\"data\""},
@@ -83,18 +89,22 @@ var UserDeviceDatumWhere = struct {
 	UpdatedAt:           whereHelpertime_Time{field: "\"devices_api\".\"user_device_data\".\"updated_at\""},
 	ErrorData:           whereHelpernull_JSON{field: "\"devices_api\".\"user_device_data\".\"error_data\""},
 	LastOdometerEventAt: whereHelpernull_Time{field: "\"devices_api\".\"user_device_data\".\"last_odometer_event_at\""},
+	IntegrationID:       whereHelpernull_String{field: "\"devices_api\".\"user_device_data\".\"integration_id\""},
 }
 
 // UserDeviceDatumRels is where relationship names are stored.
 var UserDeviceDatumRels = struct {
-	UserDevice string
+	UserDevice  string
+	Integration string
 }{
-	UserDevice: "UserDevice",
+	UserDevice:  "UserDevice",
+	Integration: "Integration",
 }
 
 // userDeviceDatumR is where relationships are stored.
 type userDeviceDatumR struct {
-	UserDevice *UserDevice `boil:"UserDevice" json:"UserDevice" toml:"UserDevice" yaml:"UserDevice"`
+	UserDevice  *UserDevice  `boil:"UserDevice" json:"UserDevice" toml:"UserDevice" yaml:"UserDevice"`
+	Integration *Integration `boil:"Integration" json:"Integration" toml:"Integration" yaml:"Integration"`
 }
 
 // NewStruct creates a new relationship struct
@@ -106,9 +116,9 @@ func (*userDeviceDatumR) NewStruct() *userDeviceDatumR {
 type userDeviceDatumL struct{}
 
 var (
-	userDeviceDatumAllColumns            = []string{"user_device_id", "data", "created_at", "updated_at", "error_data", "last_odometer_event_at"}
+	userDeviceDatumAllColumns            = []string{"user_device_id", "data", "created_at", "updated_at", "error_data", "last_odometer_event_at", "integration_id"}
 	userDeviceDatumColumnsWithoutDefault = []string{"user_device_id"}
-	userDeviceDatumColumnsWithDefault    = []string{"data", "created_at", "updated_at", "error_data", "last_odometer_event_at"}
+	userDeviceDatumColumnsWithDefault    = []string{"data", "created_at", "updated_at", "error_data", "last_odometer_event_at", "integration_id"}
 	userDeviceDatumPrimaryKeyColumns     = []string{"user_device_id"}
 	userDeviceDatumGeneratedColumns      = []string{}
 )
@@ -405,6 +415,20 @@ func (o *UserDeviceDatum) UserDevice(mods ...qm.QueryMod) userDeviceQuery {
 	return query
 }
 
+// Integration pointed to by the foreign key.
+func (o *UserDeviceDatum) Integration(mods ...qm.QueryMod) integrationQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"id\" = ?", o.IntegrationID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	query := Integrations(queryMods...)
+	queries.SetFrom(query.Query, "\"devices_api\".\"integrations\"")
+
+	return query
+}
+
 // LoadUserDevice allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for an N-1 relationship.
 func (userDeviceDatumL) LoadUserDevice(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserDeviceDatum interface{}, mods queries.Applicator) error {
@@ -509,6 +533,114 @@ func (userDeviceDatumL) LoadUserDevice(ctx context.Context, e boil.ContextExecut
 	return nil
 }
 
+// LoadIntegration allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (userDeviceDatumL) LoadIntegration(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserDeviceDatum interface{}, mods queries.Applicator) error {
+	var slice []*UserDeviceDatum
+	var object *UserDeviceDatum
+
+	if singular {
+		object = maybeUserDeviceDatum.(*UserDeviceDatum)
+	} else {
+		slice = *maybeUserDeviceDatum.(*[]*UserDeviceDatum)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &userDeviceDatumR{}
+		}
+		if !queries.IsNil(object.IntegrationID) {
+			args = append(args, object.IntegrationID)
+		}
+
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &userDeviceDatumR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.IntegrationID) {
+					continue Outer
+				}
+			}
+
+			if !queries.IsNil(obj.IntegrationID) {
+				args = append(args, obj.IntegrationID)
+			}
+
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`devices_api.integrations`),
+		qm.WhereIn(`devices_api.integrations.id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load Integration")
+	}
+
+	var resultSlice []*Integration
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice Integration")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for integrations")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for integrations")
+	}
+
+	if len(userDeviceDatumAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.Integration = foreign
+		if foreign.R == nil {
+			foreign.R = &integrationR{}
+		}
+		foreign.R.UserDeviceData = append(foreign.R.UserDeviceData, object)
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if queries.Equal(local.IntegrationID, foreign.ID) {
+				local.R.Integration = foreign
+				if foreign.R == nil {
+					foreign.R = &integrationR{}
+				}
+				foreign.R.UserDeviceData = append(foreign.R.UserDeviceData, local)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // SetUserDevice of the userDeviceDatum to the related item.
 // Sets o.R.UserDevice to related.
 // Adds o to related.R.UserDeviceDatum.
@@ -553,6 +685,86 @@ func (o *UserDeviceDatum) SetUserDevice(ctx context.Context, exec boil.ContextEx
 		related.R.UserDeviceDatum = o
 	}
 
+	return nil
+}
+
+// SetIntegration of the userDeviceDatum to the related item.
+// Sets o.R.Integration to related.
+// Adds o to related.R.UserDeviceData.
+func (o *UserDeviceDatum) SetIntegration(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Integration) error {
+	var err error
+	if insert {
+		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"devices_api\".\"user_device_data\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 1, []string{"integration_id"}),
+		strmangle.WhereClause("\"", "\"", 2, userDeviceDatumPrimaryKeyColumns),
+	)
+	values := []interface{}{related.ID, o.UserDeviceID}
+
+	if boil.IsDebug(ctx) {
+		writer := boil.DebugWriterFrom(ctx)
+		fmt.Fprintln(writer, updateQuery)
+		fmt.Fprintln(writer, values)
+	}
+	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	queries.Assign(&o.IntegrationID, related.ID)
+	if o.R == nil {
+		o.R = &userDeviceDatumR{
+			Integration: related,
+		}
+	} else {
+		o.R.Integration = related
+	}
+
+	if related.R == nil {
+		related.R = &integrationR{
+			UserDeviceData: UserDeviceDatumSlice{o},
+		}
+	} else {
+		related.R.UserDeviceData = append(related.R.UserDeviceData, o)
+	}
+
+	return nil
+}
+
+// RemoveIntegration relationship.
+// Sets o.R.Integration to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+func (o *UserDeviceDatum) RemoveIntegration(ctx context.Context, exec boil.ContextExecutor, related *Integration) error {
+	var err error
+
+	queries.SetScanner(&o.IntegrationID, nil)
+	if _, err = o.Update(ctx, exec, boil.Whitelist("integration_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	if o.R != nil {
+		o.R.Integration = nil
+	}
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	for i, ri := range related.R.UserDeviceData {
+		if queries.Equal(o.IntegrationID, ri.IntegrationID) {
+			continue
+		}
+
+		ln := len(related.R.UserDeviceData)
+		if ln > 1 && i < ln-1 {
+			related.R.UserDeviceData[i] = related.R.UserDeviceData[ln-1]
+		}
+		related.R.UserDeviceData = related.R.UserDeviceData[:ln-1]
+		break
+	}
 	return nil
 }
 

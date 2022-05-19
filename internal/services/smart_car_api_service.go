@@ -20,7 +20,6 @@ import (
 )
 
 const (
-	SmartCarSource = "SmartCar"
 	SmartCarVendor = "SmartCar"
 )
 

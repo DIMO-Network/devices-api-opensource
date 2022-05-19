@@ -61,7 +61,10 @@ func (i *IngestService) processMessage(msg *message.Message) error {
 	if event.Type != deviceStatusEventType {
 		return fmt.Errorf("received vehicle status event with unexpected type %s", event.Type)
 	}
-	integration := i.getIntegrationFromEvent(event)
+	integration, err := i.getIntegrationFromEvent(event)
+	if err != nil {
+		return err
+	}
 	if integration.Vendor == SmartCarVendor {
 		defer appmetrics.SmartcarIngestTotalOps.Inc()
 	}
@@ -85,7 +88,10 @@ func (i *IngestService) processEvent(event *DeviceStatusEvent) error {
 		return fmt.Errorf("failed to parse integration from event source %q", event.Source)
 	}
 	integrationID := match[1]
-	integration := i.getIntegrationFromEvent(event)
+	integration, err := i.getIntegrationFromEvent(event)
+	if err != nil {
+		return err
+	}
 
 	tx, err := i.db().Writer.BeginTx(ctx, nil)
 	if err != nil {
@@ -131,6 +137,9 @@ func (i *IngestService) processEvent(event *DeviceStatusEvent) error {
 		datum = &models.UserDeviceDatum{
 			UserDeviceID: userDeviceID,
 		}
+	}
+	if datum.IntegrationID.IsZero() {
+		datum.IntegrationID = null.StringFrom(integration.ID) // once we have data make this field not nullable
 	}
 	// save autopi data
 	if integration.Vendor == AutoPiVendor {
@@ -221,13 +230,13 @@ func extractOdometer(data []byte) (float64, error) {
 	return *partialData.Odometer, nil
 }
 
-func (i *IngestService) getIntegrationFromEvent(event *DeviceStatusEvent) *models.Integration {
+func (i *IngestService) getIntegrationFromEvent(event *DeviceStatusEvent) (*models.Integration, error) {
 	for _, integration := range i.integrations {
 		if strings.Contains(event.Source, integration.ID) {
-			return integration
+			return integration, nil
 		}
 	}
-	return nil
+	return nil, fmt.Errorf("no matching integration found in DB for event source: %s", event.Source)
 }
 
 type odometerEventDevice struct {

@@ -39,10 +39,10 @@ func TestIngestDeviceStatus(t *testing.T) {
 			t.Fatal(err)
 		}
 	}()
+	scIntegration := test.SetupCreateSmartCarIntegration(t, pdb)
 
 	ingest := NewIngestService(pdb.DBS, &logger, mes)
 
-	scIntegration := test.SetupCreateSmartCarIntegration(t, pdb)
 	dm := test.SetupCreateMake(t, "Tesla", pdb)
 	dd := test.SetupCreateDeviceDefinition(t, dm, "Model Y", 2021, pdb)
 	ud := test.SetupCreateUserDevice(t, "dylan", dd, nil, pdb)
