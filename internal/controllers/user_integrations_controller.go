@@ -185,7 +185,7 @@ func (udc *UserDevicesController) GetIntegrations(c *fiber.Ctx) error {
 }
 
 // SendAutoPiCommand godoc
-// @Description Submit a raw autopi command to unit. Device must be registered with autopi before this can be used
+// @Description Closed off in prod. Submit a raw autopi command to unit. Device must be registered with autopi before this can be used
 // @Tags 		integrations
 // @Accept 		json
 // @Param 		AutoPiCommandRequest body controllers.AutoPiCommandRequest true "raw autopi command"
@@ -193,6 +193,9 @@ func (udc *UserDevicesController) GetIntegrations(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router 		/user/devices/:userDeviceID/autopi/command [post]
 func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
+	if udc.Settings.Environment == "prod" {
+		return c.SendStatus(fiber.StatusGone)
+	}
 	userID := getUserID(c)
 	userDeviceID := c.Params("userDeviceID")
 	req := new(AutoPiCommandRequest)
