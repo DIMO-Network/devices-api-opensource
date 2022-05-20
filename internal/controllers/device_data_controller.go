@@ -308,7 +308,7 @@ func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 	for _, datum := range deviceData {
 		if datum.Data.Valid {
 			// note this means the date updated we sent may be inaccurate if have both smartcar and autopi
-			if ds.RecordUpdatedAt.IsZero() {
+			if ds.RecordUpdatedAt == nil {
 				ds.RecordCreatedAt = &datum.CreatedAt
 				ds.RecordUpdatedAt = &datum.UpdatedAt
 			}
@@ -386,9 +386,8 @@ func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
 	ud, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(udi),
 		models.UserDeviceWhere.UserID.EQ(userID),
-		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
-		qm.Load(models.UserDeviceRels.UserDeviceDatum),
-		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
+		qm.Load(models.UserDeviceRels.UserDeviceData),
+		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceData, models.UserDeviceDatumRels.Integration)),
 	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -396,23 +395,26 @@ func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
 		}
 		return err
 	}
-	// note: the UserDeviceDatum is not tied to the integration table
 
-	for _, devInteg := range ud.R.UserDeviceAPIIntegrations {
-		if devInteg.R.Integration.Type == models.IntegrationTypeAPI && devInteg.R.Integration.Vendor == services.SmartCarVendor && devInteg.Status == models.UserDeviceAPIIntegrationStatusActive {
-			if ud.R.UserDeviceDatum != nil {
-				nextAvailableTime := ud.R.UserDeviceDatum.UpdatedAt.Add(time.Second * time.Duration(devInteg.R.Integration.RefreshLimitSecs))
-				if time.Now().Before(nextAvailableTime) {
-					return fiber.NewError(fiber.StatusTooManyRequests, "rate limit for integration refresh hit")
-				}
+	for _, deviceDatum := range ud.R.UserDeviceData {
+		if deviceDatum.R.Integration.Type == models.IntegrationTypeAPI && deviceDatum.R.Integration.Vendor == services.SmartCarVendor {
+
+			nextAvailableTime := deviceDatum.UpdatedAt.Add(time.Second * time.Duration(deviceDatum.R.Integration.RefreshLimitSecs))
+			if time.Now().Before(nextAvailableTime) {
+				return fiber.NewError(fiber.StatusTooManyRequests, "rate limit for integration refresh hit")
 			}
-			if devInteg.TaskID.Valid {
-				err = udc.smartcarTaskSvc.Refresh(devInteg)
+
+			udai, err := models.FindUserDeviceAPIIntegration(c.Context(), udc.DBS().Reader, deviceDatum.UserDeviceID, deviceDatum.IntegrationID)
+			if err != nil {
+				return err
+			}
+			if udai.TaskID.Valid {
+				err = udc.smartcarTaskSvc.Refresh(udai)
 				if err != nil {
 					return err
 				}
 			} else {
-				err = udc.taskSvc.StartSmartcarRefresh(udi, devInteg.R.Integration.ID)
+				err = udc.taskSvc.StartSmartcarRefresh(udi, deviceDatum.IntegrationID)
 				if err != nil {
 					return err
 				}

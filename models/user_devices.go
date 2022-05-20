@@ -123,24 +123,24 @@ var UserDeviceWhere = struct {
 // UserDeviceRels is where relationship names are stored.
 var UserDeviceRels = struct {
 	DeviceDefinition          string
-	UserDeviceDatum           string
 	AutopiJobs                string
 	UserDeviceAPIIntegrations string
+	UserDeviceData            string
 	UserDeviceToGeofences     string
 }{
 	DeviceDefinition:          "DeviceDefinition",
-	UserDeviceDatum:           "UserDeviceDatum",
 	AutopiJobs:                "AutopiJobs",
 	UserDeviceAPIIntegrations: "UserDeviceAPIIntegrations",
+	UserDeviceData:            "UserDeviceData",
 	UserDeviceToGeofences:     "UserDeviceToGeofences",
 }
 
 // userDeviceR is where relationships are stored.
 type userDeviceR struct {
 	DeviceDefinition          *DeviceDefinition             `boil:"DeviceDefinition" json:"DeviceDefinition" toml:"DeviceDefinition" yaml:"DeviceDefinition"`
-	UserDeviceDatum           *UserDeviceDatum              `boil:"UserDeviceDatum" json:"UserDeviceDatum" toml:"UserDeviceDatum" yaml:"UserDeviceDatum"`
 	AutopiJobs                AutopiJobSlice                `boil:"AutopiJobs" json:"AutopiJobs" toml:"AutopiJobs" yaml:"AutopiJobs"`
 	UserDeviceAPIIntegrations UserDeviceAPIIntegrationSlice `boil:"UserDeviceAPIIntegrations" json:"UserDeviceAPIIntegrations" toml:"UserDeviceAPIIntegrations" yaml:"UserDeviceAPIIntegrations"`
+	UserDeviceData            UserDeviceDatumSlice          `boil:"UserDeviceData" json:"UserDeviceData" toml:"UserDeviceData" yaml:"UserDeviceData"`
 	UserDeviceToGeofences     UserDeviceToGeofenceSlice     `boil:"UserDeviceToGeofences" json:"UserDeviceToGeofences" toml:"UserDeviceToGeofences" yaml:"UserDeviceToGeofences"`
 }
 
@@ -452,20 +452,6 @@ func (o *UserDevice) DeviceDefinition(mods ...qm.QueryMod) deviceDefinitionQuery
 	return query
 }
 
-// UserDeviceDatum pointed to by the foreign key.
-func (o *UserDevice) UserDeviceDatum(mods ...qm.QueryMod) userDeviceDatumQuery {
-	queryMods := []qm.QueryMod{
-		qm.Where("\"user_device_id\" = ?", o.ID),
-	}
-
-	queryMods = append(queryMods, mods...)
-
-	query := UserDeviceData(queryMods...)
-	queries.SetFrom(query.Query, "\"devices_api\".\"user_device_data\"")
-
-	return query
-}
-
 // AutopiJobs retrieves all the autopi_job's AutopiJobs with an executor.
 func (o *UserDevice) AutopiJobs(mods ...qm.QueryMod) autopiJobQuery {
 	var queryMods []qm.QueryMod
@@ -503,6 +489,27 @@ func (o *UserDevice) UserDeviceAPIIntegrations(mods ...qm.QueryMod) userDeviceAP
 
 	if len(queries.GetSelect(query.Query)) == 0 {
 		queries.SetSelect(query.Query, []string{"\"devices_api\".\"user_device_api_integrations\".*"})
+	}
+
+	return query
+}
+
+// UserDeviceData retrieves all the user_device_datum's UserDeviceData with an executor.
+func (o *UserDevice) UserDeviceData(mods ...qm.QueryMod) userDeviceDatumQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"devices_api\".\"user_device_data\".\"user_device_id\"=?", o.ID),
+	)
+
+	query := UserDeviceData(queryMods...)
+	queries.SetFrom(query.Query, "\"devices_api\".\"user_device_data\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"devices_api\".\"user_device_data\".*"})
 	}
 
 	return query
@@ -625,107 +632,6 @@ func (userDeviceL) LoadDeviceDefinition(ctx context.Context, e boil.ContextExecu
 					foreign.R = &deviceDefinitionR{}
 				}
 				foreign.R.UserDevices = append(foreign.R.UserDevices, local)
-				break
-			}
-		}
-	}
-
-	return nil
-}
-
-// LoadUserDeviceDatum allows an eager lookup of values, cached into the
-// loaded structs of the objects. This is for a 1-1 relationship.
-func (userDeviceL) LoadUserDeviceDatum(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserDevice interface{}, mods queries.Applicator) error {
-	var slice []*UserDevice
-	var object *UserDevice
-
-	if singular {
-		object = maybeUserDevice.(*UserDevice)
-	} else {
-		slice = *maybeUserDevice.(*[]*UserDevice)
-	}
-
-	args := make([]interface{}, 0, 1)
-	if singular {
-		if object.R == nil {
-			object.R = &userDeviceR{}
-		}
-		args = append(args, object.ID)
-	} else {
-	Outer:
-		for _, obj := range slice {
-			if obj.R == nil {
-				obj.R = &userDeviceR{}
-			}
-
-			for _, a := range args {
-				if a == obj.ID {
-					continue Outer
-				}
-			}
-
-			args = append(args, obj.ID)
-		}
-	}
-
-	if len(args) == 0 {
-		return nil
-	}
-
-	query := NewQuery(
-		qm.From(`devices_api.user_device_data`),
-		qm.WhereIn(`devices_api.user_device_data.user_device_id in ?`, args...),
-	)
-	if mods != nil {
-		mods.Apply(query)
-	}
-
-	results, err := query.QueryContext(ctx, e)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load UserDeviceDatum")
-	}
-
-	var resultSlice []*UserDeviceDatum
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice UserDeviceDatum")
-	}
-
-	if err = results.Close(); err != nil {
-		return errors.Wrap(err, "failed to close results of eager load for user_device_data")
-	}
-	if err = results.Err(); err != nil {
-		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for user_device_data")
-	}
-
-	if len(userDeviceAfterSelectHooks) != 0 {
-		for _, obj := range resultSlice {
-			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
-				return err
-			}
-		}
-	}
-
-	if len(resultSlice) == 0 {
-		return nil
-	}
-
-	if singular {
-		foreign := resultSlice[0]
-		object.R.UserDeviceDatum = foreign
-		if foreign.R == nil {
-			foreign.R = &userDeviceDatumR{}
-		}
-		foreign.R.UserDevice = object
-	}
-
-	for _, local := range slice {
-		for _, foreign := range resultSlice {
-			if local.ID == foreign.UserDeviceID {
-				local.R.UserDeviceDatum = foreign
-				if foreign.R == nil {
-					foreign.R = &userDeviceDatumR{}
-				}
-				foreign.R.UserDevice = local
 				break
 			}
 		}
@@ -930,6 +836,104 @@ func (userDeviceL) LoadUserDeviceAPIIntegrations(ctx context.Context, e boil.Con
 	return nil
 }
 
+// LoadUserDeviceData allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (userDeviceL) LoadUserDeviceData(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserDevice interface{}, mods queries.Applicator) error {
+	var slice []*UserDevice
+	var object *UserDevice
+
+	if singular {
+		object = maybeUserDevice.(*UserDevice)
+	} else {
+		slice = *maybeUserDevice.(*[]*UserDevice)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &userDeviceR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &userDeviceR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`devices_api.user_device_data`),
+		qm.WhereIn(`devices_api.user_device_data.user_device_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load user_device_data")
+	}
+
+	var resultSlice []*UserDeviceDatum
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice user_device_data")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on user_device_data")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for user_device_data")
+	}
+
+	if len(userDeviceDatumAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.UserDeviceData = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &userDeviceDatumR{}
+			}
+			foreign.R.UserDevice = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.UserDeviceID {
+				local.R.UserDeviceData = append(local.R.UserDeviceData, foreign)
+				if foreign.R == nil {
+					foreign.R = &userDeviceDatumR{}
+				}
+				foreign.R.UserDevice = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // LoadUserDeviceToGeofences allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for a 1-M or N-M relationship.
 func (userDeviceL) LoadUserDeviceToGeofences(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserDevice interface{}, mods queries.Applicator) error {
@@ -1072,57 +1076,6 @@ func (o *UserDevice) SetDeviceDefinition(ctx context.Context, exec boil.ContextE
 		related.R.UserDevices = append(related.R.UserDevices, o)
 	}
 
-	return nil
-}
-
-// SetUserDeviceDatum of the userDevice to the related item.
-// Sets o.R.UserDeviceDatum to related.
-// Adds o to related.R.UserDevice.
-func (o *UserDevice) SetUserDeviceDatum(ctx context.Context, exec boil.ContextExecutor, insert bool, related *UserDeviceDatum) error {
-	var err error
-
-	if insert {
-		related.UserDeviceID = o.ID
-
-		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
-			return errors.Wrap(err, "failed to insert into foreign table")
-		}
-	} else {
-		updateQuery := fmt.Sprintf(
-			"UPDATE \"devices_api\".\"user_device_data\" SET %s WHERE %s",
-			strmangle.SetParamNames("\"", "\"", 1, []string{"user_device_id"}),
-			strmangle.WhereClause("\"", "\"", 2, userDeviceDatumPrimaryKeyColumns),
-		)
-		values := []interface{}{o.ID, related.UserDeviceID}
-
-		if boil.IsDebug(ctx) {
-			writer := boil.DebugWriterFrom(ctx)
-			fmt.Fprintln(writer, updateQuery)
-			fmt.Fprintln(writer, values)
-		}
-		if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
-			return errors.Wrap(err, "failed to update foreign table")
-		}
-
-		related.UserDeviceID = o.ID
-
-	}
-
-	if o.R == nil {
-		o.R = &userDeviceR{
-			UserDeviceDatum: related,
-		}
-	} else {
-		o.R.UserDeviceDatum = related
-	}
-
-	if related.R == nil {
-		related.R = &userDeviceDatumR{
-			UserDevice: o,
-		}
-	} else {
-		related.R.UserDevice = o
-	}
 	return nil
 }
 
@@ -1297,6 +1250,59 @@ func (o *UserDevice) AddUserDeviceAPIIntegrations(ctx context.Context, exec boil
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &userDeviceAPIIntegrationR{
+				UserDevice: o,
+			}
+		} else {
+			rel.R.UserDevice = o
+		}
+	}
+	return nil
+}
+
+// AddUserDeviceData adds the given related objects to the existing relationships
+// of the user_device, optionally inserting them as new records.
+// Appends related to o.R.UserDeviceData.
+// Sets related.R.UserDevice appropriately.
+func (o *UserDevice) AddUserDeviceData(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*UserDeviceDatum) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.UserDeviceID = o.ID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"devices_api\".\"user_device_data\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"user_device_id"}),
+				strmangle.WhereClause("\"", "\"", 2, userDeviceDatumPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.UserDeviceID, rel.IntegrationID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.UserDeviceID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &userDeviceR{
+			UserDeviceData: related,
+		}
+	} else {
+		o.R.UserDeviceData = append(o.R.UserDeviceData, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &userDeviceDatumR{
 				UserDevice: o,
 			}
 		} else {

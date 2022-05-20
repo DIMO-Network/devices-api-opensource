@@ -106,7 +106,7 @@ func (i *IngestService) processEvent(event *DeviceStatusEvent) error {
 			models.UserDeviceRels.UserDeviceAPIIntegrations,
 			models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integration.ID),
 		),
-		qm.Load(models.UserDeviceRels.UserDeviceDatum),
+		qm.Load(models.UserDeviceRels.UserDeviceData),
 		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
 	).One(ctx, tx)
 	if err != nil {
@@ -131,23 +131,29 @@ func (i *IngestService) processEvent(event *DeviceStatusEvent) error {
 	if o, err := extractOdometer(event.Data); err == nil {
 		newOdometer = null.Float64From(o)
 	}
-
-	datum := device.R.UserDeviceDatum
-	if datum == nil {
-		datum = &models.UserDeviceDatum{
-			UserDeviceID: userDeviceID,
+	// lookup right data for integration
+	datum := new(models.UserDeviceDatum)
+	for _, deviceDatum := range device.R.UserDeviceData {
+		if deviceDatum.IntegrationID == integration.ID {
+			datum = deviceDatum
+			break
 		}
 	}
-	if datum.IntegrationID.IsZero() {
-		datum.IntegrationID = null.StringFrom(integration.ID) // once we have data make this field not nullable
+	// create if does not exist
+	if datum == nil {
+		datum = &models.UserDeviceDatum{
+			UserDeviceID:  userDeviceID,
+			IntegrationID: integration.ID,
+		}
 	}
+
 	// save autopi data
 	if integration.Vendor == AutoPiVendor {
 		datum.Data = null.JSONFrom(event.Data)
 		datum.ErrorData = null.JSON{}
 		i.processOdometer(datum, newOdometer, device, integrationID)
 	}
-	// do smartcar
+	// do smartcar OR tesla
 	if integration.Vendor == SmartCarVendor || integration.Vendor == TeslaVendor {
 		if newOdometer.Valid {
 			datum.Data = null.JSONFrom(event.Data)

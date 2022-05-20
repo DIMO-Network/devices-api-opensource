@@ -24,13 +24,13 @@ import (
 
 // UserDeviceDatum is an object representing the database table.
 type UserDeviceDatum struct {
-	UserDeviceID        string      `boil:"user_device_id" json:"user_device_id" toml:"user_device_id" yaml:"user_device_id"`
-	Data                null.JSON   `boil:"data" json:"data,omitempty" toml:"data" yaml:"data,omitempty"`
-	CreatedAt           time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt           time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	ErrorData           null.JSON   `boil:"error_data" json:"error_data,omitempty" toml:"error_data" yaml:"error_data,omitempty"`
-	LastOdometerEventAt null.Time   `boil:"last_odometer_event_at" json:"last_odometer_event_at,omitempty" toml:"last_odometer_event_at" yaml:"last_odometer_event_at,omitempty"`
-	IntegrationID       null.String `boil:"integration_id" json:"integration_id,omitempty" toml:"integration_id" yaml:"integration_id,omitempty"`
+	UserDeviceID        string    `boil:"user_device_id" json:"user_device_id" toml:"user_device_id" yaml:"user_device_id"`
+	Data                null.JSON `boil:"data" json:"data,omitempty" toml:"data" yaml:"data,omitempty"`
+	CreatedAt           time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt           time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	ErrorData           null.JSON `boil:"error_data" json:"error_data,omitempty" toml:"error_data" yaml:"error_data,omitempty"`
+	LastOdometerEventAt null.Time `boil:"last_odometer_event_at" json:"last_odometer_event_at,omitempty" toml:"last_odometer_event_at" yaml:"last_odometer_event_at,omitempty"`
+	IntegrationID       string    `boil:"integration_id" json:"integration_id" toml:"integration_id" yaml:"integration_id"`
 
 	R *userDeviceDatumR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userDeviceDatumL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -81,7 +81,7 @@ var UserDeviceDatumWhere = struct {
 	UpdatedAt           whereHelpertime_Time
 	ErrorData           whereHelpernull_JSON
 	LastOdometerEventAt whereHelpernull_Time
-	IntegrationID       whereHelpernull_String
+	IntegrationID       whereHelperstring
 }{
 	UserDeviceID:        whereHelperstring{field: "\"devices_api\".\"user_device_data\".\"user_device_id\""},
 	Data:                whereHelpernull_JSON{field: "\"devices_api\".\"user_device_data\".\"data\""},
@@ -89,7 +89,7 @@ var UserDeviceDatumWhere = struct {
 	UpdatedAt:           whereHelpertime_Time{field: "\"devices_api\".\"user_device_data\".\"updated_at\""},
 	ErrorData:           whereHelpernull_JSON{field: "\"devices_api\".\"user_device_data\".\"error_data\""},
 	LastOdometerEventAt: whereHelpernull_Time{field: "\"devices_api\".\"user_device_data\".\"last_odometer_event_at\""},
-	IntegrationID:       whereHelpernull_String{field: "\"devices_api\".\"user_device_data\".\"integration_id\""},
+	IntegrationID:       whereHelperstring{field: "\"devices_api\".\"user_device_data\".\"integration_id\""},
 }
 
 // UserDeviceDatumRels is where relationship names are stored.
@@ -117,9 +117,9 @@ type userDeviceDatumL struct{}
 
 var (
 	userDeviceDatumAllColumns            = []string{"user_device_id", "data", "created_at", "updated_at", "error_data", "last_odometer_event_at", "integration_id"}
-	userDeviceDatumColumnsWithoutDefault = []string{"user_device_id"}
-	userDeviceDatumColumnsWithDefault    = []string{"data", "created_at", "updated_at", "error_data", "last_odometer_event_at", "integration_id"}
-	userDeviceDatumPrimaryKeyColumns     = []string{"user_device_id"}
+	userDeviceDatumColumnsWithoutDefault = []string{"user_device_id", "integration_id"}
+	userDeviceDatumColumnsWithDefault    = []string{"data", "created_at", "updated_at", "error_data", "last_odometer_event_at"}
+	userDeviceDatumPrimaryKeyColumns     = []string{"user_device_id", "integration_id"}
 	userDeviceDatumGeneratedColumns      = []string{}
 )
 
@@ -513,7 +513,7 @@ func (userDeviceDatumL) LoadUserDevice(ctx context.Context, e boil.ContextExecut
 		if foreign.R == nil {
 			foreign.R = &userDeviceR{}
 		}
-		foreign.R.UserDeviceDatum = object
+		foreign.R.UserDeviceData = append(foreign.R.UserDeviceData, object)
 		return nil
 	}
 
@@ -524,7 +524,7 @@ func (userDeviceDatumL) LoadUserDevice(ctx context.Context, e boil.ContextExecut
 				if foreign.R == nil {
 					foreign.R = &userDeviceR{}
 				}
-				foreign.R.UserDeviceDatum = local
+				foreign.R.UserDeviceData = append(foreign.R.UserDeviceData, local)
 				break
 			}
 		}
@@ -550,9 +550,7 @@ func (userDeviceDatumL) LoadIntegration(ctx context.Context, e boil.ContextExecu
 		if object.R == nil {
 			object.R = &userDeviceDatumR{}
 		}
-		if !queries.IsNil(object.IntegrationID) {
-			args = append(args, object.IntegrationID)
-		}
+		args = append(args, object.IntegrationID)
 
 	} else {
 	Outer:
@@ -562,14 +560,12 @@ func (userDeviceDatumL) LoadIntegration(ctx context.Context, e boil.ContextExecu
 			}
 
 			for _, a := range args {
-				if queries.Equal(a, obj.IntegrationID) {
+				if a == obj.IntegrationID {
 					continue Outer
 				}
 			}
 
-			if !queries.IsNil(obj.IntegrationID) {
-				args = append(args, obj.IntegrationID)
-			}
+			args = append(args, obj.IntegrationID)
 
 		}
 	}
@@ -627,7 +623,7 @@ func (userDeviceDatumL) LoadIntegration(ctx context.Context, e boil.ContextExecu
 
 	for _, local := range slice {
 		for _, foreign := range resultSlice {
-			if queries.Equal(local.IntegrationID, foreign.ID) {
+			if local.IntegrationID == foreign.ID {
 				local.R.Integration = foreign
 				if foreign.R == nil {
 					foreign.R = &integrationR{}
@@ -643,7 +639,7 @@ func (userDeviceDatumL) LoadIntegration(ctx context.Context, e boil.ContextExecu
 
 // SetUserDevice of the userDeviceDatum to the related item.
 // Sets o.R.UserDevice to related.
-// Adds o to related.R.UserDeviceDatum.
+// Adds o to related.R.UserDeviceData.
 func (o *UserDeviceDatum) SetUserDevice(ctx context.Context, exec boil.ContextExecutor, insert bool, related *UserDevice) error {
 	var err error
 	if insert {
@@ -657,7 +653,7 @@ func (o *UserDeviceDatum) SetUserDevice(ctx context.Context, exec boil.ContextEx
 		strmangle.SetParamNames("\"", "\"", 1, []string{"user_device_id"}),
 		strmangle.WhereClause("\"", "\"", 2, userDeviceDatumPrimaryKeyColumns),
 	)
-	values := []interface{}{related.ID, o.UserDeviceID}
+	values := []interface{}{related.ID, o.UserDeviceID, o.IntegrationID}
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -679,10 +675,10 @@ func (o *UserDeviceDatum) SetUserDevice(ctx context.Context, exec boil.ContextEx
 
 	if related.R == nil {
 		related.R = &userDeviceR{
-			UserDeviceDatum: o,
+			UserDeviceData: UserDeviceDatumSlice{o},
 		}
 	} else {
-		related.R.UserDeviceDatum = o
+		related.R.UserDeviceData = append(related.R.UserDeviceData, o)
 	}
 
 	return nil
@@ -704,7 +700,7 @@ func (o *UserDeviceDatum) SetIntegration(ctx context.Context, exec boil.ContextE
 		strmangle.SetParamNames("\"", "\"", 1, []string{"integration_id"}),
 		strmangle.WhereClause("\"", "\"", 2, userDeviceDatumPrimaryKeyColumns),
 	)
-	values := []interface{}{related.ID, o.UserDeviceID}
+	values := []interface{}{related.ID, o.UserDeviceID, o.IntegrationID}
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -715,7 +711,7 @@ func (o *UserDeviceDatum) SetIntegration(ctx context.Context, exec boil.ContextE
 		return errors.Wrap(err, "failed to update local table")
 	}
 
-	queries.Assign(&o.IntegrationID, related.ID)
+	o.IntegrationID = related.ID
 	if o.R == nil {
 		o.R = &userDeviceDatumR{
 			Integration: related,
@@ -735,39 +731,6 @@ func (o *UserDeviceDatum) SetIntegration(ctx context.Context, exec boil.ContextE
 	return nil
 }
 
-// RemoveIntegration relationship.
-// Sets o.R.Integration to nil.
-// Removes o from all passed in related items' relationships struct (Optional).
-func (o *UserDeviceDatum) RemoveIntegration(ctx context.Context, exec boil.ContextExecutor, related *Integration) error {
-	var err error
-
-	queries.SetScanner(&o.IntegrationID, nil)
-	if _, err = o.Update(ctx, exec, boil.Whitelist("integration_id")); err != nil {
-		return errors.Wrap(err, "failed to update local table")
-	}
-
-	if o.R != nil {
-		o.R.Integration = nil
-	}
-	if related == nil || related.R == nil {
-		return nil
-	}
-
-	for i, ri := range related.R.UserDeviceData {
-		if queries.Equal(o.IntegrationID, ri.IntegrationID) {
-			continue
-		}
-
-		ln := len(related.R.UserDeviceData)
-		if ln > 1 && i < ln-1 {
-			related.R.UserDeviceData[i] = related.R.UserDeviceData[ln-1]
-		}
-		related.R.UserDeviceData = related.R.UserDeviceData[:ln-1]
-		break
-	}
-	return nil
-}
-
 // UserDeviceData retrieves all the records using an executor.
 func UserDeviceData(mods ...qm.QueryMod) userDeviceDatumQuery {
 	mods = append(mods, qm.From("\"devices_api\".\"user_device_data\""))
@@ -776,7 +739,7 @@ func UserDeviceData(mods ...qm.QueryMod) userDeviceDatumQuery {
 
 // FindUserDeviceDatum retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindUserDeviceDatum(ctx context.Context, exec boil.ContextExecutor, userDeviceID string, selectCols ...string) (*UserDeviceDatum, error) {
+func FindUserDeviceDatum(ctx context.Context, exec boil.ContextExecutor, userDeviceID string, integrationID string, selectCols ...string) (*UserDeviceDatum, error) {
 	userDeviceDatumObj := &UserDeviceDatum{}
 
 	sel := "*"
@@ -784,10 +747,10 @@ func FindUserDeviceDatum(ctx context.Context, exec boil.ContextExecutor, userDev
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from \"devices_api\".\"user_device_data\" where \"user_device_id\"=$1", sel,
+		"select %s from \"devices_api\".\"user_device_data\" where \"user_device_id\"=$1 AND \"integration_id\"=$2", sel,
 	)
 
-	q := queries.Raw(query, userDeviceID)
+	q := queries.Raw(query, userDeviceID, integrationID)
 
 	err := q.Bind(ctx, exec, userDeviceDatumObj)
 	if err != nil {
@@ -1163,7 +1126,7 @@ func (o *UserDeviceDatum) Delete(ctx context.Context, exec boil.ContextExecutor)
 	}
 
 	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), userDeviceDatumPrimaryKeyMapping)
-	sql := "DELETE FROM \"devices_api\".\"user_device_data\" WHERE \"user_device_id\"=$1"
+	sql := "DELETE FROM \"devices_api\".\"user_device_data\" WHERE \"user_device_id\"=$1 AND \"integration_id\"=$2"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1260,7 +1223,7 @@ func (o UserDeviceDatumSlice) DeleteAll(ctx context.Context, exec boil.ContextEx
 // Reload refetches the object from the database
 // using the primary keys with an executor.
 func (o *UserDeviceDatum) Reload(ctx context.Context, exec boil.ContextExecutor) error {
-	ret, err := FindUserDeviceDatum(ctx, exec, o.UserDeviceID)
+	ret, err := FindUserDeviceDatum(ctx, exec, o.UserDeviceID, o.IntegrationID)
 	if err != nil {
 		return err
 	}
@@ -1299,16 +1262,16 @@ func (o *UserDeviceDatumSlice) ReloadAll(ctx context.Context, exec boil.ContextE
 }
 
 // UserDeviceDatumExists checks if the UserDeviceDatum row exists.
-func UserDeviceDatumExists(ctx context.Context, exec boil.ContextExecutor, userDeviceID string) (bool, error) {
+func UserDeviceDatumExists(ctx context.Context, exec boil.ContextExecutor, userDeviceID string, integrationID string) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from \"devices_api\".\"user_device_data\" where \"user_device_id\"=$1 limit 1)"
+	sql := "select exists(select 1 from \"devices_api\".\"user_device_data\" where \"user_device_id\"=$1 AND \"integration_id\"=$2 limit 1)"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
 		fmt.Fprintln(writer, sql)
-		fmt.Fprintln(writer, userDeviceID)
+		fmt.Fprintln(writer, userDeviceID, integrationID)
 	}
-	row := exec.QueryRowContext(ctx, sql, userDeviceID)
+	row := exec.QueryRowContext(ctx, sql, userDeviceID, integrationID)
 
 	err := row.Scan(&exists)
 	if err != nil {

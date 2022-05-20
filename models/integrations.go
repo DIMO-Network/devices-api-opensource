@@ -720,7 +720,7 @@ func (integrationL) LoadUserDeviceData(ctx context.Context, e boil.ContextExecut
 			}
 
 			for _, a := range args {
-				if queries.Equal(a, obj.ID) {
+				if a == obj.ID {
 					continue Outer
 				}
 			}
@@ -778,7 +778,7 @@ func (integrationL) LoadUserDeviceData(ctx context.Context, e boil.ContextExecut
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
-			if queries.Equal(local.ID, foreign.IntegrationID) {
+			if local.ID == foreign.IntegrationID {
 				local.R.UserDeviceData = append(local.R.UserDeviceData, foreign)
 				if foreign.R == nil {
 					foreign.R = &userDeviceDatumR{}
@@ -906,7 +906,7 @@ func (o *Integration) AddUserDeviceData(ctx context.Context, exec boil.ContextEx
 	var err error
 	for _, rel := range related {
 		if insert {
-			queries.Assign(&rel.IntegrationID, o.ID)
+			rel.IntegrationID = o.ID
 			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
 				return errors.Wrap(err, "failed to insert into foreign table")
 			}
@@ -916,7 +916,7 @@ func (o *Integration) AddUserDeviceData(ctx context.Context, exec boil.ContextEx
 				strmangle.SetParamNames("\"", "\"", 1, []string{"integration_id"}),
 				strmangle.WhereClause("\"", "\"", 2, userDeviceDatumPrimaryKeyColumns),
 			)
-			values := []interface{}{o.ID, rel.UserDeviceID}
+			values := []interface{}{o.ID, rel.UserDeviceID, rel.IntegrationID}
 
 			if boil.IsDebug(ctx) {
 				writer := boil.DebugWriterFrom(ctx)
@@ -927,7 +927,7 @@ func (o *Integration) AddUserDeviceData(ctx context.Context, exec boil.ContextEx
 				return errors.Wrap(err, "failed to update foreign table")
 			}
 
-			queries.Assign(&rel.IntegrationID, o.ID)
+			rel.IntegrationID = o.ID
 		}
 	}
 
@@ -948,80 +948,6 @@ func (o *Integration) AddUserDeviceData(ctx context.Context, exec boil.ContextEx
 			rel.R.Integration = o
 		}
 	}
-	return nil
-}
-
-// SetUserDeviceData removes all previously related items of the
-// integration replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.Integration's UserDeviceData accordingly.
-// Replaces o.R.UserDeviceData with related.
-// Sets related.R.Integration's UserDeviceData accordingly.
-func (o *Integration) SetUserDeviceData(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*UserDeviceDatum) error {
-	query := "update \"devices_api\".\"user_device_data\" set \"integration_id\" = null where \"integration_id\" = $1"
-	values := []interface{}{o.ID}
-	if boil.IsDebug(ctx) {
-		writer := boil.DebugWriterFrom(ctx)
-		fmt.Fprintln(writer, query)
-		fmt.Fprintln(writer, values)
-	}
-	_, err := exec.ExecContext(ctx, query, values...)
-	if err != nil {
-		return errors.Wrap(err, "failed to remove relationships before set")
-	}
-
-	if o.R != nil {
-		for _, rel := range o.R.UserDeviceData {
-			queries.SetScanner(&rel.IntegrationID, nil)
-			if rel.R == nil {
-				continue
-			}
-
-			rel.R.Integration = nil
-		}
-
-		o.R.UserDeviceData = nil
-	}
-	return o.AddUserDeviceData(ctx, exec, insert, related...)
-}
-
-// RemoveUserDeviceData relationships from objects passed in.
-// Removes related items from R.UserDeviceData (uses pointer comparison, removal does not keep order)
-// Sets related.R.Integration.
-func (o *Integration) RemoveUserDeviceData(ctx context.Context, exec boil.ContextExecutor, related ...*UserDeviceDatum) error {
-	if len(related) == 0 {
-		return nil
-	}
-
-	var err error
-	for _, rel := range related {
-		queries.SetScanner(&rel.IntegrationID, nil)
-		if rel.R != nil {
-			rel.R.Integration = nil
-		}
-		if _, err = rel.Update(ctx, exec, boil.Whitelist("integration_id")); err != nil {
-			return err
-		}
-	}
-	if o.R == nil {
-		return nil
-	}
-
-	for _, rel := range related {
-		for i, ri := range o.R.UserDeviceData {
-			if rel != ri {
-				continue
-			}
-
-			ln := len(o.R.UserDeviceData)
-			if ln > 1 && i < ln-1 {
-				o.R.UserDeviceData[i] = o.R.UserDeviceData[ln-1]
-			}
-			o.R.UserDeviceData = o.R.UserDeviceData[:ln-1]
-			break
-		}
-	}
-
 	return nil
 }
 
