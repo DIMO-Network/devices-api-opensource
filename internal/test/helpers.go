@@ -228,7 +228,7 @@ func SetupCreateAutoPiIntegration(t *testing.T, templateID int, evTemplateID *in
 	integration := models.Integration{
 		ID:       ksuid.New().String(),
 		Vendor:   "AutoPi",
-		Type:     "API",
+		Type:     "Hardware",
 		Style:    models.IntegrationStyleAddon,
 		Metadata: null.JSONFrom([]byte(fmt.Sprintf(`{"autoPiDefaultTemplateId": %d }`, templateID))),
 	}
