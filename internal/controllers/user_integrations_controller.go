@@ -711,7 +711,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		models.UserDeviceAPIIntegrationColumns.UpdatedAt))
 	if err != nil {
 		subLogger.Err(err).Send()
-		return errors.Wrap(err, "failed to update integration status to PendingFirstData")
+		return errors.Wrap(err, "failed to update integration status to Pending")
 	}
 
 	if err = tx.Commit(); err != nil {

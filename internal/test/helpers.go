@@ -4,6 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/docker/go-connections/nat"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 	"net/http"
 	"os"
 	"strings"
@@ -27,6 +30,88 @@ import (
 
 const testDbName = "devices_api"
 const testDbPort = 6669
+
+// StartContainerDatabase starts postgres container with default test settings, and migrates the db. Caller must terminate container.
+func StartContainerDatabase(ctx context.Context, t *testing.T, migrationsDirRelPath string) (database.DbStore, testcontainers.Container) {
+	settings := getTestDbSettings()
+	pgPort := "5432/tcp"
+	dbURL := func(port nat.Port) string {
+		return fmt.Sprintf("postgres://%s:%s@localhost:%s/%s?sslmode=disable", settings.DBUser, settings.DBPassword, port.Port(), settings.DBName)
+	}
+	cr := testcontainers.ContainerRequest{
+		Image:        "postgres:12.9-alpine",
+		Env:          map[string]string{"POSTGRES_USER": settings.DBUser, "POSTGRES_PASSWORD": settings.DBPassword, "POSTGRES_DB": settings.DBName},
+		ExposedPorts: []string{pgPort},
+		Cmd:          []string{"postgres", "-c", "fsync=off"},
+		WaitingFor:   wait.ForSQL(nat.Port(pgPort), "postgres", dbURL).Timeout(time.Second * 15),
+	}
+
+	pgContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: cr,
+		Started:          true,
+	})
+	if err != nil {
+		return handleContainerStartErr(ctx, err, pgContainer, t)
+	}
+	mappedPort, err := pgContainer.MappedPort(ctx, nat.Port(pgPort))
+	if err != nil {
+		return handleContainerStartErr(ctx, errors.Wrap(err, "failed to get container external port"), pgContainer, t)
+	}
+	fmt.Println("postgres container ready and running at port: ", mappedPort)
+	//defer pgContainer.Terminate(ctx) // this should be done by the caller
+
+	settings.DBPort = mappedPort.Port()
+	pdb := database.NewDbConnectionFromSettings(ctx, &settings, false)
+	for !pdb.IsReady() {
+		time.Sleep(500 * time.Millisecond)
+	}
+	// can't connect to db, dsn=user=postgres password=postgres dbname=devices_api host=localhost port=49395 sslmode=disable search_path=devices_api, err=EOF
+	// error happens when calling here
+	_, err = pdb.DBS().Writer.Exec(`
+		grant usage on schema public to public;
+		grant create on schema public to public;
+		CREATE SCHEMA IF NOT EXISTS devices_api;
+		ALTER USER postgres SET search_path = devices_api, public;
+		SET search_path = devices_api, public;
+		`)
+	if err != nil {
+		return handleContainerStartErr(ctx, errors.Wrap(err, "failed to apply schema"), pgContainer, t)
+	}
+	// add truncate tables func
+	_, err = pdb.DBS().Writer.Exec(`
+CREATE OR REPLACE FUNCTION truncate_tables() RETURNS void AS $$
+DECLARE
+    statements CURSOR FOR
+        SELECT tablename FROM pg_tables
+        WHERE schemaname = 'devices_api' and tablename != 'migrations';
+BEGIN
+    FOR stmt IN statements LOOP
+        EXECUTE 'TRUNCATE TABLE ' || quote_ident(stmt.tablename) || ' CASCADE;';
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+`)
+	if err != nil {
+		return handleContainerStartErr(ctx, errors.Wrap(err, "failed to create truncate func"), pgContainer, t)
+	}
+
+	goose.SetTableName("devices_api.migrations")
+	if err := goose.Run("up", pdb.DBS().Writer.DB, migrationsDirRelPath); err != nil {
+		return handleContainerStartErr(ctx, errors.Wrap(err, "failed to apply goose migrations for test"), pgContainer, t)
+	}
+
+	return pdb, pgContainer
+}
+func handleContainerStartErr(ctx context.Context, err error, container testcontainers.Container, t *testing.T) (database.DbStore, testcontainers.Container) {
+	if err != nil {
+		fmt.Println("start container error: " + err.Error())
+		if container != nil {
+			container.Terminate(ctx) //nolint
+		}
+		t.Fatal(err)
+	}
+	return database.DbStore{}, container
+}
 
 // NewEmbedDBConfigured just returns the configured embed pg object, does not start db
 func NewEmbedDBConfigured() *embeddedpostgres.EmbeddedPostgres {

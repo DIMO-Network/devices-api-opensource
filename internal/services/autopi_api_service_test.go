@@ -2,6 +2,9 @@ package services
 
 import (
 	"context"
+	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/stretchr/testify/suite"
+	"github.com/testcontainers/testcontainers-go"
 	"testing"
 
 	"github.com/DIMO-Network/devices-api/internal/test"
@@ -11,26 +14,47 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
-func TestFindUserDeviceAutoPiIntegration(t *testing.T) {
-	ctx := context.Background()
-	pdb, db := test.SetupDatabase(ctx, t, migrationsDirRelPath)
-	defer func() {
-		if err := db.Stop(); err != nil {
-			t.Fatal(err)
-		}
-	}()
+type AutoPiApiServiceTestSuite struct {
+	suite.Suite
+	pdb       database.DbStore
+	container testcontainers.Container
+	ctx       context.Context
+}
 
+// SetupSuite starts container db
+func (s *AutoPiApiServiceTestSuite) SetupSuite() {
+	s.ctx = context.Background()
+	s.pdb, s.container = test.StartContainerDatabase(s.ctx, s.T(), migrationsDirRelPath)
+}
+
+//TearDownTest after each test truncate tables
+func (s *AutoPiApiServiceTestSuite) TearDownTest() {
+	test.TruncateTables(s.pdb.DBS().Writer.DB, s.T())
+}
+
+//TearDownSuite cleanup at end by terminating container
+func (s *AutoPiApiServiceTestSuite) TearDownSuite() {
+	if err := s.container.Terminate(s.ctx); err != nil {
+		s.T().Fatal(err)
+	}
+}
+
+func TestAutoPiApiServiceTestSuite(t *testing.T) {
+	suite.Run(t, new(AutoPiApiServiceTestSuite))
+}
+
+func (s *AutoPiApiServiceTestSuite) TestFindUserDeviceAutoPiIntegration() {
 	// arrange some data
 	const testUserID = "123123"
 	const autoPiDeviceID = "321"
 	autoPiUnitID := "456"
-	apInt := test.SetupCreateAutoPiIntegration(t, 10, nil, pdb)
-	scInt := test.SetupCreateSmartCarIntegration(t, pdb)
-	dm := test.SetupCreateMake(t, "Tesla", pdb)
-	dd := test.SetupCreateDeviceDefinition(t, dm, "Model 3", 2020, pdb)
-	test.SetupCreateDeviceIntegration(t, dd, apInt, pdb)
-	test.SetupCreateDeviceIntegration(t, dd, scInt, pdb)
-	ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
+	apInt := test.SetupCreateAutoPiIntegration(s.T(), 10, nil, s.pdb)
+	scInt := test.SetupCreateSmartCarIntegration(s.T(), s.pdb)
+	dm := test.SetupCreateMake(s.T(), "Tesla", s.pdb)
+	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model 3", 2020, s.pdb)
+	test.SetupCreateDeviceIntegration(s.T(), dd, apInt, s.pdb)
+	test.SetupCreateDeviceIntegration(s.T(), dd, scInt, s.pdb)
+	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
 	// now create the api ints
 	scUdai := &models.UserDeviceAPIIntegration{
 		UserDeviceID:  ud.ID,
@@ -38,8 +62,8 @@ func TestFindUserDeviceAutoPiIntegration(t *testing.T) {
 		Status:        models.UserDeviceAPIIntegrationStatusActive,
 		ExternalID:    null.StringFrom("423324"),
 	}
-	err := scUdai.Insert(ctx, pdb.DBS().Writer, boil.Infer())
-	assert.NoError(t, err)
+	err := scUdai.Insert(s.ctx, s.pdb.DBS().Writer, boil.Infer())
+	assert.NoError(s.T(), err)
 	amd := UserDeviceAPIIntegrationsMetadata{
 		AutoPiUnitID: &autoPiUnitID,
 	}
@@ -50,38 +74,31 @@ func TestFindUserDeviceAutoPiIntegration(t *testing.T) {
 		ExternalID:    null.StringFrom(autoPiDeviceID),
 	}
 	_ = apUdai.Metadata.Marshal(amd)
-	err = apUdai.Insert(ctx, pdb.DBS().Writer, boil.Infer())
-	assert.NoError(t, err)
+	err = apUdai.Insert(s.ctx, s.pdb.DBS().Writer, boil.Infer())
+	assert.NoError(s.T(), err)
 	// act  now call the method
-	udIntegration, metadata, err := FindUserDeviceAutoPiIntegration(ctx, pdb.DBS().Writer, ud.ID, testUserID)
-	assert.NoError(t, err)
-	assert.NotNil(t, udIntegration, "expected user_device_api_integration not be nil")
-	assert.NotNilf(t, metadata, "expected metadata not be nil")
-	assert.Equal(t, ud.ID, udIntegration.UserDeviceID)
-	assert.Equal(t, apInt.ID, udIntegration.IntegrationID)
-	assert.Equal(t, autoPiDeviceID, udIntegration.ExternalID.String)
+	udIntegration, metadata, err := FindUserDeviceAutoPiIntegration(s.ctx, s.pdb.DBS().Writer, ud.ID, testUserID)
+	assert.NoError(s.T(), err)
+	assert.NotNil(s.T(), udIntegration, "expected user_device_api_integration not be nil")
+	assert.NotNilf(s.T(), metadata, "expected metadata not be nil")
+	assert.Equal(s.T(), ud.ID, udIntegration.UserDeviceID)
+	assert.Equal(s.T(), apInt.ID, udIntegration.IntegrationID)
+	assert.Equal(s.T(), autoPiDeviceID, udIntegration.ExternalID.String)
 	// check some values
-	test.TruncateTables(pdb.DBS().Writer.DB, t)
+	test.TruncateTables(s.pdb.DBS().Writer.DB, s.T())
 }
 
-func TestAppendAutoPiCompatibility(t *testing.T) {
-	ctx := context.Background()
-	pdb, db := test.SetupDatabase(ctx, t, migrationsDirRelPath)
-	defer func() {
-		if err := db.Stop(); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	dm := test.SetupCreateMake(t, "Ford", pdb)
-	dd := test.SetupCreateDeviceDefinition(t, dm, "MachE", 2020, pdb)
+func (s *AutoPiApiServiceTestSuite) TestAppendAutoPiCompatibility() {
+	dm := test.SetupCreateMake(s.T(), "Ford", s.pdb)
+	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "MachE", 2020, s.pdb)
 	var dcs []DeviceCompatibility
-	compatibility, err := AppendAutoPiCompatibility(ctx, dcs, dd.ID, pdb.DBS().Writer)
+	compatibility, err := AppendAutoPiCompatibility(s.ctx, dcs, dd.ID, s.pdb.DBS().Writer)
 
-	assert.NoError(t, err)
-	assert.Len(t, compatibility, 2)
-	all, err := models.DeviceIntegrations().All(ctx, pdb.DBS().Reader)
-	assert.NoError(t, err)
-	assert.Len(t, all, 2)
+	assert.NoError(s.T(), err)
+	assert.Len(s.T(), compatibility, 2)
+	all, err := models.DeviceIntegrations().All(s.ctx, s.pdb.DBS().Reader)
+	assert.NoError(s.T(), err)
+	assert.Len(s.T(), all, 2)
 
-	test.TruncateTables(pdb.DBS().Writer.DB, t)
+	test.TruncateTables(s.pdb.DBS().Writer.DB, s.T())
 }
