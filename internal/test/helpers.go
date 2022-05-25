@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -231,7 +232,6 @@ func AuthInjectorTestHandler(userID string) fiber.Handler {
 
 // TruncateTables truncates tables for the test db, useful to run as teardown at end of each DB dependent test.
 func TruncateTables(db *sql.DB, t *testing.T) {
-	fmt.Println("db exec: truncate_tables()")
 	_, err := db.Exec(`SELECT truncate_tables();`)
 	if err != nil {
 		fmt.Println("truncating tables failed.")
@@ -255,6 +255,11 @@ func SetupCreateUserDevice(t *testing.T, testUserID string, dd *models.DeviceDef
 		UserID:             testUserID,
 		DeviceDefinitionID: dd.ID,
 		CountryCode:        null.StringFrom("USA"),
+		Name:               null.StringFrom("Chungus"),
+	}
+	if powertrain == nil {
+		pt := services.ICE.String()
+		powertrain = &pt
 	}
 	if powertrain != nil {
 		ud.Metadata = null.JSONFrom([]byte(fmt.Sprintf(`{"powertrainType": "%s"}`, *powertrain)))
@@ -354,4 +359,26 @@ func SetupCreateAutoPiJob(t *testing.T, jobID, deviceID, cmd, userDeviceID strin
 	err := autopiJob.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
 	assert.NoError(t, err)
 	return &autopiJob
+}
+
+func SetupCreateGeofence(t *testing.T, userID, name string, ud *models.UserDevice, pdb database.DbStore) *models.Geofence {
+	gf := models.Geofence{
+		ID:     ksuid.New().String(),
+		UserID: userID,
+		Name:   name,
+		Type:   models.GeofenceTypePrivacyFence,
+	}
+	err := gf.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
+	assert.NoError(t, err)
+
+	if ud != nil {
+		udtgf := models.UserDeviceToGeofence{
+			UserDeviceID: ud.ID,
+			GeofenceID:   gf.ID,
+		}
+		err = udtgf.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
+		assert.NoError(t, err)
+	}
+
+	return &gf
 }

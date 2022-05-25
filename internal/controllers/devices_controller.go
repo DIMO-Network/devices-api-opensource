@@ -98,12 +98,12 @@ func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
 }
 
 // GetDeviceDefinitionByID godoc
-// @Description  gets a specific device definition by id
-// @Tags           device-definitions
+// @Description  gets a specific device definition by id, adds autopi integration on the fly if does not have it and year > cutoff
+// @Tags         device-definitions
 // @Produce      json
-// @Param             id        path  string  true  "device definition id, KSUID format"
+// @Param        id        path  string  true  "device definition id, KSUID format"
 // @Success      200  {object}  services.DeviceDefinition
-// @Router       /device-definitions/{id} [get]
+// @Router       /device-definitions/:id [get]
 func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if len(id) != 27 {

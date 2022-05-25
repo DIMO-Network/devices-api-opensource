@@ -31,14 +31,14 @@ func TestIngestDeviceStatus(t *testing.T) {
 	}
 
 	logger := zerolog.New(os.Stdout).With().Timestamp().Str("app", "devices-api").Logger()
-
 	ctx := context.Background()
-	pdb, db := test.SetupDatabase(ctx, t, migrationsDirRelPath)
+	pdb, container := test.StartContainerDatabase(ctx, t, migrationsDirRelPath)
 	defer func() {
-		if err := db.Stop(); err != nil {
+		if err := container.Terminate(ctx); err != nil {
 			t.Fatal(err)
 		}
 	}()
+
 	scIntegration := test.SetupCreateSmartCarIntegration(t, pdb)
 
 	ingest := NewIngestService(pdb.DBS, &logger, mes)
@@ -102,9 +102,11 @@ func TestIngestDeviceStatus(t *testing.T) {
 				UserDeviceID:        ud.ID,
 				Data:                c.ExistingData,
 				LastOdometerEventAt: c.LastOdometerEventAt,
+				IntegrationID:       scIntegration.ID,
 			}
 
-			err := datum.Upsert(ctx, tx, true, []string{models.UserDeviceDatumColumns.UserDeviceID}, boil.Infer(), boil.Infer())
+			err := datum.Upsert(ctx, tx, true, []string{models.UserDeviceDatumColumns.UserDeviceID, models.UserDeviceDatumColumns.IntegrationID},
+				boil.Infer(), boil.Infer())
 			if err != nil {
 				t.Fatalf("Failed setting up existing data row: %v", err)
 			}

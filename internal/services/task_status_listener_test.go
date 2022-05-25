@@ -14,13 +14,12 @@ import (
 )
 
 func TestTaskStatusListener(t *testing.T) {
-
 	logger := zerolog.New(os.Stdout).With().Timestamp().Str("app", "devices-api").Logger()
 
 	ctx := context.Background()
-	pdb, db := test.SetupDatabase(ctx, t, migrationsDirRelPath)
+	pdb, container := test.StartContainerDatabase(ctx, t, migrationsDirRelPath)
 	defer func() {
-		if err := db.Stop(); err != nil {
+		if err := container.Terminate(ctx); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -63,5 +62,5 @@ func TestTaskStatusListener(t *testing.T) {
 		t.Fatalf("Couldn't reload UDAI: %v", err)
 	}
 
-	assert.Equal(t, "Failed", udai.Status, "New status should be Failed.")
+	assert.Equal(t, models.UserDeviceAPIIntegrationStatusAuthenticationFailure, udai.Status, "New status should be Failed.")
 }

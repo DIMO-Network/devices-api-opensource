@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/stretchr/testify/suite"
+	"github.com/testcontainers/testcontainers-go"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -18,7 +21,6 @@ import (
 	"github.com/golang/mock/gomock"
 	_ "github.com/lib/pq"
 	"github.com/rs/zerolog"
-	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
 	"github.com/volatiletech/null/v8"
@@ -68,57 +70,6 @@ func TestUserDevicesController(t *testing.T) {
 
 	deviceDefSvc.EXPECT().CheckAndSetImage(gomock.Any(), false).AnyTimes().Return(nil)
 
-	t.Run("POST - register with existing device_definition_id", func(t *testing.T) {
-		// arrange DB
-		dm := test.SetupCreateMake(t, "Testla", pdb)
-		integration := test.SetupCreateSmartCarIntegration(t, pdb)
-
-		dd := models.DeviceDefinition{
-			ID:           ksuid.New().String(),
-			DeviceMakeID: dm.ID,
-			Model:        "Model X",
-			Year:         2020,
-			Verified:     true,
-		}
-		err := dd.Insert(ctx, pdb.DBS().Writer, boil.Infer())
-		assert.NoError(t, err, "database error")
-
-		deviceInt := models.DeviceIntegration{
-			DeviceDefinitionID: dd.ID,
-			IntegrationID:      integration.ID,
-			Region:             "Americas",
-		}
-		err = deviceInt.Insert(ctx, pdb.DBS().Writer, boil.Infer())
-		assert.NoError(t, err, "database error")
-		// act request
-		reg := RegisterUserDevice{
-			DeviceDefinitionID: &dd.ID,
-			CountryCode:        "USA",
-		}
-		j, _ := json.Marshal(reg)
-		request := test.BuildRequest("POST", "/user/devices", string(j))
-		response, _ := app.Test(request)
-		body, _ := ioutil.ReadAll(response.Body)
-		// assert
-		if assert.Equal(t, fiber.StatusCreated, response.StatusCode) == false {
-			fmt.Println("message: " + string(body))
-		}
-		regUserResp := UserDeviceFull{}
-		jsonUD := gjson.Get(string(body), "userDevice")
-		_ = json.Unmarshal([]byte(jsonUD.String()), &regUserResp)
-
-		assert.Len(t, regUserResp.ID, 27)
-		assert.Len(t, regUserResp.DeviceDefinition.DeviceDefinitionID, 27)
-		assert.Equal(t, dd.ID, regUserResp.DeviceDefinition.DeviceDefinitionID)
-		if assert.Len(t, regUserResp.DeviceDefinition.CompatibleIntegrations, 1) == false {
-			fmt.Println("resp body: " + string(body))
-		}
-		assert.Equal(t, integration.Vendor, regUserResp.DeviceDefinition.CompatibleIntegrations[0].Vendor)
-		assert.Equal(t, integration.Type, regUserResp.DeviceDefinition.CompatibleIntegrations[0].Type)
-		assert.Equal(t, integration.ID, regUserResp.DeviceDefinition.CompatibleIntegrations[0].ID)
-		//teardown
-		test.TruncateTables(pdb.DBS().Writer.DB, t)
-	})
 	t.Run("POST - register with MMY, create definition on the fly", func(t *testing.T) {
 		mk := "Tesla"
 		model := "Model Z"
@@ -350,4 +301,169 @@ func TestUserDevicesController(t *testing.T) {
 		//teardown
 		test.TruncateTables(pdb.DBS().Writer.DB, t)
 	})
+}
+
+type UserDevicesControllerTestSuite struct {
+	suite.Suite
+	pdb       database.DbStore
+	container testcontainers.Container
+	ctx       context.Context
+	mockCtrl  *gomock.Controller
+	app       *fiber.App
+}
+
+// SetupSuite starts container db
+func (s *UserDevicesControllerTestSuite) SetupSuite() {
+	s.ctx = context.Background()
+	s.pdb, s.container = test.StartContainerDatabase(s.ctx, s.T(), migrationsDirRelPath)
+	logger := test.Logger()
+	mockCtrl := gomock.NewController(s.T())
+	s.mockCtrl = mockCtrl
+
+	deviceDefSvc := mock_services.NewMockIDeviceDefinitionService(mockCtrl)
+	taskSvc := mock_services.NewMockITaskService(mockCtrl)
+	scClient := mock_services.NewMockSmartcarClient(mockCtrl)
+	scTaskSvc := mock_services.NewMockSmartcarTaskService(mockCtrl)
+	teslaSvc := mock_services.NewMockTeslaService(mockCtrl)
+	teslaTaskService := mock_services.NewMockTeslaTaskService(mockCtrl)
+	nhtsaService := mock_services.NewMockINHTSAService(mockCtrl)
+	autoPiIngest := mock_services.NewMockIngestRegistrar(mockCtrl)
+	autoPiTaskSvc := mock_services.NewMockAutoPiTaskService(mockCtrl)
+
+	testUserID := "123123"
+	testUserID2 := "3232451"
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, logger, deviceDefSvc, taskSvc, &fakeEventService{}, scClient, scTaskSvc, teslaSvc, teslaTaskService, nil, nil, nhtsaService, autoPiIngest, autoPiTaskSvc)
+	app := fiber.New()
+	app.Post("/user/devices", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceForUser)
+	app.Post("/user/devices/second", test.AuthInjectorTestHandler(testUserID2), c.RegisterDeviceForUser) // for different test user
+	app.Get("/user/devices/me", test.AuthInjectorTestHandler(testUserID), c.GetUserDevices)
+	app.Patch("/user/devices/:userDeviceID/vin", test.AuthInjectorTestHandler(testUserID), c.UpdateVIN)
+	app.Patch("/user/devices/:userDeviceID/name", test.AuthInjectorTestHandler(testUserID), c.UpdateName)
+	app.Post("/user/devices/:userDeviceID/commands/refresh", test.AuthInjectorTestHandler(testUserID), c.RefreshUserDeviceStatus)
+
+	deviceDefSvc.EXPECT().CheckAndSetImage(gomock.Any(), false).AnyTimes().Return(nil)
+	s.app = app
+}
+
+//TearDownTest after each test truncate tables
+func (s *UserDevicesControllerTestSuite) TearDownTest() {
+	test.TruncateTables(s.pdb.DBS().Writer.DB, s.T())
+}
+
+//TearDownSuite cleanup at end by terminating container
+func (s *UserDevicesControllerTestSuite) TearDownSuite() {
+	if err := s.container.Terminate(s.ctx); err != nil {
+		s.T().Fatal(err)
+	}
+	s.mockCtrl.Finish() // might need to do mockctrl on every test, and refactor setup into one method
+}
+
+//Test Runner
+func TestUserDevicesControllerTestSuite(t *testing.T) {
+	suite.Run(t, new(UserDevicesControllerTestSuite))
+}
+
+/* Actual Tests */
+func (s *UserDevicesControllerTestSuite) TestPostWithExistingDefinitionID() {
+	// arrange DB
+	dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
+	integration := test.SetupCreateSmartCarIntegration(s.T(), s.pdb)
+	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model X", 2020, s.pdb)
+	test.SetupCreateDeviceIntegration(s.T(), dd, integration, s.pdb)
+
+	// act request
+	reg := RegisterUserDevice{
+		DeviceDefinitionID: &dd.ID,
+		CountryCode:        "USA",
+	}
+	j, _ := json.Marshal(reg)
+	request := test.BuildRequest("POST", "/user/devices", string(j))
+	response, _ := s.app.Test(request)
+	body, _ := ioutil.ReadAll(response.Body)
+	// assert
+	if assert.Equal(s.T(), fiber.StatusCreated, response.StatusCode) == false {
+		fmt.Println("message: " + string(body))
+	}
+	regUserResp := UserDeviceFull{}
+	jsonUD := gjson.Get(string(body), "userDevice")
+	_ = json.Unmarshal([]byte(jsonUD.String()), &regUserResp)
+
+	assert.Len(s.T(), regUserResp.ID, 27)
+	assert.Len(s.T(), regUserResp.DeviceDefinition.DeviceDefinitionID, 27)
+	assert.Equal(s.T(), dd.ID, regUserResp.DeviceDefinition.DeviceDefinitionID)
+	if assert.Len(s.T(), regUserResp.DeviceDefinition.CompatibleIntegrations, 1) == false {
+		fmt.Println("resp body: " + string(body))
+	}
+	assert.Equal(s.T(), integration.Vendor, regUserResp.DeviceDefinition.CompatibleIntegrations[0].Vendor)
+	assert.Equal(s.T(), integration.Type, regUserResp.DeviceDefinition.CompatibleIntegrations[0].Type)
+	assert.Equal(s.T(), integration.ID, regUserResp.DeviceDefinition.CompatibleIntegrations[0].ID)
+}
+
+func (s *UserDevicesControllerTestSuite) TestPostWithMMYOnTheFlyCreateDD() {
+	// todo finish
+
+	//mk := "Tesla"
+	//model := "Model Z"
+	//year := 2021
+	//deviceDefSvc.EXPECT().FindDeviceDefinitionByMMY(gomock.Any(), gomock.Any(), mk, model, year, false).
+	//	Return(nil, nil)
+	//// create an existing make and then mock return the make we just created. Another option would be to have mock call real, but I feel this isolates a bit more.
+	//dm := test.SetupCreateMake(t, mk, pdb)
+	//deviceDefSvc.EXPECT().GetOrCreateMake(gomock.Any(), gomock.Any(), mk).Times(1).Return(&models.DeviceMake{
+	//	ID:   dm.ID,
+	//	Name: dm.Name,
+	//}, nil)
+	//
+	//reg := RegisterUserDevice{
+	//	Make:        &mk,
+	//	Model:       &model,
+	//	Year:        &year,
+	//	CountryCode: "USA",
+	//}
+	//j, _ := json.Marshal(reg)
+	//request := test.BuildRequest("POST", "/user/devices", string(j))
+	//response, _ := s.app.Test(request)
+	//body, _ := ioutil.ReadAll(response.Body)
+	//// assert
+	//if assert.Equal(s.T(), fiber.StatusCreated, response.StatusCode) == false {
+	//	fmt.Println("message: " + string(body))
+	//}
+	//regUserResp := UserDeviceFull{}
+	//jsonUD := gjson.Get(string(body), "userDevice")
+	//_ = json.Unmarshal([]byte(jsonUD.String()), &regUserResp)
+	//
+	//assert.Len(s.T(), regUserResp.ID, 27)
+	//assert.Len(s.T(), regUserResp.DeviceDefinition.DeviceDefinitionID, 27)
+}
+
+func (s *UserDevicesControllerTestSuite) TestPostWithMMYExistingDD() {
+	//dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
+}
+
+func (s *UserDevicesControllerTestSuite) TestPostBadPayload() {
+	//dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
+}
+
+func (s *UserDevicesControllerTestSuite) TestPostBadInvalidDefinitionID() {
+	//dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
+}
+
+func (s *UserDevicesControllerTestSuite) TestGetMyUserDevices() {
+	//dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
+}
+
+func (s *UserDevicesControllerTestSuite) TestPatchVIN() {
+	//dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
+}
+
+func (s *UserDevicesControllerTestSuite) TestPatchName() {
+	//dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
+}
+
+func (s *UserDevicesControllerTestSuite) TestPostRefreshSmartCar() {
+	//dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
+}
+
+func (s *UserDevicesControllerTestSuite) TestPostRefreshSmartCarRateLimited() {
+	//dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
 }

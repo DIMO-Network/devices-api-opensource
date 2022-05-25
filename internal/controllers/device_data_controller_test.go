@@ -20,6 +20,8 @@ import (
 	"time"
 )
 
+const migrationsDirRelPath = "../../migrations"
+
 func TestUserDevicesController_GetUserDeviceStatus(t *testing.T) {
 	// arrange global db and route setup
 	mockCtrl := gomock.NewController(t)
@@ -31,7 +33,12 @@ func TestUserDevicesController_GetUserDeviceStatus(t *testing.T) {
 		Logger()
 
 	ctx := context.Background()
-	pdb := test.GetDBConnection(ctx)
+	pdb, container := test.StartContainerDatabase(ctx, t, migrationsDirRelPath)
+	defer func() {
+		if err := container.Terminate(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	deviceDefSvc := mock_services.NewMockIDeviceDefinitionService(mockCtrl)
 	taskSvc := mock_services.NewMockITaskService(mockCtrl)

@@ -5,9 +5,11 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/stretchr/testify/suite"
+	"github.com/testcontainers/testcontainers-go"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"testing"
 	"time"
 
@@ -19,120 +21,163 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/mock/gomock"
 	_ "github.com/lib/pq"
-	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
 	"github.com/volatiletech/null/v8"
 )
 
-// integration tests using embedded pgsql, must be run in order
-func TestDevicesController(t *testing.T) {
-	// arrange global db and route setup
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
+type DevicesControllerTestSuite struct {
+	suite.Suite
+	pdb         database.DbStore
+	container   testcontainers.Container
+	ctx         context.Context
+	deviceDefId string
+	mockCtrl    *gomock.Controller
+	app         *fiber.App
+	dbMake      models.DeviceMake
+}
 
-	logger := zerolog.New(os.Stdout).With().
-		Timestamp().
-		Str("app", "devices-api").
-		Logger()
+// SetupSuite starts container db
+func (s *DevicesControllerTestSuite) SetupSuite() {
+	s.ctx = context.Background()
+	s.pdb, s.container = test.StartContainerDatabase(s.ctx, s.T(), migrationsDirRelPath)
+	s.mockCtrl = gomock.NewController(s.T())
+	logger := test.Logger()
 
-	ctx := context.Background()
-	pdb := test.GetDBConnection(ctx)
+	nhtsaSvc := mock_services.NewMockINHTSAService(s.mockCtrl)
+	deviceDefSvc := mock_services.NewMockIDeviceDefinitionService(s.mockCtrl)
+	c := NewDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, logger, nhtsaSvc, deviceDefSvc)
 
-	nhtsaSvc := mock_services.NewMockINHTSAService(mockCtrl)
-	deviceDefSvc := mock_services.NewMockIDeviceDefinitionService(mockCtrl)
-	c := NewDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, nhtsaSvc, deviceDefSvc)
 	// routes
 	app := fiber.New()
 	app.Get("/device-definitions/all", c.GetAllDeviceMakeModelYears)
 	app.Get("/device-definitions/:id", c.GetDeviceDefinitionByID)
 	app.Get("/device-definitions/:id/integrations", c.GetDeviceIntegrationsByID)
+	s.app = app
 
-	dbMake := test.SetupCreateMake(t, "TESLA", pdb)
-	dbDeviceDef := test.SetupCreateDeviceDefinition(t, dbMake, "MODEL Y", 2020, pdb)
-	fmt.Println("created device def id: " + dbDeviceDef.ID)
-	createdID := dbDeviceDef.ID
+	// arrange some data
+	s.dbMake = test.SetupCreateMake(s.T(), "Testla", s.pdb)
+	dbDeviceDef := test.SetupCreateDeviceDefinition(s.T(), s.dbMake, "MODEL Y", 2020, s.pdb)
+	s.deviceDefId = dbDeviceDef.ID
 
-	t.Run("GET - device definition by id, including autopi integration", func(t *testing.T) {
-		request, _ := http.NewRequest("GET", "/device-definitions/"+createdID, nil)
-		response, _ := app.Test(request)
-		body, _ := ioutil.ReadAll(response.Body)
-		// assert
-		assert.Equal(t, 200, response.StatusCode)
+	// note we do not want to truncate tables after each test for this one
+}
 
-		v := gjson.GetBytes(body, "deviceDefinition")
-		var dd services.DeviceDefinition
-		err := json.Unmarshal([]byte(v.Raw), &dd)
-		assert.NoError(t, err)
-		assert.Equal(t, createdID, dd.DeviceDefinitionID)
-		if assert.True(t, len(dd.CompatibleIntegrations) >= 2, "should be atleast 2 integrations for autopi") {
-			assert.Equal(t, services.AutoPiVendor, dd.CompatibleIntegrations[0].Vendor)
-			assert.Equal(t, "Americas", dd.CompatibleIntegrations[0].Region)
-			assert.Equal(t, services.AutoPiVendor, dd.CompatibleIntegrations[1].Vendor)
-			assert.Equal(t, "Europe", dd.CompatibleIntegrations[1].Region)
-		}
-	})
-	t.Run("GET - device definition by id does not add autopi compatibility for old vehicle", func(t *testing.T) {
-		dbDdOldCar := test.SetupCreateDeviceDefinition(t, dbMake, "Oldie", 1999, pdb)
-		request, _ := http.NewRequest("GET", "/device-definitions/"+dbDdOldCar.ID, nil)
-		response, _ := app.Test(request)
-		body, _ := ioutil.ReadAll(response.Body)
-		// assert
-		assert.Equal(t, 200, response.StatusCode)
-		v := gjson.GetBytes(body, "deviceDefinition")
-		var dd services.DeviceDefinition
-		err := json.Unmarshal([]byte(v.Raw), &dd)
-		assert.NoError(t, err)
-		assert.Equal(t, dbDdOldCar.ID, dd.DeviceDefinitionID)
-		assert.Len(t, dd.CompatibleIntegrations, 0, "vehicles before 2020 should not auto inject autopi integrations")
-	})
-	t.Run("GET - device integrations by id", func(t *testing.T) {
-		request, _ := http.NewRequest("GET", "/device-definitions/"+createdID+"/integrations", nil)
-		response, _ := app.Test(request)
-		body, _ := ioutil.ReadAll(response.Body)
-		// assert
-		assert.Equal(t, 200, response.StatusCode)
-		v := gjson.GetBytes(body, "compatibleIntegrations")
-		var dc []services.DeviceCompatibility
-		err := json.Unmarshal([]byte(v.Raw), &dc)
-		assert.NoError(t, err)
-		if assert.True(t, len(dc) >= 2, "should be atleast 2 integrations for autopi") {
-			assert.Equal(t, services.AutoPiVendor, dc[0].Vendor)
-			assert.Equal(t, "Americas", dc[0].Region)
-			assert.Equal(t, services.AutoPiVendor, dc[1].Vendor)
-			assert.Equal(t, "Europe", dc[1].Region)
-		}
-	})
-	t.Run("GET 400 - device definition by id invalid", func(t *testing.T) {
-		request, _ := http.NewRequest("GET", "/device-definitions/caca", nil)
-		response, _ := app.Test(request)
-		// assert
-		assert.Equal(t, 400, response.StatusCode)
-	})
-	t.Run("GET 400 - device definition integrations invalid", func(t *testing.T) {
-		request, _ := http.NewRequest("GET", "/device-definitions/caca/integrations", nil)
-		response, _ := app.Test(request)
-		// assert
-		assert.Equal(t, 400, response.StatusCode)
-	})
-	t.Run("GET - all make model years as a tree", func(t *testing.T) {
-		request, _ := http.NewRequest("GET", "/device-definitions/all", nil)
-		response, _ := app.Test(request)
-		body, _ := ioutil.ReadAll(response.Body)
-		// assert
-		assert.Equal(t, 200, response.StatusCode)
-		v := gjson.GetBytes(body, "makes")
-		var mmy []DeviceMMYRoot
-		err := json.Unmarshal([]byte(v.Raw), &mmy)
-		assert.NoError(t, err)
-		if assert.True(t, len(mmy) >= 1, "should be at least one device definition") {
-			assert.Equal(t, "TESLA", mmy[0].Make)
-			assert.Equal(t, "MODEL Y", mmy[0].Models[0].Model)
-			assert.Equal(t, int16(2020), mmy[0].Models[0].Years[0].Year)
-			assert.Equal(t, createdID, mmy[0].Models[0].Years[0].DeviceDefinitionID)
-		}
-	})
+//TearDownSuite cleanup at end by terminating container
+func (s *DevicesControllerTestSuite) TearDownSuite() {
+	if err := s.container.Terminate(s.ctx); err != nil {
+		s.T().Fatal(err)
+	}
+	s.mockCtrl.Finish()
+}
+
+func TestDevicesControllerTestSuite(t *testing.T) {
+	suite.Run(t, new(DevicesControllerTestSuite))
+}
+
+/* Actual tests*/
+
+func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionById() {
+	request, _ := http.NewRequest("GET", "/device-definitions/"+s.deviceDefId, nil)
+	response, _ := s.app.Test(request)
+	body, _ := ioutil.ReadAll(response.Body)
+	// assert
+	assert.Equal(s.T(), 200, response.StatusCode)
+
+	v := gjson.GetBytes(body, "deviceDefinition")
+	var dd services.DeviceDefinition
+	err := json.Unmarshal([]byte(v.Raw), &dd)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), s.deviceDefId, dd.DeviceDefinitionID)
+	if assert.True(s.T(), len(dd.CompatibleIntegrations) >= 2, "should be atleast 2 integrations for autopi") {
+		assert.Equal(s.T(), services.AutoPiVendor, dd.CompatibleIntegrations[0].Vendor)
+		assert.Equal(s.T(), "Americas", dd.CompatibleIntegrations[0].Region)
+		assert.Equal(s.T(), services.AutoPiVendor, dd.CompatibleIntegrations[1].Vendor)
+		assert.Equal(s.T(), "Europe", dd.CompatibleIntegrations[1].Region)
+	} else {
+		fmt.Printf("found integrations: %+v", dd.CompatibleIntegrations)
+	}
+}
+
+func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionDoesNotAddAutoPiForOldCars() {
+	dbDdOldCar := test.SetupCreateDeviceDefinition(s.T(), s.dbMake, "Oldie", 1999, s.pdb)
+	request, _ := http.NewRequest("GET", "/device-definitions/"+dbDdOldCar.ID, nil)
+	response, _ := s.app.Test(request)
+	body, _ := ioutil.ReadAll(response.Body)
+	// assert
+	assert.Equal(s.T(), 200, response.StatusCode)
+	v := gjson.GetBytes(body, "deviceDefinition")
+	var dd services.DeviceDefinition
+	err := json.Unmarshal([]byte(v.Raw), &dd)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), dbDdOldCar.ID, dd.DeviceDefinitionID)
+	assert.Len(s.T(), dd.CompatibleIntegrations, 0, "vehicles before 2020 should not auto inject autopi integrations")
+}
+
+func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionDoesNotAddAutoPiForTesla() {
+	tesla := test.SetupCreateMake(s.T(), "Tesla", s.pdb)
+	teslaCar := test.SetupCreateDeviceDefinition(s.T(), tesla, "Cyber Truck never", 2022, s.pdb)
+	request, _ := http.NewRequest("GET", "/device-definitions/"+teslaCar.ID, nil)
+	response, _ := s.app.Test(request)
+	body, _ := ioutil.ReadAll(response.Body)
+	// assert
+	assert.Equal(s.T(), 200, response.StatusCode)
+	v := gjson.GetBytes(body, "deviceDefinition")
+	var dd services.DeviceDefinition
+	err := json.Unmarshal([]byte(v.Raw), &dd)
+	assert.NoError(s.T(), err)
+	assert.Len(s.T(), dd.CompatibleIntegrations, 0, "vehicles before 2020 should not auto inject autopi integrations")
+}
+
+func (s *DevicesControllerTestSuite) TestGetDeviceIntegrationsById() {
+	request, _ := http.NewRequest("GET", "/device-definitions/"+s.deviceDefId+"/integrations", nil)
+	response, _ := s.app.Test(request)
+	body, _ := ioutil.ReadAll(response.Body)
+	// assert
+	assert.Equal(s.T(), 200, response.StatusCode)
+	v := gjson.GetBytes(body, "compatibleIntegrations")
+	var dc []services.DeviceCompatibility
+	err := json.Unmarshal([]byte(v.Raw), &dc)
+	assert.NoError(s.T(), err)
+	if assert.True(s.T(), len(dc) >= 2, "should be atleast 2 integrations for autopi") {
+		assert.Equal(s.T(), services.AutoPiVendor, dc[0].Vendor)
+		assert.Equal(s.T(), "Americas", dc[0].Region)
+		assert.Equal(s.T(), services.AutoPiVendor, dc[1].Vendor)
+		assert.Equal(s.T(), "Europe", dc[1].Region)
+	}
+}
+
+func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionWithInvalidID() {
+	request, _ := http.NewRequest("GET", "/device-definitions/caca", nil)
+	response, _ := s.app.Test(request)
+	// assert
+	assert.Equal(s.T(), 400, response.StatusCode)
+}
+
+func (s *DevicesControllerTestSuite) TestGetDeviceDefIntegrationWithInvalidID() {
+	request, _ := http.NewRequest("GET", "/device-definitions/caca/integrations", nil)
+	response, _ := s.app.Test(request)
+	// assert
+	assert.Equal(s.T(), 400, response.StatusCode)
+}
+
+func (s *DevicesControllerTestSuite) TestGetAll() {
+	request, _ := http.NewRequest("GET", "/device-definitions/all", nil)
+	response, _ := s.app.Test(request)
+	body, _ := ioutil.ReadAll(response.Body)
+	// assert
+	assert.Equal(s.T(), 200, response.StatusCode)
+	v := gjson.GetBytes(body, "makes")
+	var mmy []DeviceMMYRoot
+	err := json.Unmarshal([]byte(v.Raw), &mmy)
+	assert.NoError(s.T(), err)
+	if assert.True(s.T(), len(mmy) >= 1, "should be at least one device definition") {
+		assert.Equal(s.T(), "Testla", mmy[0].Make)
+		assert.Equal(s.T(), "MODEL Y", mmy[0].Models[0].Model)
+		assert.Equal(s.T(), int16(2020), mmy[0].Models[0].Years[0].Year)
+		assert.Equal(s.T(), s.deviceDefId, mmy[0].Models[0].Years[0].DeviceDefinitionID)
+	}
 }
 
 func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
