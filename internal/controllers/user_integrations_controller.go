@@ -922,7 +922,7 @@ func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zero
 		}
 	}
 
-	if err := udc.fixTeslaDeviceDefinition(c.Context(), logger, tx, integ, ud, v.VIN); err != nil {
+	if err := fixTeslaDeviceDefinition(c.Context(), logger, tx, integ, ud, v.VIN); err != nil {
 		return errors.Wrap(err, "Failed to fix up device definition")
 	}
 
@@ -1009,7 +1009,7 @@ func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zero
 //
 // We do not attempt to create any new entries in integrations, device_definitions, or
 // device_integrations. This should all be handled elsewhere for Tesla.
-func (udc *UserDevicesController) fixTeslaDeviceDefinition(ctx context.Context, logger *zerolog.Logger, exec boil.ContextExecutor, integ *models.Integration, ud *models.UserDevice, vin string) error {
+func fixTeslaDeviceDefinition(ctx context.Context, logger *zerolog.Logger, exec boil.ContextExecutor, integ *models.Integration, ud *models.UserDevice, vin string) error {
 	vinMake := "Tesla"
 	vinModel := shared.VIN(vin).TeslaModel()
 	vinYear := shared.VIN(vin).Year()

@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"testing"
+
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/test"
@@ -18,9 +22,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/tidwall/gjson"
-	"io/ioutil"
-	"net/http"
-	"testing"
 )
 
 type partialFenceCloudEvent struct {
@@ -90,6 +91,7 @@ func (s *GeofencesControllerTestSuite) TearDownTest() {
 
 //TearDownSuite cleanup at end by terminating container
 func (s *GeofencesControllerTestSuite) TearDownSuite() {
+	fmt.Printf("shutting down postgres at with session: %s \n", s.container.SessionID())
 	if err := s.container.Terminate(s.ctx); err != nil {
 		s.T().Fatal(err)
 	}

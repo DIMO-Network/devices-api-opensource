@@ -1,4 +1,4 @@
-name: buildpush
+name: buildpushprod
 on:
   push:
     tags:

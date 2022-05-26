@@ -67,3 +67,33 @@ func (store *DbStore) IsReady() bool {
 func (store *DbStore) DBS() *DBReaderWriter {
 	return store.dbs
 }
+
+// NewDbConnectionForTest use this for tests as we have multiple sessions in parallel and don't want synced one
+func NewDbConnectionForTest(ctx context.Context, settings config.Settings, withSearchPath bool) DbStore {
+	localReady := false
+	dbConnection := NewDbConnection(
+		ctx,
+		&localReady,
+		ConnectOptions{
+			Retries:            5,
+			RetryDelay:         time.Second * 10,
+			ConnectTimeout:     time.Minute * 5,
+			DSN:                settings.GetWriterDSN(withSearchPath),
+			MaxOpenConnections: settings.DBMaxOpenConnections,
+			MaxIdleConnections: settings.DBMaxIdleConnections,
+			ConnMaxLifetime:    time.Minute * 5,
+			DriverName:         databaseDriver,
+		},
+		ConnectOptions{
+			Retries:            5,
+			RetryDelay:         time.Second * 10,
+			ConnectTimeout:     time.Minute * 5,
+			DSN:                settings.GetWriterDSN(true),
+			MaxOpenConnections: settings.DBMaxOpenConnections,
+			MaxIdleConnections: settings.DBMaxIdleConnections,
+			ConnMaxLifetime:    time.Minute * 5,
+			DriverName:         databaseDriver,
+		},
+	)
+	return DbStore{db: dbConnection.GetWriterConn, dbs: dbConnection, ready: &localReady}
+}

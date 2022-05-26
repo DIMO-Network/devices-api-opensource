@@ -4,10 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/DIMO-Network/devices-api/internal/services"
-	"github.com/docker/go-connections/nat"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 	"net/http"
 	"os"
 	"strings"
@@ -17,7 +13,7 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
-	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
+	"github.com/docker/go-connections/nat"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/pkg/errors"
@@ -25,12 +21,13 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
 const testDbName = "devices_api"
-const testDbPort = 6669
 
 // StartContainerDatabase starts postgres container with default test settings, and migrates the db. Caller must terminate container.
 func StartContainerDatabase(ctx context.Context, t *testing.T, migrationsDirRelPath string) (database.DbStore, testcontainers.Container) {
@@ -58,11 +55,11 @@ func StartContainerDatabase(ctx context.Context, t *testing.T, migrationsDirRelP
 	if err != nil {
 		return handleContainerStartErr(ctx, errors.Wrap(err, "failed to get container external port"), pgContainer, t)
 	}
-	fmt.Println("postgres container ready and running at port: ", mappedPort)
+	fmt.Printf("postgres container session %s ready and running at port: %s \n", pgContainer.SessionID(), mappedPort)
 	//defer pgContainer.Terminate(ctx) // this should be done by the caller
 
 	settings.DBPort = mappedPort.Port()
-	pdb := database.NewDbConnectionFromSettings(ctx, &settings, false)
+	pdb := database.NewDbConnectionForTest(ctx, settings, false)
 	for !pdb.IsReady() {
 		time.Sleep(500 * time.Millisecond)
 	}
@@ -76,7 +73,8 @@ func StartContainerDatabase(ctx context.Context, t *testing.T, migrationsDirRelP
 		SET search_path = devices_api, public;
 		`)
 	if err != nil {
-		return handleContainerStartErr(ctx, errors.Wrap(err, "failed to apply schema"), pgContainer, t)
+		return handleContainerStartErr(ctx, errors.Wrapf(err, "failed to apply schema. session: %s, port: %s",
+			pgContainer.SessionID(), mappedPort.Port()), pgContainer, t)
 	}
 	// add truncate tables func
 	_, err = pdb.DBS().Writer.Exec(`
@@ -103,6 +101,7 @@ $$ LANGUAGE plpgsql;
 
 	return pdb, pgContainer
 }
+
 func handleContainerStartErr(ctx context.Context, err error, container testcontainers.Container, t *testing.T) (database.DbStore, testcontainers.Container) {
 	if err != nil {
 		fmt.Println("start container error: " + err.Error())
@@ -112,82 +111,6 @@ func handleContainerStartErr(ctx context.Context, err error, container testconta
 		t.Fatal(err)
 	}
 	return database.DbStore{}, container
-}
-
-// NewEmbedDBConfigured just returns the configured embed pg object, does not start db
-func NewEmbedDBConfigured() *embeddedpostgres.EmbeddedPostgres {
-	edb := embeddedpostgres.NewDatabase(embeddedpostgres.DefaultConfig().
-		Version(embeddedpostgres.V12).Port(testDbPort).Database(testDbName))
-	return edb
-}
-
-// StartAndMigrateDB used for booting up a test embed db. Migrates db schema to latest, adds function for truncating tables useful btw test runs.
-func StartAndMigrateDB(ctx context.Context, migrationsDirRelPath string) (*embeddedpostgres.EmbeddedPostgres, error) {
-	// an issue here is that if the test panics, it won't kill the embedded db: lsof -i :6669, then kill it.
-	edb := NewEmbedDBConfigured()
-	if err := edb.Start(); err != nil {
-		return nil, err
-	}
-
-	settings := getTestDbSettings()
-	// note the DBName will be used as the search path for the connection string
-	pdb := database.NewDbConnectionFromSettings(ctx, &settings, false)
-	time.Sleep(3 * time.Second) // get panic if don't have this here
-
-	// run migrations at this point. need to do some pre-setup due to embedded db
-	_, err := pdb.DBS().Writer.Exec(`
-		grant usage on schema public to public;
-		grant create on schema public to public;
-		CREATE SCHEMA IF NOT EXISTS devices_api;
-		ALTER USER postgres SET search_path = devices_api, public;
-		SET search_path = devices_api, public;
-		`)
-	if err != nil {
-		return nil, err
-	}
-	goose.SetTableName("devices_api.migrations")
-	if err := goose.Run("up", pdb.DBS().Writer.DB, migrationsDirRelPath); err != nil {
-		_ = edb.Stop()
-		return nil, errors.Wrapf(err, "failed to apply goose migrations for test")
-	}
-	// add truncate tables func
-	_, err = pdb.DBS().Writer.Exec(`
-CREATE OR REPLACE FUNCTION truncate_tables() RETURNS void AS $$
-DECLARE
-    statements CURSOR FOR
-        SELECT tablename FROM pg_tables
-        WHERE schemaname = 'devices_api' and tablename != 'migrations';
-BEGIN
-    FOR stmt IN statements LOOP
-        EXECUTE 'TRUNCATE TABLE ' || quote_ident(stmt.tablename) || ' CASCADE;';
-    END LOOP;
-END;
-$$ LANGUAGE plpgsql;
-`)
-	if err != nil {
-		return nil, err
-	}
-
-	return edb, nil
-}
-
-// GetDBConnection gets a db connection to test embed db. Note the DBName will be used as the search path for the connection string
-func GetDBConnection(ctx context.Context) database.DbStore {
-	settings := getTestDbSettings()
-	// note the DBName will be used as the search path for the connection string
-	return database.NewDbConnectionFromSettings(ctx, &settings, false)
-}
-
-func SetupDatabase(ctx context.Context, t *testing.T, migrationsDirRelPath string) (database.DbStore, *embeddedpostgres.EmbeddedPostgres) {
-	edb, err := StartAndMigrateDB(ctx, migrationsDirRelPath)
-	// an issue here is that if the test panics, it won't kill the embedded db: lsof -i :6669, then kill it.
-	if err != nil {
-		t.Fatal(err)
-	}
-	pdb := GetDBConnection(ctx)
-
-	return pdb, edb
-	// if we add code migrations, import: _ "github.com/DIMO-Network/devices-api/migrations"
 }
 
 // getTestDbSettings builds test db config.Settings object
@@ -258,7 +181,7 @@ func SetupCreateUserDevice(t *testing.T, testUserID string, dd *models.DeviceDef
 		Name:               null.StringFrom("Chungus"),
 	}
 	if powertrain == nil {
-		pt := services.ICE.String()
+		pt := "ICE" // note cannot import enum from services
 		powertrain = &pt
 	}
 	if powertrain != nil {
@@ -304,10 +227,11 @@ func SetupCreateMake(t *testing.T, mk string, pdb database.DbStore) models.Devic
 
 func SetupCreateSmartCarIntegration(t *testing.T, pdb database.DbStore) models.Integration {
 	integration := models.Integration{
-		ID:     ksuid.New().String(),
-		Type:   models.IntegrationTypeAPI,
-		Style:  models.IntegrationStyleWebhook,
-		Vendor: "SmartCar",
+		ID:               ksuid.New().String(),
+		Type:             models.IntegrationTypeAPI,
+		Style:            models.IntegrationStyleWebhook,
+		Vendor:           "SmartCar",
+		RefreshLimitSecs: 1800,
 	}
 	err := integration.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
 	assert.NoError(t, err, "database error")

@@ -2,19 +2,20 @@ package services
 
 import (
 	"context"
-	"github.com/DIMO-Network/devices-api/internal/database"
-	"github.com/stretchr/testify/suite"
-	"github.com/testcontainers/testcontainers-go"
+	"fmt"
 	"testing"
 
+	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
+	"github.com/testcontainers/testcontainers-go"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
-type AutoPiApiServiceTestSuite struct {
+type AutoPiAPIServiceTestSuite struct {
 	suite.Suite
 	pdb       database.DbStore
 	container testcontainers.Container
@@ -22,28 +23,29 @@ type AutoPiApiServiceTestSuite struct {
 }
 
 // SetupSuite starts container db
-func (s *AutoPiApiServiceTestSuite) SetupSuite() {
+func (s *AutoPiAPIServiceTestSuite) SetupSuite() {
 	s.ctx = context.Background()
 	s.pdb, s.container = test.StartContainerDatabase(s.ctx, s.T(), migrationsDirRelPath)
 }
 
 //TearDownTest after each test truncate tables
-func (s *AutoPiApiServiceTestSuite) TearDownTest() {
+func (s *AutoPiAPIServiceTestSuite) TearDownTest() {
 	test.TruncateTables(s.pdb.DBS().Writer.DB, s.T())
 }
 
 //TearDownSuite cleanup at end by terminating container
-func (s *AutoPiApiServiceTestSuite) TearDownSuite() {
+func (s *AutoPiAPIServiceTestSuite) TearDownSuite() {
+	fmt.Printf("shutting down postgres at with session: %s \n", s.container.SessionID())
 	if err := s.container.Terminate(s.ctx); err != nil {
 		s.T().Fatal(err)
 	}
 }
 
 func TestAutoPiApiServiceTestSuite(t *testing.T) {
-	suite.Run(t, new(AutoPiApiServiceTestSuite))
+	suite.Run(t, new(AutoPiAPIServiceTestSuite))
 }
 
-func (s *AutoPiApiServiceTestSuite) TestFindUserDeviceAutoPiIntegration() {
+func (s *AutoPiAPIServiceTestSuite) TestFindUserDeviceAutoPiIntegration() {
 	// arrange some data
 	const testUserID = "123123"
 	const autoPiDeviceID = "321"
@@ -88,7 +90,7 @@ func (s *AutoPiApiServiceTestSuite) TestFindUserDeviceAutoPiIntegration() {
 	test.TruncateTables(s.pdb.DBS().Writer.DB, s.T())
 }
 
-func (s *AutoPiApiServiceTestSuite) TestAppendAutoPiCompatibility() {
+func (s *AutoPiAPIServiceTestSuite) TestAppendAutoPiCompatibility() {
 	dm := test.SetupCreateMake(s.T(), "Ford", s.pdb)
 	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "MachE", 2020, s.pdb)
 	var dcs []DeviceCompatibility

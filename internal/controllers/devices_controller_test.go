@@ -5,15 +5,13 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"github.com/DIMO-Network/devices-api/internal/database"
-	"github.com/stretchr/testify/suite"
-	"github.com/testcontainers/testcontainers-go"
 	"io/ioutil"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	mock_services "github.com/DIMO-Network/devices-api/internal/services/mocks"
 	"github.com/DIMO-Network/devices-api/internal/test"
@@ -23,6 +21,8 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
+	"github.com/testcontainers/testcontainers-go"
 	"github.com/tidwall/gjson"
 	"github.com/volatiletech/null/v8"
 )
@@ -32,7 +32,7 @@ type DevicesControllerTestSuite struct {
 	pdb         database.DbStore
 	container   testcontainers.Container
 	ctx         context.Context
-	deviceDefId string
+	deviceDefID string
 	mockCtrl    *gomock.Controller
 	app         *fiber.App
 	dbMake      models.DeviceMake
@@ -59,13 +59,14 @@ func (s *DevicesControllerTestSuite) SetupSuite() {
 	// arrange some data
 	s.dbMake = test.SetupCreateMake(s.T(), "Testla", s.pdb)
 	dbDeviceDef := test.SetupCreateDeviceDefinition(s.T(), s.dbMake, "MODEL Y", 2020, s.pdb)
-	s.deviceDefId = dbDeviceDef.ID
+	s.deviceDefID = dbDeviceDef.ID
 
 	// note we do not want to truncate tables after each test for this one
 }
 
 //TearDownSuite cleanup at end by terminating container
 func (s *DevicesControllerTestSuite) TearDownSuite() {
+	fmt.Printf("shutting down postgres at with session: %s \n", s.container.SessionID())
 	if err := s.container.Terminate(s.ctx); err != nil {
 		s.T().Fatal(err)
 	}
@@ -79,7 +80,7 @@ func TestDevicesControllerTestSuite(t *testing.T) {
 /* Actual tests*/
 
 func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionById() {
-	request, _ := http.NewRequest("GET", "/device-definitions/"+s.deviceDefId, nil)
+	request, _ := http.NewRequest("GET", "/device-definitions/"+s.deviceDefID, nil)
 	response, _ := s.app.Test(request)
 	body, _ := ioutil.ReadAll(response.Body)
 	// assert
@@ -89,7 +90,7 @@ func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionById() {
 	var dd services.DeviceDefinition
 	err := json.Unmarshal([]byte(v.Raw), &dd)
 	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), s.deviceDefId, dd.DeviceDefinitionID)
+	assert.Equal(s.T(), s.deviceDefID, dd.DeviceDefinitionID)
 	if assert.True(s.T(), len(dd.CompatibleIntegrations) >= 2, "should be atleast 2 integrations for autopi") {
 		assert.Equal(s.T(), services.AutoPiVendor, dd.CompatibleIntegrations[0].Vendor)
 		assert.Equal(s.T(), "Americas", dd.CompatibleIntegrations[0].Region)
@@ -131,7 +132,7 @@ func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionDoesNotAddAutoPiForT
 }
 
 func (s *DevicesControllerTestSuite) TestGetDeviceIntegrationsById() {
-	request, _ := http.NewRequest("GET", "/device-definitions/"+s.deviceDefId+"/integrations", nil)
+	request, _ := http.NewRequest("GET", "/device-definitions/"+s.deviceDefID+"/integrations", nil)
 	response, _ := s.app.Test(request)
 	body, _ := ioutil.ReadAll(response.Body)
 	// assert
@@ -176,7 +177,7 @@ func (s *DevicesControllerTestSuite) TestGetAll() {
 		assert.Equal(s.T(), "Testla", mmy[0].Make)
 		assert.Equal(s.T(), "MODEL Y", mmy[0].Models[0].Model)
 		assert.Equal(s.T(), int16(2020), mmy[0].Models[0].Years[0].Year)
-		assert.Equal(s.T(), s.deviceDefId, mmy[0].Models[0].Years[0].DeviceDefinitionID)
+		assert.Equal(s.T(), s.deviceDefID, mmy[0].Models[0].Years[0].DeviceDefinitionID)
 	}
 }
 

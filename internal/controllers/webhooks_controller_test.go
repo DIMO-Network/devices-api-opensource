@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
@@ -13,149 +14,177 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
+	"github.com/testcontainers/testcontainers-go"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
-func TestWebhooksController_ProcessCommand(t *testing.T) {
-	ctx := context.Background()
-	pdb := test.GetDBConnection(ctx)
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
+type WebHooksControllerTestSuite struct {
+	suite.Suite
+	pdb       database.DbStore
+	container testcontainers.Container
+	ctx       context.Context
+	mockCtrl  *gomock.Controller
+	app       *fiber.App
+}
+
+// SetupSuite starts container db
+func (s *WebHooksControllerTestSuite) SetupSuite() {
+	s.ctx = context.Background()
+	s.pdb, s.container = test.StartContainerDatabase(s.ctx, s.T(), migrationsDirRelPath)
+	s.mockCtrl = gomock.NewController(s.T())
 
 	token := "BobbyHarry"
-	autopiAPISvc := services.NewAutoPiAPIService(&config.Settings{AutoPiAPIToken: "xxx"}, pdb.DBS)
-	c := NewWebhooksController(&config.Settings{AutoPiAPIToken: token}, pdb.DBS, test.Logger(), autopiAPISvc)
+	autopiAPISvc := services.NewAutoPiAPIService(&config.Settings{AutoPiAPIToken: "xxx"}, s.pdb.DBS)
+	c := NewWebhooksController(&config.Settings{AutoPiAPIToken: token}, s.pdb.DBS, test.Logger(), autopiAPISvc)
 	app := fiber.New()
 	app.Post(services.AutoPiWebhookPath, c.ProcessCommand)
+	s.app = app
+}
 
-	t.Run("POST - webhook request 401 with invalid signature", func(t *testing.T) {
-		webhookJSON := `{
+//TearDownTest after each test truncate tables
+func (s *WebHooksControllerTestSuite) TearDownTest() {
+	test.TruncateTables(s.pdb.DBS().Writer.DB, s.T())
+}
+
+//TearDownSuite cleanup at end by terminating container
+func (s *WebHooksControllerTestSuite) TearDownSuite() {
+	fmt.Printf("shutting down postgres at with session: %s \n", s.container.SessionID())
+	if err := s.container.Terminate(s.ctx); err != nil {
+		s.T().Fatal(err)
+	}
+	s.mockCtrl.Finish()
+}
+
+//Test Runner
+func TestWebHooksControllerTestSuite(t *testing.T) {
+	suite.Run(t, new(WebHooksControllerTestSuite))
+}
+
+/* Actual Tests */
+func (s *WebHooksControllerTestSuite) TestPostWebhook401InvalidSignature() {
+	webhookJSON := `{
 			"jid": "20220414153005426360",
     		"state": "COMMAND_EXECUTED",
     		"success": true,
     		"device_id": "26b1f359-1799-4a21-8e4e-1ad7607fe5af"
 			}`
 
-		request := test.BuildRequest("POST", services.AutoPiWebhookPath, webhookJSON)
-		request.Header.Set("X-Request-Signature", "") // copy this from replit python generated value
-		response, _ := app.Test(request)
-		// assert
-		assert.Equal(t, 401, response.StatusCode)
-	})
-	t.Run("POST - webhook request 400 bad payload", func(t *testing.T) {
-		webhookJSON := `{"success": true,"device_id": "26b1f359-1799-4a21-8e4e-1ad7607fe5af"}`
-		request := test.BuildRequest("POST", services.AutoPiWebhookPath, webhookJSON)
-		request.Header.Set("X-Request-Signature", "ade42bd1085401a581722e2003e995adea80ffd81dfb42877b185abc48ddc3fd") // copy this from replit python generated value
-		response, _ := app.Test(request)
-		// assert
-		assert.Equal(t, 400, response.StatusCode)
-	})
-	t.Run("POST - webhook request sync command", func(t *testing.T) {
-		// arrange
-		testUserID := ksuid.New().String()
-		autoPiDeviceID := "123123"
-		autoPiTemplateID := 987
-		autoPiJobID := "AD111"
-		dm := test.SetupCreateMake(t, "Testla", pdb)
-		dd := test.SetupCreateDeviceDefinition(t, dm, "Model X", 2022, pdb)
-		integ := test.SetupCreateAutoPiIntegration(t, autoPiTemplateID, nil, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
-		test.SetupCreateDeviceIntegration(t, dd, integ, pdb)
-		// create user device api integration
-		_ = test.SetupCreateAutoPiJob(t, autoPiJobID, autoPiDeviceID, "state.sls pending", ud.ID, pdb)
+	request := test.BuildRequest("POST", services.AutoPiWebhookPath, webhookJSON)
+	request.Header.Set("X-Request-Signature", "") // copy this from replit python generated value
+	response, _ := s.app.Test(request)
+	// assert
+	assert.Equal(s.T(), 401, response.StatusCode)
+}
+func (s *WebHooksControllerTestSuite) TestPostWebhook400BadPayload() {
+	webhookJSON := `{"success": true,"device_id": "26b1f359-1799-4a21-8e4e-1ad7607fe5af"}`
+	request := test.BuildRequest("POST", services.AutoPiWebhookPath, webhookJSON)
+	request.Header.Set("X-Request-Signature", "ade42bd1085401a581722e2003e995adea80ffd81dfb42877b185abc48ddc3fd") // copy this from replit python generated value
+	response, _ := s.app.Test(request)
+	// assert
+	assert.Equal(s.T(), 400, response.StatusCode)
+}
+func (s *WebHooksControllerTestSuite) TestPostWebhookSyncCommand() {
+	// arrange
+	testUserID := ksuid.New().String()
+	autoPiDeviceID := "123123"
+	autoPiTemplateID := 987
+	autoPiJobID := "AD111"
+	dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
+	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model X", 2022, s.pdb)
+	integ := test.SetupCreateAutoPiIntegration(s.T(), autoPiTemplateID, nil, s.pdb)
+	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
+	test.SetupCreateDeviceIntegration(s.T(), dd, integ, s.pdb)
+	// create user device api integration
+	_ = test.SetupCreateAutoPiJob(s.T(), autoPiJobID, autoPiDeviceID, "state.sls pending", ud.ID, s.pdb)
 
-		udiai := models.UserDeviceAPIIntegration{
-			UserDeviceID:  ud.ID,
-			IntegrationID: integ.ID,
-			Status:        models.UserDeviceAPIIntegrationStatusPending,
-			ExternalID:    null.StringFrom(autoPiDeviceID),
-		}
-		err := udiai.Insert(ctx, pdb.DBS().Writer, boil.Infer())
-		assert.NoError(t, err)
+	udiai := models.UserDeviceAPIIntegration{
+		UserDeviceID:  ud.ID,
+		IntegrationID: integ.ID,
+		Status:        models.UserDeviceAPIIntegrationStatusPending,
+		ExternalID:    null.StringFrom(autoPiDeviceID),
+	}
+	err := udiai.Insert(s.ctx, s.pdb.DBS().Writer, boil.Infer())
+	assert.NoError(s.T(), err)
 
-		// act
-		webhookJSON := fmt.Sprintf(`{"jid": "%s","state": "COMMAND_EXECUTED","success": true,"device_id": "%s"}`, autoPiJobID, autoPiDeviceID)
+	// act
+	webhookJSON := fmt.Sprintf(`{"jid": "%s","state": "COMMAND_EXECUTED","success": true,"device_id": "%s"}`, autoPiJobID, autoPiDeviceID)
 
-		request := test.BuildRequest("POST", services.AutoPiWebhookPath, webhookJSON)
-		// signature generated by python per example code from autopi (for above payload)
-		request.Header.Set("X-Request-Signature", "93c5e5e140fc132f7871f890790d0aa83509a9ba077a4a5fe9f6595f38dd470c")
-		response, _ := app.Test(request)
-		// assert
-		assert.Equal(t, 204, response.StatusCode)
-		// check the database has the expected change in status, and `auto_pi_sync_command_state` in metadata
-		updatedUdiai, err := models.UserDeviceAPIIntegrations(
-			models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(ud.ID),
-			models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integ.ID)).
-			One(ctx, pdb.DBS().Writer)
-		assert.NoError(t, err)
+	request := test.BuildRequest("POST", services.AutoPiWebhookPath, webhookJSON)
+	// signature generated by python per example code from autopi (for above payload)
+	request.Header.Set("X-Request-Signature", "93c5e5e140fc132f7871f890790d0aa83509a9ba077a4a5fe9f6595f38dd470c")
+	response, _ := s.app.Test(request)
+	// assert
+	assert.Equal(s.T(), 204, response.StatusCode)
+	// check the database has the expected change in status, and `auto_pi_sync_command_state` in metadata
+	updatedUdiai, err := models.UserDeviceAPIIntegrations(
+		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(ud.ID),
+		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integ.ID)).
+		One(s.ctx, s.pdb.DBS().Writer)
+	assert.NoError(s.T(), err)
 
-		assert.Equal(t, models.UserDeviceAPIIntegrationStatusPendingFirstData, updatedUdiai.Status)
+	assert.Equal(s.T(), models.UserDeviceAPIIntegrationStatusPendingFirstData, updatedUdiai.Status)
 
-		metadata := new(services.UserDeviceAPIIntegrationsMetadata)
-		err = updatedUdiai.Metadata.Unmarshal(metadata)
-		assert.NoError(t, err)
-		assert.Equal(t, services.TemplateConfirmed.String(), *metadata.AutoPiSubStatus)
+	metadata := new(services.UserDeviceAPIIntegrationsMetadata)
+	err = updatedUdiai.Metadata.Unmarshal(metadata)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), services.TemplateConfirmed.String(), *metadata.AutoPiSubStatus)
 
-		job, err := models.AutopiJobs(models.AutopiJobWhere.ID.EQ(autoPiJobID)).One(ctx, pdb.DBS().Reader)
-		assert.NoError(t, err)
+	job, err := models.AutopiJobs(models.AutopiJobWhere.ID.EQ(autoPiJobID)).One(s.ctx, s.pdb.DBS().Reader)
+	assert.NoError(s.T(), err)
 
-		assert.NotNilf(t, job, "autopi job should not be nil")
-		assert.Equal(t, "COMMAND_EXECUTED", job.State)
-		assert.Equal(t, autoPiJobID, job.ID)
-		assert.NotEqual(t, job.CommandLastUpdated.Time.String(), job.CreatedAt.String(),
-			"expected updated job to have later time than when originally created")
-		// teardown
-		test.TruncateTables(pdb.DBS().Writer.DB, t)
-	})
-	t.Run("POST - webhook request for non sync raw command", func(t *testing.T) {
-		// arrange
-		testUserID := ksuid.New().String()
-		autoPiDeviceID := "123123"
-		autoPiTemplateID := 987
-		autoPiJobID := "AD111"
-		dm := test.SetupCreateMake(t, "Testla", pdb)
-		dd := test.SetupCreateDeviceDefinition(t, dm, "Model X", 2022, pdb)
-		integ := test.SetupCreateAutoPiIntegration(t, autoPiTemplateID, nil, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
-		test.SetupCreateDeviceIntegration(t, dd, integ, pdb)
-		// create user device api integration
-		_ = test.SetupCreateAutoPiJob(t, autoPiJobID, autoPiDeviceID, "some raw command", ud.ID, pdb)
+	assert.NotNilf(s.T(), job, "autopi job should not be nil")
+	assert.Equal(s.T(), "COMMAND_EXECUTED", job.State)
+	assert.Equal(s.T(), autoPiJobID, job.ID)
+	assert.NotEqual(s.T(), job.CommandLastUpdated.Time.String(), job.CreatedAt.String(),
+		"expected updated job to have later time than when originally created")
+}
+func (s *WebHooksControllerTestSuite) TestPostWebhookRawCommand() {
+	// arrange
+	testUserID := ksuid.New().String()
+	autoPiDeviceID := "123123"
+	autoPiTemplateID := 987
+	autoPiJobID := "AD111"
+	dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
+	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model X", 2022, s.pdb)
+	integ := test.SetupCreateAutoPiIntegration(s.T(), autoPiTemplateID, nil, s.pdb)
+	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
+	test.SetupCreateDeviceIntegration(s.T(), dd, integ, s.pdb)
+	// create user device api integration
+	_ = test.SetupCreateAutoPiJob(s.T(), autoPiJobID, autoPiDeviceID, "some raw command", ud.ID, s.pdb)
 
-		udiai := models.UserDeviceAPIIntegration{
-			UserDeviceID:  ud.ID,
-			IntegrationID: integ.ID,
-			Status:        models.UserDeviceAPIIntegrationStatusPending, // assert this does not get changed since just raw command
-			ExternalID:    null.StringFrom(autoPiDeviceID),
-		}
-		err := udiai.Insert(ctx, pdb.DBS().Writer, boil.Infer())
-		assert.NoError(t, err)
+	udiai := models.UserDeviceAPIIntegration{
+		UserDeviceID:  ud.ID,
+		IntegrationID: integ.ID,
+		Status:        models.UserDeviceAPIIntegrationStatusPending, // assert this does not get changed since just raw command
+		ExternalID:    null.StringFrom(autoPiDeviceID),
+	}
+	err := udiai.Insert(s.ctx, s.pdb.DBS().Writer, boil.Infer())
+	assert.NoError(s.T(), err)
 
-		// act
-		webhookJSON := fmt.Sprintf(`{"jid": "%s","state": "COMMAND_EXECUTED","success": true,"device_id": "%s"}`, autoPiJobID, autoPiDeviceID)
+	// act
+	webhookJSON := fmt.Sprintf(`{"jid": "%s","state": "COMMAND_EXECUTED","success": true,"device_id": "%s"}`, autoPiJobID, autoPiDeviceID)
 
-		request := test.BuildRequest("POST", services.AutoPiWebhookPath, webhookJSON)
-		// signature generated by python per example code from autopi (for above payload)
-		request.Header.Set("X-Request-Signature", "93c5e5e140fc132f7871f890790d0aa83509a9ba077a4a5fe9f6595f38dd470c")
-		response, _ := app.Test(request)
-		// assert
-		assert.Equal(t, 204, response.StatusCode)
-		// check the database has the expected change in status, and `auto_pi_sync_command_state` in metadata
-		updatedUdiai, err := models.UserDeviceAPIIntegrations(
-			models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(ud.ID),
-			models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integ.ID)).
-			One(ctx, pdb.DBS().Writer)
-		assert.NoError(t, err)
+	request := test.BuildRequest("POST", services.AutoPiWebhookPath, webhookJSON)
+	// signature generated by python per example code from autopi (for above payload)
+	request.Header.Set("X-Request-Signature", "93c5e5e140fc132f7871f890790d0aa83509a9ba077a4a5fe9f6595f38dd470c")
+	response, _ := s.app.Test(request)
+	// assert
+	assert.Equal(s.T(), 204, response.StatusCode)
+	// check the database has the expected change in status, and `auto_pi_sync_command_state` in metadata
+	updatedUdiai, err := models.UserDeviceAPIIntegrations(
+		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(ud.ID),
+		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integ.ID)).
+		One(s.ctx, s.pdb.DBS().Writer)
+	assert.NoError(s.T(), err)
 
-		assert.Equal(t, models.UserDeviceAPIIntegrationStatusPending, updatedUdiai.Status) // this should not change for regular raw commands
+	assert.Equal(s.T(), models.UserDeviceAPIIntegrationStatusPending, updatedUdiai.Status) // this should not change for regular raw commands
 
-		job, err := models.AutopiJobs(models.AutopiJobWhere.ID.EQ(autoPiJobID)).One(ctx, pdb.DBS().Reader)
-		assert.NoError(t, err)
-		assert.Equal(t, "COMMAND_EXECUTED", job.State)
-		assert.Equal(t, autoPiJobID, job.ID)
-		assert.NotEqual(t, job.CommandLastUpdated.Time.String(), udiai.UpdatedAt.String(),
-			"expected updated job to have later time than original integration")
-		// teardown
-		test.TruncateTables(pdb.DBS().Writer.DB, t)
-	})
+	job, err := models.AutopiJobs(models.AutopiJobWhere.ID.EQ(autoPiJobID)).One(s.ctx, s.pdb.DBS().Reader)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), "COMMAND_EXECUTED", job.State)
+	assert.Equal(s.T(), autoPiJobID, job.ID)
+	assert.NotEqual(s.T(), job.CommandLastUpdated.Time.String(), udiai.UpdatedAt.String(),
+		"expected updated job to have later time than original integration")
 }

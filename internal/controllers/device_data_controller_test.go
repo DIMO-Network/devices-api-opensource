@@ -4,6 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/DIMO-Network/devices-api/internal/config"
 	mock_services "github.com/DIMO-Network/devices-api/internal/services/mocks"
 	"github.com/DIMO-Network/devices-api/internal/test"
@@ -14,10 +19,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
-	"io/ioutil"
-	"os"
-	"testing"
-	"time"
 )
 
 const migrationsDirRelPath = "../../migrations"
