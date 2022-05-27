@@ -19,6 +19,7 @@ import (
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+	"golang.org/x/mod/semver"
 )
 
 // GetUserDeviceIntegration godoc
@@ -258,7 +259,7 @@ func (udc *UserDevicesController) GetAutoPiCommandStatus(c *fiber.Ctx) error {
 // @Tags 		integrations
 // @Produce     json
 // @Param       unitID        path  string  true  "autopi unit id"
-// @Success     200
+// @Success     200 {object} controllers.AutoPiDeviceInfo
 // @Security     BearerAuth
 // @Router 		/autopi/unit/:unitID [get]
 func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
@@ -284,16 +285,19 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"isUpdated":         unit.IsUpdated,
-		"deviceId":          unit.ID,
-		"unitId":            unit.UnitID,
-		"dockerReleases":    unit.DockerReleases,
-		"hwRevision":        unit.HwRevision,
-		"template":          unit.Template,
-		"lastCommunication": unit.LastCommunication,
-		"releaseVersion":    unit.Release.Version,
-	})
+	svc := semver.Compare("v"+unit.Release.Version, "v1.29.1") // correct semver has leading v
+	adi := AutoPiDeviceInfo{
+		IsUpdated:         unit.IsUpdated,
+		DeviceID:          unit.ID,
+		UnitID:            unit.UnitID,
+		DockerReleases:    unit.DockerReleases,
+		HwRevision:        unit.HwRevision,
+		Template:          unit.Template,
+		LastCommunication: unit.LastCommunication,
+		ReleaseVersion:    unit.Release.Version,
+		ShouldUpdate:      svc < 0,
+	}
+	return c.JSON(adi)
 }
 
 // GetIsAutoPiOnline godoc
@@ -558,7 +562,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "unable to parse body json")
 	}
-	subLogger := logger.With().Str("autopi unitID", reqBody.ExternalID).Logger()
+	subLogger := logger.With().Str("autopi_unit_id", reqBody.ExternalID).Logger()
 
 	// check if an existing integration exists for the unitID
 	unitExists, err := models.UserDeviceAPIIntegrations(qm.Where("metadata ->> 'auto_pi_unit_id' = $1", reqBody.ExternalID),
@@ -568,7 +572,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		return err
 	}
 	if unitExists {
-		subLogger.Warn().Str("autoPiUnitID", reqBody.ExternalID).Msg("user tried pairing an already paired unitID")
+		subLogger.Warn().Str("autopi_unit_id", reqBody.ExternalID).Msg("user tried pairing an already paired unitID")
 		return fiber.NewError(fiber.StatusBadRequest, "autopi unitID already paired")
 	}
 
@@ -578,8 +582,8 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		return err
 	}
 	subLogger = subLogger.With().
-		Str("autopi deviceID", autoPiDevice.ID).
-		Str("original templateID", strconv.Itoa(autoPiDevice.Template)).Logger()
+		Str("autopi_deviceId", autoPiDevice.ID).
+		Str("original_templateId", strconv.Itoa(autoPiDevice.Template)).Logger()
 
 	// validate necessary conditions:
 	//- integration metadata contains AutoPiDefaultTemplateID
@@ -608,7 +612,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 			}
 		}
 	}
-	subLogger = subLogger.With().Str("templateID to apply", strconv.Itoa(templateID)).Logger()
+	subLogger = subLogger.With().Str("template_id_to_apply", strconv.Itoa(templateID)).Logger()
 	// creat the api int record, start filling it in
 	udMetadata := services.UserDeviceAPIIntegrationsMetadata{
 		AutoPiUnitID:          &autoPiDevice.UnitID,
@@ -1165,4 +1169,17 @@ type GetUserDeviceIntegrationResponse struct {
 
 type AutoPiCommandRequest struct {
 	Command string `json:"command"`
+}
+
+// AutoPiDeviceInfo is used to get the info about a unit
+type AutoPiDeviceInfo struct {
+	IsUpdated         bool      `json:"isUpdated"`
+	DeviceID          string    `json:"deviceId"`
+	UnitID            string    `json:"unitId"`
+	DockerReleases    []int     `json:"dockerReleases"`
+	HwRevision        string    `json:"hwRevision"`
+	Template          int       `json:"template"`
+	LastCommunication time.Time `json:"lastCommunication"`
+	ReleaseVersion    string    `json:"releaseVersion"`
+	ShouldUpdate      bool      `json:"shouldUpdate"`
 }

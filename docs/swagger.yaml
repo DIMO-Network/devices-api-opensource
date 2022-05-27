@@ -5,6 +5,29 @@ definitions:
       command:
         type: string
     type: object
+  github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo:
+    properties:
+      deviceId:
+        type: string
+      dockerReleases:
+        items:
+          type: integer
+        type: array
+      hwRevision:
+        type: string
+      isUpdated:
+        type: boolean
+      lastCommunication:
+        type: string
+      releaseVersion:
+        type: string
+      shouldUpdate:
+        type: boolean
+      template:
+        type: integer
+      unitId:
+        type: string
+    type: object
   github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence:
     properties:
       h3Indexes:
@@ -78,6 +101,9 @@ definitions:
         type: string
       recordUpdatedAt:
         type: string
+      soc:
+        description: 'todo: change json to match after update frontend'
+        type: number
       tirePressure:
         $ref: '#/definitions/smartcar.TirePressure'
     type: object
@@ -230,6 +256,29 @@ definitions:
       command:
         type: string
     type: object
+  internal_controllers.AutoPiDeviceInfo:
+    properties:
+      deviceId:
+        type: string
+      dockerReleases:
+        items:
+          type: integer
+        type: array
+      hwRevision:
+        type: string
+      isUpdated:
+        type: boolean
+      lastCommunication:
+        type: string
+      releaseVersion:
+        type: string
+      shouldUpdate:
+        type: boolean
+      template:
+        type: integer
+      unitId:
+        type: string
+    type: object
   internal_controllers.CreateGeofence:
     properties:
       h3Indexes:
@@ -303,6 +352,9 @@ definitions:
         type: string
       recordUpdatedAt:
         type: string
+      soc:
+        description: 'todo: change json to match after update frontend'
+        type: number
       tirePressure:
         $ref: '#/definitions/smartcar.TirePressure'
     type: object
@@ -650,7 +702,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: ""
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_controllers.AutoPiDeviceInfo'
       security:
       - BearerAuth: []
       tags:
@@ -723,9 +777,10 @@ paths:
             $ref: '#/definitions/services.DeviceDefinition'
       tags:
       - device-definitions
-  /device-definitions/{id}:
+  /device-definitions/:id:
     get:
-      description: gets a specific device definition by id
+      description: gets a specific device definition by id, adds autopi integration
+        on the fly if does not have it and year > cutoff
       parameters:
       - description: device definition id, KSUID format
         in: path
@@ -772,7 +827,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot'
+              $ref: '#/definitions/internal_controllers.DeviceMMYRoot'
             type: array
       tags:
       - device-definitions
@@ -896,14 +951,14 @@ paths:
         name: user_device
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDevice'
+          $ref: '#/definitions/internal_controllers.RegisterUserDevice'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDeviceResponse'
+            $ref: '#/definitions/internal_controllers.RegisterUserDeviceResponse'
       security:
       - ApiKeyAuth: []
       - BearerAuth: []
@@ -913,8 +968,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Submit a raw autopi command to unit. Device must be registered
-        with autopi before this can be used
+      description: Closed off in prod. Submit a raw autopi command to unit. Device
+        must be registered with autopi before this can be used
       parameters:
       - description: raw autopi command
         in: body
@@ -1013,7 +1068,7 @@ paths:
         name: name
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateCountryCodeReq'
+          $ref: '#/definitions/internal_controllers.UpdateCountryCodeReq'
       produces:
       - application/json
       responses:
@@ -1055,7 +1110,7 @@ paths:
         name: name
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateNameReq'
+          $ref: '#/definitions/internal_controllers.UpdateNameReq'
       - description: user id
         in: path
         name: user_device_id
@@ -1103,7 +1158,7 @@ paths:
         name: vin
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateVINReq'
+          $ref: '#/definitions/internal_controllers.UpdateVINReq'
       - description: user id
         in: path
         name: userDeviceID
@@ -1128,7 +1183,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceFull'
+              $ref: '#/definitions/internal_controllers.UserDeviceFull'
             type: array
       security:
       - BearerAuth: []

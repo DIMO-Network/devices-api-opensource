@@ -582,7 +582,7 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI() {
 		LastCommunication: time.Now(),
 		Release: struct {
 			Version string `json:"version"`
-		}(struct{ Version string }{Version: "13.1"}),
+		}(struct{ Version string }{Version: "1.28.5"}),
 	}, nil)
 	// act
 	request := test.BuildRequest("GET", "/autopi/unit/1234", "")
@@ -596,7 +596,8 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI() {
 	assert.Equal(s.T(), "1234", gjson.GetBytes(body, "unitId").String())
 	assert.Equal(s.T(), "4321", gjson.GetBytes(body, "deviceId").String())
 	assert.Equal(s.T(), "1.23", gjson.GetBytes(body, "hwRevision").String())
-	assert.Equal(s.T(), "13.1", gjson.GetBytes(body, "releaseVersion").String())
+	assert.Equal(s.T(), "1.28.5", gjson.GetBytes(body, "releaseVersion").String())
+	assert.Equal(s.T(), true, gjson.GetBytes(body, "shouldUpdate").Bool())
 }
 func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoMatchUDAI() {
 	// arrange

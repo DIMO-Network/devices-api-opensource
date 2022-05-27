@@ -36,6 +36,7 @@ require (
 	github.com/volatiletech/sqlboiler/v4 v4.8.6
 	github.com/volatiletech/strmangle v0.0.1
 	go.uber.org/automaxprocs v1.4.0
+	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3
 )
 
 require (

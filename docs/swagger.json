@@ -65,7 +65,10 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.AutoPiDeviceInfo"
+                        }
                     }
                 }
             }
@@ -175,31 +178,9 @@
                 }
             }
         },
-        "/device-definitions/all": {
+        "/device-definitions/:id": {
             "get": {
-                "description": "returns a json tree of Makes, models, and years",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "device-definitions"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/device-definitions/{id}": {
-            "get": {
-                "description": "gets a specific device definition by id",
+                "description": "gets a specific device definition by id, adds autopi integration on the fly if does not have it and year \u003e cutoff",
                 "produces": [
                     "application/json"
                 ],
@@ -220,6 +201,28 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/services.DeviceDefinition"
+                        }
+                    }
+                }
+            }
+        },
+        "/device-definitions/all": {
+            "get": {
+                "description": "returns a json tree of Makes, models, and years",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device-definitions"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/internal_controllers.DeviceMMYRoot"
+                            }
                         }
                     }
                 }
@@ -448,7 +451,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDevice"
+                            "$ref": "#/definitions/internal_controllers.RegisterUserDevice"
                         }
                     }
                 ],
@@ -456,7 +459,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDeviceResponse"
+                            "$ref": "#/definitions/internal_controllers.RegisterUserDeviceResponse"
                         }
                     }
                 }
@@ -469,7 +472,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Submit a raw autopi command to unit. Device must be registered with autopi before this can be used",
+                "description": "Closed off in prod. Submit a raw autopi command to unit. Device must be registered with autopi before this can be used",
                 "consumes": [
                     "application/json"
                 ],
@@ -579,7 +582,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceFull"
+                                "$ref": "#/definitions/internal_controllers.UserDeviceFull"
                             }
                         }
                     }
@@ -667,7 +670,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateCountryCodeReq"
+                            "$ref": "#/definitions/internal_controllers.UpdateCountryCodeReq"
                         }
                     }
                 ],
@@ -739,7 +742,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateNameReq"
+                            "$ref": "#/definitions/internal_controllers.UpdateNameReq"
                         }
                     },
                     {
@@ -814,7 +817,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateVINReq"
+                            "$ref": "#/definitions/internal_controllers.UpdateVINReq"
                         }
                     },
                     {
@@ -984,6 +987,41 @@
                 }
             }
         },
+        "github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo": {
+            "type": "object",
+            "properties": {
+                "deviceId": {
+                    "type": "string"
+                },
+                "dockerReleases": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "hwRevision": {
+                    "type": "string"
+                },
+                "isUpdated": {
+                    "type": "boolean"
+                },
+                "lastCommunication": {
+                    "type": "string"
+                },
+                "releaseVersion": {
+                    "type": "string"
+                },
+                "shouldUpdate": {
+                    "type": "boolean"
+                },
+                "template": {
+                    "type": "integer"
+                },
+                "unitId": {
+                    "type": "string"
+                }
+            }
+        },
         "github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence": {
             "type": "object",
             "properties": {
@@ -1090,6 +1128,10 @@
                 },
                 "recordUpdatedAt": {
                     "type": "string"
+                },
+                "soc": {
+                    "description": "todo: change json to match after update frontend",
+                    "type": "number"
                 },
                 "tirePressure": {
                     "$ref": "#/definitions/smartcar.TirePressure"
@@ -1315,6 +1357,41 @@
                 }
             }
         },
+        "internal_controllers.AutoPiDeviceInfo": {
+            "type": "object",
+            "properties": {
+                "deviceId": {
+                    "type": "string"
+                },
+                "dockerReleases": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "hwRevision": {
+                    "type": "string"
+                },
+                "isUpdated": {
+                    "type": "boolean"
+                },
+                "lastCommunication": {
+                    "type": "string"
+                },
+                "releaseVersion": {
+                    "type": "string"
+                },
+                "shouldUpdate": {
+                    "type": "boolean"
+                },
+                "template": {
+                    "type": "integer"
+                },
+                "unitId": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_controllers.CreateGeofence": {
             "type": "object",
             "properties": {
@@ -1421,6 +1498,10 @@
                 },
                 "recordUpdatedAt": {
                     "type": "string"
+                },
+                "soc": {
+                    "description": "todo: change json to match after update frontend",
+                    "type": "number"
                 },
                 "tirePressure": {
                     "$ref": "#/definitions/smartcar.TirePressure"
