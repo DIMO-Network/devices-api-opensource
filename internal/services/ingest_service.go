@@ -132,7 +132,7 @@ func (i *IngestService) processEvent(event *DeviceStatusEvent) error {
 		newOdometer = null.Float64From(o)
 	}
 	// lookup right data for integration
-	datum := new(models.UserDeviceDatum)
+	var datum models.UserDeviceDatum
 	for _, deviceDatum := range device.R.UserDeviceData {
 		if deviceDatum.IntegrationID == integration.ID {
 			datum = deviceDatum
