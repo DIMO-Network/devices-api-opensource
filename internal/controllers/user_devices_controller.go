@@ -445,6 +445,11 @@ func (udc *UserDevicesController) UpdateName(c *fiber.Ctx) error {
 		return errorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
 
+	if name.Name != nil && len(*name.Name) > 16 {
+		// TODO(elffjs): Do we mean runes? That is, do we worry about unicode?
+		return fiber.NewError(fiber.StatusBadRequest, "Name field is limited to 16 characters.")
+	}
+
 	userDevice.Name = null.StringFromPtr(name.Name)
 	_, err = userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer())
 	if err != nil {
