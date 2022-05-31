@@ -730,6 +730,32 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	}
 	subLogger.Info().Msg("succesfully registered autoPi integration. Now waiting on webhook for successful command.")
 
+	err = udc.eventService.Emit(&services.Event{
+		Type:    "com.dimo.zone.device.integration.create",
+		Source:  "devices-api",
+		Subject: ud.ID,
+		Data: services.UserDeviceIntegrationEvent{
+			Timestamp: time.Now(),
+			UserID:    ud.UserID,
+			Device: services.UserDeviceEventDevice{
+				ID:    ud.ID,
+				Make:  ud.R.DeviceDefinition.R.DeviceMake.Name,
+				Model: ud.R.DeviceDefinition.Model,
+				Year:  int(ud.R.DeviceDefinition.Year),
+				VIN:   ud.VinIdentifier.String,
+			},
+			Integration: services.UserDeviceEventIntegration{
+				ID:     integration.ID,
+				Type:   integration.Type,
+				Style:  integration.Style,
+				Vendor: integration.Vendor,
+			},
+		},
+	})
+	if err != nil {
+		logger.Err(err).Msg("Failed to emit integration registration event.")
+	}
+
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
