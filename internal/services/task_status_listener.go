@@ -13,11 +13,17 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
 type TaskStatusListener struct {
 	db  func() *database.DBReaderWriter
 	log *zerolog.Logger
+	cio CIOClient
+}
+
+type CIOClient interface {
+	Track(customerID string, eventName string, data map[string]interface{}) error
 }
 
 type TaskStatusCloudEvent struct {
@@ -32,8 +38,8 @@ type TaskStatusData struct {
 	Status        string `json:"status"`
 }
 
-func NewTaskStatusListener(db func() *database.DBReaderWriter, log *zerolog.Logger) *TaskStatusListener {
-	return &TaskStatusListener{db: db, log: log}
+func NewTaskStatusListener(db func() *database.DBReaderWriter, log *zerolog.Logger, cio CIOClient) *TaskStatusListener {
+	return &TaskStatusListener{db: db, log: log, cio: cio}
 }
 
 func (i *TaskStatusListener) ProcessTaskUpdates(messages <-chan *message.Message) {
@@ -81,10 +87,23 @@ func (i *TaskStatusListener) processEvent(event *TaskStatusCloudEvent) error {
 		return fmt.Errorf("unexpected task status %s", event.Data.Status)
 	}
 
-	integ, err := models.FindUserDeviceAPIIntegration(ctx, i.db().Writer, userDeviceID, integrationID)
+	where := models.UserDeviceAPIIntegrationWhere
+	integ, err := models.UserDeviceAPIIntegrations(
+		where.UserDeviceID.EQ(userDeviceID),
+		where.IntegrationID.EQ(integrationID),
+		qm.Load(
+			qm.Rels(
+				models.UserDeviceAPIIntegrationRels.UserDevice,
+				models.UserDeviceRels.DeviceDefinition,
+				models.DeviceDefinitionRels.DeviceMake,
+			),
+		), // Only need this for CustomerIO.
+	).One(ctx, i.db().Writer)
 	if err != nil {
 		return fmt.Errorf("couldn't find device integration for device %s and integration %s: %w", userDeviceID, integrationID, err)
 	}
+
+	userDevice := integ.R.UserDevice
 
 	i.log.Info().Str("userDeviceId", userDeviceID).Msg("Setting Smartcar integration to failed because credentials have changed.")
 
@@ -93,10 +112,22 @@ func (i *TaskStatusListener) processEvent(event *TaskStatusCloudEvent) error {
 		// TODO: Delete credentials entry?
 		integ.TaskID = null.String{}
 	}
-	// Using this instead of the provided "AuthenticationFailure" because the frontend doesn't support it yet.
 	integ.Status = models.UserDeviceAPIIntegrationStatusAuthenticationFailure
 	if _, err := integ.Update(context.Background(), i.db().Writer, boil.Infer()); err != nil {
 		return err
+	}
+
+	dd := userDevice.R.DeviceDefinition
+	data := map[string]interface{}{
+		"deviceId":     userDeviceID,
+		"make_name":    dd.R.DeviceMake.Name,
+		"model_name":   dd.Model,
+		"model_year":   dd.Year,
+		"country_code": userDevice.CountryCode.String,
+	}
+
+	if err := i.cio.Track(userDevice.UserID, "smartcar.Reauth.Required", data); err != nil {
+		i.log.Err(err).Str("userId", userDevice.UserID).Str("userDeviceId", userDeviceID).Msg("Failed to emit reauthentication Customer.io event.")
 	}
 
 	return nil

@@ -28,6 +28,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kms"
+	"github.com/customerio/go-customerio/v3"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -497,7 +498,12 @@ func startTaskStatusConsumer(logger zerolog.Logger, settings *config.Settings, p
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Could not start credential update consumer")
 	}
-	taskStatusService := services.NewTaskStatusListener(pdb.DBS, &logger)
+	cio := customerio.NewTrackClient(
+		settings.CIOSiteID,
+		settings.CIOApiKey,
+		customerio.WithRegion(customerio.RegionUS),
+	)
+	taskStatusService := services.NewTaskStatusListener(pdb.DBS, &logger, cio)
 	consumer.Start(context.Background(), taskStatusService.ProcessTaskUpdates)
 
 	logger.Info().Msg("Task status consumer started")

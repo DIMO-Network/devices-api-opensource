@@ -13,6 +13,21 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
+type fakeCIOEvent struct {
+	CustomerID string
+	EventName  string
+	Data       map[string]interface{}
+}
+
+type fakeCIO struct {
+	Events []fakeCIOEvent
+}
+
+func (c *fakeCIO) Track(customerID string, eventName string, data map[string]interface{}) error {
+	c.Events = append(c.Events, fakeCIOEvent{customerID, eventName, data})
+	return nil
+}
+
 func TestTaskStatusListener(t *testing.T) {
 	logger := zerolog.New(os.Stdout).With().Timestamp().Str("app", "devices-api").Logger()
 
@@ -24,7 +39,8 @@ func TestTaskStatusListener(t *testing.T) {
 		}
 	}()
 
-	ingest := NewTaskStatusListener(pdb.DBS, &logger)
+	cio := new(fakeCIO)
+	ingest := NewTaskStatusListener(pdb.DBS, &logger, cio)
 
 	scIntegration := test.SetupCreateSmartCarIntegration(t, pdb)
 	dm := test.SetupCreateMake(t, "Tesla", pdb)
@@ -62,5 +78,19 @@ func TestTaskStatusListener(t *testing.T) {
 		t.Fatalf("Couldn't reload UDAI: %v", err)
 	}
 
-	assert.Equal(t, models.UserDeviceAPIIntegrationStatusAuthenticationFailure, udai.Status, "New status should be Failed.")
+	assert.Equal(t, models.UserDeviceAPIIntegrationStatusAuthenticationFailure, udai.Status, "New status should be AuthenticationFailure.")
+
+	assert.Len(t, cio.Events, 1, "Should have emitted one CIO event.")
+
+	event := cio.Events[0]
+
+	assert.Equal(t, "dylan", event.CustomerID)
+	assert.Equal(t, "smartcar.Reauth.Required", event.EventName)
+	assert.Equal(t, map[string]any{
+		"deviceId":     ud.ID,
+		"make_name":    "Tesla",
+		"model_name":   "Model Y",
+		"model_year":   int16(2021),
+		"country_code": "USA",
+	}, event.Data)
 }

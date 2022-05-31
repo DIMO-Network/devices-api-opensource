@@ -46,6 +46,8 @@ type Settings struct {
 	KMSKeyID                       string `yaml:"KMS_KEY_ID"`
 	AutoPiAPIToken                 string `yaml:"AUTO_PI_API_TOKEN"`
 	SmartcarManagementToken        string `yaml:"SMARTCAR_MANAGEMENT_TOKEN"`
+	CIOSiteID                      string `yaml:"CIO_SITE_ID"`
+	CIOApiKey                      string `yaml:"CIO_API_KEY"`
 }
 
 // GetWriterDSN builds the connection string to the db writer - for now same as reader
