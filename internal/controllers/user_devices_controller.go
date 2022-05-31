@@ -149,9 +149,15 @@ func NewUserDeviceIntegrationStatusesFromDatabase(udis []*models.UserDeviceAPIIn
 	out := make([]UserDeviceIntegrationStatus, len(udis))
 
 	for i, udi := range udis {
+		// TODO(elffjs): Remove this translation when the frontend is ready for "AuthenticationFailure".
+		status := udi.Status
+		if status == models.UserDeviceAPIIntegrationStatusAuthenticationFailure {
+			status = models.UserDeviceAPIIntegrationStatusFailed
+		}
+
 		out[i] = UserDeviceIntegrationStatus{
 			IntegrationID: udi.IntegrationID,
-			Status:        udi.Status,
+			Status:        status,
 			ExternalID:    udi.ExternalID.Ptr(),
 			CreatedAt:     udi.CreatedAt,
 			UpdatedAt:     udi.UpdatedAt,
