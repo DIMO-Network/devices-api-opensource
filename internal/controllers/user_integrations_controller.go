@@ -392,7 +392,7 @@ func (udc *UserDevicesController) StartAutoPiUpdateTask(c *fiber.Ctx) error {
 	//userDeviceID := ""
 	// -- same code as above method todo: refactor
 	// check if unitId has already been assigned to a different user - don't allow querying in this case
-	udai, err := models.UserDeviceAPIIntegrations(qm.Where("metadata ->> 'auto_pi_unit_id' = $1", unitID),
+	udai, err := models.UserDeviceAPIIntegrations(qm.Where("metadata ->> 'autoPiUnitId' = $1", unitID),
 		qm.Load(models.UserDeviceAPIIntegrationRels.UserDevice)).
 		One(c.Context(), udc.DBS().Reader)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
