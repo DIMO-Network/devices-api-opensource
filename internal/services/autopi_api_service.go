@@ -28,6 +28,7 @@ const (
 
 //go:generate mockgen -source autopi_api_service.go -destination mocks/autopi_api_service_mock.go
 type AutoPiAPIService interface {
+	GetUserDeviceIntegrationByUnitID(ctx context.Context, unitID string) (*models.UserDeviceAPIIntegration, error)
 	GetDeviceByUnitID(unitID string) (*AutoPiDongleDevice, error)
 	GetDeviceByID(deviceID string) (*AutoPiDongleDevice, error)
 	PatchVehicleProfile(vehicleID int, profile PatchVehicleProfile) error
@@ -56,6 +57,16 @@ func NewAutoPiAPIService(settings *config.Settings, dbs func() *database.DBReade
 		httpClient: hcw,
 		dbs:        dbs,
 	}
+}
+
+func (a *autoPiAPIService) GetUserDeviceIntegrationByUnitID(ctx context.Context, unitID string) (*models.UserDeviceAPIIntegration, error) {
+	udai, err := models.UserDeviceAPIIntegrations(qm.Where("metadata ->> 'autoPiUnitId' = $1", unitID),
+		qm.Load(models.UserDeviceAPIIntegrationRels.UserDevice)).
+		One(ctx, a.dbs().Reader)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+	return udai, nil
 }
 
 // GetDeviceByUnitID calls /dongle/devices/by_unit_id/{unit_id}/ to get the device for the unitID.

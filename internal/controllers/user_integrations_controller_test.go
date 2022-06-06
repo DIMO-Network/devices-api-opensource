@@ -73,7 +73,6 @@ func (s *UserIntegrationsControllerTestSuite) SetupSuite() {
 	app.Get("/integrations", c.GetIntegrations)
 	app.Post("/user/devices/:userDeviceID/autopi/command", test.AuthInjectorTestHandler(testUserID), c.SendAutoPiCommand)
 	app.Get("/user/devices/:userDeviceID/autopi/command/:jobID", test.AuthInjectorTestHandler(testUserID), c.GetAutoPiCommandStatus)
-	app.Get("/autopi/unit/:unitID", test.AuthInjectorTestHandler(testUserID), c.GetAutoPiUnitInfo)
 	s.app = app
 }
 
@@ -301,6 +300,14 @@ func (s *UserIntegrationsControllerTestSuite) TestPostTeslaAndUpdateDD() {
 	}
 }
 func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi() {
+	// specific dependency and controller
+	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
+		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
+		nil, s.autoPiIngest, nil)
+	app := fiber.New()
+	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
+	// arrange
 	const templateID = 34
 	integration := test.SetupCreateAutoPiIntegration(s.T(), templateID, nil, s.pdb)
 	dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
@@ -318,7 +325,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi() {
 			"externalId": "%s"
 		}`, unitID)
 	// setup all autoPi mock expected calls.
-	s.autopiAPISvc.EXPECT().GetDeviceByUnitID(unitID).Times(1).Return(&services.AutoPiDongleDevice{
+	autopiAPISvc.EXPECT().GetDeviceByUnitID(unitID).Times(1).Return(&services.AutoPiDongleDevice{
 		ID:                deviceID, // device id
 		UnitID:            unitID,
 		Vehicle:           services.AutoPiDongleVehicle{ID: vehicleID}, // vehicle profile id
@@ -326,17 +333,17 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi() {
 		Template:          1,
 		LastCommunication: time.Now().Add(time.Second * -15).UTC(),
 	}, nil)
-	s.autopiAPISvc.EXPECT().PatchVehicleProfile(vehicleID, gomock.Any()).Times(1).Return(nil)
-	s.autopiAPISvc.EXPECT().UnassociateDeviceTemplate(deviceID, 1).Times(1).Return(nil)
-	s.autopiAPISvc.EXPECT().AssociateDeviceToTemplate(deviceID, 34).Times(1).Return(nil)
-	s.autopiAPISvc.EXPECT().ApplyTemplate(deviceID, 34).Times(1).Return(nil)
-	s.autopiAPISvc.EXPECT().CommandSyncDevice(gomock.Any(), deviceID, ud.ID).Times(1).Return(&services.AutoPiCommandResponse{
+	autopiAPISvc.EXPECT().PatchVehicleProfile(vehicleID, gomock.Any()).Times(1).Return(nil)
+	autopiAPISvc.EXPECT().UnassociateDeviceTemplate(deviceID, 1).Times(1).Return(nil)
+	autopiAPISvc.EXPECT().AssociateDeviceToTemplate(deviceID, 34).Times(1).Return(nil)
+	autopiAPISvc.EXPECT().ApplyTemplate(deviceID, 34).Times(1).Return(nil)
+	autopiAPISvc.EXPECT().CommandSyncDevice(gomock.Any(), deviceID, ud.ID).Times(1).Return(&services.AutoPiCommandResponse{
 		Jid: jobID,
 	}, nil)
 	s.autoPiIngest.EXPECT().Register(unitID, ud.ID, integration.ID).Return(nil)
 
 	request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.ID, req)
-	response, err := s.app.Test(request)
+	response, err := app.Test(request)
 	assert.NoError(s.T(), err)
 	if err != nil {
 		s.T().Fail()
@@ -363,6 +370,14 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi() {
 	assert.Equal(s.T(), services.PendingTemplateConfirm.String(), *metadata.AutoPiSubStatus)
 }
 func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCustomPowerTrain() {
+	// specific dependency and controller
+	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
+		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
+		nil, s.autoPiIngest, nil)
+	app := fiber.New()
+	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
+	// arrange
 	evTemplateID := 12
 	powertrain := "BEV"
 	integration := test.SetupCreateAutoPiIntegration(s.T(), 34, &evTemplateID, s.pdb)
@@ -380,7 +395,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCustomPowerTrain() {
 			"externalId": "%s"
 		}`, unitID)
 	// setup all autoPi mock expected calls.
-	s.autopiAPISvc.EXPECT().GetDeviceByUnitID(unitID).Times(1).Return(&services.AutoPiDongleDevice{
+	autopiAPISvc.EXPECT().GetDeviceByUnitID(unitID).Times(1).Return(&services.AutoPiDongleDevice{
 		ID:                deviceID, // device id
 		UnitID:            unitID,
 		Vehicle:           services.AutoPiDongleVehicle{ID: vehicleID}, // vehicle profile id
@@ -388,17 +403,17 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCustomPowerTrain() {
 		Template:          1,
 		LastCommunication: time.Now().UTC().Add(time.Second * -20),
 	}, nil)
-	s.autopiAPISvc.EXPECT().PatchVehicleProfile(vehicleID, gomock.Any()).Times(1).Return(nil)
-	s.autopiAPISvc.EXPECT().UnassociateDeviceTemplate(deviceID, 1).Times(1).Return(nil)
-	s.autopiAPISvc.EXPECT().AssociateDeviceToTemplate(deviceID, evTemplateID).Times(1).Return(nil)
-	s.autopiAPISvc.EXPECT().ApplyTemplate(deviceID, evTemplateID).Times(1).Return(nil)
-	s.autopiAPISvc.EXPECT().CommandSyncDevice(gomock.Any(), deviceID, ud.ID).Times(1).Return(&services.AutoPiCommandResponse{
+	autopiAPISvc.EXPECT().PatchVehicleProfile(vehicleID, gomock.Any()).Times(1).Return(nil)
+	autopiAPISvc.EXPECT().UnassociateDeviceTemplate(deviceID, 1).Times(1).Return(nil)
+	autopiAPISvc.EXPECT().AssociateDeviceToTemplate(deviceID, evTemplateID).Times(1).Return(nil)
+	autopiAPISvc.EXPECT().ApplyTemplate(deviceID, evTemplateID).Times(1).Return(nil)
+	autopiAPISvc.EXPECT().CommandSyncDevice(gomock.Any(), deviceID, ud.ID).Times(1).Return(&services.AutoPiCommandResponse{
 		Jid: jobID,
 	}, nil)
 	s.autoPiIngest.EXPECT().Register(unitID, ud.ID, integration.ID).Return(nil)
 
 	request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.ID, req)
-	response, _ := s.app.Test(request)
+	response, _ := app.Test(request)
 	if assert.Equal(s.T(), fiber.StatusNoContent, response.StatusCode, "should return success") == false {
 		body, _ := ioutil.ReadAll(response.Body)
 		fmt.Println("unexpected response: " + string(body) + "\n")
@@ -418,6 +433,14 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCustomPowerTrain() {
 	assert.Equal(s.T(), evTemplateID, *metadata.AutoPiTemplateApplied)
 }
 func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateDeviceSameUser() {
+	// specific dependency and controller
+	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
+		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
+		nil, s.autoPiIngest, nil)
+	app := fiber.New()
+	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
+	// arrange
 	integration := test.SetupCreateAutoPiIntegration(s.T(), 34, nil, s.pdb)
 	dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
 	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model 4", 2022, s.pdb)
@@ -432,12 +455,20 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateD
 	// no calls should be made to autopi api
 
 	request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.ID, req)
-	response, _ := s.app.Test(request)
+	response, _ := app.Test(request)
 	assert.Equal(s.T(), fiber.StatusBadRequest, response.StatusCode, "should return failure")
 	body, _ := ioutil.ReadAll(response.Body)
 	fmt.Println("body response: " + string(body) + "\n")
 }
 func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateDeviceDifferentUser() {
+	// specific dependency and controller
+	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
+		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
+		nil, s.autoPiIngest, nil)
+	app := fiber.New()
+	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUser2), c.RegisterDeviceIntegration)
+	// arrange
 	integration := test.SetupCreateAutoPiIntegration(s.T(), 34, nil, s.pdb)
 	dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
 	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model 4", 2022, s.pdb)
@@ -451,14 +482,22 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateD
 			"externalId": "%s"
 		}`, unitID)
 	// no calls should be made to autopi api
-	request := test.BuildRequest("POST", "/user2/devices/"+ud2.ID+"/integrations/"+integration.ID, req)
-	response, err := s.app.Test(request)
+	request := test.BuildRequest("POST", "/user/devices/"+ud2.ID+"/integrations/"+integration.ID, req)
+	response, err := app.Test(request)
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), fiber.StatusBadRequest, response.StatusCode, "should return bad request")
 	body, _ := ioutil.ReadAll(response.Body)
 	fmt.Println("body response: " + string(body) + "\n")
 }
 func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCommand() {
+	// specific dependency and controller
+	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
+		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
+		nil, s.autoPiIngest, nil)
+	app := fiber.New()
+	app.Post("/user/devices/:userDeviceID/autopi/command", test.AuthInjectorTestHandler(testUserID), c.SendAutoPiCommand)
+	// arrange
 	integ := test.SetupCreateAutoPiIntegration(s.T(), 34, nil, s.pdb)
 	dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
 	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model 4", 2022, s.pdb)
@@ -496,7 +535,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCommand() {
 	const jobID = "123"
 	// mock expectations
 	const cmd = "raw test"
-	s.autopiAPISvc.EXPECT().CommandRaw(gomock.Any(), deviceID, cmd, ud.ID).Return(&services.AutoPiCommandResponse{
+	autopiAPISvc.EXPECT().CommandRaw(gomock.Any(), deviceID, cmd, ud.ID).Return(&services.AutoPiCommandResponse{
 		Jid:     jobID,
 		Minions: nil,
 	}, nil)
@@ -505,7 +544,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCommand() {
 			"command": "%s"
 		}`, cmd)
 	request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/autopi/command", req)
-	response, _ := s.app.Test(request)
+	response, _ := app.Test(request)
 	body, _ := ioutil.ReadAll(response.Body)
 	//assert
 	assert.Equal(s.T(), fiber.StatusOK, response.StatusCode)
@@ -513,6 +552,12 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCommand() {
 	assert.Equal(s.T(), jobID, jid.String())
 }
 func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiCommand() {
+	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
+		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
+		nil, s.autoPiIngest, nil)
+	app := fiber.New()
+	app.Get("/user/devices/:userDeviceID/autopi/command/:jobID", test.AuthInjectorTestHandler(testUserID), c.GetAutoPiCommandStatus)
 	//arrange
 	integ := test.SetupCreateAutoPiIntegration(s.T(), 34, nil, s.pdb)
 	dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
@@ -525,7 +570,7 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiCommand() {
 
 	lastUpdated := time.Now()
 
-	s.autopiAPISvc.EXPECT().GetCommandStatus(gomock.Any(), jobID).Return(&services.AutoPiCommandJob{
+	autopiAPISvc.EXPECT().GetCommandStatus(gomock.Any(), jobID).Return(&services.AutoPiCommandJob{
 		CommandJobID: jobID,
 		CommandState: "COMMAND_EXECUTED",
 		CommandRaw:   "raw",
@@ -541,7 +586,7 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiCommand() {
 
 	// act: send request
 	request := test.BuildRequest("GET", "/user/devices/"+ud.ID+"/autopi/command/"+jobID, "")
-	response, _ := s.app.Test(request)
+	response, _ := app.Test(request)
 	require.Equal(s.T(), fiber.StatusOK, response.StatusCode)
 
 	body, _ := ioutil.ReadAll(response.Body)
@@ -572,8 +617,15 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiCommandNoResults400()
 	assert.Equal(s.T(), fiber.StatusBadRequest, response.StatusCode)
 }
 func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI() {
+	// specific dependency and controller
+	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
+		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
+		nil, s.autoPiIngest, nil)
+	app := fiber.New()
+	app.Get("/autopi/unit/:unitID", test.AuthInjectorTestHandler(testUserID), c.GetAutoPiUnitInfo)
 	// arrange
-	s.autopiAPISvc.EXPECT().GetDeviceByUnitID("1234").Times(1).Return(&services.AutoPiDongleDevice{
+	autopiAPISvc.EXPECT().GetDeviceByUnitID("1234").Times(1).Return(&services.AutoPiDongleDevice{
 		IsUpdated:         true,
 		UnitID:            "1234",
 		ID:                "4321",
@@ -584,10 +636,11 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI() {
 			Version string `json:"version"`
 		}(struct{ Version string }{Version: "1.28.5"}),
 	}, nil)
+	autopiAPISvc.EXPECT().GetUserDeviceIntegrationByUnitID(gomock.Any(), "1234").Return(nil, nil)
 	// act
 	request := test.BuildRequest("GET", "/autopi/unit/1234", "")
-	response, err := s.app.Test(request)
-	assert.NoError(s.T(), err)
+	response, err := app.Test(request)
+	require.NoError(s.T(), err)
 	// assert
 	assert.Equal(s.T(), fiber.StatusOK, response.StatusCode)
 	body, _ := ioutil.ReadAll(response.Body)
@@ -600,6 +653,13 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI() {
 	assert.Equal(s.T(), true, gjson.GetBytes(body, "shouldUpdate").Bool())
 }
 func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoMatchUDAI() {
+	// specific dependency and controller
+	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
+		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
+		nil, s.autoPiIngest, nil)
+	app := fiber.New()
+	app.Get("/autopi/unit/:unitID", test.AuthInjectorTestHandler(testUserID), c.GetAutoPiUnitInfo)
 	// arrange
 	integ := test.SetupCreateAutoPiIntegration(s.T(), 34, nil, s.pdb)
 	dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
@@ -609,10 +669,15 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoMatchUDAI() {
 	autoPiUnit := "apunitId123"
 	test.SetupCreateUserDeviceAPIIntegration(s.T(), autoPiUnit, "321", ud.ID, integ.ID, s.pdb)
 
+	udai := models.UserDeviceAPIIntegration{}
+	udai.R = udai.R.NewStruct()
+	udai.R.UserDevice = &ud
+	autopiAPISvc.EXPECT().GetUserDeviceIntegrationByUnitID(gomock.Any(), autoPiUnit).Return(&udai, nil)
+
 	// act
 	request := test.BuildRequest("GET", "/autopi/unit/"+autoPiUnit, "")
-	response, err := s.app.Test(request)
-	assert.NoError(s.T(), err)
+	response, err := app.Test(request)
+	require.NoError(s.T(), err)
 	// assert
 	assert.Equal(s.T(), fiber.StatusForbidden, response.StatusCode)
 }

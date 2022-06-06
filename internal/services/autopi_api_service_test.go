@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/volatiletech/null/v8"
@@ -103,4 +105,33 @@ func (s *AutoPiAPIServiceTestSuite) TestAppendAutoPiCompatibility() {
 	assert.Len(s.T(), all, 2)
 
 	test.TruncateTables(s.pdb.DBS().Writer.DB, s.T())
+}
+
+func (s *AutoPiAPIServiceTestSuite) TestGetUserDeviceIntegrationByUnitID() {
+	// arrange
+	const testUserID = "123123"
+	autoPiUnitID := "456"
+	apInt := test.SetupCreateAutoPiIntegration(s.T(), 10, nil, s.pdb)
+	dm := test.SetupCreateMake(s.T(), "Tesla", s.pdb)
+	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model 3", 2020, s.pdb)
+	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
+	amd := UserDeviceAPIIntegrationsMetadata{
+		AutoPiUnitID: &autoPiUnitID,
+	}
+	apUdai := &models.UserDeviceAPIIntegration{
+		UserDeviceID:  ud.ID,
+		IntegrationID: apInt.ID,
+		Status:        models.UserDeviceAPIIntegrationStatusActive,
+		ExternalID:    null.StringFrom("autoPiDeviceID"),
+	}
+	_ = apUdai.Metadata.Marshal(amd)
+	err := apUdai.Insert(s.ctx, s.pdb.DBS().Writer, boil.Infer())
+	assert.NoError(s.T(), err)
+	// act
+	autoPiSvc := NewAutoPiAPIService(&config.Settings{AutoPiAPIToken: "fdff"}, s.pdb.DBS)
+	udai, err := autoPiSvc.GetUserDeviceIntegrationByUnitID(context.Background(), autoPiUnitID)
+	// assert
+	require.NoError(s.T(), err)
+	require.NotNilf(s.T(), udai, "user device integration must not be nil")
+	assert.Equal(s.T(), testUserID, udai.R.UserDevice.UserID)
 }

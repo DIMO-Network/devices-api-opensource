@@ -269,12 +269,7 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 	}
 	userID := getUserID(c)
 	// check if unitId has already been assigned to a different user - don't allow querying in this case
-	udai, err := models.UserDeviceAPIIntegrations(qm.Where("metadata ->> 'auto_pi_unit_id' = $1", unitID),
-		qm.Load(models.UserDeviceAPIIntegrationRels.UserDevice)).
-		One(c.Context(), udc.DBS().Reader)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return err
-	}
+	udai, _ := udc.autoPiSvc.GetUserDeviceIntegrationByUnitID(c.Context(), unitID)
 	if udai != nil {
 		if udai.R.UserDevice.UserID != userID {
 			return c.SendStatus(fiber.StatusForbidden)
@@ -317,12 +312,7 @@ func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 	deviceID := ""
 	userDeviceID := ""
 	// check if unitId has already been assigned to a different user - don't allow querying in this case
-	udai, err := models.UserDeviceAPIIntegrations(qm.Where("metadata ->> 'auto_pi_unit_id' = $1", unitID),
-		qm.Load(models.UserDeviceAPIIntegrationRels.UserDevice)).
-		One(c.Context(), udc.DBS().Reader)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return err
-	}
+	udai, _ := udc.autoPiSvc.GetUserDeviceIntegrationByUnitID(c.Context(), unitID)
 	if udai != nil {
 		if udai.R.UserDevice.UserID != userID {
 			return c.SendStatus(fiber.StatusForbidden)
@@ -389,21 +379,14 @@ func (udc *UserDevicesController) StartAutoPiUpdateTask(c *fiber.Ctx) error {
 	}
 	userID := getUserID(c)
 	deviceID := ""
-	//userDeviceID := ""
-	// -- same code as above method todo: refactor
+
 	// check if unitId has already been assigned to a different user - don't allow querying in this case
-	udai, err := models.UserDeviceAPIIntegrations(qm.Where("metadata ->> 'autoPiUnitId' = $1", unitID),
-		qm.Load(models.UserDeviceAPIIntegrationRels.UserDevice)).
-		One(c.Context(), udc.DBS().Reader)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return err
-	}
+	udai, _ := udc.autoPiSvc.GetUserDeviceIntegrationByUnitID(c.Context(), unitID)
 	if udai != nil {
 		if udai.R.UserDevice.UserID != userID {
 			return c.SendStatus(fiber.StatusForbidden)
 		}
 		deviceID = udai.ExternalID.String
-		//userDeviceID = udai.UserDeviceID
 	}
 	if len(deviceID) == 0 {
 		unit, err := udc.autoPiSvc.GetDeviceByUnitID(unitID)
@@ -420,7 +403,7 @@ func (udc *UserDevicesController) StartAutoPiUpdateTask(c *fiber.Ctx) error {
 			})
 		}
 	}
-	// -- end same code as above method.
+
 	taskID, err := udc.autoPiTaskService.StartAutoPiUpdate(deviceID, userID, unitID)
 	if err != nil {
 		return err
@@ -565,7 +548,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	subLogger := logger.With().Str("autopi_unit_id", reqBody.ExternalID).Logger()
 
 	// check if an existing integration exists for the unitID
-	unitExists, err := models.UserDeviceAPIIntegrations(qm.Where("metadata ->> 'auto_pi_unit_id' = $1", reqBody.ExternalID),
+	unitExists, err := models.UserDeviceAPIIntegrations(qm.Where("metadata ->> 'autoPiUnitId' = $1", reqBody.ExternalID),
 		qm.And("status IN ('Pending', 'PendingFirstData', 'Active')")). // could not get sqlboiler typed qm.AndIn to work
 		Exists(c.Context(), udc.DBS().Reader)
 	if err != nil {
