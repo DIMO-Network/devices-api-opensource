@@ -253,7 +253,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer)
 	deviceDataController := controllers.NewDeviceDataController(settings, pdb.DBS, &logger)
 	webhooksController := controllers.NewWebhooksController(settings, pdb.DBS, &logger, autoPiSvc)
-
+	documentController := controllers.NewDocumentsController(settings, pdb.DBS, &logger)
 	prometheus := fiberprometheus.New("devices-api")
 	app.Use(prometheus.Middleware)
 
@@ -336,6 +336,12 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Get("/user/device-data/:userDeviceID/historical", deviceDataController.GetHistoricalRaw)
 	v1Auth.Get("/user/device-data/:userDeviceID/historical-30m", deviceDataController.GetHistorical30mRaw)
 	v1Auth.Get("/user/device-data/:userDeviceID/distance-driven", deviceDataController.GetDistanceDriven)
+
+	// documents
+	v1Auth.Get("/documents", documentController.GetDocuments)
+	v1Auth.Get("/documents/:id", documentController.GetDocumentByID)
+	v1Auth.Post("/documents", documentController.PostDocument)
+	v1Auth.Delete("/documents/:id", documentController.DeleteDocument)
 
 	go startGRPCServer(settings, pdb.DBS, &logger)
 

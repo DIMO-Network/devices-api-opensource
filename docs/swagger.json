@@ -67,7 +67,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiDeviceInfo"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo"
                         }
                     }
                 }
@@ -221,7 +221,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_controllers.DeviceMMYRoot"
+                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot"
                             }
                         }
                     }
@@ -255,6 +255,96 @@
                                 "$ref": "#/definitions/services.DeviceCompatibility"
                             }
                         }
+                    }
+                }
+            }
+        },
+        "/documents": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "gets all documents associated with current user - pulled from token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "documents"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "post document by id associated with current user - pulled from token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "documents"
+                ],
+                "parameters": [
+                    {
+                        "description": "add document to user. either name and type are required",
+                        "name": "user_device",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/documents/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "delete document associated with current user - pulled from token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "documents"
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
                     }
                 }
             }
@@ -486,7 +576,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiCommandRequest"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest"
                         }
                     }
                 ],
@@ -551,7 +641,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.RegisterDeviceIntegrationRequest"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest"
                         }
                     }
                 ],
@@ -696,7 +786,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.GetUserDeviceIntegrationResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse"
                         }
                     }
                 }
@@ -787,7 +877,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.DeviceSnapshot"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot"
                         }
                     }
                 }
@@ -858,7 +948,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_controllers.GetGeofence"
+                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence"
                             }
                         }
                     }
@@ -890,7 +980,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence"
                         }
                     }
                 ],
@@ -898,7 +988,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CreateResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateResponse"
                         }
                     }
                 }
@@ -938,7 +1028,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence"
                         }
                     }
                 ],
@@ -1135,6 +1225,28 @@
                 },
                 "tirePressure": {
                     "$ref": "#/definitions/smartcar.TirePressure"
+                }
+            }
+        },
+        "github.com_DIMO-Network_devices-api_internal_controllers.DocumentRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
                 }
             }
         },
@@ -1505,6 +1617,28 @@
                 },
                 "tirePressure": {
                     "$ref": "#/definitions/smartcar.TirePressure"
+                }
+            }
+        },
+        "internal_controllers.DocumentRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_controllers.DocumentResponse": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
                 }
             }
         },

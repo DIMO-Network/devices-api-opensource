@@ -107,6 +107,20 @@ definitions:
       tirePressure:
         $ref: '#/definitions/smartcar.TirePressure'
     type: object
+  github.com_DIMO-Network_devices-api_internal_controllers.DocumentRequest:
+    properties:
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse:
+    properties:
+      name:
+        type: string
+      url:
+        type: string
+    type: object
   github.com_DIMO-Network_devices-api_internal_controllers.GeoFenceUserDevice:
     properties:
       mmy:
@@ -357,6 +371,20 @@ definitions:
         type: number
       tirePressure:
         $ref: '#/definitions/smartcar.TirePressure'
+    type: object
+  internal_controllers.DocumentRequest:
+    properties:
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  internal_controllers.DocumentResponse:
+    properties:
+      name:
+        type: string
+      url:
+        type: string
     type: object
   internal_controllers.GeoFenceUserDevice:
     properties:
@@ -704,7 +732,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.AutoPiDeviceInfo'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo'
       security:
       - BearerAuth: []
       tags:
@@ -827,10 +855,65 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.DeviceMMYRoot'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot'
             type: array
       tags:
       - device-definitions
+  /documents:
+    get:
+      consumes:
+      - application/json
+      description: gets all documents associated with current user - pulled from token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
+            type: array
+      security:
+      - BearerAuth: []
+      tags:
+      - documents
+    post:
+      consumes:
+      - application/json
+      description: post document by id associated with current user - pulled from
+        token
+      parameters:
+      - description: add document to user. either name and type are required
+        in: body
+        name: user_device
+        required: true
+        schema:
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
+      security:
+      - BearerAuth: []
+      tags:
+      - documents
+  /documents/{id}:
+    get:
+      consumes:
+      - application/json
+      description: delete document associated with current user - pulled from token
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: ""
+      security:
+      - BearerAuth: []
+      tags:
+      - documents
   /integrations:
     get:
       description: gets list of integrations we have defined
@@ -976,7 +1059,7 @@ paths:
         name: AutoPiCommandRequest
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.AutoPiCommandRequest'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest'
       responses:
         "200":
           description: ""
@@ -1015,7 +1098,7 @@ paths:
         name: userDeviceIntegrationRegistration
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.RegisterDeviceIntegrationRequest'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest'
       responses:
         "204":
           description: ""
@@ -1094,7 +1177,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.GetUserDeviceIntegrationResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse'
       security:
       - BearerAuth: []
       tags:
@@ -1142,7 +1225,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.DeviceSnapshot'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot'
       security:
       - BearerAuth: []
       tags:
@@ -1199,7 +1282,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.GetGeofence'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence'
             type: array
       security:
       - ApiKeyAuth: []
@@ -1217,14 +1300,14 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.CreateGeofence'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_controllers.CreateResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateResponse'
       security:
       - ApiKeyAuth: []
       - BearerAuth: []
@@ -1262,7 +1345,7 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.CreateGeofence'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence'
       produces:
       - application/json
       responses:

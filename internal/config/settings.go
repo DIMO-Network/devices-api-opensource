@@ -48,6 +48,7 @@ type Settings struct {
 	SmartcarManagementToken        string `yaml:"SMARTCAR_MANAGEMENT_TOKEN"`
 	CIOSiteID                      string `yaml:"CIO_SITE_ID"`
 	CIOApiKey                      string `yaml:"CIO_API_KEY"`
+	AWSBucketName                  string `yaml:"AWS_S3_BUCKET_NAME"`
 }
 
 // GetWriterDSN builds the connection string to the db writer - for now same as reader
