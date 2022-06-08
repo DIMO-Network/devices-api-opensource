@@ -75,6 +75,8 @@ func (i *IngestService) processMessage(msg *message.Message) error {
 	return i.processEvent(event)
 }
 
+var userDeviceDataPrimaryKeyColumns = []string{models.UserDeviceDatumColumns.UserDeviceID, models.UserDeviceDatumColumns.IntegrationID}
+
 // integrationIDregexp is used to parse out the KSUID of the integration from the CloudEvent
 // source field.
 var integrationIDregexp = regexp.MustCompile("^dimo/integration/([a-zA-Z0-9]{27})$")
@@ -106,7 +108,10 @@ func (i *IngestService) processEvent(event *DeviceStatusEvent) error {
 			models.UserDeviceRels.UserDeviceAPIIntegrations,
 			models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integration.ID),
 		),
-		qm.Load(models.UserDeviceRels.UserDeviceData),
+		qm.Load(
+			models.UserDeviceRels.UserDeviceData,
+			models.UserDeviceDatumWhere.IntegrationID.EQ(integration.ID),
+		),
 		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
 	).One(ctx, tx)
 	if err != nil {
@@ -126,65 +131,66 @@ func (i *IngestService) processEvent(event *DeviceStatusEvent) error {
 		}
 	}
 
-	// currently this will be 0 with autopi
+	// Null for most AutoPis.
 	var newOdometer null.Float64
 	if o, err := extractOdometer(event.Data); err == nil {
 		newOdometer = null.Float64From(o)
 	}
-	// lookup right data for integration
+
 	var datum *models.UserDeviceDatum
-	for _, deviceDatum := range device.R.UserDeviceData {
-		if deviceDatum.IntegrationID == integration.ID {
-			datum = deviceDatum
-			break
-		}
-	}
-	// create if does not exist
-	if datum == nil {
-		datum = &models.UserDeviceDatum{
-			UserDeviceID:  userDeviceID,
-			IntegrationID: integration.ID,
-		}
+	if len(device.R.UserDeviceData) > 0 {
+		// Update the existing record.
+		datum = device.R.UserDeviceData[0]
+	} else {
+		// Insert a new record.
+		datum = &models.UserDeviceDatum{UserDeviceID: userDeviceID, IntegrationID: integration.ID}
 	}
 
-	// save autopi data
-	if integration.Vendor == AutoPiVendor {
-		datum.Data = null.JSONFrom(event.Data)
-		datum.ErrorData = null.JSON{}
-		i.processOdometer(datum, newOdometer, device, integrationID)
-	}
-	// do smartcar OR tesla
-	if integration.Vendor == SmartCarVendor || integration.Vendor == TeslaVendor {
+	i.processOdometer(datum, newOdometer, device, integrationID)
+
+	switch integration.Vendor {
+	case SmartCarVendor, TeslaVendor:
 		if newOdometer.Valid {
 			datum.Data = null.JSONFrom(event.Data)
 			datum.ErrorData = null.JSON{}
-
-			i.processOdometer(datum, newOdometer, device, integrationID)
 		} else {
 			datum.ErrorData = null.JSONFrom(event.Data)
 		}
+	default:
+		datum.Data = null.JSONFrom(event.Data)
+		datum.ErrorData = null.JSON{}
 	}
 
-	if err := datum.Upsert(ctx, tx, true, []string{models.UserDeviceDatumColumns.UserDeviceID, models.UserDeviceDatumColumns.IntegrationID},
-		boil.Infer(), boil.Infer()); err != nil {
+	if err := datum.Upsert(ctx, tx, true, userDeviceDataPrimaryKeyColumns, boil.Infer(), boil.Infer()); err != nil {
 		return fmt.Errorf("error upserting datum: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("error committing transaction: %w", err)
 	}
-	if integration.Vendor == SmartCarVendor {
+
+	switch integration.Vendor {
+	case SmartCarVendor:
 		appmetrics.SmartcarIngestSuccessOps.Inc()
-	}
-	if integration.Vendor == AutoPiVendor {
+	case AutoPiVendor:
 		appmetrics.AutoPiIngestSuccessOps.Inc()
 	}
+
 	return nil
 }
 
-// processOdometer get the odometer diff
+// processOdometer emits an odometer event and updates the last_odometer_event timestamp on the
+// data record if the following conditions are met:
+//      - there is no existing timestamp, or an hour has passed since that timestamp,
+//      - the incoming status update has an odometer value, and
+//      - the old status update lacks an odometer value, or has an odometer value that differs from
+//        the new odometer reading
 func (i *IngestService) processOdometer(datum *models.UserDeviceDatum, newOdometer null.Float64, device *models.UserDevice, integrationID string) {
-	oldOdometer := null.Float64FromPtr(nil)
+	if !newOdometer.Valid {
+		return
+	}
+
+	var oldOdometer null.Float64
 	if datum.Data.Valid {
 		if o, err := extractOdometer(datum.Data.JSON); err == nil {
 			oldOdometer = null.Float64From(o)
