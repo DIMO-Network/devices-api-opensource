@@ -3,7 +3,6 @@ package controllers
 import (
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
-	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog"
 )
@@ -12,20 +11,14 @@ type DocumentsController struct {
 	settings *config.Settings
 	dbs      func() *database.DBReaderWriter
 	log      *zerolog.Logger
-	es       *elasticsearch.Client
 }
 
 // NewDocumentsController constructor
 func NewDocumentsController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger) DocumentsController {
-	es, err := connect(settings)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("could not connect to elastic search")
-	}
 	return DocumentsController{
 		settings: settings,
 		dbs:      dbs,
 		log:      logger,
-		es:       es,
 	}
 }
 

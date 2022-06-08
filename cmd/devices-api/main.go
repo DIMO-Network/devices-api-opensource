@@ -251,7 +251,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc)
 	userDeviceController := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService, smartcarClient, scTaskSvc, teslaSvc, teslaTaskService, cipher, autoPiSvc, services.NewNHTSAService(), autoPiIngest, autoPiTaskService)
 	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer)
-	deviceDataController := controllers.NewDeviceDataController(settings, pdb.DBS, &logger)
 	webhooksController := controllers.NewWebhooksController(settings, pdb.DBS, &logger, autoPiSvc)
 	documentController := controllers.NewDocumentsController(settings, pdb.DBS, &logger)
 	prometheus := fiberprometheus.New("devices-api")
@@ -331,11 +330,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Get("/user/geofences", geofenceController.GetAll)
 	v1Auth.Delete("/user/geofences/:geofenceID", geofenceController.Delete)
 	v1Auth.Put("/user/geofences/:geofenceID", geofenceController.Update)
-
-	// elastic device data
-	v1Auth.Get("/user/device-data/:userDeviceID/historical", deviceDataController.GetHistoricalRaw)
-	v1Auth.Get("/user/device-data/:userDeviceID/historical-30m", deviceDataController.GetHistorical30mRaw)
-	v1Auth.Get("/user/device-data/:userDeviceID/distance-driven", deviceDataController.GetDistanceDriven)
 
 	// documents
 	v1Auth.Get("/documents", documentController.GetDocuments)
