@@ -727,8 +727,6 @@ func transcodeDigits(vin string) int {
 	var digitSum = 0
 	var code int
 	for i, chr := range vin {
-		code = 0
-
 		switch chr {
 		case 'A', 'J', '1':
 			code = 1
