@@ -15,7 +15,7 @@ go run ./cmd/devices-api
 ```
 
 1. Copy settings: `$ cp settings.sample.yaml settings.yaml`
-Adjust secrets or settings as necessary. The sample file should have what you need with correct defaults for local dev.
+Adjust secrets or settings as necessary. The sample file should have what you need with correct defaults for local dev (make sure you do this step each time you run `git pull` in case there have been any changes to the sample settings file since you last created it).
 
 2. Make sure a data folder exists under: `$ mkdir ./resources/data`
 Start Database: `$ docker compose up -d`
