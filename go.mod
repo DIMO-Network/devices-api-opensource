@@ -10,10 +10,8 @@ require (
 	github.com/ThreeDotsLabs/watermill-kafka/v2 v2.2.1
 	github.com/ahmetb/go-linq/v3 v3.2.0
 	github.com/ansrivas/fiberprometheus/v2 v2.1.2
-	github.com/aquasecurity/esquery v0.2.0
 	github.com/arsmn/fiber-swagger/v2 v2.31.1
 	github.com/docker/go-connections v0.4.0
-	github.com/elastic/go-elasticsearch/v7 v7.6.0
 	github.com/friendsofgo/errors v0.9.2
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
 	github.com/gofiber/fiber/v2 v2.31.0
@@ -57,7 +55,6 @@ require (
 	github.com/docker/docker v20.10.12+incompatible // indirect
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/ericlagergren/decimal v0.0.0-20211103172832-aca2edc11f73 // indirect
-	github.com/fatih/structs v1.1.0 // indirect
 	github.com/go-redis/redis_rate/v9 v9.1.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect

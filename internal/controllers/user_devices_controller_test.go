@@ -318,6 +318,28 @@ func (s *UserDevicesControllerTestSuite) TestPatchVIN() {
 	assert.Equal(s.T(), "BEV", pt)
 }
 
+func (s *UserDevicesControllerTestSuite) TestVINValidate() {
+	vinReqTest := &UpdateVINReq{}
+
+	// valid vin
+	testValid := "5YJYGDEE5MF085533"
+	vinReqTest.VIN = &testValid
+	err := vinReqTest.validate()
+	assert.Nil(s.T(), err)
+
+	// invalid vin, too short
+	testInvalid := "5YJYGDEE5MF08553"
+	vinReqTest.VIN = &testInvalid
+	err = vinReqTest.validate()
+	assert.NotNil(s.T(), err)
+
+	// invalid vin, invalid character
+	testInvalid = "JMBXTCW4W0Z000734"
+	vinReqTest.VIN = &testInvalid
+	err = vinReqTest.validate()
+	assert.NotNil(s.T(), err)
+}
+
 func (s *UserDevicesControllerTestSuite) TestPatchName() {
 	dm := test.SetupCreateMake(s.T(), "Ford", s.pdb)
 	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Mach E", 2022, s.pdb)

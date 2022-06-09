@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"database/sql"
+	"regexp"
 	"strings"
 	"time"
 
@@ -669,7 +670,11 @@ func (reg *AdminRegisterUserDevice) Validate() error {
 
 func (u *UpdateVINReq) validate() error {
 	return validation.ValidateStruct(u,
-		validation.Field(&u.VIN, validation.Required, validation.Length(17, 17)))
+		// vin must be 17 characters in length, alphanumeric, without characters I, O, Q
+		validation.Field(&u.VIN, validation.Required, validation.Match(regexp.MustCompile("[(A-H|J-N|P|R-Z|0-9)]{17}$"))),
+		// in addition to three excluded characters above, 10th character must not eual U, Z or 0
+		validation.Field(&u.VIN, validation.Required, validation.Match(regexp.MustCompile("^.{9}([(A-H|J-N|P|R-T|V-Y|1-9)])"))),
+	)
 }
 
 // UserDeviceFull represents object user's see on frontend for listing of their devices
