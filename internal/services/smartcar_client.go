@@ -32,6 +32,7 @@ func NewSmartcarClient(settings *config.Settings) SmartcarClient {
 }
 
 var smartcarScopes = []string{
+	"control_security",
 	"control_charge",
 	"read_engine_oil",
 	"read_battery",
