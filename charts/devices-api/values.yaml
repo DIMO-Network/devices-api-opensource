@@ -2,7 +2,7 @@ replicaCount: 1
 image:
   repository: dimozone/devices-api
   pullPolicy: IfNotPresent
-  tag: 582494b
+  tag: 7cab59c
 imagePullSecrets: []
 nameOverride: ''
 fullnameOverride: ''
