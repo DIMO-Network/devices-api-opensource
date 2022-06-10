@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"database/sql"
-	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -670,21 +669,30 @@ func (reg *AdminRegisterUserDevice) Validate() error {
 	)
 }
 
+var vinRegex *regexp.Regexp = regexp.MustCompile("^(?:[1-5]|7[F-Z0-9])")
+
 func (u *UpdateVINReq) validate() error {
 
-	// world manufacturer identifier is first 2 digits of vin
-	// only those vins with north american identifier have checksum as character 9
-	wmi := (*u.VIN)[:2]
-	checkSum := (*u.VIN)[8:9]
-	validFirstChar, err := regexp.MatchString("^7([F-Z|0-9])|^[(1-5)]", wmi)
-	if err != nil {
-		return err
+	validateLengthAndChars := validation.ValidateStruct(u,
+		// vin must be 17 characters in length, alphanumeric, without characters I, O, Q
+		validation.Field(&u.VIN, validation.Required, validation.Match(regexp.MustCompile("[A-HJ-NPR-Z0-9]{17}"))),
+		// in addition to three excluded characters above, 10th character must not eual U, Z or 0
+		validation.Field(&u.VIN, validation.Required, validation.Match(regexp.MustCompile("^.{9}[A-HJ-NPR-TV-Y1-9]"))),
+	)
+	if validateLengthAndChars != nil {
+		return validateLengthAndChars
 	}
 
-	if validFirstChar {
+	// if car is made in North America, apply additional checksum validation (character 9)
+	// world manufacturer identifier is first 2 digits of vin
+	wmi := (*u.VIN)[:2]
+	checkSum := (*u.VIN)[8:9]
+	northAmerDevice := vinRegex.MatchString(wmi)
+
+	if northAmerDevice {
 		var derivedCheck string
 		check := transcodeDigits(*u.VIN)
-		checkNum := math.Mod(float64(check), 11)
+		checkNum := check % 11
 
 		if checkNum == 10 {
 			derivedCheck = "X"
@@ -692,22 +700,11 @@ func (u *UpdateVINReq) validate() error {
 			derivedCheck = strconv.Itoa(int(checkNum))
 		}
 
-		return validation.ValidateStruct(u,
-			// checksum must match character in position 9 of vin string
-			validation.Field(&u.VIN, validation.When(checkSum == derivedCheck, validation.Required).Else(validation.Nil)),
-			// vin must be 17 characters in length, alphanumeric, without characters I, O, Q
-			validation.Field(&u.VIN, validation.Required, validation.Match(regexp.MustCompile("[(A-H|J-N|P|R-Z|0-9)]{17}$"))),
-			// in addition to three excluded characters above, 10th character must not eual U, Z or 0
-			validation.Field(&u.VIN, validation.Required, validation.Match(regexp.MustCompile("^.{9}([(A-H|J-N|P|R-T|V-Y|1-9)])"))),
-		)
+		return validation.Validate(checkSum, validation.In(derivedCheck))
+
 	}
 
-	return validation.ValidateStruct(u,
-		// vin must be 17 characters in length, alphanumeric, without characters I, O, Q
-		validation.Field(&u.VIN, validation.Required, validation.Match(regexp.MustCompile("[(A-H|J-N|P|R-Z|0-9)]{17}$"))),
-		// in addition to three excluded characters above, 10th character must not eual U, Z or 0
-		validation.Field(&u.VIN, validation.Required, validation.Match(regexp.MustCompile("^.{9}([(A-H|J-N|P|R-T|V-Y|1-9)])"))),
-	)
+	return nil
 }
 
 // UserDeviceFull represents object user's see on frontend for listing of their devices

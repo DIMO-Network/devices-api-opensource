@@ -319,25 +319,35 @@ func (s *UserDevicesControllerTestSuite) TestPatchVIN() {
 }
 
 func (s *UserDevicesControllerTestSuite) TestVINValidate() {
-	vinReqTest := &UpdateVINReq{}
 
-	// valid vin
-	testValid := "5YJYGDEE5MF085533"
-	vinReqTest.VIN = &testValid
-	err := vinReqTest.validate()
-	assert.Nil(s.T(), err)
+	type test struct {
+		vin    string
+		want   bool
+		reason string
+	}
 
-	// invalid vin, too short
-	testInvalid := "5YJYGDEE5MF08553"
-	vinReqTest.VIN = &testInvalid
-	err = vinReqTest.validate()
-	assert.NotNil(s.T(), err)
+	tests := []test{
+		{vin: "5YJYGDEE5MF085533", want: true, reason: "valid vin number"},
+		{vin: "5YJYGDEE5MF08553", want: false, reason: "too short"},
+		{vin: "JMBXTCW4W0Z000734", want: false, reason: "invalid character"},
+		{vin: "ZFA19200000372037", want: false, reason: "model year character is invaid (0)"},
+		{vin: "JA4AJ3AUXKU602608", want: true, reason: "valid vin number"},
+		{vin: "2T1BU4EE2DC071057", want: true, reason: "valid vin number"},
+		{vin: "5YJ3E1EA1NF156661", want: true, reason: "valid vin number"},
+		{vin: "5YJ3E1EA1NF156662", want: false, reason: "checksum for north american vehicles invalid"},
+		{vin: "7AJ3E1EB3JF110865", want: true, reason: "valid vin number"},
+		{vin: "7FJ3E1EB3JF110865", want: false, reason: "checksum for north american vehicles invalid"},
+	}
 
-	// invalid vin, invalid character
-	testInvalid = "JMBXTCW4W0Z000734"
-	vinReqTest.VIN = &testInvalid
-	err = vinReqTest.validate()
-	assert.NotNil(s.T(), err)
+	for _, tc := range tests {
+		vinReq := UpdateVINReq{VIN: &tc.vin}
+		err := vinReq.validate()
+		if tc.want == true {
+			assert.Nil(s.T(), err)
+		} else {
+			assert.NotNil(s.T(), err)
+		}
+	}
 }
 
 func (s *UserDevicesControllerTestSuite) TestPatchName() {
