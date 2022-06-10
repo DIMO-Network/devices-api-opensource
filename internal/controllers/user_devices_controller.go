@@ -669,7 +669,7 @@ func (reg *AdminRegisterUserDevice) Validate() error {
 	)
 }
 
-var vinRegex *regexp.Regexp = regexp.MustCompile("^(?:[1-5]|7[F-Z0-9])")
+var vinRegex = regexp.MustCompile("^(?:[1-5]|7[F-Z0-9])")
 
 func (u *UpdateVINReq) validate() error {
 
