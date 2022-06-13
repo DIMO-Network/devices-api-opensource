@@ -135,6 +135,8 @@ func (i *IngestService) processEvent(event *DeviceStatusEvent) error {
 	var newOdometer null.Float64
 	if o, err := extractOdometer(event.Data); err == nil {
 		newOdometer = null.Float64From(o)
+	} else if integration.Vendor == AutoPiVendor {
+		newOdometer = null.Float64From(0.0)
 	}
 
 	var datum *models.UserDeviceDatum
