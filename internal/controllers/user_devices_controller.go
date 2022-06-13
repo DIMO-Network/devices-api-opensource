@@ -675,7 +675,7 @@ func (u *UpdateVINReq) validate() error {
 
 	validateLengthAndChars := validation.ValidateStruct(u,
 		// vin must be 17 characters in length, alphanumeric, without characters I, O, Q
-		validation.Field(&u.VIN, validation.Required, validation.Match(regexp.MustCompile("[A-HJ-NPR-Z0-9]{17}"))),
+		validation.Field(&u.VIN, validation.Required, validation.Match(regexp.MustCompile("^[A-HJ-NPR-Z0-9]{17}$"))),
 		// in addition to three excluded characters above, 10th character must not eual U, Z or 0
 		validation.Field(&u.VIN, validation.Required, validation.Match(regexp.MustCompile("^.{9}[A-HJ-NPR-TV-Y1-9]"))),
 	)
