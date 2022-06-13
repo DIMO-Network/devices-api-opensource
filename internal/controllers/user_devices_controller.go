@@ -3,6 +3,8 @@ package controllers
 import (
 	"context"
 	"database/sql"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -667,9 +669,42 @@ func (reg *AdminRegisterUserDevice) Validate() error {
 	)
 }
 
+var vinRegex = regexp.MustCompile("^(?:[1-5]|7[F-Z0-9])")
+
 func (u *UpdateVINReq) validate() error {
-	return validation.ValidateStruct(u,
-		validation.Field(&u.VIN, validation.Required, validation.Length(17, 17)))
+
+	validateLengthAndChars := validation.ValidateStruct(u,
+		// vin must be 17 characters in length, alphanumeric, without characters I, O, Q
+		validation.Field(&u.VIN, validation.Required, validation.Match(regexp.MustCompile("^[A-HJ-NPR-Z0-9]{17}$"))),
+		// in addition to three excluded characters above, 10th character must not eual U, Z or 0
+		validation.Field(&u.VIN, validation.Required, validation.Match(regexp.MustCompile("^.{9}[A-HJ-NPR-TV-Y1-9]"))),
+	)
+	if validateLengthAndChars != nil {
+		return validateLengthAndChars
+	}
+
+	// if car is made in North America, apply additional checksum validation (character 9)
+	// world manufacturer identifier is first 2 digits of vin
+	wmi := (*u.VIN)[:2]
+	checkSum := (*u.VIN)[8:9]
+	northAmerDevice := vinRegex.MatchString(wmi)
+
+	if northAmerDevice {
+		var derivedCheck string
+		check := transcodeDigits(*u.VIN)
+		checkNum := check % 11
+
+		if checkNum == 10 {
+			derivedCheck = "X"
+		} else {
+			derivedCheck = strconv.Itoa(int(checkNum))
+		}
+
+		return validation.Validate(checkSum, validation.In(derivedCheck))
+
+	}
+
+	return nil
 }
 
 // UserDeviceFull represents object user's see on frontend for listing of their devices
@@ -683,4 +718,56 @@ type UserDeviceFull struct {
 	CountryCode      *string                       `json:"countryCode"`
 	Integrations     []UserDeviceIntegrationStatus `json:"integrations"`
 	Metadata         services.UserDeviceMetadata   `json:"metadata"`
+}
+
+func transcodeDigits(vin string) int {
+	var digitSum = 0
+	var code int
+	for i, chr := range vin {
+		switch chr {
+		case 'A', 'J', '1':
+			code = 1
+		case 'B', 'K', 'S', '2':
+			code = 2
+		case 'C', 'L', 'T', '3':
+			code = 3
+		case 'D', 'M', 'U', '4':
+			code = 4
+		case 'E', 'N', 'V', '5':
+			code = 5
+		case 'F', 'W', '6':
+			code = 6
+		case 'G', 'P', 'X', '7':
+			code = 7
+		case 'H', 'Y', '8':
+			code = 8
+		case 'R', 'Z', '9':
+			code = 9
+		default:
+			code = 0
+		}
+		switch i + 1 {
+		case 1, 11:
+			digitSum += code * 8
+		case 2, 12:
+			digitSum += code * 7
+		case 3, 13:
+			digitSum += code * 6
+		case 4, 14:
+			digitSum += code * 5
+		case 5, 15:
+			digitSum += code * 4
+		case 6, 16:
+			digitSum += code * 3
+		case 7, 17:
+			digitSum += code * 2
+		case 8:
+			digitSum += code * 10
+		case 9:
+			digitSum += code * 0
+		case 10:
+			digitSum += code * 9
+		}
+	}
+	return digitSum
 }
