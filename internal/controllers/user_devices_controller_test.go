@@ -337,6 +337,8 @@ func (s *UserDevicesControllerTestSuite) TestVINValidate() {
 		{vin: "5YJ3E1EA1NF156662", want: false, reason: "checksum for north american vehicles invalid"},
 		{vin: "7AJ3E1EB3JF110865", want: true, reason: "valid vin number"},
 		{vin: "7FJ3E1EB3JF110865", want: false, reason: "checksum for north american vehicles invalid"},
+		{vin: "", want: false, reason: "empty vin string"},
+		{vin: "7FJ3E1EB3JF1108651234", want: false, reason: "vin string too long"},
 	}
 
 	for _, tc := range tests {
