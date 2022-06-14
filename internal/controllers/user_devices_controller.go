@@ -616,6 +616,74 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+// GetMintDataToSign godoc
+// @Description  Returns the data the user must sign in order to mint this device.
+// @Tags         user-devices
+// @Param        userDeviceID path string true "user device ID"
+// @Success      200
+// @Security     BearerAuth
+// @Router       /user/devices/{userDeviceID}/commands/mint [get]
+func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
+	userDeviceID := c.Params("userDeviceID")
+	userID := getUserID(c)
+
+	userDevice, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		models.UserDeviceWhere.UserID.EQ(userID),
+		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "No device with that ID found.")
+	}
+
+	msd := MintSignatureData{
+		Types: map[string][]EIP712FieldType{
+			"EIP712Domain": {
+				EIP712FieldType{Name: "name", Type: "string"},
+				EIP712FieldType{Name: "version", Type: "string"},
+				EIP712FieldType{Name: "chainId", Type: "uint256"},
+				EIP712FieldType{Name: "verifyingContract", Type: "address"},
+				EIP712FieldType{Name: "salt", Type: "bytes32"},
+			},
+			"Mint": {
+				EIP712FieldType{Name: "keys", Type: "string[]"},
+				EIP712FieldType{Name: "values", Type: "string[]"},
+			},
+		},
+		PrimaryType: "Mint",
+		Domain: map[string]any{
+			"name":    "DIMO",
+			"version": "1",
+			// TODO(elffjs): Make these next three fields settings.
+			"chainId":           80001,
+			"verifyingContract": "0xB7D4091d72Cb16BfAeD6589DbD56E6745D77f887",
+			"salt":              "0xf2d857f4a3edcb9b78b4d503bfe733db1e3f6cdc2b7971ee739626c97e86a558",
+		},
+		Message: map[string]any{
+			"keys": []string{"Make", "Model", "Year"},
+			"values": []string{
+				userDevice.R.DeviceDefinition.R.DeviceMake.Name,
+				userDevice.R.DeviceDefinition.Model,
+				strconv.Itoa(int(userDevice.R.DeviceDefinition.Year)),
+			},
+		},
+	}
+
+	return c.JSON(msd)
+}
+
+type EIP712FieldType struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+type MintSignatureData struct {
+	Types       map[string][]EIP712FieldType `json:"types"`
+	PrimaryType string                       `json:"primaryType"`
+	Domain      any                          `json:"domain"`
+	Message     any                          `json:"message"`
+}
+
 type RegisterUserDevice struct {
 	Make               *string `json:"make"`
 	Model              *string `json:"model"`
