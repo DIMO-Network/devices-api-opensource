@@ -124,3 +124,18 @@ func (mr *MockSmartcarClientMockRecorder) GetYear(ctx, accessToken, id interface
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetYear", reflect.TypeOf((*MockSmartcarClient)(nil).GetYear), ctx, accessToken, id)
 }
+
+// HasDoorControl mocks base method.
+func (m *MockSmartcarClient) HasDoorControl(ctx context.Context, accessToken, id string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HasDoorControl", ctx, accessToken, id)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HasDoorControl indicates an expected call of HasDoorControl.
+func (mr *MockSmartcarClientMockRecorder) HasDoorControl(ctx, accessToken, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasDoorControl", reflect.TypeOf((*MockSmartcarClient)(nil).HasDoorControl), ctx, accessToken, id)
+}

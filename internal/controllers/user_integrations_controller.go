@@ -808,14 +808,20 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 		logger.Err(err).Msg("Failed to correct Smartcar device definition year.")
 	}
 
-	perms, err := udc.smartcarClient.GetEndpoints(c.Context(), token.Access, externalID)
+	endpoints, err := udc.smartcarClient.GetEndpoints(c.Context(), token.Access, externalID)
+	if err != nil {
+		return smartcarCallErr
+	}
+
+	doorControl, err := udc.smartcarClient.HasDoorControl(c.Context(), token.Access, externalID)
 	if err != nil {
 		return smartcarCallErr
 	}
 
 	meta := services.UserDeviceAPIIntegrationsMetadata{
 		SmartcarUserID:    &scUserID,
-		SmartcarEndpoints: perms,
+		SmartcarEndpoints: endpoints,
+		DoorControl:       doorControl,
 	}
 
 	b, err := json.Marshal(meta)
@@ -949,6 +955,16 @@ func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zero
 		return opaqueInternalError
 	}
 
+	// TODO(elffjs): Stupid to marshal this again and again.
+	meta := services.UserDeviceAPIIntegrationsMetadata{
+		DoorControl: true,
+	}
+
+	b, err := json.Marshal(meta)
+	if err != nil {
+		return err
+	}
+
 	taskID := ksuid.New().String()
 
 	integration := models.UserDeviceAPIIntegration{
@@ -960,6 +976,7 @@ func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zero
 		AccessExpiresAt: null.TimeFrom(time.Now().Add(time.Duration(reqBody.ExpiresIn) * time.Second)),
 		RefreshToken:    null.StringFrom(encRefreshToken), // Don't know when this expires.
 		TaskID:          null.StringFrom(taskID),
+		Metadata:        null.JSONFrom(b),
 	}
 
 	if err := integration.Insert(c.Context(), tx, boil.Infer()); err != nil {

@@ -15,6 +15,7 @@ type SmartcarClient interface {
 	GetUserID(ctx context.Context, accessToken string) (string, error)
 	GetExternalID(ctx context.Context, accessToken string) (string, error)
 	GetEndpoints(ctx context.Context, accessToken string, id string) ([]string, error)
+	HasDoorControl(ctx context.Context, accessToken string, id string) (bool, error)
 	GetVIN(ctx context.Context, accessToken string, id string) (string, error)
 	GetYear(ctx context.Context, accessToken string, id string) (int, error)
 }
@@ -45,6 +46,8 @@ var smartcarScopes = []string{
 	"read_vehicle_info",
 	"read_vin",
 }
+
+const smartcarDoorPermission = "control_security"
 
 var scopeToEndpoints = map[string][]string{
 	"read_engine_oil":   {"/engine/oil"},
@@ -93,6 +96,7 @@ func (s *smartcarClient) GetExternalID(ctx context.Context, accessToken string) 
 	return (*ids)[0], nil
 }
 
+// GetEndpoints returns the Smartcar read endpoints granted to the access token.
 func (s *smartcarClient) GetEndpoints(ctx context.Context, accessToken string, id string) ([]string, error) {
 	client := smartcar.NewClient()
 	v := client.NewVehicle(&smartcar.VehicleParams{
@@ -119,6 +123,32 @@ func (s *smartcarClient) GetEndpoints(ctx context.Context, accessToken string, i
 	}
 
 	return endpoints, nil
+}
+
+// HasDoorControl returns true if the access token can open and close doors.
+// TODO(elffjs): Probably silly to have both this and GetEndpoints.
+func (s *smartcarClient) HasDoorControl(ctx context.Context, accessToken string, id string) (bool, error) {
+	client := smartcar.NewClient()
+	v := client.NewVehicle(&smartcar.VehicleParams{
+		ID:          id,
+		AccessToken: accessToken,
+		UnitSystem:  smartcar.Metric,
+	})
+	perms, err := v.GetPermissions(ctx)
+	if err != nil {
+		return false, err
+	}
+	if perms == nil {
+		return false, errors.New("nil permissions object")
+	}
+
+	for _, perm := range perms.Permissions {
+		if perm == smartcarDoorPermission {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func (s *smartcarClient) GetVIN(ctx context.Context, accessToken string, id string) (string, error) {

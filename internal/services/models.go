@@ -124,6 +124,7 @@ type UserDeviceAPIIntegrationsMetadata struct {
 	EnableTeslaLock         bool     `json:"enableTeslaLock,omitempty"`
 	SmartcarEndpoints       []string `json:"smartcarEndpoints,omitempty"`
 	SmartcarUserID          *string  `json:"smartcarUserId,omitempty"`
+	DoorControl             bool     `json:"doorControl"`
 }
 
 type UserDeviceMetadata struct {
