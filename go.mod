@@ -3,7 +3,7 @@ module github.com/DIMO-Network/devices-api
 go 1.18
 
 require (
-	github.com/DIMO-Network/shared v0.1.14
+	github.com/DIMO-Network/shared v0.2.2
 	github.com/DIMO-Network/zflogger v1.0.0-beta
 	github.com/Shopify/sarama v1.32.0
 	github.com/ThreeDotsLabs/watermill v1.1.1
@@ -11,6 +11,8 @@ require (
 	github.com/ahmetb/go-linq/v3 v3.2.0
 	github.com/ansrivas/fiberprometheus/v2 v2.1.2
 	github.com/arsmn/fiber-swagger/v2 v2.31.1
+	github.com/aws/aws-sdk-go-v2/config v1.5.0
+	github.com/aws/aws-sdk-go-v2/service/kms v1.17.3
 	github.com/docker/go-connections v0.4.0
 	github.com/friendsofgo/errors v0.9.2
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
@@ -45,6 +47,16 @@ require (
 	github.com/Microsoft/hcsshim v0.8.23 // indirect
 	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/avast/retry-go/v4 v4.0.4 // indirect
+	github.com/aws/aws-sdk-go-v2 v1.16.5 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.3.1 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.3.0 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.12 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.6 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/ini v1.1.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.2.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.3.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.6.0 // indirect
+	github.com/aws/smithy-go v1.11.3 // indirect
 	github.com/bsm/redislock v0.7.2 // indirect
 	github.com/capnm/sysinfo v0.0.0-20130621111458-5909a53897f3 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.2 // indirect
@@ -83,7 +95,7 @@ require (
 	cloud.google.com/go/kms v1.2.0 // indirect
 	cloud.google.com/go/pubsub v1.18.0 // indirect
 	github.com/RichardKnop/logging v0.0.0-20190827224416-1a693bdd4fae // indirect
-	github.com/aws/aws-sdk-go v1.43.45
+	github.com/aws/aws-sdk-go v1.43.45 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bradfitz/gomemcache v0.0.0-20220106215444-fb4bf637b56d // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
@@ -96,7 +108,7 @@ require (
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/go-cmp v0.5.7 // indirect
+	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/googleapis/gax-go/v2 v2.1.1 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect

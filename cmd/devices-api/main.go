@@ -25,9 +25,8 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/ansrivas/fiberprometheus/v2"
 	swagger "github.com/arsmn/fiber-swagger/v2"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kms"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/customerio/go-customerio/v3"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
@@ -395,13 +394,15 @@ func startGRPCServer(settings *config.Settings, dbs func() *database.DBReaderWri
 
 func createKMS(settings *config.Settings, logger *zerolog.Logger) shared.Cipher {
 	// Need AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to be set.
-	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(settings.AWSRegion),
-	}))
+	// TODO(elffjs): Can we let the SDK grab the region too?
+	awscfg, err := awsconfig.LoadDefaultConfig(context.Background(), awsconfig.WithRegion(settings.AWSRegion))
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Couldn't create AWS config.")
+	}
 
 	return &shared.KMSCipher{
 		KeyID:  settings.KMSKeyID,
-		Client: kms.New(sess),
+		Client: kms.NewFromConfig(awscfg),
 	}
 }
 
