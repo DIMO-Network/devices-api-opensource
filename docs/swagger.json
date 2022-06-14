@@ -282,7 +282,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
+                                "$ref": "#/definitions/internal_controllers.DocumentResponse"
                             }
                         }
                     }
@@ -311,7 +311,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentRequest"
+                            "$ref": "#/definitions/internal_controllers.DocumentRequest"
                         }
                     }
                 ],
@@ -319,7 +319,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
+                            "$ref": "#/definitions/internal_controllers.DocumentResponse"
                         }
                     }
                 }
@@ -400,7 +400,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDevice"
+                            "$ref": "#/definitions/internal_controllers.RegisterUserDevice"
                         }
                     }
                 ],
@@ -408,7 +408,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDeviceResponse"
+                            "$ref": "#/definitions/internal_controllers.RegisterUserDeviceResponse"
                         }
                     }
                 }
@@ -531,7 +531,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceFull"
+                                "$ref": "#/definitions/internal_controllers.UserDeviceFull"
                             }
                         }
                     }
@@ -587,7 +587,10 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.MintSignatureData"
+                        }
                     }
                 }
             },
@@ -615,7 +618,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.MintRequest"
+                            "$ref": "#/definitions/internal_controllers.MintRequest"
                         }
                     }
                 ],
@@ -680,7 +683,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateCountryCodeReq"
+                            "$ref": "#/definitions/internal_controllers.UpdateCountryCodeReq"
                         }
                     }
                 ],
@@ -752,7 +755,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateNameReq"
+                            "$ref": "#/definitions/internal_controllers.UpdateNameReq"
                         }
                     },
                     {
@@ -797,7 +800,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.DeviceSnapshot"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot"
                         }
                     }
                 }
@@ -827,7 +830,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateVINReq"
+                            "$ref": "#/definitions/internal_controllers.UpdateVINReq"
                         }
                     },
                     {
@@ -1170,6 +1173,17 @@
                 }
             }
         },
+        "github.com_DIMO-Network_devices-api_internal_controllers.EIP712FieldType": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "github.com_DIMO-Network_devices-api_internal_controllers.GeoFenceUserDevice": {
             "type": "object",
             "properties": {
@@ -1243,6 +1257,29 @@
                 "signature": {
                     "description": "Signature is the hex encoding of the EIP-712 signature result.",
                     "type": "string"
+                }
+            }
+        },
+        "github.com_DIMO-Network_devices-api_internal_controllers.MintSignatureData": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "any"
+                },
+                "message": {
+                    "type": "any"
+                },
+                "primaryType": {
+                    "type": "string"
+                },
+                "types": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.EIP712FieldType"
+                        }
+                    }
                 }
             }
         },
@@ -1575,6 +1612,17 @@
                 }
             }
         },
+        "internal_controllers.EIP712FieldType": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_controllers.GeoFenceUserDevice": {
             "type": "object",
             "properties": {
@@ -1648,6 +1696,29 @@
                 "signature": {
                     "description": "Signature is the hex encoding of the EIP-712 signature result.",
                     "type": "string"
+                }
+            }
+        },
+        "internal_controllers.MintSignatureData": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "any"
+                },
+                "message": {
+                    "type": "any"
+                },
+                "primaryType": {
+                    "type": "string"
+                },
+                "types": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/internal_controllers.EIP712FieldType"
+                        }
+                    }
                 }
             }
         },

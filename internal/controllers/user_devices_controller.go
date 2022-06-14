@@ -639,7 +639,7 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 // @Description  Returns the data the user must sign in order to mint this device.
 // @Tags         user-devices
 // @Param        userDeviceID path string true "user device ID"
-// @Success      200
+// @Success      200 {object} controllers.MintSignatureData
 // @Security     BearerAuth
 // @Router       /user/devices/{userDeviceID}/commands/mint [get]
 func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
