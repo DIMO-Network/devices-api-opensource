@@ -234,6 +234,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		logger.Warn().Msg("Using ROT13 encrypter. Only use this for testing!")
 		cipher = new(shared.ROT13Cipher)
 	}
+
 	// services
 	nhtsaSvc := services.NewNHTSAService()
 	ddSvc := services.NewDeviceDefinitionService(settings.TorProxyURL, pdb.DBS, &logger, nhtsaSvc)
@@ -316,6 +317,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	//
 	if settings.Environment != "prod" {
 		v1Auth.Get("/user/devices/:userDeviceID/commands/mint", userDeviceController.GetMintDataToSign)
+		v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.MintDevice)
 	}
 	v1Auth.Get("/integrations", userDeviceController.GetIntegrations)
 	// autopi specific

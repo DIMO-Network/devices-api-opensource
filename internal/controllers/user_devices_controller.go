@@ -1,8 +1,10 @@
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"regexp"
 	"strconv"
 	"strings"
@@ -22,6 +24,10 @@ import (
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 type UserDevicesController struct {
@@ -40,6 +46,7 @@ type UserDevicesController struct {
 	nhtsaService          services.INHTSAService
 	autoPiIngestRegistrar services.IngestRegistrar
 	autoPiTaskService     services.AutoPiTaskService
+	s3                    *s3.Client
 }
 
 // NewUserDevicesController constructor
@@ -60,6 +67,17 @@ func NewUserDevicesController(
 	autoPiIngestRegistrar services.IngestRegistrar,
 	autoPiTaskService services.AutoPiTaskService,
 ) UserDevicesController {
+
+	var s3Client *s3.Client
+
+	if settings.Environment != "prod" {
+		awscfg, err := awsconfig.LoadDefaultConfig(context.Background(), awsconfig.WithRegion(settings.AWSRegion))
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Couldn't create AWS config.")
+		}
+		s3Client = s3.NewFromConfig(awscfg)
+	}
+
 	return UserDevicesController{
 		Settings:              settings,
 		DBS:                   dbs,
@@ -76,6 +94,7 @@ func NewUserDevicesController(
 		nhtsaService:          nhtsaService,
 		autoPiIngestRegistrar: autoPiIngestRegistrar,
 		autoPiTaskService:     autoPiTaskService,
+		s3:                    s3Client,
 	}
 }
 
@@ -682,6 +701,60 @@ type MintSignatureData struct {
 	PrimaryType string                       `json:"primaryType"`
 	Domain      any                          `json:"domain"`
 	Message     any                          `json:"message"`
+}
+
+// MintDevice godoc
+// @Description  Sends a mint device request to the blockchain
+// @Tags         user-devices
+// @Param        userDeviceID path string true "user device ID"
+// @Param        mintRequest body controllers.MintRequest true "Signature and NFT data"
+// @Success      200
+// @Security     BearerAuth
+// @Router       /user/devices/{userDeviceID}/commands/mint [post]
+func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
+	userDeviceID := c.Params("userDeviceID")
+	userID := getUserID(c)
+
+	_, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		models.UserDeviceWhere.UserID.EQ(userID),
+		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "No device with that ID found.")
+	}
+
+	mr := new(MintRequest)
+	if err := c.BodyParser(mr); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Couldn't parse request body.")
+	}
+
+	image, err := base64.StdEncoding.DecodeString(mr.ImageData)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Field imageData not properly base64-encoded.")
+	}
+
+	mintRequestID := ksuid.New().String()
+
+	_, err = udc.s3.PutObject(c.Context(), &s3.PutObjectInput{
+		Bucket: &udc.Settings.NFTS3Bucket,
+		Key:    aws.String(mintRequestID + ".png"), // This will be the request ID.
+		Body:   bytes.NewReader(image),
+	})
+	if err != nil {
+		return opaqueInternalError
+	}
+
+	return c.JSON(map[string]any{"mintRequestId": mintRequestID})
+}
+
+// MintRequest contains the user's signature for the mint request as well as the
+// NFT image.
+type MintRequest struct {
+	// Signature is the hex encoding of the EIP-712 signature result.
+	Signature string `json:"signature"`
+	// ImageData contains the base64-encoded NFT PNG image.
+	ImageData string `json:"imageData"`
 }
 
 type RegisterUserDevice struct {

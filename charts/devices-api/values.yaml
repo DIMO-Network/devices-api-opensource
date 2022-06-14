@@ -51,6 +51,7 @@ env:
   DEVICE_DATA_INDEX_NAME: device-status-dev*
   AWS_REGION: us-east-2
   GRPC_PORT: 8086
+  NFT_S3_BUCKET: dylan-test-dev-nfts
 service:
   type: ClusterIP
   ports:

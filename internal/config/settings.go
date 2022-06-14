@@ -49,6 +49,7 @@ type Settings struct {
 	CIOSiteID                      string `yaml:"CIO_SITE_ID"`
 	CIOApiKey                      string `yaml:"CIO_API_KEY"`
 	AWSBucketName                  string `yaml:"AWS_S3_BUCKET_NAME"`
+	NFTS3Bucket                    string `yaml:"NFT_S3_BUCKET"`
 }
 
 // GetWriterDSN builds the connection string to the db writer - for now same as reader
