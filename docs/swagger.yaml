@@ -166,6 +166,15 @@ definitions:
           "DuplicateIntegration".
         type: string
     type: object
+  github.com_DIMO-Network_devices-api_internal_controllers.MintRequest:
+    properties:
+      imageData:
+        description: ImageData contains the base64-encoded NFT PNG image.
+        type: string
+      signature:
+        description: Signature is the hex encoding of the EIP-712 signature result.
+        type: string
+    type: object
   github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest:
     properties:
       accessToken:
@@ -429,6 +438,15 @@ definitions:
       status:
         description: Status is one of "Pending", "PendingFirstData", "Active", "Failed",
           "DuplicateIntegration".
+        type: string
+    type: object
+  internal_controllers.MintRequest:
+    properties:
+      imageData:
+        description: ImageData contains the base64-encoded NFT PNG image.
+        type: string
+      signature:
+        description: Signature is the hex encoding of the EIP-712 signature result.
         type: string
     type: object
   internal_controllers.RegisterDeviceIntegrationRequest:
@@ -732,7 +750,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo'
+            $ref: '#/definitions/internal_controllers.AutoPiDeviceInfo'
       security:
       - BearerAuth: []
       tags:
@@ -928,100 +946,6 @@ paths:
       - BearerAuth: []
       tags:
       - integrations
-  /user/device-data/{userDeviceID}/distance-driven:
-    get:
-      description: |-
-        Get kilometers driven for a userDeviceID since connected (ie. since we have data available)
-        if it returns 0 for distanceDriven it means we have no odometer data.
-      parameters:
-      - description: user device id
-        in: path
-        name: userDeviceID
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: ""
-        "404":
-          description: no device found for user with provided parameters
-      security:
-      - BearerAuth: []
-      tags:
-      - device-data
-  /user/device-data/{userDeviceID}/historical:
-    get:
-      description: |-
-        Get historical data for a userDeviceID, within start and end range, taking the
-        latest status from every 30m bucket.
-      parameters:
-      - description: user id
-        in: path
-        name: userDeviceID
-        required: true
-        type: string
-      - description: startDate eg 2022-01-02. if empty two weeks back
-        in: query
-        name: startDate
-        type: string
-      - description: endDate eg 2022-03-01. if empty today
-        in: query
-        name: endDate
-        type: string
-      - description: odometer. if empty all
-        in: query
-        name: signal
-        type: string
-      - description: intervals for bucketing, 30m, 60m. if empty 30m
-        in: query
-        name: interval
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: ""
-        "400":
-          description: invalid start or end date
-        "404":
-          description: no device found for user with provided parameters
-      security:
-      - BearerAuth: []
-      tags:
-      - device-data
-  /user/device-data/{userDeviceID}/historical-30m:
-    get:
-      description: |-
-        Get historical data for a userDeviceID, within start and end range, taking the
-        latest status from every 30m bucket.
-      parameters:
-      - description: user id
-        in: path
-        name: userDeviceID
-        required: true
-        type: string
-      - description: startDate eg 2022-01-02. if empty two weeks back
-        in: query
-        name: startDate
-        type: string
-      - description: endDate eg 2022-03-01. if empty today
-        in: query
-        name: endDate
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: ""
-        "400":
-          description: invalid start or end date
-        "404":
-          description: no device found for user with provided parameters
-      security:
-      - BearerAuth: []
-      tags:
-      - device-data
   /user/devices:
     post:
       consumes:
@@ -1034,14 +958,14 @@ paths:
         name: user_device
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.RegisterUserDevice'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDevice'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_controllers.RegisterUserDeviceResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDeviceResponse'
       security:
       - ApiKeyAuth: []
       - BearerAuth: []
@@ -1059,7 +983,7 @@ paths:
         name: AutoPiCommandRequest
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest'
+          $ref: '#/definitions/internal_controllers.AutoPiCommandRequest'
       responses:
         "200":
           description: ""
@@ -1098,7 +1022,7 @@ paths:
         name: userDeviceIntegrationRegistration
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest'
+          $ref: '#/definitions/internal_controllers.RegisterDeviceIntegrationRequest'
       responses:
         "204":
           description: ""
@@ -1117,6 +1041,43 @@ paths:
         type: string
       responses:
         "204":
+          description: ""
+      security:
+      - BearerAuth: []
+      tags:
+      - user-devices
+  /user/devices/{userDeviceID}/commands/mint:
+    get:
+      description: Returns the data the user must sign in order to mint this device.
+      parameters:
+      - description: user device ID
+        in: path
+        name: userDeviceID
+        required: true
+        type: string
+      responses:
+        "200":
+          description: ""
+      security:
+      - BearerAuth: []
+      tags:
+      - user-devices
+    post:
+      description: Sends a mint device request to the blockchain
+      parameters:
+      - description: user device ID
+        in: path
+        name: userDeviceID
+        required: true
+        type: string
+      - description: Signature and NFT data
+        in: body
+        name: mintRequest
+        required: true
+        schema:
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.MintRequest'
+      responses:
+        "200":
           description: ""
       security:
       - BearerAuth: []
@@ -1151,7 +1112,7 @@ paths:
         name: name
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.UpdateCountryCodeReq'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateCountryCodeReq'
       produces:
       - application/json
       responses:
@@ -1177,7 +1138,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse'
+            $ref: '#/definitions/internal_controllers.GetUserDeviceIntegrationResponse'
       security:
       - BearerAuth: []
       tags:
@@ -1193,7 +1154,7 @@ paths:
         name: name
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.UpdateNameReq'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateNameReq'
       - description: user id
         in: path
         name: user_device_id
@@ -1225,7 +1186,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot'
+            $ref: '#/definitions/internal_controllers.DeviceSnapshot'
       security:
       - BearerAuth: []
       tags:
@@ -1241,7 +1202,7 @@ paths:
         name: vin
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.UpdateVINReq'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateVINReq'
       - description: user id
         in: path
         name: userDeviceID
@@ -1266,7 +1227,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.UserDeviceFull'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceFull'
             type: array
       security:
       - BearerAuth: []
