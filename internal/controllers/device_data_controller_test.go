@@ -101,7 +101,7 @@ func TestUserDevicesController_GetUserDeviceStatus(t *testing.T) {
 
 		assert.Equal(t, 187.79, *snapshot.Range)
 		assert.Equal(t, false, *snapshot.Charging)
-		assert.Equal(t, 244.0, snapshot.Tires.BackLeft)
+		assert.Equal(t, 244.0, snapshot.TirePressure.BackLeft)
 		assert.Equal(t, 195677.59375, *snapshot.Odometer)
 		assert.Equal(t, 33.75, *snapshot.Latitude, "expected autopi latitude")
 		assert.Equal(t, -117.91, *snapshot.Longitude, "expected autopi longitude")

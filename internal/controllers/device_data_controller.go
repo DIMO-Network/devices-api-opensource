@@ -104,7 +104,7 @@ func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 			tires := gjson.GetBytes(datum.Data.JSON, "tires")
 			if tires.Exists() {
 				// weird thing here is in example payloads these are all ints, but the smartcar lib has as floats
-				ds.Tires = &smartcar.TirePressure{
+				ds.TirePressure = &smartcar.TirePressure{
 					FrontLeft:  tires.Get("frontLeft").Float(),
 					FrontRight: tires.Get("frontRight").Float(),
 					BackLeft:   tires.Get("backLeft").Float(),
@@ -185,5 +185,5 @@ type DeviceSnapshot struct {
 	StateOfCharge        *float64               `json:"soc,omitempty"` // todo: change json to match after update frontend
 	RecordUpdatedAt      *time.Time             `json:"recordUpdatedAt,omitempty"`
 	RecordCreatedAt      *time.Time             `json:"recordCreatedAt,omitempty"`
-	Tires                *smartcar.TirePressure `json:"tires,omitempty"`
+	TirePressure         *smartcar.TirePressure `json:"tirePressure,omitempty"`
 }
