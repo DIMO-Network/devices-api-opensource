@@ -228,6 +228,54 @@ func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(commandResponse)
 }
 
+func (udc *UserDevicesController) OpenDoors(c *fiber.Ctx) error {
+	userID := getUserID(c)
+	userDeviceID := c.Params("userDeviceID")
+	integrationID := c.Params("integrationID")
+
+	device, err := models.UserDevices(
+		models.UserDeviceWhere.UserID.EQ(userID),
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		qm.Load(
+			models.UserDeviceRels.UserDeviceAPIIntegrations,
+			models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID),
+		),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, "no device found with that id")
+		}
+		return opaqueInternalError
+	}
+
+	if len(device.R.UserDeviceAPIIntegrations) == 0 {
+		fiber.NewError(fiber.StatusNotFound, "device does not have the specified integration")
+	}
+
+	apiInt := device.R.UserDeviceAPIIntegrations[0]
+
+	if apiInt.Status != models.UserDeviceAPIIntegrationStatusActive {
+		fiber.NewError(fiber.StatusBadRequest, "integration is not active")
+	}
+
+	md := new(services.UserDeviceAPIIntegrationsMetadata)
+	if err := apiInt.Metadata.Unmarshal(md); err != nil {
+		return opaqueInternalError
+	}
+
+	if md.Commands == nil {
+		return fiber.NewError(fiber.StatusBadRequest, "not capable of this command")
+	}
+
+	for _, cap := range md.Commands.Enabled {
+		if cap == "doors/open" {
+			return c.JSON(map[string]any{"message": "You have done an excellent job."})
+		}
+	}
+
+	return fiber.NewError(fiber.StatusBadRequest, "not capable of this command")
+}
+
 // GetAutoPiCommandStatus godoc
 // @Description gets the status of an autopi raw command by jobID
 // @Tags 		integrations
@@ -821,7 +869,7 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 	}
 	if doorControl {
 		cap = &services.UserDeviceAPIIntegrationsMetadataCommands{
-			Enabled: []string{"door/open", "door/close"},
+			Enabled: []string{"doors/open", "doors/close"},
 		}
 	}
 
@@ -965,7 +1013,7 @@ func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zero
 	// TODO(elffjs): Stupid to marshal this again and again.
 	meta := services.UserDeviceAPIIntegrationsMetadata{
 		Commands: &services.UserDeviceAPIIntegrationsMetadataCommands{
-			Enabled: []string{"door/open", "door/close"},
+			Enabled: []string{"doors/open", "doors/close"},
 		},
 	}
 

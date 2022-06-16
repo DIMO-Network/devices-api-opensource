@@ -326,8 +326,12 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID", userDeviceController.RegisterDeviceIntegration)
 	v1Auth.Get("/user/devices/:userDeviceID/status", userDeviceController.GetUserDeviceStatus)
 	v1Auth.Post("/user/devices/:userDeviceID/commands/refresh", userDeviceController.RefreshUserDeviceStatus)
-	//
+	// Endpoints not ready for everyone.
 	if settings.Environment != "prod" {
+		// Device commands.
+		v1Auth.Post("/user/devices/:userDeviceID/commands/doors/open", userDeviceController.OpenDoors)
+		// v1Auth.Post("/user/devices/:userDeviceID/commands/doors/close", userDeviceController.GetMintDataToSign)
+		// Device NFT.
 		v1Auth.Get("/user/devices/:userDeviceID/commands/mint", userDeviceController.GetMintDataToSign)
 		v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.MintDevice)
 	}
