@@ -228,7 +228,7 @@ func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(commandResponse)
 }
 
-func (udc *UserDevicesController) OpenDoors(c *fiber.Ctx) error {
+func (udc *UserDevicesController) UnlockDoors(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	userDeviceID := c.Params("userDeviceID")
 	integrationID := c.Params("integrationID")
@@ -268,8 +268,60 @@ func (udc *UserDevicesController) OpenDoors(c *fiber.Ctx) error {
 	}
 
 	for _, cap := range md.Commands.Enabled {
-		if cap == "doors/open" {
-			subTaskID, err := udc.smartcarTaskSvc.OpenDoors(apiInt)
+		if cap == "doors/unlock" {
+			subTaskID, err := udc.smartcarTaskSvc.UnlockDoors(apiInt)
+			if err != nil {
+				return opaqueInternalError
+			}
+			return c.JSON(map[string]any{"taskId": subTaskID})
+		}
+	}
+
+	return fiber.NewError(fiber.StatusBadRequest, "not capable of this command")
+}
+
+func (udc *UserDevicesController) LockDoors(c *fiber.Ctx) error {
+	userID := getUserID(c)
+	userDeviceID := c.Params("userDeviceID")
+	integrationID := c.Params("integrationID")
+
+	device, err := models.UserDevices(
+		models.UserDeviceWhere.UserID.EQ(userID),
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		qm.Load(
+			models.UserDeviceRels.UserDeviceAPIIntegrations,
+			models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID),
+		),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, "no device found with that id")
+		}
+		return opaqueInternalError
+	}
+
+	if len(device.R.UserDeviceAPIIntegrations) == 0 {
+		return fiber.NewError(fiber.StatusNotFound, "device does not have the specified integration")
+	}
+
+	apiInt := device.R.UserDeviceAPIIntegrations[0]
+
+	if apiInt.Status != models.UserDeviceAPIIntegrationStatusActive {
+		fiber.NewError(fiber.StatusBadRequest, "integration is not active")
+	}
+
+	md := new(services.UserDeviceAPIIntegrationsMetadata)
+	if err := apiInt.Metadata.Unmarshal(md); err != nil {
+		return opaqueInternalError
+	}
+
+	if md.Commands == nil {
+		return fiber.NewError(fiber.StatusBadRequest, "not capable of this command")
+	}
+
+	for _, cap := range md.Commands.Enabled {
+		if cap == "doors/lock" {
+			subTaskID, err := udc.smartcarTaskSvc.LockDoors(apiInt)
 			if err != nil {
 				return opaqueInternalError
 			}

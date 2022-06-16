@@ -34,19 +34,19 @@ func (m *MockSmartcarTaskService) EXPECT() *MockSmartcarTaskServiceMockRecorder 
 	return m.recorder
 }
 
-// OpenDoors mocks base method.
-func (m *MockSmartcarTaskService) OpenDoors(udai *models.UserDeviceAPIIntegration) (string, error) {
+// LockDoors mocks base method.
+func (m *MockSmartcarTaskService) LockDoors(udai *models.UserDeviceAPIIntegration) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "OpenDoors", udai)
+	ret := m.ctrl.Call(m, "LockDoors", udai)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// OpenDoors indicates an expected call of OpenDoors.
-func (mr *MockSmartcarTaskServiceMockRecorder) OpenDoors(udai interface{}) *gomock.Call {
+// LockDoors indicates an expected call of LockDoors.
+func (mr *MockSmartcarTaskServiceMockRecorder) LockDoors(udai interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OpenDoors", reflect.TypeOf((*MockSmartcarTaskService)(nil).OpenDoors), udai)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LockDoors", reflect.TypeOf((*MockSmartcarTaskService)(nil).LockDoors), udai)
 }
 
 // Refresh mocks base method.
@@ -89,4 +89,19 @@ func (m *MockSmartcarTaskService) StopPoll(udai *models.UserDeviceAPIIntegration
 func (mr *MockSmartcarTaskServiceMockRecorder) StopPoll(udai interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StopPoll", reflect.TypeOf((*MockSmartcarTaskService)(nil).StopPoll), udai)
+}
+
+// UnlockDoors mocks base method.
+func (m *MockSmartcarTaskService) UnlockDoors(udai *models.UserDeviceAPIIntegration) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UnlockDoors", udai)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UnlockDoors indicates an expected call of UnlockDoors.
+func (mr *MockSmartcarTaskServiceMockRecorder) UnlockDoors(udai interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnlockDoors", reflect.TypeOf((*MockSmartcarTaskService)(nil).UnlockDoors), udai)
 }

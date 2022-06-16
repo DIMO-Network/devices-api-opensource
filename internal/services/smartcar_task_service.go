@@ -17,7 +17,8 @@ type SmartcarTaskService interface {
 	StartPoll(udai *models.UserDeviceAPIIntegration) error
 	StopPoll(udai *models.UserDeviceAPIIntegration) error
 	Refresh(udai *models.UserDeviceAPIIntegration) error
-	OpenDoors(udai *models.UserDeviceAPIIntegration) (string, error)
+	UnlockDoors(udai *models.UserDeviceAPIIntegration) (string, error)
+	LockDoors(udai *models.UserDeviceAPIIntegration) (string, error)
 }
 
 func NewSmartcarTaskService(settings *config.Settings, producer sarama.SyncProducer) SmartcarTaskService {
@@ -235,7 +236,7 @@ type SmartcarDoorTask struct {
 	Identifiers   SmartcarIdentifiers `json:"identifiers"`
 }
 
-func (t *smartcarTaskService) OpenDoors(udai *models.UserDeviceAPIIntegration) (string, error) {
+func (t *smartcarTaskService) UnlockDoors(udai *models.UserDeviceAPIIntegration) (string, error) {
 	tt := shared.CloudEvent[SmartcarDoorTask]{
 		ID:          ksuid.New().String(),
 		Source:      "dimo/integration/" + udai.IntegrationID,
@@ -243,6 +244,41 @@ func (t *smartcarTaskService) OpenDoors(udai *models.UserDeviceAPIIntegration) (
 		Subject:     udai.UserDeviceID,
 		Time:        time.Now(),
 		Type:        "zone.dimo.task.smartcar.doors.unlock",
+		Data: SmartcarDoorTask{
+			TaskID:        udai.TaskID.String,
+			SubTaskID:     ksuid.New().String(),
+			UserDeviceID:  udai.UserDeviceID,
+			IntegrationID: udai.IntegrationID,
+			Identifiers: SmartcarIdentifiers{
+				ID: udai.ExternalID.String,
+			},
+		},
+	}
+
+	ttb, err := json.Marshal(tt)
+	if err != nil {
+		return "", err
+	}
+
+	_, _, err = t.Producer.SendMessage(
+		&sarama.ProducerMessage{
+			Topic: t.Settings.TaskRunNowTopic,
+			Key:   sarama.StringEncoder(udai.TaskID.String),
+			Value: sarama.ByteEncoder(ttb),
+		},
+	)
+
+	return tt.Data.SubTaskID, nil
+}
+
+func (t *smartcarTaskService) LockDoors(udai *models.UserDeviceAPIIntegration) (string, error) {
+	tt := shared.CloudEvent[SmartcarDoorTask]{
+		ID:          ksuid.New().String(),
+		Source:      "dimo/integration/" + udai.IntegrationID,
+		SpecVersion: "1.0",
+		Subject:     udai.UserDeviceID,
+		Time:        time.Now(),
+		Type:        "zone.dimo.task.smartcar.doors.lock",
 		Data: SmartcarDoorTask{
 			TaskID:        udai.TaskID.String,
 			SubTaskID:     ksuid.New().String(),
