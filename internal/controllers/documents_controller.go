@@ -1,25 +1,28 @@
 package controllers
 
 import (
+	"fmt"
+	"path/filepath"
+
+	"bytes"
+
 	"github.com/DIMO-Network/devices-api/internal/config"
-	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gofiber/fiber/v2"
-	"github.com/rs/zerolog"
+	"github.com/pkg/errors"
+	"github.com/segmentio/ksuid"
 )
 
 type DocumentsController struct {
 	settings *config.Settings
-	dbs      func() *database.DBReaderWriter
-	log      *zerolog.Logger
+	s3Client *s3.Client
 }
 
 // NewDocumentsController constructor
-func NewDocumentsController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger) DocumentsController {
-	return DocumentsController{
-		settings: settings,
-		dbs:      dbs,
-		log:      logger,
-	}
+func NewDocumentsController(settings *config.Settings, s3Client *s3.Client) DocumentsController {
+	return DocumentsController{settings: settings, s3Client: s3Client}
 }
 
 // GetDocuments godoc
@@ -31,12 +34,37 @@ func NewDocumentsController(settings *config.Settings, dbs func() *database.DBRe
 // @Security     BearerAuth
 // @Router       /documents [get]
 func (udc *DocumentsController) GetDocuments(c *fiber.Ctx) error {
-	//userID := getUserID(c)
-	//udc.settings.AWSBucketName
-	documents := []DocumentResponse{
-		{
-			Name: "Driver's license",
-		},
+	userID := getUserID(c)
+
+	response, err := udc.s3Client.ListObjectsV2(c.Context(), &s3.ListObjectsV2Input{
+		Bucket: aws.String(udc.settings.AWSDocumentsBucketName),
+		Prefix: aws.String(userID),
+	})
+
+	documents := []DocumentResponse{}
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "the bucket does not exist")
+	}
+
+	for _, item := range response.Contents {
+		responseItem, err := udc.s3Client.GetObject(c.Context(),
+			&s3.GetObjectInput{
+				Bucket: aws.String(udc.settings.AWSDocumentsBucketName),
+				Key:    aws.String(*item.Key),
+			})
+
+		if err != nil {
+			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		}
+
+		documents = append(documents, DocumentResponse{
+			ID:   responseItem.Metadata[MetadataDocumentID],
+			Name: responseItem.Metadata[MetadataDocumentName],
+			URL:  fmt.Sprintf("%s/v1/documents/%s/download", udc.settings.DeploymentBaseURL, responseItem.Metadata[MetadataDocumentID]),
+			Type: DocumentTypeEnum(responseItem.Metadata[MetadataDocumentType]),
+		})
+
 	}
 
 	return c.JSON(documents)
@@ -47,12 +75,30 @@ func (udc *DocumentsController) GetDocuments(c *fiber.Ctx) error {
 // @Tags           documents
 // @Produce      json
 // @Accept       json
-// @Param        id   path      int  true  "Document ID"
+// @Param        id   path      string  true  "Document ID"
 // @Success      200  {object}  controllers.DocumentResponse
 // @Security     BearerAuth
 // @Router       /documents/{id} [get]
 func (udc *DocumentsController) GetDocumentByID(c *fiber.Ctx) error {
-	document := DocumentResponse{Name: "Driver's license"}
+	userID := getUserID(c)
+	fileID := c.Params("id")
+
+	response, err := udc.s3Client.GetObject(c.Context(),
+		&s3.GetObjectInput{
+			Bucket: aws.String(udc.settings.AWSDocumentsBucketName),
+			Key:    aws.String(fmt.Sprintf("%s/%s", userID, fileID)),
+		})
+
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, fmt.Sprintf("no document with id %s found", fileID))
+	}
+
+	document := DocumentResponse{
+		ID:   response.Metadata[MetadataDocumentID],
+		Name: response.Metadata[MetadataDocumentName],
+		URL:  fmt.Sprintf("%s/v1/documents/%s/download", udc.settings.DeploymentBaseURL, response.Metadata[MetadataDocumentID]),
+		Type: DocumentTypeEnum(response.Metadata[MetadataDocumentType]),
+	}
 
 	return c.JSON(document)
 }
@@ -61,60 +107,74 @@ func (udc *DocumentsController) GetDocumentByID(c *fiber.Ctx) error {
 // @Description  post document by id associated with current user - pulled from token
 // @Tags           documents
 // @Produce      json
-// @Accept       json
-// @Param        user_device  body  controllers.DocumentRequest  true  "add document to user. either name and type are required"
+// @Accept       multipart/form-data
+// @Param        file  formData  file  true  "The file to upload. file is required"
+// @Param        name  formData  string  true  "The document name. name is required"
+// @Param        type  formData  string  true  "The document type. type is required"
 // @Success      201  {object}  controllers.DocumentResponse
 // @Security     BearerAuth
 // @Router       /documents [post]
 func (udc *DocumentsController) PostDocument(c *fiber.Ctx) error {
 
+	userID := getUserID(c)
 	file, err := c.FormFile("file")
+	documentName := c.FormValue("name")
+	documentType := c.FormValue("type")
 
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"errorMessage": "invalid file document",
-		})
+		return fiber.NewError(fiber.StatusBadRequest, "invalid file.")
 	}
 
+	if err := DocumentTypeEnum(documentType).IsValid(); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid document type.")
+	}
 	// Get Buffer from file
-	buffer, err := file.Open()
+	fileHeader, err := file.Open()
 
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"errorMessage": "invalid file document",
-		})
+		return fiber.NewError(fiber.StatusBadRequest, "document cannot be read.")
 	}
-	defer buffer.Close()
+	defer fileHeader.Close()
 
-	document := new(DocumentRequest)
+	// Validate file type
+	filetype := file.Header.Get("content-type")
 
-	if err := c.BodyParser(&document); err != nil {
-		return err
+	if err := FileTypeAllowedEnum(filetype).IsValid(); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "the provided file format is not allowed.")
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(document)
+	// Create an uploader with the session and default options
+	uploader := manager.NewUploader(udc.s3Client)
 
-	// // The session the S3 Uploader will use
-	// sess := session.Must(session.NewSession())
+	// Unique Id
+	id := ksuid.New().String()
 
-	// // Create an uploader with the session and default options
-	// uploader := s3manager.NewUploader(sess)
+	metadata := map[string]string{}
+	metadata[MetadataDocumentID] = id
+	metadata[MetadataDocumentName] = documentName
+	metadata[MetadataDocumentFile] = file.Filename
+	metadata[MetadataDocumentFileExtension] = filepath.Ext(file.Filename)
+	metadata[MetadataDocumentType] = documentType
 
-	// // Upload the file to S3.
-	// result, err := uploader.Upload(&s3manager.UploadInput{
-	// 	Bucket: aws.String(bucketName),
-	// 	Key:    aws.String("myString"),
-	// 	Body:   nil,
-	// })
+	fileID := fmt.Sprintf("%s%s", id, filepath.Ext(file.Filename))
 
-	// if err != nil {
-	// 	return c.Status(fiber.StatusConflict).JSON(fiber.Map{
-	// 		"errorMessage": "the file cannot be upload",
-	// 	})
-	// }
+	// Upload the file to S3.
+	result, err := uploader.Upload(c.Context(), &s3.PutObjectInput{
+		Bucket:             aws.String(udc.settings.AWSDocumentsBucketName),
+		Key:                aws.String(fmt.Sprintf("%s/%s", userID, fileID)),
+		Body:               fileHeader,
+		ContentDisposition: aws.String("attachment"),
+		Metadata:           metadata,
+	})
 
-	// location := result.Location
-	// return c.SendString(fmt.Sprintf("Post :=> %s", location))
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	_ = result
+
+	url := fmt.Sprintf("%s/v1/documents/%s/download", udc.settings.DeploymentBaseURL, id)
+	return c.JSON(DocumentResponse{ID: id, Name: documentName, URL: url, Type: DocumentTypeEnum(documentType)})
 }
 
 // DeleteDocument godoc
@@ -122,30 +182,109 @@ func (udc *DocumentsController) PostDocument(c *fiber.Ctx) error {
 // @Tags           documents
 // @Produce      json
 // @Accept       json
+// @Param        id   path      string  true  "Document ID"
 // @Success      204
 // @Security     BearerAuth
-// @Router       /documents/{id} [get]
+// @Router       /documents/{id} [delete]
 func (udc *DocumentsController) DeleteDocument(c *fiber.Ctx) error {
+	userID := getUserID(c)
+	fileID := c.Params("id")
+
+	_, err := udc.s3Client.DeleteObject(c.Context(), &s3.DeleteObjectInput{
+		Bucket: aws.String(udc.settings.AWSDocumentsBucketName),
+		Key:    aws.String(fmt.Sprintf("%s/%s", userID, fileID)),
+	})
+
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+// DownloadDocument godoc
+// @Description  download document associated with current user - pulled from token
+// @Tags           documents
+// @Produce      octet-stream
+// @Produce      png
+// @Produce      jpeg
+// @Param        id   path      string  true  "Document ID"
+// @Success      200
+// @Security     BearerAuth
+// @Router       /documents/{id}/download [get]
+func (udc *DocumentsController) DownloadDocument(c *fiber.Ctx) error {
+	userID := getUserID(c)
+	fileID := c.Params("id")
+
+	buffer := manager.NewWriteAtBuffer([]byte{})
+
+	downloader := manager.NewDownloader(udc.s3Client)
+
+	numBytes, err := downloader.Download(c.Context(), buffer,
+		&s3.GetObjectInput{
+			Bucket: aws.String(udc.settings.AWSDocumentsBucketName),
+			Key:    aws.String(fmt.Sprintf("%s/%s", userID, fileID)),
+		})
+
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	if numBytes == 0 {
+		return fiber.NewError(fiber.StatusNotFound, fmt.Sprintf("no document with id %s found", fileID))
+	}
+
+	data := buffer.Bytes()
+
+	return c.SendStream(bytes.NewReader(data))
+}
+
 type DocumentResponse struct {
+	ID   string
 	Name string
 	URL  string
+	Type DocumentTypeEnum
 }
 
-type DocumentRequest struct {
-	Name string           `json:"name"`
-	Type DocumentTypeEnum `json:"type"`
+type FileTypeAllowedEnum string
+
+const (
+	jpeg FileTypeAllowedEnum = "image/jpeg"
+	png  FileTypeAllowedEnum = "image/png"
+	pdf  FileTypeAllowedEnum = "application/pdf"
+)
+
+func (r FileTypeAllowedEnum) IsValid() error {
+	switch r {
+	case jpeg, png, pdf:
+		return nil
+	}
+	return errors.New("invalid document type")
 }
 
-// AutoPiSubStatusEnum integration sub-status
 type DocumentTypeEnum string
 
 const (
 	DriversLicense DocumentTypeEnum = "DriversLicense"
+	Other          DocumentTypeEnum = "Other"
 )
 
 func (r DocumentTypeEnum) String() string {
 	return string(r)
 }
+
+func (r DocumentTypeEnum) IsValid() error {
+	switch r {
+	case DriversLicense, Other:
+		return nil
+	}
+	return errors.New("invalid document type")
+}
+
+const (
+	MetadataDocumentID            = "document-id"
+	MetadataDocumentName          = "document-name"
+	MetadataDocumentFile          = "document-file"
+	MetadataDocumentType          = "document-type"
+	MetadataDocumentFileExtension = "document-file-ext"
+)

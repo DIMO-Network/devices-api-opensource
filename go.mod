@@ -13,6 +13,7 @@ require (
 	github.com/arsmn/fiber-swagger/v2 v2.31.1
 	github.com/aws/aws-sdk-go-v2 v1.16.5
 	github.com/aws/aws-sdk-go-v2/config v1.5.0
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.3.2
 	github.com/aws/aws-sdk-go-v2/service/kms v1.17.3
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.11.1
 	github.com/docker/go-connections v0.4.0

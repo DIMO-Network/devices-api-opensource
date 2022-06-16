@@ -67,7 +67,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiDeviceInfo"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo"
                         }
                     }
                 }
@@ -282,7 +282,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_controllers.DocumentResponse"
+                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
                             }
                         }
                     }
@@ -311,7 +311,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.DocumentRequest"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentRequest"
                         }
                     }
                 ],
@@ -319,7 +319,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.DocumentResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
                         }
                     }
                 }
@@ -369,6 +369,147 @@
                         "schema": {
                             "$ref": "#/definitions/models.Integration"
                         }
+                    }
+                }
+            }
+        },
+        "/user/device-data/{userDeviceID}/distance-driven": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get kilometers driven for a userDeviceID since connected (ie. since we have data available)\nif it returns 0 for distanceDriven it means we have no odometer data.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device-data"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user device id",
+                        "name": "userDeviceID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    },
+                    "404": {
+                        "description": "no device found for user with provided parameters"
+                    }
+                }
+            }
+        },
+        "/user/device-data/{userDeviceID}/historical": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get historical data for a userDeviceID, within start and end range, taking the\nlatest status from every 30m bucket.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device-data"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user id",
+                        "name": "userDeviceID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "startDate eg 2022-01-02. if empty two weeks back",
+                        "name": "startDate",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "endDate eg 2022-03-01. if empty today",
+                        "name": "endDate",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "odometer. if empty all",
+                        "name": "signal",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "intervals for bucketing, 30m, 60m. if empty 30m",
+                        "name": "interval",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "invalid start or end date"
+                    },
+                    "404": {
+                        "description": "no device found for user with provided parameters"
+                    }
+                }
+            }
+        },
+        "/user/device-data/{userDeviceID}/historical-30m": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get historical data for a userDeviceID, within start and end range, taking the\nlatest status from every 30m bucket.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device-data"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user id",
+                        "name": "userDeviceID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "startDate eg 2022-01-02. if empty two weeks back",
+                        "name": "startDate",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "endDate eg 2022-03-01. if empty today",
+                        "name": "endDate",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "invalid start or end date"
+                    },
+                    "404": {
+                        "description": "no device found for user with provided parameters"
                     }
                 }
             }
@@ -435,7 +576,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiCommandRequest"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest"
                         }
                     }
                 ],
@@ -500,7 +641,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.RegisterDeviceIntegrationRequest"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest"
                         }
                     }
                 ],
@@ -560,70 +701,6 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
-                    }
-                }
-            }
-        },
-        "/user/devices/{userDeviceID}/commands/mint": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns the data the user must sign in order to mint this device.",
-                "tags": [
-                    "user-devices"
-                ],
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "user device ID",
-                        "name": "userDeviceID",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/internal_controllers.MintSignatureData"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Sends a mint device request to the blockchain",
-                "tags": [
-                    "user-devices"
-                ],
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "user device ID",
-                        "name": "userDeviceID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Signature and NFT data",
-                        "name": "mintRequest",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_controllers.MintRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
                         "description": ""
                     }
                 }
@@ -709,7 +786,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.GetUserDeviceIntegrationResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse"
                         }
                     }
                 }
@@ -1173,17 +1250,6 @@
                 }
             }
         },
-        "github.com_DIMO-Network_devices-api_internal_controllers.EIP712FieldType": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
         "github.com_DIMO-Network_devices-api_internal_controllers.GeoFenceUserDevice": {
             "type": "object",
             "properties": {
@@ -1244,42 +1310,6 @@
                 "status": {
                     "description": "Status is one of \"Pending\", \"PendingFirstData\", \"Active\", \"Failed\", \"DuplicateIntegration\".",
                     "type": "string"
-                }
-            }
-        },
-        "github.com_DIMO-Network_devices-api_internal_controllers.MintRequest": {
-            "type": "object",
-            "properties": {
-                "imageData": {
-                    "description": "ImageData contains the base64-encoded NFT PNG image.",
-                    "type": "string"
-                },
-                "signature": {
-                    "description": "Signature is the hex encoding of the EIP-712 signature result.",
-                    "type": "string"
-                }
-            }
-        },
-        "github.com_DIMO-Network_devices-api_internal_controllers.MintSignatureData": {
-            "type": "object",
-            "properties": {
-                "domain": {
-                    "type": "any"
-                },
-                "message": {
-                    "type": "any"
-                },
-                "primaryType": {
-                    "type": "string"
-                },
-                "types": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.EIP712FieldType"
-                        }
-                    }
                 }
             }
         },
@@ -1612,17 +1642,6 @@
                 }
             }
         },
-        "internal_controllers.EIP712FieldType": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
         "internal_controllers.GeoFenceUserDevice": {
             "type": "object",
             "properties": {
@@ -1683,42 +1702,6 @@
                 "status": {
                     "description": "Status is one of \"Pending\", \"PendingFirstData\", \"Active\", \"Failed\", \"DuplicateIntegration\".",
                     "type": "string"
-                }
-            }
-        },
-        "internal_controllers.MintRequest": {
-            "type": "object",
-            "properties": {
-                "imageData": {
-                    "description": "ImageData contains the base64-encoded NFT PNG image.",
-                    "type": "string"
-                },
-                "signature": {
-                    "description": "Signature is the hex encoding of the EIP-712 signature result.",
-                    "type": "string"
-                }
-            }
-        },
-        "internal_controllers.MintSignatureData": {
-            "type": "object",
-            "properties": {
-                "domain": {
-                    "type": "any"
-                },
-                "message": {
-                    "type": "any"
-                },
-                "primaryType": {
-                    "type": "string"
-                },
-                "types": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/definitions/internal_controllers.EIP712FieldType"
-                        }
-                    }
                 }
             }
         },

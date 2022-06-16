@@ -48,7 +48,7 @@ type Settings struct {
 	SmartcarManagementToken        string `yaml:"SMARTCAR_MANAGEMENT_TOKEN"`
 	CIOSiteID                      string `yaml:"CIO_SITE_ID"`
 	CIOApiKey                      string `yaml:"CIO_API_KEY"`
-	AWSBucketName                  string `yaml:"AWS_S3_BUCKET_NAME"`
+	AWSDocumentsBucketName         string `yaml:"AWS_DOCUMENTS_BUCKET_NAME"`
 	NFTS3Bucket                    string `yaml:"NFT_S3_BUCKET"`
 }
 

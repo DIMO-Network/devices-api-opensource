@@ -38,6 +38,9 @@ import (
 	"github.com/rs/zerolog"
 	_ "go.uber.org/automaxprocs"
 	"google.golang.org/grpc"
+
+	awsconfigv2 "github.com/aws/aws-sdk-go-v2/config"
+	awsservices3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 // @title                       DIMO Devices API
@@ -82,6 +85,15 @@ func main() {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Could not initialize Kafka producer, terminating")
 	}
+
+	cfg, err := awsconfigv2.LoadDefaultConfig(ctx)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Could not load aws config, terminating")
+	}
+
+	s3ServiceClient := awsservices3v2.NewFromConfig(cfg, func(o *awsservices3v2.Options) {
+		o.Region = settings.AWSRegion
+	})
 
 	// todo: use flag or other package to handle args
 	arg := ""
@@ -199,7 +211,7 @@ func main() {
 		startDeviceStatusConsumer(logger, &settings, pdb, eventService)
 		startCredentialConsumer(logger, &settings, pdb)
 		startTaskStatusConsumer(logger, &settings, pdb)
-		startWebAPI(logger, &settings, pdb, eventService, producer)
+		startWebAPI(logger, &settings, pdb, eventService, producer, s3ServiceClient)
 	}
 }
 
@@ -218,7 +230,7 @@ func createKafkaProducer(settings *config.Settings) (sarama.SyncProducer, error)
 	return p, nil
 }
 
-func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore, eventService services.EventService, producer sarama.SyncProducer) {
+func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore, eventService services.EventService, producer sarama.SyncProducer, s3ServiceClient *awsservices3v2.Client) {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return ErrorHandler(c, err, logger, settings.Environment)
@@ -252,7 +264,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	userDeviceController := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService, smartcarClient, scTaskSvc, teslaSvc, teslaTaskService, cipher, autoPiSvc, services.NewNHTSAService(), autoPiIngest, autoPiTaskService)
 	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer)
 	webhooksController := controllers.NewWebhooksController(settings, pdb.DBS, &logger, autoPiSvc)
-	documentController := controllers.NewDocumentsController(settings, pdb.DBS, &logger)
+	documentsController := controllers.NewDocumentsController(settings, s3ServiceClient)
 	prometheus := fiberprometheus.New("devices-api")
 	app.Use(prometheus.Middleware)
 
@@ -337,10 +349,17 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Put("/user/geofences/:geofenceID", geofenceController.Update)
 
 	// documents
-	v1Auth.Get("/documents", documentController.GetDocuments)
-	v1Auth.Get("/documents/:id", documentController.GetDocumentByID)
-	v1Auth.Post("/documents", documentController.PostDocument)
-	v1Auth.Delete("/documents/:id", documentController.DeleteDocument)
+	v1Auth.Get("/documents", documentsController.GetDocuments)
+	v1Auth.Get("/documents/:id", documentsController.GetDocumentByID)
+	v1Auth.Post("/documents", documentsController.PostDocument)
+	v1Auth.Delete("/documents/:id", documentsController.DeleteDocument)
+
+	// documents
+	v1Auth.Get("/documents", documentsController.GetDocuments)
+	v1Auth.Get("/documents/:id", documentsController.GetDocumentByID)
+	v1Auth.Post("/documents", documentsController.PostDocument)
+	v1Auth.Delete("/documents/:id", documentsController.DeleteDocument)
+	v1Auth.Get("/documents/:id/download", documentsController.DownloadDocument)
 
 	go startGRPCServer(settings, pdb.DBS, &logger)
 
