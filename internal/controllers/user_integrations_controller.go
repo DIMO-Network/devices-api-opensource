@@ -249,7 +249,7 @@ func (udc *UserDevicesController) OpenDoors(c *fiber.Ctx) error {
 	}
 
 	if len(device.R.UserDeviceAPIIntegrations) == 0 {
-		fiber.NewError(fiber.StatusNotFound, "device does not have the specified integration")
+		return fiber.NewError(fiber.StatusNotFound, "device does not have the specified integration")
 	}
 
 	apiInt := device.R.UserDeviceAPIIntegrations[0]
