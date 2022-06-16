@@ -116,15 +116,19 @@ type IntegrationsMetadata struct {
 
 // UserDeviceAPIIntegrationsMetadata represents json stored in user_device_api_integrations table metadata jsonb column
 type UserDeviceAPIIntegrationsMetadata struct {
-	AutoPiUnitID            *string  `json:"autoPiUnitId,omitempty"`
-	AutoPiIMEI              *string  `json:"imei,omitempty"`
-	AutoPiTemplateApplied   *int     `json:"autoPiTemplateApplied,omitempty"`
-	AutoPiSubStatus         *string  `json:"autoPiSubStatus,omitempty"`
-	AutoPiRegistrationError *string  `json:"autoPiRegistrationError,omitempty"`
-	EnableTeslaLock         bool     `json:"enableTeslaLock,omitempty"`
-	SmartcarEndpoints       []string `json:"smartcarEndpoints,omitempty"`
-	SmartcarUserID          *string  `json:"smartcarUserId,omitempty"`
-	DoorControl             bool     `json:"doorControl"`
+	AutoPiUnitID            *string                                    `json:"autoPiUnitId,omitempty"`
+	AutoPiIMEI              *string                                    `json:"imei,omitempty"`
+	AutoPiTemplateApplied   *int                                       `json:"autoPiTemplateApplied,omitempty"`
+	AutoPiSubStatus         *string                                    `json:"autoPiSubStatus,omitempty"`
+	AutoPiRegistrationError *string                                    `json:"autoPiRegistrationError,omitempty"`
+	EnableTeslaLock         bool                                       `json:"enableTeslaLock,omitempty"`
+	SmartcarEndpoints       []string                                   `json:"smartcarEndpoints,omitempty"`
+	SmartcarUserID          *string                                    `json:"smartcarUserId,omitempty"`
+	Commands                *UserDeviceAPIIntegrationsMetadataCommands `json:"commands,omitempty"`
+}
+
+type UserDeviceAPIIntegrationsMetadataCommands struct {
+	Enabled []string `json:"enabled,omitempty"`
 }
 
 type UserDeviceMetadata struct {

@@ -813,15 +813,22 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 		return smartcarCallErr
 	}
 
+	var cap *services.UserDeviceAPIIntegrationsMetadataCommands
+
 	doorControl, err := udc.smartcarClient.HasDoorControl(c.Context(), token.Access, externalID)
 	if err != nil {
 		return smartcarCallErr
+	}
+	if doorControl {
+		cap = &services.UserDeviceAPIIntegrationsMetadataCommands{
+			Enabled: []string{"door/open", "door/close"},
+		}
 	}
 
 	meta := services.UserDeviceAPIIntegrationsMetadata{
 		SmartcarUserID:    &scUserID,
 		SmartcarEndpoints: endpoints,
-		DoorControl:       doorControl,
+		Commands:          cap,
 	}
 
 	b, err := json.Marshal(meta)
@@ -957,7 +964,9 @@ func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zero
 
 	// TODO(elffjs): Stupid to marshal this again and again.
 	meta := services.UserDeviceAPIIntegrationsMetadata{
-		DoorControl: true,
+		Commands: &services.UserDeviceAPIIntegrationsMetadataCommands{
+			Enabled: []string{"door/open", "door/close"},
+		},
 	}
 
 	b, err := json.Marshal(meta)
