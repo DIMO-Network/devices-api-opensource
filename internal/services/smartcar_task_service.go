@@ -6,6 +6,7 @@ import (
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared"
 	"github.com/Shopify/sarama"
 	"github.com/segmentio/ksuid"
 )
@@ -16,6 +17,7 @@ type SmartcarTaskService interface {
 	StartPoll(udai *models.UserDeviceAPIIntegration) error
 	StopPoll(udai *models.UserDeviceAPIIntegration) error
 	Refresh(udai *models.UserDeviceAPIIntegration) error
+	OpenDoors(udai *models.UserDeviceAPIIntegration) (string, error)
 }
 
 func NewSmartcarTaskService(settings *config.Settings, producer sarama.SyncProducer) SmartcarTaskService {
@@ -223,4 +225,47 @@ func (t *smartcarTaskService) StopPoll(udai *models.UserDeviceAPIIntegration) er
 	)
 
 	return err
+}
+
+type SmartcarDoorTask struct {
+	TaskID        string              `json:"taskId"`
+	SubTaskID     string              `json:"subTaskId"`
+	UserDeviceID  string              `json:"userDeviceId"`
+	IntegrationID string              `json:"integrationId"`
+	Identifiers   SmartcarIdentifiers `json:"identifiers"`
+}
+
+func (t *smartcarTaskService) OpenDoors(udai *models.UserDeviceAPIIntegration) (string, error) {
+	tt := shared.CloudEvent[SmartcarDoorTask]{
+		ID:          ksuid.New().String(),
+		Source:      "dimo/integration/" + udai.IntegrationID,
+		SpecVersion: "1.0",
+		Subject:     udai.UserDeviceID,
+		Time:        time.Now(),
+		Type:        "zone.dimo.task.smartcar.doors.unlock",
+		Data: SmartcarDoorTask{
+			TaskID:        udai.TaskID.String,
+			SubTaskID:     ksuid.New().String(),
+			UserDeviceID:  udai.UserDeviceID,
+			IntegrationID: udai.IntegrationID,
+			Identifiers: SmartcarIdentifiers{
+				ID: udai.ExternalID.String,
+			},
+		},
+	}
+
+	ttb, err := json.Marshal(tt)
+	if err != nil {
+		return "", err
+	}
+
+	_, _, err = t.Producer.SendMessage(
+		&sarama.ProducerMessage{
+			Topic: t.Settings.TaskRunNowTopic,
+			Key:   sarama.StringEncoder(udai.TaskID.String),
+			Value: sarama.ByteEncoder(ttb),
+		},
+	)
+
+	return tt.Data.SubTaskID, nil
 }

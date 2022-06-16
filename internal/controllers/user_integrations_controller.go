@@ -269,7 +269,11 @@ func (udc *UserDevicesController) OpenDoors(c *fiber.Ctx) error {
 
 	for _, cap := range md.Commands.Enabled {
 		if cap == "doors/open" {
-			return c.JSON(map[string]any{"message": "You have done an excellent job."})
+			subTaskID, err := udc.smartcarTaskSvc.OpenDoors(apiInt)
+			if err != nil {
+				return opaqueInternalError
+			}
+			return c.JSON(map[string]any{"taskId": subTaskID})
 		}
 	}
 
