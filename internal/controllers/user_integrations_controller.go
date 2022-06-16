@@ -237,8 +237,8 @@ func (udc *UserDevicesController) UnlockDoors(c *fiber.Ctx) error {
 		models.UserDeviceWhere.UserID.EQ(userID),
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
 		qm.Load(
-			models.UserDeviceRels.UserDeviceAPIIntegrations,
-			models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID),
+			qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration),
+			models.IntegrationWhere.ID.EQ(integrationID),
 		),
 	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
@@ -254,8 +254,13 @@ func (udc *UserDevicesController) UnlockDoors(c *fiber.Ctx) error {
 
 	apiInt := device.R.UserDeviceAPIIntegrations[0]
 
+	vendor := apiInt.R.Integration.Vendor
+	if vendor != services.SmartCarVendor && vendor != services.TeslaVendor {
+		return fiber.NewError(fiber.StatusBadRequest, "integration does not support this commmand")
+	}
+
 	if apiInt.Status != models.UserDeviceAPIIntegrationStatusActive {
-		fiber.NewError(fiber.StatusBadRequest, "integration is not active")
+		return fiber.NewError(fiber.StatusBadRequest, "integration is not active")
 	}
 
 	md := new(services.UserDeviceAPIIntegrationsMetadata)
@@ -269,9 +274,17 @@ func (udc *UserDevicesController) UnlockDoors(c *fiber.Ctx) error {
 
 	for _, cap := range md.Commands.Enabled {
 		if cap == "doors/unlock" {
-			subTaskID, err := udc.smartcarTaskSvc.UnlockDoors(apiInt)
-			if err != nil {
-				return opaqueInternalError
+			var subTaskID string
+			if vendor == services.SmartCarVendor {
+				subTaskID, err = udc.smartcarTaskSvc.UnlockDoors(apiInt)
+				if err != nil {
+					return opaqueInternalError
+				}
+			} else {
+				subTaskID, err = udc.teslaTaskService.UnlockDoors(apiInt)
+				if err != nil {
+					return opaqueInternalError
+				}
 			}
 			return c.JSON(map[string]any{"taskId": subTaskID})
 		}
@@ -289,8 +302,8 @@ func (udc *UserDevicesController) LockDoors(c *fiber.Ctx) error {
 		models.UserDeviceWhere.UserID.EQ(userID),
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
 		qm.Load(
-			models.UserDeviceRels.UserDeviceAPIIntegrations,
-			models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID),
+			qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration),
+			models.IntegrationWhere.ID.EQ(integrationID),
 		),
 	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
@@ -306,8 +319,13 @@ func (udc *UserDevicesController) LockDoors(c *fiber.Ctx) error {
 
 	apiInt := device.R.UserDeviceAPIIntegrations[0]
 
+	vendor := apiInt.R.Integration.Vendor
+	if vendor != services.SmartCarVendor && vendor != services.TeslaVendor {
+		return fiber.NewError(fiber.StatusBadRequest, "integration does not support this commmand")
+	}
+
 	if apiInt.Status != models.UserDeviceAPIIntegrationStatusActive {
-		fiber.NewError(fiber.StatusBadRequest, "integration is not active")
+		return fiber.NewError(fiber.StatusBadRequest, "integration is not active")
 	}
 
 	md := new(services.UserDeviceAPIIntegrationsMetadata)
@@ -321,9 +339,17 @@ func (udc *UserDevicesController) LockDoors(c *fiber.Ctx) error {
 
 	for _, cap := range md.Commands.Enabled {
 		if cap == "doors/lock" {
-			subTaskID, err := udc.smartcarTaskSvc.LockDoors(apiInt)
-			if err != nil {
-				return opaqueInternalError
+			var subTaskID string
+			if vendor == services.SmartCarVendor {
+				subTaskID, err = udc.smartcarTaskSvc.LockDoors(apiInt)
+				if err != nil {
+					return opaqueInternalError
+				}
+			} else {
+				subTaskID, err = udc.teslaTaskService.LockDoors(apiInt)
+				if err != nil {
+					return opaqueInternalError
+				}
 			}
 			return c.JSON(map[string]any{"taskId": subTaskID})
 		}

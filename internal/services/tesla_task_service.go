@@ -3,10 +3,12 @@ package services
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared"
 	"github.com/Shopify/sarama"
 	"github.com/segmentio/ksuid"
 )
@@ -18,6 +20,8 @@ const TeslaVendor = "Tesla"
 type TeslaTaskService interface {
 	StartPoll(vehicle *TeslaVehicle, udai *models.UserDeviceAPIIntegration) error
 	StopPoll(udai *models.UserDeviceAPIIntegration) error
+	UnlockDoors(udai *models.UserDeviceAPIIntegration) (string, error)
+	LockDoors(udai *models.UserDeviceAPIIntegration) (string, error)
 }
 
 func NewTeslaTaskService(settings *config.Settings, producer sarama.SyncProducer) TeslaTaskService {
@@ -195,4 +199,92 @@ func (t *teslaTaskService) StopPoll(udai *models.UserDeviceAPIIntegration) error
 	)
 
 	return err
+}
+
+type TeslaDoorTask struct {
+	TaskID        string           `json:"taskId"`
+	SubTaskID     string           `json:"subTaskId"`
+	UserDeviceID  string           `json:"userDeviceId"`
+	IntegrationID string           `json:"integrationId"`
+	Identifiers   TeslaIdentifiers `json:"identifiers"` // Don't actually need vehicleId.
+}
+
+func (t *teslaTaskService) UnlockDoors(udai *models.UserDeviceAPIIntegration) (string, error) {
+	id, err := strconv.Atoi(udai.ExternalID.String)
+	if err != nil {
+		return "", err
+	}
+
+	tt := shared.CloudEvent[TeslaDoorTask]{
+		ID:          ksuid.New().String(),
+		Source:      "dimo/integration/" + udai.IntegrationID,
+		SpecVersion: "1.0",
+		Subject:     udai.UserDeviceID,
+		Time:        time.Now(),
+		Type:        "zone.dimo.task.tesla.doors.unlock",
+		Data: TeslaDoorTask{
+			TaskID:        udai.TaskID.String,
+			SubTaskID:     ksuid.New().String(),
+			UserDeviceID:  udai.UserDeviceID,
+			IntegrationID: udai.IntegrationID,
+			Identifiers: TeslaIdentifiers{
+				ID: id,
+			},
+		},
+	}
+
+	ttb, err := json.Marshal(tt)
+	if err != nil {
+		return "", err
+	}
+
+	_, _, err = t.Producer.SendMessage(
+		&sarama.ProducerMessage{
+			Topic: t.Settings.TaskRunNowTopic,
+			Key:   sarama.StringEncoder(udai.TaskID.String),
+			Value: sarama.ByteEncoder(ttb),
+		},
+	)
+
+	return tt.Data.SubTaskID, err
+}
+
+func (t *teslaTaskService) LockDoors(udai *models.UserDeviceAPIIntegration) (string, error) {
+	id, err := strconv.Atoi(udai.ExternalID.String)
+	if err != nil {
+		return "", err
+	}
+
+	tt := shared.CloudEvent[TeslaDoorTask]{
+		ID:          ksuid.New().String(),
+		Source:      "dimo/integration/" + udai.IntegrationID,
+		SpecVersion: "1.0",
+		Subject:     udai.UserDeviceID,
+		Time:        time.Now(),
+		Type:        "zone.dimo.task.tesla.doors.lock",
+		Data: TeslaDoorTask{
+			TaskID:        udai.TaskID.String,
+			SubTaskID:     ksuid.New().String(),
+			UserDeviceID:  udai.UserDeviceID,
+			IntegrationID: udai.IntegrationID,
+			Identifiers: TeslaIdentifiers{
+				ID: id,
+			},
+		},
+	}
+
+	ttb, err := json.Marshal(tt)
+	if err != nil {
+		return "", err
+	}
+
+	_, _, err = t.Producer.SendMessage(
+		&sarama.ProducerMessage{
+			Topic: t.Settings.TaskRunNowTopic,
+			Key:   sarama.StringEncoder(udai.TaskID.String),
+			Value: sarama.ByteEncoder(ttb),
+		},
+	)
+
+	return tt.Data.SubTaskID, err
 }

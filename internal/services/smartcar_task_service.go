@@ -268,7 +268,7 @@ func (t *smartcarTaskService) UnlockDoors(udai *models.UserDeviceAPIIntegration)
 		},
 	)
 
-	return tt.Data.SubTaskID, nil
+	return tt.Data.SubTaskID, err
 }
 
 func (t *smartcarTaskService) LockDoors(udai *models.UserDeviceAPIIntegration) (string, error) {
@@ -303,5 +303,5 @@ func (t *smartcarTaskService) LockDoors(udai *models.UserDeviceAPIIntegration) (
 		},
 	)
 
-	return tt.Data.SubTaskID, nil
+	return tt.Data.SubTaskID, err
 }

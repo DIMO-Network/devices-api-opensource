@@ -35,6 +35,21 @@ func (m *MockTeslaTaskService) EXPECT() *MockTeslaTaskServiceMockRecorder {
 	return m.recorder
 }
 
+// LockDoors mocks base method.
+func (m *MockTeslaTaskService) LockDoors(udai *models.UserDeviceAPIIntegration) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LockDoors", udai)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LockDoors indicates an expected call of LockDoors.
+func (mr *MockTeslaTaskServiceMockRecorder) LockDoors(udai interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LockDoors", reflect.TypeOf((*MockTeslaTaskService)(nil).LockDoors), udai)
+}
+
 // StartPoll mocks base method.
 func (m *MockTeslaTaskService) StartPoll(vehicle *services.TeslaVehicle, udai *models.UserDeviceAPIIntegration) error {
 	m.ctrl.T.Helper()
@@ -61,4 +76,19 @@ func (m *MockTeslaTaskService) StopPoll(udai *models.UserDeviceAPIIntegration) e
 func (mr *MockTeslaTaskServiceMockRecorder) StopPoll(udai interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StopPoll", reflect.TypeOf((*MockTeslaTaskService)(nil).StopPoll), udai)
+}
+
+// UnlockDoors mocks base method.
+func (m *MockTeslaTaskService) UnlockDoors(udai *models.UserDeviceAPIIntegration) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UnlockDoors", udai)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UnlockDoors indicates an expected call of UnlockDoors.
+func (mr *MockTeslaTaskServiceMockRecorder) UnlockDoors(udai interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnlockDoors", reflect.TypeOf((*MockTeslaTaskService)(nil).UnlockDoors), udai)
 }
