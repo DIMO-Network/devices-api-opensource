@@ -925,7 +925,7 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 	}
 	if doorControl {
 		cap = &services.UserDeviceAPIIntegrationsMetadataCommands{
-			Enabled: []string{"doors/open", "doors/close"},
+			Enabled: []string{"doors/unlock", "doors/lock"},
 		}
 	}
 
@@ -1069,7 +1069,7 @@ func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zero
 	// TODO(elffjs): Stupid to marshal this again and again.
 	meta := services.UserDeviceAPIIntegrationsMetadata{
 		Commands: &services.UserDeviceAPIIntegrationsMetadataCommands{
-			Enabled: []string{"doors/open", "doors/close"},
+			Enabled: []string{"doors/unlock", "doors/lock"},
 		},
 	}
 
