@@ -18,6 +18,8 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
+const sunsetYearCutoff = 2017
+
 func syncSmartCarCompatibility(ctx context.Context, logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) {
 	smartCarSvc := services.NewSmartCarService(pdb.DBS, logger)
 
@@ -52,6 +54,7 @@ func setIntegrationForMatchingMakeYears(ctx context.Context, logger zerolog.Logg
 		}
 
 		regionLogger := logger.With().Str("region", region).Logger()
+		sunsetSkipCount := 0
 
 		for _, datum := range data {
 			if datum.Name == "All makes" {
@@ -105,6 +108,11 @@ func setIntegrationForMatchingMakeYears(ctx context.Context, logger zerolog.Logg
 					mkLogger.Info().Msgf("Planning to insert %d compatibility records from %d onward", len(dds), startYear)
 
 					for _, dd := range dds {
+						if dd.Year < sunsetYearCutoff {
+							// skipping as likelihood of being a 3g sunset vehicle
+							sunsetSkipCount++
+							continue
+						}
 						if err := dd.AddDeviceIntegrations(ctx, pdb.DBS().Writer.DB, true, &models.DeviceIntegration{
 							DeviceDefinitionID: dd.ID,
 							IntegrationID:      scIntegrationID,
@@ -116,6 +124,7 @@ func setIntegrationForMatchingMakeYears(ctx context.Context, logger zerolog.Logg
 				}
 			}
 		}
+		regionLogger.Info().Msgf("skipped %d device definitions before year %d due to likelihood of 3g sunset", sunsetSkipCount, sunsetYearCutoff)
 	}
 	return nil
 }
