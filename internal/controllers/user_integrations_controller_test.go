@@ -617,7 +617,43 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiCommandNoResults400()
 	//assert
 	assert.Equal(s.T(), fiber.StatusBadRequest, response.StatusCode)
 }
-func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI() {
+func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI_ShouldUpdate() {
+	// specific dependency and controller
+	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
+		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
+		nil, s.autoPiIngest, nil)
+	app := fiber.New()
+	app.Get("/autopi/unit/:unitID", test.AuthInjectorTestHandler(testUserID), c.GetAutoPiUnitInfo)
+	// arrange
+	autopiAPISvc.EXPECT().GetDeviceByUnitID("1234").Times(1).Return(&services.AutoPiDongleDevice{
+		IsUpdated:         false,
+		UnitID:            "1234",
+		ID:                "4321",
+		HwRevision:        "1.23",
+		Template:          10,
+		LastCommunication: time.Now(),
+		Release: struct {
+			Version string `json:"version"`
+		}(struct{ Version string }{Version: "1.21.6"}),
+	}, nil)
+	autopiAPISvc.EXPECT().GetUserDeviceIntegrationByUnitID(gomock.Any(), "1234").Return(nil, nil)
+	// act
+	request := test.BuildRequest("GET", "/autopi/unit/1234", "")
+	response, err := app.Test(request)
+	require.NoError(s.T(), err)
+	// assert
+	assert.Equal(s.T(), fiber.StatusOK, response.StatusCode)
+	body, _ := ioutil.ReadAll(response.Body)
+	//assert
+	assert.Equal(s.T(), false, gjson.GetBytes(body, "isUpdated").Bool())
+	assert.Equal(s.T(), "1234", gjson.GetBytes(body, "unitId").String())
+	assert.Equal(s.T(), "4321", gjson.GetBytes(body, "deviceId").String())
+	assert.Equal(s.T(), "1.23", gjson.GetBytes(body, "hwRevision").String())
+	assert.Equal(s.T(), "1.21.6", gjson.GetBytes(body, "releaseVersion").String())
+	assert.Equal(s.T(), true, gjson.GetBytes(body, "shouldUpdate").Bool()) // this because releaseVersion below 1.21.9
+}
+func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI_UpToDate() {
 	// specific dependency and controller
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
@@ -635,7 +671,7 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI() {
 		LastCommunication: time.Now(),
 		Release: struct {
 			Version string `json:"version"`
-		}(struct{ Version string }{Version: "1.28.5"}),
+		}(struct{ Version string }{Version: "1.21.9"}),
 	}, nil)
 	autopiAPISvc.EXPECT().GetUserDeviceIntegrationByUnitID(gomock.Any(), "1234").Return(nil, nil)
 	// act
@@ -646,12 +682,42 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI() {
 	assert.Equal(s.T(), fiber.StatusOK, response.StatusCode)
 	body, _ := ioutil.ReadAll(response.Body)
 	//assert
-	assert.Equal(s.T(), "true", gjson.GetBytes(body, "isUpdated").String())
-	assert.Equal(s.T(), "1234", gjson.GetBytes(body, "unitId").String())
-	assert.Equal(s.T(), "4321", gjson.GetBytes(body, "deviceId").String())
-	assert.Equal(s.T(), "1.23", gjson.GetBytes(body, "hwRevision").String())
-	assert.Equal(s.T(), "1.28.5", gjson.GetBytes(body, "releaseVersion").String())
-	assert.Equal(s.T(), true, gjson.GetBytes(body, "shouldUpdate").Bool())
+	assert.Equal(s.T(), true, gjson.GetBytes(body, "isUpdated").Bool())
+	assert.Equal(s.T(), "1.21.9", gjson.GetBytes(body, "releaseVersion").String())
+	assert.Equal(s.T(), false, gjson.GetBytes(body, "shouldUpdate").Bool()) // returned version is 1.21.9 which is our cutoff
+}
+func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI_FutureUpdate() {
+	// specific dependency and controller
+	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
+		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
+		nil, s.autoPiIngest, nil)
+	app := fiber.New()
+	app.Get("/autopi/unit/:unitID", test.AuthInjectorTestHandler(testUserID), c.GetAutoPiUnitInfo)
+	// arrange
+	autopiAPISvc.EXPECT().GetDeviceByUnitID("1234").Times(1).Return(&services.AutoPiDongleDevice{
+		IsUpdated:         false,
+		UnitID:            "1234",
+		ID:                "4321",
+		HwRevision:        "1.23",
+		Template:          10,
+		LastCommunication: time.Now(),
+		Release: struct {
+			Version string `json:"version"`
+		}(struct{ Version string }{Version: "1.23.1"}),
+	}, nil)
+	autopiAPISvc.EXPECT().GetUserDeviceIntegrationByUnitID(gomock.Any(), "1234").Return(nil, nil)
+	// act
+	request := test.BuildRequest("GET", "/autopi/unit/1234", "")
+	response, err := app.Test(request)
+	require.NoError(s.T(), err)
+	// assert
+	assert.Equal(s.T(), fiber.StatusOK, response.StatusCode)
+	body, _ := ioutil.ReadAll(response.Body)
+	//assert
+	assert.Equal(s.T(), false, gjson.GetBytes(body, "isUpdated").Bool())
+	assert.Equal(s.T(), "1.23.1", gjson.GetBytes(body, "releaseVersion").String())
+	assert.Equal(s.T(), false, gjson.GetBytes(body, "shouldUpdate").Bool())
 }
 func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoMatchUDAI() {
 	// specific dependency and controller

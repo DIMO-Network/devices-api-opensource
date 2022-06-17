@@ -393,6 +393,8 @@ func (udc *UserDevicesController) GetAutoPiCommandStatus(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router 		/autopi/unit/:unitID [get]
 func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
+	const minimumAutoPiRelease = "v1.21.9" // correct semver has leading v
+
 	unitID := c.Params("unitID")
 	if len(unitID) == 0 {
 		return c.SendStatus(fiber.StatusBadRequest)
@@ -410,7 +412,7 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	svc := semver.Compare("v"+unit.Release.Version, "v1.29.1") // correct semver has leading v
+	svc := semver.Compare("v"+unit.Release.Version, minimumAutoPiRelease)
 	adi := AutoPiDeviceInfo{
 		IsUpdated:         unit.IsUpdated,
 		DeviceID:          unit.ID,
