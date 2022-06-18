@@ -23,7 +23,6 @@ import (
 	"github.com/DIMO-Network/zflogger"
 	"github.com/Jeffail/benthos/v3/lib/util/hash/murmur2"
 	"github.com/Shopify/sarama"
-	"github.com/ansrivas/fiberprometheus/v2"
 	swagger "github.com/arsmn/fiber-swagger/v2"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
@@ -265,8 +264,9 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer)
 	webhooksController := controllers.NewWebhooksController(settings, pdb.DBS, &logger, autoPiSvc)
 	documentsController := controllers.NewDocumentsController(settings, s3ServiceClient)
-	prometheus := fiberprometheus.New("devices-api")
-	app.Use(prometheus.Middleware)
+	// commenting this out b/c the library includes the path in the metrics which saturates prometheus queries - need to fork / make our own
+	//prometheus := fiberprometheus.New("devices-api")
+	//app.Use(prometheus.Middleware)
 
 	app.Use(recover.New(recover.Config{
 		Next:              nil,
