@@ -14,6 +14,7 @@ spec:
       template:
         metadata:
           annotations:
+            linkerd.io/inject: disabled
           {{- with .Values.podAnnotations }}
             {{- toYaml . | nindent 8 }}
           {{- end }}
