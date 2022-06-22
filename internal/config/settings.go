@@ -34,6 +34,8 @@ type Settings struct {
 	PrivacyFenceTopic              string `yaml:"PRIVACY_FENCE_TOPIC"`
 	TaskRunNowTopic                string `yaml:"TASK_RUN_NOW_TOPIC"`
 	NFTInputTopic                  string `yaml:"NFT_INPUT_TOPIC"`
+	NFTContractAddr                string `yaml:"NFT_CONTRACT_ADDR"`
+	NFTChainID                     int    `yaml:"NFT_CHAIN_ID"`
 	TaskStopTopic                  string `yaml:"TASK_STOP_TOPIC"`
 	TaskCredentialTopic            string `yaml:"TASK_CREDENTIAL_TOPIC"`
 	TaskStatusTopic                string `yaml:"TASK_STATUS_TOPIC"`

@@ -680,11 +680,10 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 		},
 		PrimaryType: "MintDevice",
 		Domain: map[string]any{
-			"name":    "DIMO",
-			"version": "1",
-			// TODO(elffjs): Make these next three fields settings.
-			"chainId":           80001,
-			"verifyingContract": "0x6045205B5a8E41DB05c1A5cF876e462feB744d32",
+			"name":              "DIMO",
+			"version":           "1",
+			"chainId":           udc.Settings.NFTChainID,
+			"verifyingContract": udc.Settings.NFTContractAddr,
 		},
 		Message: map[string]any{
 			"rootNode": 7,
