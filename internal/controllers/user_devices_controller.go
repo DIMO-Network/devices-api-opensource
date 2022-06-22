@@ -686,9 +686,9 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 			"verifyingContract": udc.Settings.NFTContractAddr,
 		},
 		Message: map[string]any{
-			"rootNode": 7,
-			"keys":     []string{"Make", "Model", "Year"},
-			"values": []string{
+			"rootNode":   7,
+			"attributes": []string{"Make", "Model", "Year"},
+			"infos": []string{
 				userDevice.R.DeviceDefinition.R.DeviceMake.Name,
 				userDevice.R.DeviceDefinition.Model,
 				strconv.Itoa(int(userDevice.R.DeviceDefinition.Year)),
