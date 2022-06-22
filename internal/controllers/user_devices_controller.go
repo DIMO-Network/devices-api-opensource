@@ -674,8 +674,8 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 			},
 			"MintDevice": {
 				EIP712FieldType{Name: "rootNode", Type: "uint256"},
-				EIP712FieldType{Name: "keys", Type: "string[]"},
-				EIP712FieldType{Name: "values", Type: "string[]"},
+				EIP712FieldType{Name: "attributes", Type: "string[]"},
+				EIP712FieldType{Name: "infos", Type: "string[]"},
 			},
 		},
 		PrimaryType: "MintDevice",
