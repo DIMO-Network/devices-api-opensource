@@ -38,6 +38,7 @@ env:
   REDIS_USER: default
   REDIS_PORT: '6379'
   REDIS_TLS: true
+  NFT_INPUT_TOPIC: topic.device.nft.mint
   INGEST_SMARTCAR_URL: http://ingest-smartcar-dev:8080
   INGEST_SMARTCAR_TOPIC: topic.interface.ingest.smartcar
   TASK_RUN_NOW_TOPIC: topic.task.run.now
@@ -53,6 +54,7 @@ env:
   GRPC_PORT: 8086
   AWS_DOCUMENTS_BUCKET_NAME: documents-dev
   NFT_S3_BUCKET: dylan-test-dev-nfts
+  USERS_API_GRPC_ADDR: devices-api-dev:8086
 service:
   type: ClusterIP
   ports:

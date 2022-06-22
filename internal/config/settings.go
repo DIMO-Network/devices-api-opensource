@@ -7,6 +7,7 @@ type Settings struct {
 	Environment                    string `yaml:"ENVIRONMENT"`
 	Port                           string `yaml:"PORT"`
 	GRPCPort                       string `yaml:"GRPC_PORT"`
+	UsersAPIGRPCAddr               string `yaml:"USERS_API_GRPC_ADDR"`
 	LogLevel                       string `yaml:"LOG_LEVEL"`
 	DBUser                         string `yaml:"DB_USER"`
 	DBPassword                     string `yaml:"DB_PASSWORD"`
@@ -32,6 +33,7 @@ type Settings struct {
 	DeviceStatusTopic              string `yaml:"DEVICE_STATUS_TOPIC"`
 	PrivacyFenceTopic              string `yaml:"PRIVACY_FENCE_TOPIC"`
 	TaskRunNowTopic                string `yaml:"TASK_RUN_NOW_TOPIC"`
+	NFTInputTopic                  string `yaml:"NFT_INPUT_TOPIC"`
 	TaskStopTopic                  string `yaml:"TASK_STOP_TOPIC"`
 	TaskCredentialTopic            string `yaml:"TASK_CREDENTIAL_TOPIC"`
 	TaskStatusTopic                string `yaml:"TASK_STATUS_TOPIC"`

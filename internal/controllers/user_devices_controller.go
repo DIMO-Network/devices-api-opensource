@@ -5,6 +5,8 @@ import (
 	"context"
 	"database/sql"
 	"encoding/base64"
+	"encoding/json"
+	"math/big"
 	"regexp"
 	"strconv"
 	"strings"
@@ -15,6 +17,8 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
+	pb "github.com/DIMO-Network/shared/api/users"
+	"github.com/Shopify/sarama"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/gofiber/fiber/v2"
@@ -24,6 +28,8 @@ import (
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
@@ -47,6 +53,7 @@ type UserDevicesController struct {
 	autoPiIngestRegistrar services.IngestRegistrar
 	autoPiTaskService     services.AutoPiTaskService
 	s3                    *s3.Client
+	producer              sarama.SyncProducer
 }
 
 // NewUserDevicesController constructor
@@ -66,6 +73,7 @@ func NewUserDevicesController(
 	nhtsaService services.INHTSAService,
 	autoPiIngestRegistrar services.IngestRegistrar,
 	autoPiTaskService services.AutoPiTaskService,
+	producer sarama.SyncProducer,
 ) UserDevicesController {
 
 	var s3Client *s3.Client
@@ -95,6 +103,7 @@ func NewUserDevicesController(
 		autoPiIngestRegistrar: autoPiIngestRegistrar,
 		autoPiTaskService:     autoPiTaskService,
 		s3:                    s3Client,
+		producer:              producer,
 	}
 }
 
@@ -662,24 +671,24 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 				EIP712FieldType{Name: "version", Type: "string"},
 				EIP712FieldType{Name: "chainId", Type: "uint256"},
 				EIP712FieldType{Name: "verifyingContract", Type: "address"},
-				EIP712FieldType{Name: "salt", Type: "bytes32"},
 			},
-			"Mint": {
+			"MintDevice": {
+				EIP712FieldType{Name: "rootNode", Type: "uint256"},
 				EIP712FieldType{Name: "keys", Type: "string[]"},
 				EIP712FieldType{Name: "values", Type: "string[]"},
 			},
 		},
-		PrimaryType: "Mint",
+		PrimaryType: "MintDevice",
 		Domain: map[string]any{
 			"name":    "DIMO",
 			"version": "1",
 			// TODO(elffjs): Make these next three fields settings.
 			"chainId":           80001,
-			"verifyingContract": "0xB7D4091d72Cb16BfAeD6589DbD56E6745D77f887",
-			"salt":              "0xf2d857f4a3edcb9b78b4d503bfe733db1e3f6cdc2b7971ee739626c97e86a558",
+			"verifyingContract": "0x6045205B5a8E41DB05c1A5cF876e462feB744d32",
 		},
 		Message: map[string]any{
-			"keys": []string{"Make", "Model", "Year"},
+			"rootNode": 7,
+			"keys":     []string{"Make", "Model", "Year"},
 			"values": []string{
 				userDevice.R.DeviceDefinition.R.DeviceMake.Name,
 				userDevice.R.DeviceDefinition.Model,
@@ -715,7 +724,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 	userDeviceID := c.Params("userDeviceID")
 	userID := getUserID(c)
 
-	_, err := models.UserDevices(
+	userDevice, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
 		models.UserDeviceWhere.UserID.EQ(userID),
 		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
@@ -742,10 +751,78 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 		Body:   bytes.NewReader(image),
 	})
 	if err != nil {
+		udc.log.Err(err).Msg("Failed to save NFT image to S3.")
+		return opaqueInternalError
+	}
+
+	udc.log.Info().Str("userDeviceId", userDeviceID).Str("userId", userID).Str("mintRequestId", mintRequestID).Msg("Mint request received.")
+
+	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		udc.log.Err(err).Msg("Failed to create devices API client.")
+		return opaqueInternalError
+	}
+	defer conn.Close()
+
+	usersClient := pb.NewUserServiceClient(conn)
+
+	user, err := usersClient.GetUser(c.Context(), &pb.GetUserRequest{Id: userID})
+	if err != nil {
+		udc.log.Err(err).Msg("Couldn't retrieve user record from users-api.")
+		return opaqueInternalError
+	}
+
+	if user.EthereumAddress == nil {
+		return fiber.NewError(fiber.StatusBadRequest, "user does not have an ethereum address on file")
+	}
+
+	me := shared.CloudEvent[MintEventData]{
+		ID:          ksuid.New().String(),
+		Source:      "devices-api",
+		SpecVersion: "1.0",
+		Subject:     userDeviceID,
+		Time:        time.Now(),
+		Type:        "zone.dimo.device.mint.request",
+		Data: MintEventData{
+			RequestID:    mintRequestID,
+			UserDeviceID: userDeviceID,
+			Owner:        *user.EthereumAddress,
+			RootNode:     big.NewInt(7),
+			Attributes:   []string{"Make", "Model", "Year"},
+			Infos: []string{
+				userDevice.R.DeviceDefinition.R.DeviceMake.Name,
+				userDevice.R.DeviceDefinition.Model,
+				strconv.Itoa(int(userDevice.R.DeviceDefinition.Year)),
+			},
+			Signature: mr.Signature,
+		},
+	}
+
+	b, err := json.Marshal(me)
+	if err != nil {
+		return opaqueInternalError
+	}
+
+	_, _, err = udc.producer.SendMessage(&sarama.ProducerMessage{
+		Topic: udc.Settings.NFTInputTopic,
+		Value: sarama.ByteEncoder(b),
+	})
+	if err != nil {
 		return opaqueInternalError
 	}
 
 	return c.JSON(map[string]any{"mintRequestId": mintRequestID})
+}
+
+type MintEventData struct {
+	RequestID    string   `json:"requestId"`
+	UserDeviceID string   `json:"userDeviceId"`
+	Owner        string   `json:"owner"`
+	RootNode     *big.Int `json:"rootNode"`
+	Attributes   []string `json:"attributes"`
+	Infos        []string `json:"infos"`
+	// Signature is the EIP-712 signature of the RootNode, Attributes, and Infos fields.
+	Signature string `json:"signature"`
 }
 
 // MintRequest contains the user's signature for the mint request as well as the
