@@ -36,7 +36,9 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/crypto"
 	signer "github.com/ethereum/go-ethereum/signer/core/apitypes"
 )
 
@@ -738,10 +740,72 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusNotFound, "No device with that ID found.")
 	}
 
+	// TODO(elffjs): Only do this once.
+	chainID := big.NewInt(int64(udc.Settings.NFTChainID))
+
+	typedData := signer.TypedData{
+		Types: signer.Types{
+			"EIP712Domain": []signer.Type{
+				{Name: "name", Type: "string"},
+				{Name: "version", Type: "string"},
+				{Name: "chainId", Type: "uint256"},
+				{Name: "verifyingContract", Type: "address"},
+			},
+			"MintDevice": {
+				{Name: "rootNode", Type: "uint256"},
+				{Name: "attributes", Type: "string[]"},
+				{Name: "infos", Type: "string[]"},
+			},
+		},
+		PrimaryType: "MintDevice",
+		Domain: signer.TypedDataDomain{
+			Name:              "DIMO",
+			Version:           "1",
+			ChainId:           (*math.HexOrDecimal256)(chainID),
+			VerifyingContract: udc.Settings.NFTContractAddr,
+		},
+		Message: signer.TypedDataMessage{
+			"rootNode":   7, // Just hardcoding this. We need a node for each make, and to keep these in sync.
+			"attributes": []string{"Make", "Model", "Year"},
+			"infos": []string{
+				userDevice.R.DeviceDefinition.R.DeviceMake.Name,
+				userDevice.R.DeviceDefinition.Model,
+				strconv.Itoa(int(userDevice.R.DeviceDefinition.Year)),
+			},
+		},
+	}
+
+	domainSep, err := typedData.HashStruct("EIP712Domain", typedData.Domain.Map())
+	if err != nil {
+		return opaqueInternalError
+	}
+	messageHash, err := typedData.HashStruct(typedData.PrimaryType, typedData.Message)
+	if err != nil {
+		return opaqueInternalError
+	}
+
+	res := []byte{0x19, 0x01}
+	res = append(res, domainSep...)
+	res = append(res, messageHash...)
+
 	mr := new(MintRequest)
 	if err := c.BodyParser(mr); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Couldn't parse request body.")
 	}
+
+	sigBytes := common.FromHex(mr.Signature)
+
+	hash := crypto.Keccak256(res)
+	pubKey, err := crypto.Ecrecover(hash, sigBytes)
+	if err != nil {
+		return opaqueInternalError
+	}
+
+	pk, err := crypto.UnmarshalPubkey(pubKey)
+	if err != nil {
+		return opaqueInternalError
+	}
+	recAddr := crypto.PubkeyToAddress(*pk)
 
 	// This may not be there, but if it is we should delete it.
 	imageData := strings.TrimPrefix(mr.ImageData, "data:image/png;base64,")
@@ -784,6 +848,10 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 	if user.EthereumAddress == nil {
 		return fiber.NewError(fiber.StatusBadRequest, "user does not have an ethereum address on file")
 	}
+
+	shouldAddr := common.HexToAddress(*user.EthereumAddress)
+
+	udc.log.Info().Msgf("Address should be %s but we recoevered %s.", shouldAddr, recAddr)
 
 	mreq := &models.MintRequest{
 		ID:           mintRequestID,
