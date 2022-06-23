@@ -34,7 +34,7 @@ func (i *NFTListener) ProcessMintStatus(messages <-chan *message.Message) {
 	for msg := range messages {
 		err := i.processMessage(msg)
 		if err != nil {
-			i.log.Err(err).Msg("error processing task status message")
+			i.log.Err(err).Msg("error processing NFT mint status message")
 		}
 	}
 }
