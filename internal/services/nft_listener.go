@@ -10,8 +10,10 @@ import (
 	"github.com/DIMO-Network/shared"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ericlagergren/decimal"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/types"
 )
@@ -23,6 +25,7 @@ type NFTListener struct {
 
 type MintSuccessData struct {
 	RequestID string   `json:"requestId"`
+	TxHash    *string  `json:"txHash"`
 	TokenID   *big.Int `json:"tokenId"`
 }
 
@@ -77,6 +80,10 @@ func (i *NFTListener) processEvent(event *shared.CloudEvent[MintSuccessData]) er
 
 	mr.TXState = models.TxstateConfirmed
 	mr.TokenID = ud.TokenID
+	if event.Data.TxHash != nil {
+		// This should always be here, for now.
+		mr.TXHash = null.BytesFrom(common.FromHex(*event.Data.TxHash))
+	}
 
 	if _, err := mr.Update(ctx, i.db().Writer, boil.Infer()); err != nil {
 		return err

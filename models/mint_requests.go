@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/friendsofgo/errors"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -30,6 +31,7 @@ type MintRequest struct {
 	TokenID      types.NullDecimal `boil:"token_id" json:"token_id,omitempty" toml:"token_id" yaml:"token_id,omitempty"`
 	CreatedAt    time.Time         `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt    time.Time         `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	TXHash       null.Bytes        `boil:"tx_hash" json:"tx_hash,omitempty" toml:"tx_hash" yaml:"tx_hash,omitempty"`
 
 	R *mintRequestR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L mintRequestL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -42,6 +44,7 @@ var MintRequestColumns = struct {
 	TokenID      string
 	CreatedAt    string
 	UpdatedAt    string
+	TXHash       string
 }{
 	ID:           "id",
 	UserDeviceID: "user_device_id",
@@ -49,6 +52,7 @@ var MintRequestColumns = struct {
 	TokenID:      "token_id",
 	CreatedAt:    "created_at",
 	UpdatedAt:    "updated_at",
+	TXHash:       "tx_hash",
 }
 
 var MintRequestTableColumns = struct {
@@ -58,6 +62,7 @@ var MintRequestTableColumns = struct {
 	TokenID      string
 	CreatedAt    string
 	UpdatedAt    string
+	TXHash       string
 }{
 	ID:           "mint_requests.id",
 	UserDeviceID: "mint_requests.user_device_id",
@@ -65,6 +70,7 @@ var MintRequestTableColumns = struct {
 	TokenID:      "mint_requests.token_id",
 	CreatedAt:    "mint_requests.created_at",
 	UpdatedAt:    "mint_requests.updated_at",
+	TXHash:       "mint_requests.tx_hash",
 }
 
 // Generated where
@@ -95,6 +101,30 @@ func (w whereHelpertypes_NullDecimal) IsNotNull() qm.QueryMod {
 	return qmhelper.WhereIsNotNull(w.field)
 }
 
+type whereHelpernull_Bytes struct{ field string }
+
+func (w whereHelpernull_Bytes) EQ(x null.Bytes) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpernull_Bytes) NEQ(x null.Bytes) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpernull_Bytes) LT(x null.Bytes) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpernull_Bytes) LTE(x null.Bytes) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpernull_Bytes) GT(x null.Bytes) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpernull_Bytes) GTE(x null.Bytes) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+
+func (w whereHelpernull_Bytes) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpernull_Bytes) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+
 var MintRequestWhere = struct {
 	ID           whereHelperstring
 	UserDeviceID whereHelperstring
@@ -102,6 +132,7 @@ var MintRequestWhere = struct {
 	TokenID      whereHelpertypes_NullDecimal
 	CreatedAt    whereHelpertime_Time
 	UpdatedAt    whereHelpertime_Time
+	TXHash       whereHelpernull_Bytes
 }{
 	ID:           whereHelperstring{field: "\"devices_api\".\"mint_requests\".\"id\""},
 	UserDeviceID: whereHelperstring{field: "\"devices_api\".\"mint_requests\".\"user_device_id\""},
@@ -109,6 +140,7 @@ var MintRequestWhere = struct {
 	TokenID:      whereHelpertypes_NullDecimal{field: "\"devices_api\".\"mint_requests\".\"token_id\""},
 	CreatedAt:    whereHelpertime_Time{field: "\"devices_api\".\"mint_requests\".\"created_at\""},
 	UpdatedAt:    whereHelpertime_Time{field: "\"devices_api\".\"mint_requests\".\"updated_at\""},
+	TXHash:       whereHelpernull_Bytes{field: "\"devices_api\".\"mint_requests\".\"tx_hash\""},
 }
 
 // MintRequestRels is where relationship names are stored.
@@ -132,9 +164,9 @@ func (*mintRequestR) NewStruct() *mintRequestR {
 type mintRequestL struct{}
 
 var (
-	mintRequestAllColumns            = []string{"id", "user_device_id", "tx_state", "token_id", "created_at", "updated_at"}
+	mintRequestAllColumns            = []string{"id", "user_device_id", "tx_state", "token_id", "created_at", "updated_at", "tx_hash"}
 	mintRequestColumnsWithoutDefault = []string{"id", "user_device_id"}
-	mintRequestColumnsWithDefault    = []string{"tx_state", "token_id", "created_at", "updated_at"}
+	mintRequestColumnsWithDefault    = []string{"tx_state", "token_id", "created_at", "updated_at", "tx_hash"}
 	mintRequestPrimaryKeyColumns     = []string{"id"}
 	mintRequestGeneratedColumns      = []string{}
 )

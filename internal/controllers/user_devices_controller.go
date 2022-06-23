@@ -970,6 +970,7 @@ type UserDeviceFull struct {
 type NFTData struct {
 	TokenID  *big.Int `json:"tokenId" swaggertype:"number"`
 	TokenURI string   `json:"tokenUri"`
+	TxHash   *string  `json:"txHash,omitempty"`
 }
 
 func transcodeDigits(vin string) int {
