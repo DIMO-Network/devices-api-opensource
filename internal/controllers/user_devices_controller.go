@@ -743,6 +743,9 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 	}
 
 	mintRequestID := ksuid.New().String()
+	logger := udc.log.With().Str("userId", userID).Str("userDeviceId", userDeviceID).Str("mintRequestId", mintRequestID).Str("handler", "MintDevice").Logger()
+
+	logger.Info().Msg("Mint request received.")
 
 	_, err = udc.s3.PutObject(c.Context(), &s3.PutObjectInput{
 		Bucket: &udc.Settings.NFTS3Bucket,
@@ -750,15 +753,13 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 		Body:   bytes.NewReader(image),
 	})
 	if err != nil {
-		udc.log.Err(err).Msg("Failed to save NFT image to S3.")
+		logger.Err(err).Msg("Failed to save image to S3.")
 		return opaqueInternalError
 	}
 
-	udc.log.Info().Str("userDeviceId", userDeviceID).Str("userId", userID).Str("mintRequestId", mintRequestID).Msg("Mint request received.")
-
 	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		udc.log.Err(err).Msg("Failed to create devices API client.")
+		logger.Err(err).Msg("Failed to create users API client.")
 		return opaqueInternalError
 	}
 	defer conn.Close()
@@ -767,7 +768,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 
 	user, err := usersClient.GetUser(c.Context(), &pb.GetUserRequest{Id: userID})
 	if err != nil {
-		udc.log.Err(err).Msg("Couldn't retrieve user record from users-api.")
+		logger.Err(err).Msg("Couldn't retrieve user record.")
 		return opaqueInternalError
 	}
 
@@ -799,7 +800,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 
 	b, err := json.Marshal(me)
 	if err != nil {
-		udc.log.Err(err).Msg("Failed to serialize mint request.")
+		logger.Err(err).Msg("Failed to serialize mint request.")
 		return opaqueInternalError
 	}
 
@@ -809,7 +810,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 		Value: sarama.ByteEncoder(b),
 	})
 	if err != nil {
-		udc.log.Err(err).Msgf("Couldn't send mint request.")
+		logger.Err(err).Msgf("Couldn't produce mint request to Kafka.")
 		return opaqueInternalError
 	}
 
