@@ -1,7 +1,5 @@
 basePath: /v1
 definitions:
-  big.Int:
-    type: object
   github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest:
     properties:
       command:
@@ -196,15 +194,26 @@ definitions:
           type: array
         type: object
     type: object
+  github.com_DIMO-Network_devices-api_internal_controllers.NFTAttribute:
+    properties:
+      trait_type:
+        type: string
+      value:
+        type: string
+    type: object
   github.com_DIMO-Network_devices-api_internal_controllers.NFTData:
     properties:
       tokenId:
-        $ref: '#/definitions/big.Int'
+        type: number
       tokenUri:
         type: string
     type: object
   github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp:
     properties:
+      attributes:
+        items:
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTAttribute'
+        type: array
       description:
         type: string
       image:
@@ -507,15 +516,26 @@ definitions:
           type: array
         type: object
     type: object
+  internal_controllers.NFTAttribute:
+    properties:
+      trait_type:
+        type: string
+      value:
+        type: string
+    type: object
   internal_controllers.NFTData:
     properties:
       tokenId:
-        $ref: '#/definitions/big.Int'
+        type: number
       tokenUri:
         type: string
     type: object
   internal_controllers.NFTMetadataResp:
     properties:
+      attributes:
+        items:
+          $ref: '#/definitions/internal_controllers.NFTAttribute'
+        type: array
       description:
         type: string
       image:
@@ -949,7 +969,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot'
+              $ref: '#/definitions/internal_controllers.DeviceMMYRoot'
             type: array
       tags:
       - device-definitions
@@ -1087,7 +1107,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.NFTMetadataResp'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp'
         "404":
           description: ""
       tags:

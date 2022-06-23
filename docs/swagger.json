@@ -221,7 +221,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot"
+                                "$ref": "#/definitions/internal_controllers.DeviceMMYRoot"
                             }
                         }
                     }
@@ -473,7 +473,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp"
                         }
                     },
                     "404": {
@@ -1113,9 +1113,6 @@
         }
     },
     "definitions": {
-        "big.Int": {
-            "type": "object"
-        },
         "github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest": {
             "type": "object",
             "properties": {
@@ -1402,11 +1399,22 @@
                 }
             }
         },
+        "github.com_DIMO-Network_devices-api_internal_controllers.NFTAttribute": {
+            "type": "object",
+            "properties": {
+                "trait_type": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
         "github.com_DIMO-Network_devices-api_internal_controllers.NFTData": {
             "type": "object",
             "properties": {
                 "tokenId": {
-                    "$ref": "#/definitions/big.Int"
+                    "type": "number"
                 },
                 "tokenUri": {
                     "type": "string"
@@ -1416,6 +1424,12 @@
         "github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp": {
             "type": "object",
             "properties": {
+                "attributes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTAttribute"
+                    }
+                },
                 "description": {
                     "type": "string"
                 },
@@ -1864,11 +1878,22 @@
                 }
             }
         },
+        "internal_controllers.NFTAttribute": {
+            "type": "object",
+            "properties": {
+                "trait_type": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_controllers.NFTData": {
             "type": "object",
             "properties": {
                 "tokenId": {
-                    "$ref": "#/definitions/big.Int"
+                    "type": "number"
                 },
                 "tokenUri": {
                     "type": "string"
@@ -1878,6 +1903,12 @@
         "internal_controllers.NFTMetadataResp": {
             "type": "object",
             "properties": {
+                "attributes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_controllers.NFTAttribute"
+                    }
+                },
                 "description": {
                     "type": "string"
                 },

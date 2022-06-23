@@ -968,7 +968,7 @@ type UserDeviceFull struct {
 }
 
 type NFTData struct {
-	TokenID  *big.Int `json:"tokenId"`
+	TokenID  *big.Int `json:"tokenId" swaggertype:"number"`
 	TokenURI string   `json:"tokenUri"`
 }
 
