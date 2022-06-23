@@ -53,6 +53,7 @@ func NewNFTController(
 // @Tags         nfts
 // @Produce      json
 // @Success      200  {object}  controllers.NFTMetadataResp
+// @Failure      404
 // @Router       /nfts/:tokenID [get]
 func (udc *NFTController) GetNFTMetadata(c *fiber.Ctx) error {
 	tis := c.Params("tokenID")
@@ -63,28 +64,37 @@ func (udc *NFTController) GetNFTMetadata(c *fiber.Ctx) error {
 
 	tid := types.NewNullDecimal(new(decimal.Big).SetBigMantScale(ti, 0))
 
-	ud, err := models.UserDevices(
-		models.UserDeviceWhere.TokenID.EQ(tid),
-		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
-		qm.Load(models.UserDeviceRels.MintRequests, models.MintRequestWhere.TokenID.EQ(tid)),
+	mr, err := models.MintRequests(
+		models.MintRequestWhere.TokenID.EQ(tid),
+		qm.Load(qm.Rels(models.MintRequestRels.UserDevice, models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
 	).One(c.Context(), udc.DBS().Writer)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusBadRequest, "NFT not found.")
+			return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
 		}
+		return opaqueInternalError
 	}
 
-	name := fmt.Sprintf("%s %s %d", ud.R.DeviceDefinition.R.DeviceMake.Name, ud.R.DeviceDefinition.Model, ud.R.DeviceDefinition.Year)
+	description := fmt.Sprintf("%s %s %d", mr.R.UserDevice.R.DeviceDefinition.R.DeviceMake.Name, mr.R.UserDevice.R.DeviceDefinition.Model, mr.R.UserDevice.R.DeviceDefinition.Year)
+
+	var name string
+	if mr.R.UserDevice.Name.Valid {
+		name = mr.R.UserDevice.Name.String
+	} else {
+		name = description
+	}
 
 	return c.JSON(NFTMetadataResp{
-		Name:  name,
-		Image: fmt.Sprintf("%s/v1/nfts/%s/image", udc.Settings.DeploymentBaseURL, ti),
+		Name:        name,
+		Description: description,
+		Image:       fmt.Sprintf("%s/v1/nfts/%s/image", udc.Settings.DeploymentBaseURL, ti),
 	})
 }
 
 type NFTMetadataResp struct {
-	Name  string `json:"name"`
-	Image string `json:"image"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Image       string `json:"image"`
 }
 
 // GetNFTImage godoc
@@ -101,20 +111,19 @@ func (udc *NFTController) GetNFTImage(c *fiber.Ctx) error {
 
 	tid := types.NewNullDecimal(new(decimal.Big).SetBigMantScale(ti, 0))
 
-	ud, err := models.UserDevices(
-		models.UserDeviceWhere.TokenID.EQ(tid),
-		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
-		qm.Load(models.UserDeviceRels.MintRequests, models.MintRequestWhere.TokenID.EQ(tid)),
+	mr, err := models.MintRequests(
+		models.MintRequestWhere.TokenID.EQ(tid),
 	).One(c.Context(), udc.DBS().Writer)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusBadRequest, "NFT not found.")
+			return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
 		}
+		return opaqueInternalError
 	}
 
 	s3o, err := udc.s3.GetObject(c.Context(), &s3.GetObjectInput{
 		Bucket: aws.String(udc.Settings.NFTS3Bucket),
-		Key:    aws.String(ud.R.MintRequests[0].ID + ".png"),
+		Key:    aws.String(mr.ID + ".png"),
 	})
 	if err != nil {
 		udc.log.Err(err).Msg("Failure communicating with S3.")
