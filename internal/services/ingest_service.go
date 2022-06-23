@@ -14,7 +14,6 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -50,8 +49,6 @@ func (i *IngestService) ProcessDeviceStatusMessages(messages <-chan *message.Mes
 func (i *IngestService) processMessage(msg *message.Message) error {
 	// Keep the pipeline moving no matter what.
 	defer func() { msg.Ack() }()
-
-	log.Info().Msgf("Received message: %s, payload: %s", msg.UUID, string(msg.Payload))
 
 	event := new(DeviceStatusEvent)
 	if err := json.Unmarshal(msg.Payload, event); err != nil {
