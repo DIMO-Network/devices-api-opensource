@@ -749,7 +749,10 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "Couldn't parse request body.")
 	}
 
-	image, err := base64.StdEncoding.DecodeString(mr.ImageData)
+	// This may not be there, but if it is we should delete it.
+	imageData := strings.TrimPrefix(mr.ImageData, "data:image/png;base64,")
+
+	image, err := base64.StdEncoding.DecodeString(imageData)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Field imageData not properly base64-encoded.")
 	}
