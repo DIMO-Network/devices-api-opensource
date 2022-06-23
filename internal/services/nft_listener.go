@@ -43,6 +43,8 @@ func (i *NFTListener) processMessage(msg *message.Message) error {
 	// Keep the pipeline moving no matter what.
 	defer func() { msg.Ack() }()
 
+	i.log.Info().RawJSON("mintStatus", msg.Payload).Msg("Got mint.")
+
 	event := new(shared.CloudEvent[MintSuccessData])
 	if err := json.Unmarshal(msg.Payload, event); err != nil {
 		return errors.Wrap(err, "error parsing mint status")
