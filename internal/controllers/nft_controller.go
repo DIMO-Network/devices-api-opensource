@@ -1,0 +1,126 @@
+package controllers
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"math/big"
+
+	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/DIMO-Network/devices-api/models"
+	"github.com/ericlagergren/decimal"
+	"github.com/gofiber/fiber/v2"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/types"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+)
+
+type NFTController struct {
+	Settings *config.Settings
+	DBS      func() *database.DBReaderWriter
+	s3       *s3.Client
+	log      *zerolog.Logger
+}
+
+// NewUserDevicesController constructor
+func NewNFTController(
+	settings *config.Settings,
+	dbs func() *database.DBReaderWriter,
+	logger *zerolog.Logger,
+) NFTController {
+	awscfg, err := awsconfig.LoadDefaultConfig(context.Background(), awsconfig.WithRegion(settings.AWSRegion))
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Couldn't create AWS config.")
+	}
+	s3Client := s3.NewFromConfig(awscfg)
+
+	return NFTController{
+		Settings: settings,
+		DBS:      dbs,
+		log:      logger,
+		s3:       s3Client,
+	}
+}
+
+// GetNFTMetadata godoc
+// @Description  retrieves NFT metadata for a given tokenID
+// @Tags         nfts
+// @Produce      json
+// @Success      200  {object}  controllers.NFTMetadataResp
+// @Router       /nfts/:tokenID [get]
+func (udc *NFTController) GetNFTMetadata(c *fiber.Ctx) error {
+	tis := c.Params("tokenID")
+	ti, ok := new(big.Int).SetString(tis, 10)
+	if !ok {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("Couldn't parse token id %q.", tis))
+	}
+
+	tid := types.NewNullDecimal(new(decimal.Big).SetBigMantScale(ti, 0))
+
+	ud, err := models.UserDevices(
+		models.UserDeviceWhere.TokenID.EQ(tid),
+		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
+		qm.Load(models.UserDeviceRels.MintRequests, models.MintRequestWhere.TokenID.EQ(tid)),
+	).One(c.Context(), udc.DBS().Writer)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusBadRequest, "NFT not found.")
+		}
+	}
+
+	name := fmt.Sprintf("%s %s %d", ud.R.DeviceDefinition.R.DeviceMake.Name, ud.R.DeviceDefinition.Model, ud.R.DeviceDefinition.Year)
+
+	return c.JSON(NFTMetadataResp{
+		Name:  name,
+		Image: fmt.Sprintf("%s/v1/nfts/%s/image", udc.Settings.DeploymentBaseURL, ti),
+	})
+}
+
+type NFTMetadataResp struct {
+	Name  string `json:"name"`
+	Image string `json:"image"`
+}
+
+// GetNFTImage godoc
+// @Description  retrieves NFT metadata for a given tokenID
+// @Tags         nfts
+// @Produce      png
+// @Router       /nfts/:tokenID/image [get]
+func (udc *NFTController) GetNFTImage(c *fiber.Ctx) error {
+	tis := c.Params("tokenID")
+	ti, ok := new(big.Int).SetString(tis, 10)
+	if !ok {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("Couldn't parse token id %q.", tis))
+	}
+
+	tid := types.NewNullDecimal(new(decimal.Big).SetBigMantScale(ti, 0))
+
+	ud, err := models.UserDevices(
+		models.UserDeviceWhere.TokenID.EQ(tid),
+		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
+		qm.Load(models.UserDeviceRels.MintRequests, models.MintRequestWhere.TokenID.EQ(tid)),
+	).One(c.Context(), udc.DBS().Writer)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusBadRequest, "NFT not found.")
+		}
+	}
+
+	s3o, err := udc.s3.GetObject(c.Context(), &s3.GetObjectInput{
+		Bucket: aws.String(udc.Settings.NFTS3Bucket),
+		Key:    aws.String(ud.R.MintRequests[0].ID + ".png"),
+	})
+	if err != nil {
+		udc.log.Err(err).Msg("Failure communicating with S3.")
+		return opaqueInternalError
+	}
+
+	c.Set("Content-Type", "image/png")
+	return c.SendStream(s3o.Body)
+}

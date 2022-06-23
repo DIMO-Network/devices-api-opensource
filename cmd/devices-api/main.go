@@ -368,6 +368,12 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Delete("/documents/:id", documentsController.DeleteDocument)
 	v1Auth.Get("/documents/:id/download", documentsController.DownloadDocument)
 
+	if settings.Environment != "prod" {
+		nftController := controllers.NewNFTController(settings, pdb.DBS, &logger)
+		app.Get("/v1/nfts/:tokenID", nftController.GetNFTMetadata)
+		app.Get("/v1/nfts/:tokenID/image", nftController.GetNFTImage)
+	}
+
 	go startGRPCServer(settings, pdb.DBS, &logger)
 
 	logger.Info().Msg("Server started on port " + settings.Port)

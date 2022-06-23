@@ -162,7 +162,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 			n := new(big.Int)
 			d.TokenID.Big.Int(n)
 			nft = &NFTData{
-				TokenId: n,
+				TokenID: n,
 			}
 		}
 
@@ -963,7 +963,7 @@ type UserDeviceFull struct {
 }
 
 type NFTData struct {
-	TokenId *big.Int `json:"tokenId"`
+	TokenID *big.Int `json:"tokenId"`
 }
 
 func transcodeDigits(vin string) int {

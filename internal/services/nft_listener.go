@@ -75,5 +75,12 @@ func (i *NFTListener) processEvent(event *shared.CloudEvent[MintSuccessData]) er
 		return err
 	}
 
+	mr.TXState = models.TxstateConfirmed
+	mr.TokenID = ud.TokenID
+
+	if _, err := mr.Update(ctx, i.db().Writer, boil.Infer()); err != nil {
+		return err
+	}
+
 	return nil
 }
