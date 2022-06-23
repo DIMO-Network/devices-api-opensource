@@ -548,7 +548,7 @@ func startMintStatusConsumer(logger zerolog.Logger, settings *config.Settings, p
 	cfg := &kafka.Config{
 		ClusterConfig:   clusterConfig,
 		BrokerAddresses: strings.Split(settings.KafkaBrokers, ","),
-		Topic:           settings.NFTInputTopic,
+		Topic:           settings.NFTOutputTopic,
 		GroupID:         "user-devices",
 		MaxInFlight:     int64(5),
 	}
