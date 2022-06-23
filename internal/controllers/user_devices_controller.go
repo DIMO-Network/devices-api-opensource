@@ -164,7 +164,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 			d.TokenID.Big.Int(n)
 			nft = &NFTData{
 				TokenID:  n,
-				TokenURI: fmt.Sprintf("%s/v1/nfts/%s/image", udc.Settings.DeploymentBaseURL, n),
+				TokenURI: fmt.Sprintf("%s/v1/nfts/%s", udc.Settings.DeploymentBaseURL, n),
 			}
 		}
 
