@@ -777,10 +777,12 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 
 	domainSep, err := typedData.HashStruct("EIP712Domain", typedData.Domain.Map())
 	if err != nil {
+		udc.log.Err(err).Send()
 		return opaqueInternalError
 	}
 	messageHash, err := typedData.HashStruct(typedData.PrimaryType, typedData.Message)
 	if err != nil {
+		udc.log.Err(err).Send()
 		return opaqueInternalError
 	}
 
@@ -798,11 +800,13 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 	hash := crypto.Keccak256(res)
 	pubKey, err := crypto.Ecrecover(hash, sigBytes)
 	if err != nil {
+		udc.log.Err(err).Send()
 		return opaqueInternalError
 	}
 
 	pk, err := crypto.UnmarshalPubkey(pubKey)
 	if err != nil {
+		udc.log.Err(err).Send()
 		return opaqueInternalError
 	}
 	recAddr := crypto.PubkeyToAddress(*pk)
