@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"regexp"
 	"strconv"
@@ -162,7 +163,8 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 			n := new(big.Int)
 			d.TokenID.Big.Int(n)
 			nft = &NFTData{
-				TokenID: n,
+				TokenID:  n,
+				TokenURI: fmt.Sprintf("%s/v1/nfts/%s/image", udc.Settings.DeploymentBaseURL, n),
 			}
 		}
 
@@ -963,7 +965,8 @@ type UserDeviceFull struct {
 }
 
 type NFTData struct {
-	TokenID *big.Int `json:"tokenId"`
+	TokenID  *big.Int `json:"tokenId"`
+	TokenURI string   `json:"tokenUri"`
 }
 
 func transcodeDigits(vin string) int {
