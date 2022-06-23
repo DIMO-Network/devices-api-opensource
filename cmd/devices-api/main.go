@@ -304,6 +304,12 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1.Get("/device-definitions/:id/integrations", deviceControllers.GetDeviceIntegrationsByID)
 	v1.Get("/device-definitions", deviceControllers.GetDeviceDefinitionByMMY)
 
+	if settings.Environment != "prod" {
+		nftController := controllers.NewNFTController(settings, pdb.DBS, &logger)
+		v1.Get("/nfts/:tokenID", nftController.GetNFTMetadata)
+		v1.Get("/nfts/:tokenID/image", nftController.GetNFTImage)
+	}
+
 	// webhooks, performs signature validation
 	v1.Post(services.AutoPiWebhookPath, webhooksController.ProcessCommand)
 
@@ -367,12 +373,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Post("/documents", documentsController.PostDocument)
 	v1Auth.Delete("/documents/:id", documentsController.DeleteDocument)
 	v1Auth.Get("/documents/:id/download", documentsController.DownloadDocument)
-
-	if settings.Environment != "prod" {
-		nftController := controllers.NewNFTController(settings, pdb.DBS, &logger)
-		app.Get("/v1/nfts/:tokenID", nftController.GetNFTMetadata)
-		app.Get("/v1/nfts/:tokenID/image", nftController.GetNFTImage)
-	}
 
 	go startGRPCServer(settings, pdb.DBS, &logger)
 
