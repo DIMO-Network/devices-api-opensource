@@ -706,7 +706,7 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 			VerifyingContract: udc.Settings.NFTContractAddr,
 		},
 		Message: signer.TypedDataMessage{
-			"rootNode":   big.NewInt(7), // Just hardcoding this. We need a node for each make, and to keep these in sync.
+			"rootNode":   (*math.HexOrDecimal256)(big.NewInt(7)), // Just hardcoding this. We need a node for each make, and to keep these in sync.
 			"attributes": []string{"Make", "Model", "Year"},
 			"infos": []string{
 				userDevice.R.DeviceDefinition.R.DeviceMake.Name,
@@ -765,7 +765,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 			VerifyingContract: udc.Settings.NFTContractAddr,
 		},
 		Message: signer.TypedDataMessage{
-			"rootNode":   big.NewInt(7), // Just hardcoding this. We need a node for each make, and to keep these in sync.
+			"rootNode":   (*math.HexOrDecimal256)(big.NewInt(7)), // Just hardcoding this. We need a node for each make, and to keep these in sync.
 			"attributes": []string{"Make", "Model", "Year"},
 			"infos": []string{
 				userDevice.R.DeviceDefinition.R.DeviceMake.Name,
