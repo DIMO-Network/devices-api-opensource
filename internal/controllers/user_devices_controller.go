@@ -799,6 +799,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 
 	b, err := json.Marshal(me)
 	if err != nil {
+		udc.log.Err(err).Msg("Failed to serialize mint request.")
 		return opaqueInternalError
 	}
 
@@ -807,6 +808,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 		Value: sarama.ByteEncoder(b),
 	})
 	if err != nil {
+		udc.log.Err(err).Msgf("Couldn't send mint request.")
 		return opaqueInternalError
 	}
 
