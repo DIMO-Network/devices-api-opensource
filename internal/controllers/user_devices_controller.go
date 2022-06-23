@@ -35,6 +35,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+
+	"github.com/ethereum/go-ethereum/common/math"
+	signer "github.com/ethereum/go-ethereum/signer/core/apitypes"
 )
 
 type UserDevicesController struct {
@@ -676,29 +679,32 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusNotFound, "No device with that ID found.")
 	}
 
-	msd := MintSignatureData{
-		Types: map[string][]EIP712FieldType{
-			"EIP712Domain": {
-				EIP712FieldType{Name: "name", Type: "string"},
-				EIP712FieldType{Name: "version", Type: "string"},
-				EIP712FieldType{Name: "chainId", Type: "uint256"},
-				EIP712FieldType{Name: "verifyingContract", Type: "address"},
+	// TODO(elffjs): Only do this once.
+	chainID := big.NewInt(int64(udc.Settings.NFTChainID))
+
+	typedData := signer.TypedData{
+		Types: signer.Types{
+			"EIP712Domain": []signer.Type{
+				{Name: "name", Type: "string"},
+				{Name: "version", Type: "string"},
+				{Name: "chainId", Type: "uint256"},
+				{Name: "verifyingContract", Type: "address"},
 			},
 			"MintDevice": {
-				EIP712FieldType{Name: "rootNode", Type: "uint256"},
-				EIP712FieldType{Name: "attributes", Type: "string[]"},
-				EIP712FieldType{Name: "infos", Type: "string[]"},
+				{Name: "rootNode", Type: "uint256"},
+				{Name: "attributes", Type: "string[]"},
+				{Name: "infos", Type: "string[]"},
 			},
 		},
 		PrimaryType: "MintDevice",
-		Domain: map[string]any{
-			"name":              "DIMO",
-			"version":           "1",
-			"chainId":           udc.Settings.NFTChainID,
-			"verifyingContract": udc.Settings.NFTContractAddr,
+		Domain: signer.TypedDataDomain{
+			Name:              "DIMO",
+			Version:           "1",
+			ChainId:           (*math.HexOrDecimal256)(chainID),
+			VerifyingContract: udc.Settings.NFTContractAddr,
 		},
-		Message: map[string]any{
-			"rootNode":   7,
+		Message: signer.TypedDataMessage{
+			"rootNode":   7, // Just hardcoding this. We need a node for each make, and to keep these in sync.
 			"attributes": []string{"Make", "Model", "Year"},
 			"infos": []string{
 				userDevice.R.DeviceDefinition.R.DeviceMake.Name,
@@ -708,19 +714,7 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 		},
 	}
 
-	return c.JSON(msd)
-}
-
-type EIP712FieldType struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
-}
-
-type MintSignatureData struct {
-	Types       map[string][]EIP712FieldType `json:"types"`
-	PrimaryType string                       `json:"primaryType"`
-	Domain      any                          `json:"domain"`
-	Message     any                          `json:"message"`
+	return c.JSON(typedData)
 }
 
 // MintDevice godoc

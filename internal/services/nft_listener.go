@@ -27,6 +27,7 @@ type MintSuccessData struct {
 	RequestID string   `json:"requestId"`
 	TxHash    *string  `json:"txHash"`
 	TokenID   *big.Int `json:"tokenId"`
+	Status    string   `json:"status"`
 }
 
 func NewNFTListener(db func() *database.DBReaderWriter, log *zerolog.Logger) *NFTListener {
@@ -71,22 +72,24 @@ func (i *NFTListener) processEvent(event *shared.CloudEvent[MintSuccessData]) er
 		return err
 	}
 
-	n := new(decimal.Big)
-	n.SetBigMantScale(event.Data.TokenID, 0)
-	ud.TokenID = types.NewNullDecimal(n)
-	if _, err := ud.Update(ctx, i.db().Writer, boil.Infer()); err != nil {
-		return err
-	}
+	if event.Data.Status == "Confirmed" {
+		n := new(decimal.Big)
+		n.SetBigMantScale(event.Data.TokenID, 0)
+		ud.TokenID = types.NewNullDecimal(n)
+		if _, err := ud.Update(ctx, i.db().Writer, boil.Infer()); err != nil {
+			return err
+		}
 
-	mr.TXState = models.TxstateConfirmed
-	mr.TokenID = ud.TokenID
-	if event.Data.TxHash != nil {
-		// This should always be here, for now.
-		mr.TXHash = null.BytesFrom(common.FromHex(*event.Data.TxHash))
-	}
+		mr.TXState = models.TxstateConfirmed
+		mr.TokenID = ud.TokenID
+		if event.Data.TxHash != nil {
+			// This should always be here, for now.
+			mr.TXHash = null.BytesFrom(common.FromHex(*event.Data.TxHash))
+		}
 
-	if _, err := mr.Update(ctx, i.db().Writer, boil.Infer()); err != nil {
-		return err
+		if _, err := mr.Update(ctx, i.db().Writer, boil.Infer()); err != nil {
+			return err
+		}
 	}
 
 	return nil
