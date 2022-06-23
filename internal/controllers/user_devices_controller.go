@@ -805,6 +805,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 
 	_, _, err = udc.producer.SendMessage(&sarama.ProducerMessage{
 		Topic: udc.Settings.NFTInputTopic,
+		Key:   sarama.StringEncoder(userDeviceID),
 		Value: sarama.ByteEncoder(b),
 	})
 	if err != nil {
