@@ -959,7 +959,7 @@ type UserDeviceFull struct {
 	CountryCode      *string                       `json:"countryCode"`
 	Integrations     []UserDeviceIntegrationStatus `json:"integrations"`
 	Metadata         services.UserDeviceMetadata   `json:"metadata"`
-	NFT              *NFTData                      `json:"nft"`
+	NFT              *NFTData                      `json:"nft,omitempty"`
 }
 
 type NFTData struct {
