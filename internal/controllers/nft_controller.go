@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"math/big"
+	"strconv"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
@@ -88,13 +89,24 @@ func (udc *NFTController) GetNFTMetadata(c *fiber.Ctx) error {
 		Name:        name,
 		Description: description,
 		Image:       fmt.Sprintf("%s/v1/nfts/%s/image", udc.Settings.DeploymentBaseURL, ti),
+		Attributes: []NFTAttribute{
+			{TraitType: "Make", Value: mr.R.UserDevice.R.DeviceDefinition.R.DeviceMake.Name},
+			{TraitType: "Model", Value: mr.R.UserDevice.R.DeviceDefinition.Model},
+			{TraitType: "Year", Value: strconv.Itoa(int(mr.R.UserDevice.R.DeviceDefinition.Year))},
+		},
 	})
 }
 
 type NFTMetadataResp struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Image       string `json:"image"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Image       string         `json:"image"`
+	Attributes  []NFTAttribute `json:"attributes"`
+}
+
+type NFTAttribute struct {
+	TraitType string `json:"trait_type"`
+	Value     string `json:"value"`
 }
 
 // GetNFTImage godoc
