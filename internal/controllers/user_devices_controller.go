@@ -157,6 +157,15 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 			}
 		}
 
+		var nft *NFTData
+		if !d.TokenID.IsZero() {
+			n := new(big.Int)
+			d.TokenID.Big.Int(n)
+			nft = &NFTData{
+				TokenId: n,
+			}
+		}
+
 		rp[i] = UserDeviceFull{
 			ID:               d.ID,
 			VIN:              d.VinIdentifier.Ptr(),
@@ -167,6 +176,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 			DeviceDefinition: dd,
 			Integrations:     NewUserDeviceIntegrationStatusesFromDatabase(d.R.UserDeviceAPIIntegrations),
 			Metadata:         *md,
+			NFT:              nft,
 		}
 	}
 
@@ -776,6 +786,16 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "user does not have an ethereum address on file")
 	}
 
+	mreq := &models.MintRequest{
+		ID:           mintRequestID,
+		UserDeviceID: userDeviceID,
+		TXState:      models.TxstateUnstarted,
+	}
+
+	if err := mreq.Insert(c.Context(), udc.DBS().Writer, boil.Infer()); err != nil {
+		return opaqueInternalError
+	}
+
 	me := shared.CloudEvent[MintEventData]{
 		ID:          ksuid.New().String(),
 		Source:      "devices-api",
@@ -939,6 +959,11 @@ type UserDeviceFull struct {
 	CountryCode      *string                       `json:"countryCode"`
 	Integrations     []UserDeviceIntegrationStatus `json:"integrations"`
 	Metadata         services.UserDeviceMetadata   `json:"metadata"`
+	NFT              *NFTData                      `json:"nft"`
+}
+
+type NFTData struct {
+	TokenId *big.Int `json:"tokenId"`
 }
 
 func transcodeDigits(vin string) int {

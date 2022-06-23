@@ -71,6 +71,14 @@ const (
 	IntegrationStyleWebhook = "Webhook"
 )
 
+// Enum values for Txstate
+const (
+	TxstateUnstarted = "Unstarted"
+	TxstateSubmitted = "Submitted"
+	TxstateMined     = "Mined"
+	TxstateConfirmed = "Confirmed"
+)
+
 // Enum values for UserDeviceAPIIntegrationStatus
 const (
 	UserDeviceAPIIntegrationStatusPending               = "Pending"

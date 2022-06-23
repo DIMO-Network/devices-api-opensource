@@ -19,22 +19,24 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"github.com/volatiletech/sqlboiler/v4/queries/qmhelper"
+	"github.com/volatiletech/sqlboiler/v4/types"
 	"github.com/volatiletech/strmangle"
 )
 
 // UserDevice is an object representing the database table.
 type UserDevice struct {
-	ID                 string      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	UserID             string      `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
-	DeviceDefinitionID string      `boil:"device_definition_id" json:"device_definition_id" toml:"device_definition_id" yaml:"device_definition_id"`
-	VinIdentifier      null.String `boil:"vin_identifier" json:"vin_identifier,omitempty" toml:"vin_identifier" yaml:"vin_identifier,omitempty"`
-	Name               null.String `boil:"name" json:"name,omitempty" toml:"name" yaml:"name,omitempty"`
-	CustomImageURL     null.String `boil:"custom_image_url" json:"custom_image_url,omitempty" toml:"custom_image_url" yaml:"custom_image_url,omitempty"`
-	CountryCode        null.String `boil:"country_code" json:"country_code,omitempty" toml:"country_code" yaml:"country_code,omitempty"`
-	CreatedAt          time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt          time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	VinConfirmed       bool        `boil:"vin_confirmed" json:"vin_confirmed" toml:"vin_confirmed" yaml:"vin_confirmed"`
-	Metadata           null.JSON   `boil:"metadata" json:"metadata,omitempty" toml:"metadata" yaml:"metadata,omitempty"`
+	ID                 string            `boil:"id" json:"id" toml:"id" yaml:"id"`
+	UserID             string            `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
+	DeviceDefinitionID string            `boil:"device_definition_id" json:"device_definition_id" toml:"device_definition_id" yaml:"device_definition_id"`
+	VinIdentifier      null.String       `boil:"vin_identifier" json:"vin_identifier,omitempty" toml:"vin_identifier" yaml:"vin_identifier,omitempty"`
+	Name               null.String       `boil:"name" json:"name,omitempty" toml:"name" yaml:"name,omitempty"`
+	CustomImageURL     null.String       `boil:"custom_image_url" json:"custom_image_url,omitempty" toml:"custom_image_url" yaml:"custom_image_url,omitempty"`
+	CountryCode        null.String       `boil:"country_code" json:"country_code,omitempty" toml:"country_code" yaml:"country_code,omitempty"`
+	CreatedAt          time.Time         `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt          time.Time         `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	VinConfirmed       bool              `boil:"vin_confirmed" json:"vin_confirmed" toml:"vin_confirmed" yaml:"vin_confirmed"`
+	Metadata           null.JSON         `boil:"metadata" json:"metadata,omitempty" toml:"metadata" yaml:"metadata,omitempty"`
+	TokenID            types.NullDecimal `boil:"token_id" json:"token_id,omitempty" toml:"token_id" yaml:"token_id,omitempty"`
 
 	R *userDeviceR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userDeviceL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -52,6 +54,7 @@ var UserDeviceColumns = struct {
 	UpdatedAt          string
 	VinConfirmed       string
 	Metadata           string
+	TokenID            string
 }{
 	ID:                 "id",
 	UserID:             "user_id",
@@ -64,6 +67,7 @@ var UserDeviceColumns = struct {
 	UpdatedAt:          "updated_at",
 	VinConfirmed:       "vin_confirmed",
 	Metadata:           "metadata",
+	TokenID:            "token_id",
 }
 
 var UserDeviceTableColumns = struct {
@@ -78,6 +82,7 @@ var UserDeviceTableColumns = struct {
 	UpdatedAt          string
 	VinConfirmed       string
 	Metadata           string
+	TokenID            string
 }{
 	ID:                 "user_devices.id",
 	UserID:             "user_devices.user_id",
@@ -90,6 +95,7 @@ var UserDeviceTableColumns = struct {
 	UpdatedAt:          "user_devices.updated_at",
 	VinConfirmed:       "user_devices.vin_confirmed",
 	Metadata:           "user_devices.metadata",
+	TokenID:            "user_devices.token_id",
 }
 
 // Generated where
@@ -106,6 +112,7 @@ var UserDeviceWhere = struct {
 	UpdatedAt          whereHelpertime_Time
 	VinConfirmed       whereHelperbool
 	Metadata           whereHelpernull_JSON
+	TokenID            whereHelpertypes_NullDecimal
 }{
 	ID:                 whereHelperstring{field: "\"devices_api\".\"user_devices\".\"id\""},
 	UserID:             whereHelperstring{field: "\"devices_api\".\"user_devices\".\"user_id\""},
@@ -118,18 +125,21 @@ var UserDeviceWhere = struct {
 	UpdatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"user_devices\".\"updated_at\""},
 	VinConfirmed:       whereHelperbool{field: "\"devices_api\".\"user_devices\".\"vin_confirmed\""},
 	Metadata:           whereHelpernull_JSON{field: "\"devices_api\".\"user_devices\".\"metadata\""},
+	TokenID:            whereHelpertypes_NullDecimal{field: "\"devices_api\".\"user_devices\".\"token_id\""},
 }
 
 // UserDeviceRels is where relationship names are stored.
 var UserDeviceRels = struct {
 	DeviceDefinition          string
 	AutopiJobs                string
+	MintRequests              string
 	UserDeviceAPIIntegrations string
 	UserDeviceData            string
 	UserDeviceToGeofences     string
 }{
 	DeviceDefinition:          "DeviceDefinition",
 	AutopiJobs:                "AutopiJobs",
+	MintRequests:              "MintRequests",
 	UserDeviceAPIIntegrations: "UserDeviceAPIIntegrations",
 	UserDeviceData:            "UserDeviceData",
 	UserDeviceToGeofences:     "UserDeviceToGeofences",
@@ -139,6 +149,7 @@ var UserDeviceRels = struct {
 type userDeviceR struct {
 	DeviceDefinition          *DeviceDefinition             `boil:"DeviceDefinition" json:"DeviceDefinition" toml:"DeviceDefinition" yaml:"DeviceDefinition"`
 	AutopiJobs                AutopiJobSlice                `boil:"AutopiJobs" json:"AutopiJobs" toml:"AutopiJobs" yaml:"AutopiJobs"`
+	MintRequests              MintRequestSlice              `boil:"MintRequests" json:"MintRequests" toml:"MintRequests" yaml:"MintRequests"`
 	UserDeviceAPIIntegrations UserDeviceAPIIntegrationSlice `boil:"UserDeviceAPIIntegrations" json:"UserDeviceAPIIntegrations" toml:"UserDeviceAPIIntegrations" yaml:"UserDeviceAPIIntegrations"`
 	UserDeviceData            UserDeviceDatumSlice          `boil:"UserDeviceData" json:"UserDeviceData" toml:"UserDeviceData" yaml:"UserDeviceData"`
 	UserDeviceToGeofences     UserDeviceToGeofenceSlice     `boil:"UserDeviceToGeofences" json:"UserDeviceToGeofences" toml:"UserDeviceToGeofences" yaml:"UserDeviceToGeofences"`
@@ -153,9 +164,9 @@ func (*userDeviceR) NewStruct() *userDeviceR {
 type userDeviceL struct{}
 
 var (
-	userDeviceAllColumns            = []string{"id", "user_id", "device_definition_id", "vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed", "metadata"}
+	userDeviceAllColumns            = []string{"id", "user_id", "device_definition_id", "vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed", "metadata", "token_id"}
 	userDeviceColumnsWithoutDefault = []string{"id", "user_id", "device_definition_id"}
-	userDeviceColumnsWithDefault    = []string{"vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed", "metadata"}
+	userDeviceColumnsWithDefault    = []string{"vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed", "metadata", "token_id"}
 	userDevicePrimaryKeyColumns     = []string{"id"}
 	userDeviceGeneratedColumns      = []string{}
 )
@@ -473,6 +484,27 @@ func (o *UserDevice) AutopiJobs(mods ...qm.QueryMod) autopiJobQuery {
 	return query
 }
 
+// MintRequests retrieves all the mint_request's MintRequests with an executor.
+func (o *UserDevice) MintRequests(mods ...qm.QueryMod) mintRequestQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"devices_api\".\"mint_requests\".\"user_device_id\"=?", o.ID),
+	)
+
+	query := MintRequests(queryMods...)
+	queries.SetFrom(query.Query, "\"devices_api\".\"mint_requests\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"devices_api\".\"mint_requests\".*"})
+	}
+
+	return query
+}
+
 // UserDeviceAPIIntegrations retrieves all the user_device_api_integration's UserDeviceAPIIntegrations with an executor.
 func (o *UserDevice) UserDeviceAPIIntegrations(mods ...qm.QueryMod) userDeviceAPIIntegrationQuery {
 	var queryMods []qm.QueryMod
@@ -728,6 +760,104 @@ func (userDeviceL) LoadAutopiJobs(ctx context.Context, e boil.ContextExecutor, s
 				local.R.AutopiJobs = append(local.R.AutopiJobs, foreign)
 				if foreign.R == nil {
 					foreign.R = &autopiJobR{}
+				}
+				foreign.R.UserDevice = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadMintRequests allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (userDeviceL) LoadMintRequests(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserDevice interface{}, mods queries.Applicator) error {
+	var slice []*UserDevice
+	var object *UserDevice
+
+	if singular {
+		object = maybeUserDevice.(*UserDevice)
+	} else {
+		slice = *maybeUserDevice.(*[]*UserDevice)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &userDeviceR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &userDeviceR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`devices_api.mint_requests`),
+		qm.WhereIn(`devices_api.mint_requests.user_device_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load mint_requests")
+	}
+
+	var resultSlice []*MintRequest
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice mint_requests")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on mint_requests")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for mint_requests")
+	}
+
+	if len(mintRequestAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.MintRequests = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &mintRequestR{}
+			}
+			foreign.R.UserDevice = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.UserDeviceID {
+				local.R.MintRequests = append(local.R.MintRequests, foreign)
+				if foreign.R == nil {
+					foreign.R = &mintRequestR{}
 				}
 				foreign.R.UserDevice = local
 				break
@@ -1203,6 +1333,59 @@ func (o *UserDevice) RemoveAutopiJobs(ctx context.Context, exec boil.ContextExec
 		}
 	}
 
+	return nil
+}
+
+// AddMintRequests adds the given related objects to the existing relationships
+// of the user_device, optionally inserting them as new records.
+// Appends related to o.R.MintRequests.
+// Sets related.R.UserDevice appropriately.
+func (o *UserDevice) AddMintRequests(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*MintRequest) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.UserDeviceID = o.ID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"devices_api\".\"mint_requests\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"user_device_id"}),
+				strmangle.WhereClause("\"", "\"", 2, mintRequestPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.UserDeviceID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &userDeviceR{
+			MintRequests: related,
+		}
+	} else {
+		o.R.MintRequests = append(o.R.MintRequests, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &mintRequestR{
+				UserDevice: o,
+			}
+		} else {
+			rel.R.UserDevice = o
+		}
+	}
 	return nil
 }
 

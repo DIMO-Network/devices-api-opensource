@@ -11,6 +11,7 @@ var TableNames = struct {
 	DeviceStyles              string
 	Geofences                 string
 	Integrations              string
+	MintRequests              string
 	UserDeviceAPIIntegrations string
 	UserDeviceData            string
 	UserDeviceToGeofence      string
@@ -23,6 +24,7 @@ var TableNames = struct {
 	DeviceStyles:              "device_styles",
 	Geofences:                 "geofences",
 	Integrations:              "integrations",
+	MintRequests:              "mint_requests",
 	UserDeviceAPIIntegrations: "user_device_api_integrations",
 	UserDeviceData:            "user_device_data",
 	UserDeviceToGeofence:      "user_device_to_geofence",
