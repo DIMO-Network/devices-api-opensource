@@ -66,7 +66,9 @@ func (i *NFTListener) processEvent(event *shared.CloudEvent[MintSuccessData]) er
 		return err
 	}
 
-	ud.TokenID = types.NewNullDecimal(decimal.New(event.Data.TokenID.Int64(), 0))
+	n := new(decimal.Big)
+	n.SetBigMantScale(event.Data.TokenID, 0)
+	ud.TokenID = types.NewNullDecimal(n)
 	if _, err := ud.Update(ctx, i.db().Writer, boil.Infer()); err != nil {
 		return err
 	}
