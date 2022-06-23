@@ -777,12 +777,12 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 
 	domainSep, err := typedData.HashStruct("EIP712Domain", typedData.Domain.Map())
 	if err != nil {
-		udc.log.Err(err).Send()
+		udc.log.Err(err).Msg("Couldn't create domain separator.")
 		return opaqueInternalError
 	}
 	messageHash, err := typedData.HashStruct(typedData.PrimaryType, typedData.Message)
 	if err != nil {
-		udc.log.Err(err).Send()
+		udc.log.Err(err).Msg("Couldn't hash payload.")
 		return opaqueInternalError
 	}
 
@@ -800,13 +800,13 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 	hash := crypto.Keccak256(res)
 	pubKey, err := crypto.Ecrecover(hash, sigBytes)
 	if err != nil {
-		udc.log.Err(err).Send()
+		udc.log.Err(err).Msg("Couldn't recover public key from signature.")
 		return opaqueInternalError
 	}
 
 	pk, err := crypto.UnmarshalPubkey(pubKey)
 	if err != nil {
-		udc.log.Err(err).Send()
+		udc.log.Err(err).Msg("Couldn't create unmarshal public key.")
 		return opaqueInternalError
 	}
 	recAddr := crypto.PubkeyToAddress(*pk)
@@ -855,7 +855,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 
 	shouldAddr := common.HexToAddress(*user.EthereumAddress)
 
-	udc.log.Info().Msgf("Address should be %s but we recoevered %s.", shouldAddr, recAddr)
+	udc.log.Info().Msgf("Address should be %s but we recovered %s.", shouldAddr, recAddr)
 
 	mreq := &models.MintRequest{
 		ID:           mintRequestID,
