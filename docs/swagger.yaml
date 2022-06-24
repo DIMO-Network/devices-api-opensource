@@ -1,5 +1,45 @@
 basePath: /v1
 definitions:
+  apitypes.Type:
+    properties:
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  apitypes.TypedData:
+    properties:
+      domain:
+        $ref: '#/definitions/apitypes.TypedDataDomain'
+      message:
+        $ref: '#/definitions/apitypes.TypedDataMessage'
+      primaryType:
+        type: string
+      types:
+        $ref: '#/definitions/apitypes.Types'
+    type: object
+  apitypes.TypedDataDomain:
+    properties:
+      chainId:
+        $ref: '#/definitions/math.HexOrDecimal256'
+      name:
+        type: string
+      salt:
+        type: string
+      verifyingContract:
+        type: string
+      version:
+        type: string
+    type: object
+  apitypes.TypedDataMessage:
+    additionalProperties: true
+    type: object
+  apitypes.Types:
+    additionalProperties:
+      items:
+        $ref: '#/definitions/apitypes.Type'
+      type: array
+    type: object
   github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest:
     properties:
       command:
@@ -118,13 +158,6 @@ definitions:
       url:
         type: string
     type: object
-  github.com_DIMO-Network_devices-api_internal_controllers.EIP712FieldType:
-    properties:
-      name:
-        type: string
-      type:
-        type: string
-    type: object
   github.com_DIMO-Network_devices-api_internal_controllers.GeoFenceUserDevice:
     properties:
       mmy:
@@ -179,21 +212,6 @@ definitions:
         description: Signature is the hex encoding of the EIP-712 signature result.
         type: string
     type: object
-  github.com_DIMO-Network_devices-api_internal_controllers.MintSignatureData:
-    properties:
-      domain:
-        type: any
-      message:
-        type: any
-      primaryType:
-        type: string
-      types:
-        additionalProperties:
-          items:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.EIP712FieldType'
-          type: array
-        type: object
-    type: object
   github.com_DIMO-Network_devices-api_internal_controllers.NFTAttribute:
     properties:
       trait_type:
@@ -206,6 +224,8 @@ definitions:
       tokenId:
         type: number
       tokenUri:
+        type: string
+      txHash:
         type: string
     type: object
   github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp:
@@ -440,13 +460,6 @@ definitions:
       url:
         type: string
     type: object
-  internal_controllers.EIP712FieldType:
-    properties:
-      name:
-        type: string
-      type:
-        type: string
-    type: object
   internal_controllers.GeoFenceUserDevice:
     properties:
       mmy:
@@ -501,21 +514,6 @@ definitions:
         description: Signature is the hex encoding of the EIP-712 signature result.
         type: string
     type: object
-  internal_controllers.MintSignatureData:
-    properties:
-      domain:
-        type: any
-      message:
-        type: any
-      primaryType:
-        type: string
-      types:
-        additionalProperties:
-          items:
-            $ref: '#/definitions/internal_controllers.EIP712FieldType'
-          type: array
-        type: object
-    type: object
   internal_controllers.NFTAttribute:
     properties:
       trait_type:
@@ -528,6 +526,8 @@ definitions:
       tokenId:
         type: number
       tokenUri:
+        type: string
+      txHash:
         type: string
     type: object
   internal_controllers.NFTMetadataResp:
@@ -643,6 +643,8 @@ definitions:
         type: string
       updatedAt:
         type: string
+    type: object
+  math.HexOrDecimal256:
     type: object
   models.Integration:
     properties:
@@ -969,7 +971,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.DeviceMMYRoot'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot'
             type: array
       tags:
       - device-definitions
@@ -1107,7 +1109,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp'
+            $ref: '#/definitions/internal_controllers.NFTMetadataResp'
         "404":
           description: ""
       tags:
@@ -1132,14 +1134,14 @@ paths:
         name: user_device
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.RegisterUserDevice'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDevice'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_controllers.RegisterUserDeviceResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDeviceResponse'
       security:
       - ApiKeyAuth: []
       - BearerAuth: []
@@ -1233,7 +1235,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.MintSignatureData'
+            $ref: '#/definitions/apitypes.TypedData'
       security:
       - BearerAuth: []
       tags:
@@ -1251,7 +1253,7 @@ paths:
         name: mintRequest
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.MintRequest'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.MintRequest'
       responses:
         "200":
           description: ""
@@ -1288,7 +1290,7 @@ paths:
         name: name
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.UpdateCountryCodeReq'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateCountryCodeReq'
       produces:
       - application/json
       responses:
@@ -1330,7 +1332,7 @@ paths:
         name: name
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.UpdateNameReq'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateNameReq'
       - description: user id
         in: path
         name: user_device_id
@@ -1362,7 +1364,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot'
+            $ref: '#/definitions/internal_controllers.DeviceSnapshot'
       security:
       - BearerAuth: []
       tags:
@@ -1378,7 +1380,7 @@ paths:
         name: vin
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.UpdateVINReq'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateVINReq'
       - description: user id
         in: path
         name: userDeviceID
@@ -1403,7 +1405,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.UserDeviceFull'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceFull'
             type: array
       security:
       - BearerAuth: []

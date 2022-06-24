@@ -265,8 +265,12 @@ func (r FileTypeAllowedEnum) IsValid() error {
 type DocumentTypeEnum string
 
 const (
-	DriversLicense DocumentTypeEnum = "DriversLicense"
-	Other          DocumentTypeEnum = "Other"
+	DriversLicense      DocumentTypeEnum = "DriversLicense"
+	Other               DocumentTypeEnum = "Other"
+	VehicleTitle        DocumentTypeEnum = "VehicleTitle"
+	VehicleRegistration DocumentTypeEnum = "VehicleRegistration"
+	VehicleInsurance    DocumentTypeEnum = "VehicleInsurance"
+	VehicleMaintenance  DocumentTypeEnum = "VehicleMaintenance"
 )
 
 func (r DocumentTypeEnum) String() string {
@@ -275,7 +279,7 @@ func (r DocumentTypeEnum) String() string {
 
 func (r DocumentTypeEnum) IsValid() error {
 	switch r {
-	case DriversLicense, Other:
+	case DriversLicense, VehicleMaintenance, VehicleRegistration, VehicleInsurance, VehicleTitle, Other:
 		return nil
 	}
 	return errors.New("invalid document type")
