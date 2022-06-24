@@ -366,12 +366,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Get("/documents/:id", documentsController.GetDocumentByID)
 	v1Auth.Post("/documents", documentsController.PostDocument)
 	v1Auth.Delete("/documents/:id", documentsController.DeleteDocument)
-
-	// documents
-	v1Auth.Get("/documents", documentsController.GetDocuments)
-	v1Auth.Get("/documents/:id", documentsController.GetDocumentByID)
-	v1Auth.Post("/documents", documentsController.PostDocument)
-	v1Auth.Delete("/documents/:id", documentsController.DeleteDocument)
 	v1Auth.Get("/documents/:id/download", documentsController.DownloadDocument)
 
 	go startGRPCServer(settings, pdb.DBS, &logger)
