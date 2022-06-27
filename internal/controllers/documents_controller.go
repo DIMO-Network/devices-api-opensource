@@ -3,10 +3,14 @@ package controllers
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"bytes"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/DIMO-Network/devices-api/models"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -18,11 +22,15 @@ import (
 type DocumentsController struct {
 	settings *config.Settings
 	s3Client *s3.Client
+	DBS      func() *database.DBReaderWriter
 }
 
 // NewDocumentsController constructor
-func NewDocumentsController(settings *config.Settings, s3Client *s3.Client) DocumentsController {
-	return DocumentsController{settings: settings, s3Client: s3Client}
+func NewDocumentsController(
+	settings *config.Settings,
+	s3Client *s3.Client,
+	dbs func() *database.DBReaderWriter) DocumentsController {
+	return DocumentsController{settings: settings, s3Client: s3Client, DBS: dbs}
 }
 
 // GetDocuments godoc
@@ -35,10 +43,16 @@ func NewDocumentsController(settings *config.Settings, s3Client *s3.Client) Docu
 // @Router       /documents [get]
 func (udc *DocumentsController) GetDocuments(c *fiber.Ctx) error {
 	userID := getUserID(c)
+	udi := c.Query("user_device_id")
+
+	folder := userID
+	if len(udi) > 0 {
+		folder = fmt.Sprintf("%s/%s", userID, udi)
+	}
 
 	response, err := udc.s3Client.ListObjectsV2(c.Context(), &s3.ListObjectsV2Input{
 		Bucket: aws.String(udc.settings.AWSDocumentsBucketName),
-		Prefix: aws.String(userID),
+		Prefix: aws.String(folder),
 	})
 
 	documents := []DocumentResponse{}
@@ -59,10 +73,13 @@ func (udc *DocumentsController) GetDocuments(c *fiber.Ctx) error {
 		}
 
 		documents = append(documents, DocumentResponse{
-			ID:   responseItem.Metadata[MetadataDocumentID],
-			Name: responseItem.Metadata[MetadataDocumentName],
-			URL:  fmt.Sprintf("%s/v1/documents/%s/download", udc.settings.DeploymentBaseURL, responseItem.Metadata[MetadataDocumentID]),
-			Type: DocumentTypeEnum(responseItem.Metadata[MetadataDocumentType]),
+			ID:           responseItem.Metadata[MetadataDocumentID],
+			Name:         responseItem.Metadata[MetadataDocumentName],
+			Ext:          responseItem.Metadata[MetadataDocumentFileExtension],
+			UserDeviceID: responseItem.Metadata[MetadataDocumentUserDeviceID],
+			CreatedAt:    *responseItem.LastModified,
+			URL:          fmt.Sprintf("%s/v1/documents/%s/download", udc.settings.DeploymentBaseURL, responseItem.Metadata[MetadataDocumentID]),
+			Type:         DocumentTypeEnum(responseItem.Metadata[MetadataDocumentType]),
 		})
 
 	}
@@ -82,11 +99,12 @@ func (udc *DocumentsController) GetDocuments(c *fiber.Ctx) error {
 func (udc *DocumentsController) GetDocumentByID(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	fileID := c.Params("id")
+	folder := resolveFolderKey(userID, fileID)
 
 	response, err := udc.s3Client.GetObject(c.Context(),
 		&s3.GetObjectInput{
 			Bucket: aws.String(udc.settings.AWSDocumentsBucketName),
-			Key:    aws.String(fmt.Sprintf("%s/%s", userID, fileID)),
+			Key:    aws.String(folder),
 		})
 
 	if err != nil {
@@ -94,10 +112,13 @@ func (udc *DocumentsController) GetDocumentByID(c *fiber.Ctx) error {
 	}
 
 	document := DocumentResponse{
-		ID:   response.Metadata[MetadataDocumentID],
-		Name: response.Metadata[MetadataDocumentName],
-		URL:  fmt.Sprintf("%s/v1/documents/%s/download", udc.settings.DeploymentBaseURL, response.Metadata[MetadataDocumentID]),
-		Type: DocumentTypeEnum(response.Metadata[MetadataDocumentType]),
+		ID:           response.Metadata[MetadataDocumentID],
+		Name:         response.Metadata[MetadataDocumentName],
+		Ext:          response.Metadata[MetadataDocumentFileExtension],
+		UserDeviceID: response.Metadata[MetadataDocumentUserDeviceID],
+		CreatedAt:    *response.LastModified,
+		URL:          fmt.Sprintf("%s/v1/documents/%s/download", udc.settings.DeploymentBaseURL, response.Metadata[MetadataDocumentID]),
+		Type:         DocumentTypeEnum(response.Metadata[MetadataDocumentType]),
 	}
 
 	return c.JSON(document)
@@ -111,6 +132,7 @@ func (udc *DocumentsController) GetDocumentByID(c *fiber.Ctx) error {
 // @Param        file  formData  file  true  "The file to upload. file is required"
 // @Param        name  formData  string  true  "The document name. name is required"
 // @Param        type  formData  string  true  "The document type. type is required"
+// @Param        userDeviceID  formData  string  true  "The user device ID. type is optional"
 // @Success      201  {object}  controllers.DocumentResponse
 // @Security     BearerAuth
 // @Router       /documents [post]
@@ -120,6 +142,23 @@ func (udc *DocumentsController) PostDocument(c *fiber.Ctx) error {
 	file, err := c.FormFile("file")
 	documentName := c.FormValue("name")
 	documentType := c.FormValue("type")
+	udi := c.FormValue("userDeviceID")
+
+	if len(udi) > 0 {
+		// Validate if user devices exists
+		exists, err := models.UserDevices(
+			models.UserDeviceWhere.UserID.EQ(userID),
+			models.UserDeviceWhere.ID.EQ(udi),
+		).Exists(c.Context(), udc.DBS().Writer)
+
+		if err != nil {
+			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		}
+
+		if !exists {
+			return fiber.NewError(fiber.StatusNotFound, "Device not found.")
+		}
+	}
 
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid file.")
@@ -148,22 +187,26 @@ func (udc *DocumentsController) PostDocument(c *fiber.Ctx) error {
 
 	// Unique Id
 	id := ksuid.New().String()
+	documentID := buildUniqueID(id, udi)
 
 	metadata := map[string]string{}
-	metadata[MetadataDocumentID] = id
+	metadata[MetadataDocumentID] = documentID
 	metadata[MetadataDocumentName] = documentName
 	metadata[MetadataDocumentFile] = file.Filename
 	metadata[MetadataDocumentFileExtension] = filepath.Ext(file.Filename)
 	metadata[MetadataDocumentType] = documentType
+	metadata[MetadataDocumentUserDeviceID] = udi
 
-	fileID := fmt.Sprintf("%s%s", id, filepath.Ext(file.Filename))
+	fileID := buildFileID(udi, id)
+	awsPathKey := getAwsFilePath(userID, fileID)
 
 	// Upload the file to S3.
 	result, err := uploader.Upload(c.Context(), &s3.PutObjectInput{
 		Bucket:             aws.String(udc.settings.AWSDocumentsBucketName),
-		Key:                aws.String(fmt.Sprintf("%s/%s", userID, fileID)),
+		Key:                aws.String(awsPathKey),
 		Body:               fileHeader,
 		ContentDisposition: aws.String("attachment"),
+		ContentType:        aws.String(filetype),
 		Metadata:           metadata,
 	})
 
@@ -174,7 +217,15 @@ func (udc *DocumentsController) PostDocument(c *fiber.Ctx) error {
 	_ = result
 
 	url := fmt.Sprintf("%s/v1/documents/%s/download", udc.settings.DeploymentBaseURL, id)
-	return c.JSON(DocumentResponse{ID: id, Name: documentName, URL: url, Type: DocumentTypeEnum(documentType)})
+	return c.JSON(DocumentResponse{
+		ID:           id,
+		Name:         documentName,
+		Ext:          filepath.Ext(file.Filename),
+		CreatedAt:    time.Now().UTC(),
+		UserDeviceID: udi,
+		URL:          url,
+		Type:         DocumentTypeEnum(documentType),
+	})
 }
 
 // DeleteDocument godoc
@@ -189,10 +240,11 @@ func (udc *DocumentsController) PostDocument(c *fiber.Ctx) error {
 func (udc *DocumentsController) DeleteDocument(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	fileID := c.Params("id")
+	folder := resolveFolderKey(userID, fileID)
 
 	_, err := udc.s3Client.DeleteObject(c.Context(), &s3.DeleteObjectInput{
 		Bucket: aws.String(udc.settings.AWSDocumentsBucketName),
-		Key:    aws.String(fmt.Sprintf("%s/%s", userID, fileID)),
+		Key:    aws.String(folder),
 	})
 
 	if err != nil {
@@ -215,6 +267,7 @@ func (udc *DocumentsController) DeleteDocument(c *fiber.Ctx) error {
 func (udc *DocumentsController) DownloadDocument(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	fileID := c.Params("id")
+	folder := resolveFolderKey(userID, fileID)
 
 	buffer := manager.NewWriteAtBuffer([]byte{})
 
@@ -223,7 +276,7 @@ func (udc *DocumentsController) DownloadDocument(c *fiber.Ctx) error {
 	numBytes, err := downloader.Download(c.Context(), buffer,
 		&s3.GetObjectInput{
 			Bucket: aws.String(udc.settings.AWSDocumentsBucketName),
-			Key:    aws.String(fmt.Sprintf("%s/%s", userID, fileID)),
+			Key:    aws.String(folder),
 		})
 
 	if err != nil {
@@ -239,11 +292,38 @@ func (udc *DocumentsController) DownloadDocument(c *fiber.Ctx) error {
 	return c.SendStream(bytes.NewReader(data))
 }
 
+func getAwsFilePath(userID, fileID string) string {
+	return fmt.Sprintf("%s/%s", userID, fileID)
+}
+
+// Build Unique ID
+func buildUniqueID(id string, userDeviceID string) string {
+	if userDeviceID != "" {
+		return fmt.Sprintf("%s-%s", userDeviceID, id)
+	}
+	return id
+}
+
+// Build file ID
+func buildFileID(userDeviceID string, uniqueID string) string {
+	if userDeviceID != "" {
+		return fmt.Sprintf("%s/%s", userDeviceID, uniqueID)
+	}
+	return uniqueID
+}
+
+func resolveFolderKey(userID string, fileID string) string {
+	return fmt.Sprintf("%s/%s", userID, strings.Replace(fileID, "-", "/", 1))
+}
+
 type DocumentResponse struct {
-	ID   string
-	Name string
-	URL  string
-	Type DocumentTypeEnum
+	ID           string
+	Name         string
+	URL          string
+	Ext          string
+	UserDeviceID string
+	CreatedAt    time.Time
+	Type         DocumentTypeEnum
 }
 
 type FileTypeAllowedEnum string
@@ -291,4 +371,5 @@ const (
 	MetadataDocumentFile          = "document-file"
 	MetadataDocumentType          = "document-type"
 	MetadataDocumentFileExtension = "document-file-ext"
+	MetadataDocumentUserDeviceID  = "document-user-device-id"
 )
