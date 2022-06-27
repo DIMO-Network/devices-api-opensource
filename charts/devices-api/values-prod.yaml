@@ -28,7 +28,7 @@ env:
   PRIVACY_FENCE_TOPIC: table.device.privacyfence
   EVENTS_TOPIC: topic.event
   DEVICE_DATA_INDEX_NAME: device-status-prod*
-  AWS_DOCUMENTS_BUCKET_NAME: documents-prod
+  AWS_DOCUMENTS_BUCKET_NAME: dimo-network-documents-prod
 ingress:
   enabled: true
   className: nginx
