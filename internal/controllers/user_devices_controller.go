@@ -490,9 +490,8 @@ func (udc *UserDevicesController) UpdateName(c *fiber.Ctx) error {
 		return errorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
 
-	if name.Name != nil && len(*name.Name) > 16 {
-		// TODO(elffjs): Do we mean runes? That is, do we worry about unicode?
-		return fiber.NewError(fiber.StatusBadRequest, "Name field is limited to 16 characters.")
+	if err := name.validate(); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Name field is limited to 16 alphanumeric characters.")
 	}
 
 	userDevice.Name = null.StringFromPtr(name.Name)
@@ -945,6 +944,19 @@ func (u *UpdateVINReq) validate() error {
 	}
 
 	return nil
+}
+
+func (u *UpdateNameReq) validate() error {
+
+	return validation.ValidateStruct(u,
+		// name must be between 1 and 16 alphanumeric characters in length (spaces are not allowed)
+		// NOTE: this captures characters in the latin/ chinese/ cyrillic alphabet but doesn't work as well for thai or arabic
+		validation.Field(&u.Name, validation.Required, validation.Match(regexp.MustCompile(`^[\s\p{L}\p{N}\p{M}#'":_-]{1,25}$`))),
+		// cannot start with space
+		validation.Field(&u.Name, validation.Required, validation.Match(regexp.MustCompile(`^[^\s]`))),
+		// cannot end with space
+		validation.Field(&u.Name, validation.Required, validation.Match(regexp.MustCompile(`.+[^\s]$|[^\s]$`))),
+	)
 }
 
 // UserDeviceFull represents object user's see on frontend for listing of their devices

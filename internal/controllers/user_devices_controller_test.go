@@ -352,6 +352,46 @@ func (s *UserDevicesControllerTestSuite) TestVINValidate() {
 	}
 }
 
+func (s *UserDevicesControllerTestSuite) TestNameValidate() {
+
+	type test struct {
+		name   string
+		want   bool
+		reason string
+	}
+
+	tests := []test{
+		{name: "ValidNameHere", want: true, reason: "valid name"},
+		{name: "MyCar2022", want: true, reason: "valid name"},
+		{name: "16CharactersLong", want: true, reason: "valid name"},
+		{name: "12345", want: true, reason: "valid name"},
+		{name: "a", want: true, reason: "valid name"},
+		{name: "เร็ว", want: true, reason: "valid name"},
+		{name: "快速地", want: true, reason: "valid name"},
+		{name: "швидко", want: true, reason: "valid name"},
+		{name: "سريع", want: true, reason: "valid name"},
+		{name: "Dimo's Fav Car", want: true, reason: "valid name"},
+		{name: "My Car: 2022", want: true, reason: "valid name"},
+		{name: "Car #2", want: true, reason: "valid name"},
+		{name: `Sally "Speed Demon" Sedan`, want: true, reason: "valid name"},
+		{name: "Valid Car Name", want: true, reason: "valid name"},
+		{name: " Invalid Name", want: false, reason: "starts with space"},
+		{name: "My Car!!!", want: false, reason: "invalid characters"},
+		{name: "", want: false, reason: "empty name"},
+		{name: "ThisNameIsTooLong--CanOnlyBe25CharactersInLength", want: false, reason: "too long"},
+	}
+
+	for _, tc := range tests {
+		vinReq := UpdateNameReq{Name: &tc.name}
+		err := vinReq.validate()
+		if tc.want {
+			assert.NoError(s.T(), err, tc.reason)
+		} else {
+			assert.Error(s.T(), err, tc.reason)
+		}
+	}
+}
+
 func (s *UserDevicesControllerTestSuite) TestPatchName() {
 	dm := test.SetupCreateMake(s.T(), "Ford", s.pdb)
 	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Mach E", 2022, s.pdb)
