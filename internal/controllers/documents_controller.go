@@ -132,7 +132,7 @@ func (udc *DocumentsController) GetDocumentByID(c *fiber.Ctx) error {
 // @Param        file  formData  file  true  "The file to upload. file is required"
 // @Param        name  formData  string  true  "The document name. name is required"
 // @Param        type  formData  string  true  "The document type. type is required"
-// @Param        userDeviceID  formData  string  true  "The user device ID. type is optional"
+// @Param        userDeviceID  formData  string  false  "The user device ID, optional"
 // @Success      201  {object}  controllers.DocumentResponse
 // @Security     BearerAuth
 // @Router       /documents [post]
@@ -168,12 +168,12 @@ func (udc *DocumentsController) PostDocument(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid document type.")
 	}
 	// Get Buffer from file
-	fileHeader, err := file.Open()
+	fileObj, err := file.Open()
 
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "document cannot be read.")
 	}
-	defer fileHeader.Close()
+	defer fileObj.Close()
 
 	// Validate file type
 	filetype := file.Header.Get("content-type")
@@ -204,7 +204,7 @@ func (udc *DocumentsController) PostDocument(c *fiber.Ctx) error {
 	result, err := uploader.Upload(c.Context(), &s3.PutObjectInput{
 		Bucket:             aws.String(udc.settings.AWSDocumentsBucketName),
 		Key:                aws.String(awsPathKey),
-		Body:               fileHeader,
+		Body:               fileObj,
 		ContentDisposition: aws.String("attachment"),
 		ContentType:        aws.String(filetype),
 		Metadata:           metadata,

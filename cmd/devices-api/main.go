@@ -370,7 +370,7 @@ func (dc *dependencyContainer) getKafkaProducer() sarama.SyncProducer {
 
 // getS3ServiceClient instantiates a new default config and then a new s3 services client if not already set. Takes context in, although it could likely use a context from container passed in on instantiation
 func (dc *dependencyContainer) getS3ServiceClient(ctx context.Context) *awsservices3v2.Client {
-	if dc.s3ServiceClient != nil {
+	if dc.s3ServiceClient == nil {
 		cfg, err := awsconfigv2.LoadDefaultConfig(ctx,
 			awsconfigv2.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(dc.settings.DocumentsAWSAccessKeyID, dc.settings.DocumentsAWSSecretsAccessKey, "")))
 		if err != nil {
