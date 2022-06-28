@@ -35,6 +35,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		},
 		DisableStartupMessage: true,
 		ReadBufferSize:        16000,
+		BodyLimit:             10 * 1024 * 1024,
 	})
 
 	var cipher shared.Cipher
