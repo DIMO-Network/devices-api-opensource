@@ -36,7 +36,9 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/crypto"
 	signer "github.com/ethereum/go-ethereum/signer/core/apitypes"
 )
 
@@ -678,9 +680,6 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusNotFound, "No device with that ID found.")
 	}
 
-	// TODO(elffjs): Only do this once.
-	chainID := big.NewInt(int64(udc.Settings.NFTChainID))
-
 	typedData := signer.TypedData{
 		Types: signer.Types{
 			"EIP712Domain": []signer.Type{
@@ -699,7 +698,7 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 		Domain: signer.TypedDataDomain{
 			Name:              "DIMO",
 			Version:           "1",
-			ChainId:           (*math.HexOrDecimal256)(chainID),
+			ChainId:           math.NewHexOrDecimal256(int64(udc.Settings.NFTChainID)),
 			VerifyingContract: udc.Settings.NFTContractAddr,
 		},
 		Message: signer.TypedDataMessage{
@@ -714,6 +713,44 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(typedData)
+}
+
+// TODO(elffjs): Do not keep these functions in this file!
+func computeTypedDataHash(td *signer.TypedData) (hash common.Hash, err error) {
+	domainSep, err := td.HashStruct("EIP712Domain", td.Domain.Map())
+	if err != nil {
+		return
+	}
+	msgHash, err := td.HashStruct(td.PrimaryType, td.Message)
+	if err != nil {
+		return
+	}
+
+	payload := []byte{0x19, 0x01}
+	payload = append(payload, domainSep...)
+	payload = append(payload, msgHash...)
+
+	hash = crypto.Keccak256Hash(payload)
+	return
+}
+
+func recoverAddress(td *signer.TypedData, signature []byte) (addr common.Address, err error) {
+	hash, err := computeTypedDataHash(td)
+	if err != nil {
+		return
+	}
+	signature[64] -= 27
+	rawPub, err := crypto.Ecrecover(hash[:], signature)
+	if err != nil {
+		return
+	}
+
+	pub, err := crypto.UnmarshalPubkey(rawPub)
+	if err != nil {
+		return
+	}
+	addr = crypto.PubkeyToAddress(*pub)
+	return
 }
 
 // MintDevice godoc
@@ -782,6 +819,54 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 
 	if user.EthereumAddress == nil {
 		return fiber.NewError(fiber.StatusBadRequest, "user does not have an ethereum address on file")
+	}
+
+	typedData := &signer.TypedData{
+		Types: signer.Types{
+			"EIP712Domain": []signer.Type{
+				{Name: "name", Type: "string"},
+				{Name: "version", Type: "string"},
+				{Name: "chainId", Type: "uint256"},
+				{Name: "verifyingContract", Type: "address"},
+			},
+			"MintDevice": {
+				{Name: "rootNode", Type: "uint256"},
+				{Name: "attributes", Type: "string[]"},
+				{Name: "infos", Type: "string[]"},
+			},
+		},
+		PrimaryType: "MintDevice",
+		Domain: signer.TypedDataDomain{
+			Name:              "DIMO",
+			Version:           "1",
+			ChainId:           math.NewHexOrDecimal256(int64(udc.Settings.NFTChainID)),
+			VerifyingContract: udc.Settings.NFTContractAddr,
+		},
+		Message: signer.TypedDataMessage{
+			"rootNode":   (*math.HexOrDecimal256)(big.NewInt(7)), // Just hardcoding this. We need a node for each make, and to keep these in sync.
+			"attributes": []any{"Make", "Model", "Year"},
+			"infos": []any{
+				userDevice.R.DeviceDefinition.R.DeviceMake.Name,
+				userDevice.R.DeviceDefinition.Model,
+				strconv.Itoa(int(userDevice.R.DeviceDefinition.Year)),
+			},
+		},
+	}
+
+	sigBytes := common.FromHex(mr.Signature)
+	if len(sigBytes) != 65 {
+		return fiber.NewError(fiber.StatusBadRequest, "Signature has incorrect length, should be 65.")
+	}
+
+	recAddr, err := recoverAddress(typedData, sigBytes)
+	if err != nil {
+		return opaqueInternalError
+	}
+
+	realAddr := common.HexToAddress(*user.EthereumAddress)
+
+	if recAddr != realAddr {
+		return fiber.NewError(fiber.StatusBadRequest, "Signature incorrect.")
 	}
 
 	mreq := &models.MintRequest{
