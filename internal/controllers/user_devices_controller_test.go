@@ -78,6 +78,7 @@ func (s *UserDevicesControllerTestSuite) SetupSuite() {
 	app.Get("/user/devices/me", test.AuthInjectorTestHandler(s.testUserID), c.GetUserDevices)
 	app.Patch("/user/devices/:userDeviceID/vin", test.AuthInjectorTestHandler(s.testUserID), c.UpdateVIN)
 	app.Patch("/user/devices/:userDeviceID/name", test.AuthInjectorTestHandler(s.testUserID), c.UpdateName)
+	app.Patch("/user/devices/:userDeviceID/image", test.AuthInjectorTestHandler(s.testUserID), c.UpdateImage)
 	app.Post("/user/devices/:userDeviceID/commands/refresh", test.AuthInjectorTestHandler(s.testUserID), c.RefreshUserDeviceStatus)
 
 	s.deviceDefSvc.EXPECT().CheckAndSetImage(gomock.Any(), false).AnyTimes().Return(nil) // todo move to each test where used
@@ -402,6 +403,20 @@ func (s *UserDevicesControllerTestSuite) TestPatchName() {
 
 	payload := `{ "name": "Queens Charriot" }`
 	request := test.BuildRequest("PATCH", "/user/devices/"+ud.ID+"/name", payload)
+	response, _ := s.app.Test(request)
+	if assert.Equal(s.T(), fiber.StatusNoContent, response.StatusCode) == false {
+		body, _ := ioutil.ReadAll(response.Body)
+		fmt.Println("message: " + string(body))
+	}
+}
+
+func (s *UserDevicesControllerTestSuite) TestPatchImageURL() {
+	dm := test.SetupCreateMake(s.T(), "Ford", s.pdb)
+	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Mach E", 2022, s.pdb)
+	ud := test.SetupCreateUserDevice(s.T(), s.testUserID, dd, nil, s.pdb)
+
+	payload := `{ "imageUrl": "https://ipfs.com/planetary/car.jpg" }`
+	request := test.BuildRequest("PATCH", "/user/devices/"+ud.ID+"/image", payload)
 	response, _ := s.app.Test(request)
 	if assert.Equal(s.T(), fiber.StatusNoContent, response.StatusCode) == false {
 		body, _ := ioutil.ReadAll(response.Body)

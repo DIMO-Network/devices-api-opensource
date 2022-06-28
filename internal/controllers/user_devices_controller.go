@@ -413,7 +413,7 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 			return fiber.NewError(fiber.StatusNotFound, "Device not found.")
 		}
 		logger.Err(err).Msg("Database error searching for device.")
-		return opaqueInternalError
+		return err
 	}
 
 	if userDevice.VinConfirmed {
@@ -485,12 +485,13 @@ func (udc *UserDevicesController) updateUSAPowertrain(ctx context.Context, userD
 func (udc *UserDevicesController) UpdateName(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
-	userDevice, err := models.UserDevices(qm.Where("id = ?", udi), qm.And("user_id = ?", userID)).One(c.Context(), udc.DBS().Writer)
+
+	userDevice, err := models.UserDevices(models.UserDeviceWhere.ID.EQ(udi), models.UserDeviceWhere.UserID.EQ(userID)).One(c.Context(), udc.DBS().Writer)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return errorResponseHandler(c, err, fiber.StatusNotFound)
 		}
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		return err
 	}
 	name := &UpdateNameReq{}
 	if err := c.BodyParser(name); err != nil {
@@ -523,12 +524,12 @@ func (udc *UserDevicesController) UpdateName(c *fiber.Ctx) error {
 func (udc *UserDevicesController) UpdateCountryCode(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
-	userDevice, err := models.UserDevices(qm.Where("id = ?", udi), qm.And("user_id = ?", userID)).One(c.Context(), udc.DBS().Writer)
+	userDevice, err := models.UserDevices(models.UserDeviceWhere.ID.EQ(udi), models.UserDeviceWhere.UserID.EQ(userID)).One(c.Context(), udc.DBS().Writer)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return errorResponseHandler(c, err, fiber.StatusNotFound)
 		}
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		return err
 	}
 	countryCode := &UpdateCountryCodeReq{}
 	if err := c.BodyParser(countryCode); err != nil {
@@ -537,6 +538,41 @@ func (udc *UserDevicesController) UpdateCountryCode(c *fiber.Ctx) error {
 	}
 
 	userDevice.CountryCode = null.StringFromPtr(countryCode.CountryCode)
+	_, err = userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer())
+	if err != nil {
+		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// UpdateImage godoc
+// @Description  updates the ImageUrl on the user device record
+// @Tags         user-devices
+// @Produce      json
+// @Accept       json
+// @Param        name  body  controllers.UpdateImageURLReq  true  "Image URL"
+// @Success      204
+// @Security     BearerAuth
+// @Router       /user/devices/{userDeviceID}/image [patch]
+func (udc *UserDevicesController) UpdateImage(c *fiber.Ctx) error {
+	udi := c.Params("userDeviceID")
+	userID := getUserID(c)
+
+	userDevice, err := models.UserDevices(models.UserDeviceWhere.ID.EQ(udi), models.UserDeviceWhere.UserID.EQ(userID)).One(c.Context(), udc.DBS().Writer)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, err, fiber.StatusNotFound)
+		}
+		return err
+	}
+	req := &UpdateImageURLReq{}
+	if err := c.BodyParser(req); err != nil {
+		// Return status 400 and error message.
+		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+	}
+
+	userDevice.CustomImageURL = null.StringFromPtr(req.ImageURL)
 	_, err = userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer())
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
@@ -980,6 +1016,10 @@ type UpdateNameReq struct {
 
 type UpdateCountryCodeReq struct {
 	CountryCode *string `json:"countryCode"`
+}
+
+type UpdateImageURLReq struct {
+	ImageURL *string `json:"imageUrl"`
 }
 
 func (reg *RegisterUserDevice) Validate() error {
