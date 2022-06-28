@@ -317,13 +317,13 @@ func resolveFolderKey(userID string, fileID string) string {
 }
 
 type DocumentResponse struct {
-	ID           string
-	Name         string
-	URL          string
-	Ext          string
-	UserDeviceID string
-	CreatedAt    time.Time
-	Type         DocumentTypeEnum
+	ID           string           `json:"id"`
+	Name         string           `json:"name"`
+	URL          string           `json:"url"`
+	Ext          string           `json:"ext"`
+	UserDeviceID string           `json:"userDeviceId"`
+	CreatedAt    time.Time        `json:"createdAt"`
+	Type         DocumentTypeEnum `json:"type"`
 }
 
 type FileTypeAllowedEnum string
