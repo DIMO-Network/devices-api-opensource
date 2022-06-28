@@ -547,7 +547,7 @@ func (mintRequestL) LoadUserDevice(ctx context.Context, e boil.ContextExecutor, 
 		if foreign.R == nil {
 			foreign.R = &userDeviceR{}
 		}
-		foreign.R.MintRequests = append(foreign.R.MintRequests, object)
+		foreign.R.MintRequest = object
 		return nil
 	}
 
@@ -558,7 +558,7 @@ func (mintRequestL) LoadUserDevice(ctx context.Context, e boil.ContextExecutor, 
 				if foreign.R == nil {
 					foreign.R = &userDeviceR{}
 				}
-				foreign.R.MintRequests = append(foreign.R.MintRequests, local)
+				foreign.R.MintRequest = local
 				break
 			}
 		}
@@ -569,7 +569,7 @@ func (mintRequestL) LoadUserDevice(ctx context.Context, e boil.ContextExecutor, 
 
 // SetUserDevice of the mintRequest to the related item.
 // Sets o.R.UserDevice to related.
-// Adds o to related.R.MintRequests.
+// Adds o to related.R.MintRequest.
 func (o *MintRequest) SetUserDevice(ctx context.Context, exec boil.ContextExecutor, insert bool, related *UserDevice) error {
 	var err error
 	if insert {
@@ -605,10 +605,10 @@ func (o *MintRequest) SetUserDevice(ctx context.Context, exec boil.ContextExecut
 
 	if related.R == nil {
 		related.R = &userDeviceR{
-			MintRequests: MintRequestSlice{o},
+			MintRequest: o,
 		}
 	} else {
-		related.R.MintRequests = append(related.R.MintRequests, o)
+		related.R.MintRequest = o
 	}
 
 	return nil

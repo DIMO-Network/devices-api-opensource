@@ -129,6 +129,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		qm.Load("DeviceDefinition.DeviceIntegrations.Integration"),
 		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
 		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
+		qm.Load(models.UserDeviceRels.MintRequest),
 		qm.OrderBy("created_at"),
 	).
 		All(c.Context(), udc.DBS().Reader)
@@ -164,12 +165,17 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		}
 
 		var nft *NFTData
-		if !d.TokenID.IsZero() {
-			n := new(big.Int)
-			d.TokenID.Big.Int(n)
+		if mr := d.R.MintRequest; mr != nil {
 			nft = &NFTData{
-				TokenID:  n,
-				TokenURI: fmt.Sprintf("%s/v1/nfts/%s", udc.Settings.DeploymentBaseURL, n),
+				Status: mr.TXState,
+			}
+			if mr.TXHash.Valid {
+				txHash := common.BytesToHash(mr.TXHash.Bytes).String()
+				nft.TxHash = &txHash
+			}
+			if !mr.TokenID.IsZero() {
+				nft.TokenID = mr.TokenID.Big.Int(new(big.Int))
+				nft.TokenURI = fmt.Sprintf("%s/v1/nfts/%s", udc.Settings.DeploymentBaseURL, nft.TokenID)
 			}
 		}
 
@@ -702,7 +708,7 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 			VerifyingContract: udc.Settings.NFTContractAddr,
 		},
 		Message: signer.TypedDataMessage{
-			"rootNode":   (*math.HexOrDecimal256)(big.NewInt(7)), // Just hardcoding this. We need a node for each make, and to keep these in sync.
+			"rootNode":   math.NewHexOrDecimal256(7), // Just hardcoding this. We need a node for each make, and to keep these in sync.
 			"attributes": []any{"Make", "Model", "Year"},
 			"infos": []any{
 				userDevice.R.DeviceDefinition.R.DeviceMake.Name,
@@ -843,7 +849,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 			VerifyingContract: udc.Settings.NFTContractAddr,
 		},
 		Message: signer.TypedDataMessage{
-			"rootNode":   (*math.HexOrDecimal256)(big.NewInt(7)), // Just hardcoding this. We need a node for each make, and to keep these in sync.
+			"rootNode":   math.NewHexOrDecimal256(7), // Just hardcoding this. We need a node for each make, and to keep these in sync.
 			"attributes": []any{"Make", "Model", "Year"},
 			"infos": []any{
 				userDevice.R.DeviceDefinition.R.DeviceMake.Name,
@@ -1059,9 +1065,10 @@ type UserDeviceFull struct {
 }
 
 type NFTData struct {
-	TokenID  *big.Int `json:"tokenId" swaggertype:"number"`
-	TokenURI string   `json:"tokenUri"`
+	TokenID  *big.Int `json:"tokenId,omitempty" swaggertype:"number"`
+	TokenURI string   `json:"tokenUri,omitempty"`
 	TxHash   *string  `json:"txHash,omitempty"`
+	Status   string   `json:"status"`
 }
 
 func transcodeDigits(vin string) int {

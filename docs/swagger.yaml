@@ -161,7 +161,7 @@ definitions:
         type: string
       url:
         type: string
-      userDeviceID:
+      userDeviceId:
         type: string
     type: object
   github.com_DIMO-Network_devices-api_internal_controllers.GeoFenceUserDevice:
@@ -227,6 +227,8 @@ definitions:
     type: object
   github.com_DIMO-Network_devices-api_internal_controllers.NFTData:
     properties:
+      status:
+        type: string
       tokenId:
         type: number
       tokenUri:
@@ -469,7 +471,7 @@ definitions:
         type: string
       url:
         type: string
-      userDeviceID:
+      userDeviceId:
         type: string
     type: object
   internal_controllers.GeoFenceUserDevice:
@@ -535,6 +537,8 @@ definitions:
     type: object
   internal_controllers.NFTData:
     properties:
+      status:
+        type: string
       tokenId:
         type: number
       tokenUri:
@@ -983,7 +987,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.DeviceMMYRoot'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot'
             type: array
       tags:
       - device-definitions
@@ -1437,7 +1441,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.GetGeofence'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence'
             type: array
       security:
       - ApiKeyAuth: []
@@ -1455,14 +1459,14 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.CreateGeofence'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_controllers.CreateResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateResponse'
       security:
       - ApiKeyAuth: []
       - BearerAuth: []
@@ -1500,7 +1504,7 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.CreateGeofence'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence'
       produces:
       - application/json
       responses:

@@ -67,21 +67,22 @@ func (i *NFTListener) processEvent(event *shared.CloudEvent[MintSuccessData]) er
 		return err
 	}
 
-	ud, err := models.FindUserDevice(ctx, i.db().Writer, mr.UserDeviceID)
-	if err != nil {
-		return err
-	}
-
-	if event.Data.Status == "Confirmed" {
-		n := new(decimal.Big)
-		n.SetBigMantScale(event.Data.TokenID, 0)
-		ud.TokenID = types.NewNullDecimal(n)
-		if _, err := ud.Update(ctx, i.db().Writer, boil.Infer()); err != nil {
-			return err
+	switch event.Data.Status {
+	case models.TxstateSubmitted:
+		mr.TXState = models.TxstateSubmitted
+		if event.Data.TxHash != nil {
+			mr.TXHash = null.BytesFrom(common.FromHex(*event.Data.TxHash))
 		}
 
+		if _, err := mr.Update(ctx, i.db().Writer, boil.Infer()); err != nil {
+			return err
+		}
+	case models.TxstateConfirmed:
+		n := new(decimal.Big)
+		n.SetBigMantScale(event.Data.TokenID, 0)
+
 		mr.TXState = models.TxstateConfirmed
-		mr.TokenID = ud.TokenID
+		mr.TokenID = types.NewNullDecimal(n)
 		if event.Data.TxHash != nil {
 			// This should always be here, for now.
 			mr.TXHash = null.BytesFrom(common.FromHex(*event.Data.TxHash))
