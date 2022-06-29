@@ -77,6 +77,16 @@ func (i *NFTListener) processEvent(event *shared.CloudEvent[MintSuccessData]) er
 		if _, err := mr.Update(ctx, i.db().Writer, boil.Infer()); err != nil {
 			return err
 		}
+	case models.TxstateMined:
+		mr.TXState = models.TxstateMined
+		if event.Data.TxHash != nil {
+			// Hopefully this is the same as before.
+			mr.TXHash = null.BytesFrom(common.FromHex(*event.Data.TxHash))
+		}
+
+		if _, err := mr.Update(ctx, i.db().Writer, boil.Infer()); err != nil {
+			return err
+		}
 	case models.TxstateConfirmed:
 		n := new(decimal.Big)
 		n.SetBigMantScale(event.Data.TokenID, 0)
