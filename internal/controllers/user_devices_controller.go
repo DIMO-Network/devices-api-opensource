@@ -1105,10 +1105,12 @@ type UserDeviceFull struct {
 }
 
 type NFTData struct {
-	TokenID  *big.Int `json:"tokenId,omitempty" swaggertype:"number"`
-	TokenURI string   `json:"tokenUri,omitempty"`
-	TxHash   *string  `json:"txHash,omitempty"`
-	Status   string   `json:"status"`
+	TokenID  *big.Int `json:"tokenId,omitempty" swaggertype:"number" example:"37"`
+	TokenURI string   `json:"tokenUri,omitempty" example:"https://nft.dimo.zone/37"`
+	// TxHash is the hash of the minting transaction.
+	TxHash *string `json:"txHash,omitempty" example:"0x30bce3da6985897224b29a0fe064fd2b426bb85a394cc09efe823b5c83326a8e"`
+	// Status is the minting status of the NFT.
+	Status string `json:"status" enums:"Unstarted,Submitted,Mined,Confirmed" example:"Confirmed"`
 }
 
 func transcodeDigits(vin string) int {

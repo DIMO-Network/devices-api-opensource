@@ -67,7 +67,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiDeviceInfo"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo"
                         }
                     }
                 }
@@ -562,7 +562,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiCommandRequest"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest"
                         }
                     }
                 ],
@@ -627,7 +627,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.RegisterDeviceIntegrationRequest"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest"
                         }
                     }
                 ],
@@ -871,7 +871,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.GetUserDeviceIntegrationResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse"
                         }
                     }
                 }
@@ -962,7 +962,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot"
+                            "$ref": "#/definitions/internal_controllers.DeviceSnapshot"
                         }
                     }
                 }
@@ -1491,16 +1491,28 @@
             "type": "object",
             "properties": {
                 "status": {
-                    "type": "string"
+                    "description": "Status is the minting status of the NFT.",
+                    "type": "string",
+                    "enum": [
+                        "Unstarted",
+                        "Submitted",
+                        "Mined",
+                        "Confirmed"
+                    ],
+                    "example": "Confirmed"
                 },
                 "tokenId": {
-                    "type": "number"
+                    "type": "number",
+                    "example": 37
                 },
                 "tokenUri": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "https://nft.dimo.zone/37"
                 },
                 "txHash": {
-                    "type": "string"
+                    "description": "TxHash is the hash of the minting transaction.",
+                    "type": "string",
+                    "example": "0x30bce3da6985897224b29a0fe064fd2b426bb85a394cc09efe823b5c83326a8e"
                 }
             }
         },
@@ -1959,16 +1971,28 @@
             "type": "object",
             "properties": {
                 "status": {
-                    "type": "string"
+                    "description": "Status is the minting status of the NFT.",
+                    "type": "string",
+                    "enum": [
+                        "Unstarted",
+                        "Submitted",
+                        "Mined",
+                        "Confirmed"
+                    ],
+                    "example": "Confirmed"
                 },
                 "tokenId": {
-                    "type": "number"
+                    "type": "number",
+                    "example": 37
                 },
                 "tokenUri": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "https://nft.dimo.zone/37"
                 },
                 "txHash": {
-                    "type": "string"
+                    "description": "TxHash is the hash of the minting transaction.",
+                    "type": "string",
+                    "example": "0x30bce3da6985897224b29a0fe064fd2b426bb85a394cc09efe823b5c83326a8e"
                 }
             }
         },

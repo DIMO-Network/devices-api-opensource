@@ -228,12 +228,23 @@ definitions:
   github.com_DIMO-Network_devices-api_internal_controllers.NFTData:
     properties:
       status:
+        description: Status is the minting status of the NFT.
+        enum:
+        - Unstarted
+        - Submitted
+        - Mined
+        - Confirmed
+        example: Confirmed
         type: string
       tokenId:
+        example: 37
         type: number
       tokenUri:
+        example: https://nft.dimo.zone/37
         type: string
       txHash:
+        description: TxHash is the hash of the minting transaction.
+        example: 0x30bce3da6985897224b29a0fe064fd2b426bb85a394cc09efe823b5c83326a8e
         type: string
     type: object
   github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp:
@@ -543,12 +554,23 @@ definitions:
   internal_controllers.NFTData:
     properties:
       status:
+        description: Status is the minting status of the NFT.
+        enum:
+        - Unstarted
+        - Submitted
+        - Mined
+        - Confirmed
+        example: Confirmed
         type: string
       tokenId:
+        example: 37
         type: number
       tokenUri:
+        example: https://nft.dimo.zone/37
         type: string
       txHash:
+        description: TxHash is the hash of the minting transaction.
+        example: 0x30bce3da6985897224b29a0fe064fd2b426bb85a394cc09efe823b5c83326a8e
         type: string
     type: object
   internal_controllers.NFTMetadataResp:
@@ -874,7 +896,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.AutoPiDeviceInfo'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo'
       security:
       - BearerAuth: []
       tags:
@@ -1189,7 +1211,7 @@ paths:
         name: AutoPiCommandRequest
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.AutoPiCommandRequest'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest'
       responses:
         "200":
           description: ""
@@ -1228,7 +1250,7 @@ paths:
         name: userDeviceIntegrationRegistration
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.RegisterDeviceIntegrationRequest'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest'
       responses:
         "204":
           description: ""
@@ -1367,7 +1389,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.GetUserDeviceIntegrationResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse'
       security:
       - BearerAuth: []
       tags:
@@ -1415,7 +1437,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot'
+            $ref: '#/definitions/internal_controllers.DeviceSnapshot'
       security:
       - BearerAuth: []
       tags:
