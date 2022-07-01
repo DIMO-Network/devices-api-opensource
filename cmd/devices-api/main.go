@@ -16,6 +16,7 @@ import (
 	"github.com/DIMO-Network/shared"
 	"github.com/Jeffail/benthos/v3/lib/util/hash/murmur2"
 	"github.com/Shopify/sarama"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	awsconfigv2 "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -371,13 +372,28 @@ func (dc *dependencyContainer) getKafkaProducer() sarama.SyncProducer {
 // getS3ServiceClient instantiates a new default config and then a new s3 services client if not already set. Takes context in, although it could likely use a context from container passed in on instantiation
 func (dc *dependencyContainer) getS3ServiceClient(ctx context.Context) *awsservices3v2.Client {
 	if dc.s3ServiceClient == nil {
+
 		cfg, err := awsconfigv2.LoadDefaultConfig(ctx,
-			awsconfigv2.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(dc.settings.DocumentsAWSAccessKeyID, dc.settings.DocumentsAWSSecretsAccessKey, "")))
+			awsconfigv2.WithRegion(dc.settings.AWSRegion),
+			// Comment the below out if not using localhost
+			awsconfigv2.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(
+				func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+
+					if dc.settings.Environment == "local" {
+						return aws.Endpoint{PartitionID: "aws", URL: dc.settings.DocumentsAWSEndpoint, SigningRegion: dc.settings.AWSRegion}, nil // The SigningRegion key was what's was missing! D'oh.
+					}
+
+					// returning EndpointNotFoundError will allow the service to fallback to its default resolution
+					return aws.Endpoint{}, &aws.EndpointNotFoundError{}
+				})))
+
 		if err != nil {
 			dc.logger.Fatal().Err(err).Msg("Could not load aws config, terminating")
 		}
+
 		dc.s3ServiceClient = awsservices3v2.NewFromConfig(cfg, func(o *awsservices3v2.Options) {
 			o.Region = dc.settings.AWSRegion
+			o.Credentials = credentials.NewStaticCredentialsProvider(dc.settings.DocumentsAWSAccessKeyID, dc.settings.DocumentsAWSSecretsAccessKey, "")
 		})
 	}
 	return dc.s3ServiceClient

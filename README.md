@@ -43,6 +43,9 @@ You can connect to db eg: `psql -h localhost -p 5432 -U dimo` or with your favor
 8. Set some vehicle images from edmunds:
 `$ go run ./cmd/devices-api edmunds-images [--overwrite]`
 
+9. If you are going to work with uploading documents, execute the following command
+`$ aws --endpoint-url=http://localhost:4566 s3 mb s3://documents`
+
 ### Kafka test producer
 
 This tool can be useful to test the consumer when running locally.

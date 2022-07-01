@@ -89,6 +89,18 @@ services:
     networks:
       - elastic
 
+  localstack:
+    image: localstack/localstack:latest
+    environment: 
+      - AWS_DEFAULT_REGION=us-east-1
+      - EDGE_PORT=4566
+      - SERVICES=lambda,s3
+    ports: 
+      - '4566-4583:4566-4583'
+    volumes: 
+      - "${TEMPDIR:-/tmp/localstack}:/tmp/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
 volumes:
   data01:
     driver: local
