@@ -18,10 +18,9 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
-	awsconfigv2 "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
-	awsservices3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/customerio/go-customerio/v3"
 	"github.com/gofiber/fiber/v2"
 	_ "github.com/lib/pq"
@@ -347,7 +346,7 @@ type dependencyContainer struct {
 	kafkaProducer   sarama.SyncProducer
 	settings        *config.Settings
 	logger          *zerolog.Logger
-	s3ServiceClient *awsservices3v2.Client
+	s3ServiceClient *s3.Client
 }
 
 func newDependencyContainer(settings *config.Settings, logger zerolog.Logger) dependencyContainer {
@@ -370,13 +369,13 @@ func (dc *dependencyContainer) getKafkaProducer() sarama.SyncProducer {
 }
 
 // getS3ServiceClient instantiates a new default config and then a new s3 services client if not already set. Takes context in, although it could likely use a context from container passed in on instantiation
-func (dc *dependencyContainer) getS3ServiceClient(ctx context.Context) *awsservices3v2.Client {
+func (dc *dependencyContainer) getS3ServiceClient(ctx context.Context) *s3.Client {
 	if dc.s3ServiceClient == nil {
 
-		cfg, err := awsconfigv2.LoadDefaultConfig(ctx,
-			awsconfigv2.WithRegion(dc.settings.AWSRegion),
+		cfg, err := awsconfig.LoadDefaultConfig(ctx,
+			awsconfig.WithRegion(dc.settings.AWSRegion),
 			// Comment the below out if not using localhost
-			awsconfigv2.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(
+			awsconfig.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(
 				func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 
 					if dc.settings.Environment == "local" {
@@ -391,7 +390,7 @@ func (dc *dependencyContainer) getS3ServiceClient(ctx context.Context) *awsservi
 			dc.logger.Fatal().Err(err).Msg("Could not load aws config, terminating")
 		}
 
-		dc.s3ServiceClient = awsservices3v2.NewFromConfig(cfg, func(o *awsservices3v2.Options) {
+		dc.s3ServiceClient = s3.NewFromConfig(cfg, func(o *s3.Options) {
 			o.Region = dc.settings.AWSRegion
 			o.Credentials = credentials.NewStaticCredentialsProvider(dc.settings.DocumentsAWSAccessKeyID, dc.settings.DocumentsAWSSecretsAccessKey, "")
 		})

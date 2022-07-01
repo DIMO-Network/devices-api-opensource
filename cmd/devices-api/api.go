@@ -18,7 +18,7 @@ import (
 	"github.com/DIMO-Network/zflogger"
 	"github.com/Shopify/sarama"
 	swagger "github.com/arsmn/fiber-swagger/v2"
-	awsservices3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -28,7 +28,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore, eventService services.EventService, producer sarama.SyncProducer, s3ServiceClient *awsservices3v2.Client) {
+func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore, eventService services.EventService, producer sarama.SyncProducer, s3ServiceClient *s3.Client) {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return ErrorHandler(c, err, logger, settings.Environment)
