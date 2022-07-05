@@ -594,7 +594,7 @@ func (udc *UserDevicesController) SetChargeLimit(c *fiber.Ctx) error {
 type ChargeLimitBody struct {
 	// ChargeLimit is the charge limit, a value from 0.0 to 1.0, inclusive.
 	// Note that not all of these values may be allowed by the device.
-	ChargeLimit *float64 `json:"chargeLimit"`
+	ChargeLimit *float64 `json:"chargeLimit" validate:"required" format:"float" maximum:"1.0" minimum:"0.0" example:"0.7"`
 }
 
 // GetAutoPiCommandStatus godoc
