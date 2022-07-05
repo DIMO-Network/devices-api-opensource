@@ -67,7 +67,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo"
+                            "$ref": "#/definitions/internal_controllers.AutoPiDeviceInfo"
                         }
                     }
                 }
@@ -221,7 +221,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_controllers.DeviceMMYRoot"
+                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot"
                             }
                         }
                     }
@@ -479,7 +479,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp"
+                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
                         }
                     },
                     "404": {
@@ -562,7 +562,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest"
+                            "$ref": "#/definitions/internal_controllers.AutoPiCommandRequest"
                         }
                     }
                 ],
@@ -627,7 +627,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest"
+                            "$ref": "#/definitions/internal_controllers.RegisterDeviceIntegrationRequest"
                         }
                     }
                 ],
@@ -871,7 +871,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse"
+                            "$ref": "#/definitions/internal_controllers.GetUserDeviceIntegrationResponse"
                         }
                     }
                 }
@@ -891,6 +891,47 @@
                         "description": ""
                     }
                 }
+            }
+        },
+        "/user/devices/{userDeviceID}/integrations/{integrationID}/commands/charge/limit": {
+            "post": {
+                "description": "Set the device's charge limit. Currently, this only works for Teslas connected through Tesla.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device",
+                    "integration",
+                    "command"
+                ],
+                "summary": "Set the device's charge limit.",
+                "operationId": "set-charge-limit",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device ID",
+                        "name": "userDeviceID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Integration ID",
+                        "name": "integrationID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Specify the charge limit",
+                        "name": "chargeLimitRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.ChargeLimitBody"
+                        }
+                    }
+                ],
+                "responses": {}
             }
         },
         "/user/devices/{userDeviceID}/integrations/{integrationID}/commands/doors/lock": {
@@ -1090,7 +1131,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot"
+                            "$ref": "#/definitions/internal_controllers.DeviceSnapshot"
                         }
                     }
                 }
@@ -1161,7 +1202,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence"
+                                "$ref": "#/definitions/internal_controllers.GetGeofence"
                             }
                         }
                     }
@@ -1193,7 +1234,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence"
+                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
                         }
                     }
                 ],
@@ -1201,7 +1242,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateResponse"
+                            "$ref": "#/definitions/internal_controllers.CreateResponse"
                         }
                     }
                 }
@@ -1241,7 +1282,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence"
+                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
                         }
                     }
                 ],
@@ -1383,6 +1424,15 @@
                 },
                 "unitId": {
                     "type": "string"
+                }
+            }
+        },
+        "github.com_DIMO-Network_devices-api_internal_controllers.ChargeLimitBody": {
+            "type": "object",
+            "properties": {
+                "chargeLimit": {
+                    "description": "ChargeLimit is the charge limit, a value from 0.0 to 1.0, inclusive.\nNote that not all of these values may be allowed by the device.",
+                    "type": "number"
                 }
             }
         },
@@ -1866,6 +1916,15 @@
                 },
                 "unitId": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_controllers.ChargeLimitBody": {
+            "type": "object",
+            "properties": {
+                "chargeLimit": {
+                    "description": "ChargeLimit is the charge limit, a value from 0.0 to 1.0, inclusive.\nNote that not all of these values may be allowed by the device.",
+                    "type": "number"
                 }
             }
         },

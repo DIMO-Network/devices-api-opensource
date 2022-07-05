@@ -512,6 +512,91 @@ func (udc *UserDevicesController) OpenFrunk(c *fiber.Ctx) error {
 	return deviceIncapable
 }
 
+// SetChargeLimit godoc
+// @Summary Set the device's charge limit.
+// @Description Set the device's charge limit. Currently, this only works for Teslas connected through Tesla.
+// @Id set-charge-limit
+// @Tags device,integration,command
+// @Produce json
+// @Param userDeviceID path string true "Device ID"
+// @Param integrationID path string true "Integration ID"
+// @Param chargeLimitRequest body controllers.ChargeLimitBody true "Specify the charge limit"
+// @Router /user/devices/{userDeviceID}/integrations/{integrationID}/commands/charge/limit [post]
+func (udc *UserDevicesController) SetChargeLimit(c *fiber.Ctx) error {
+	userID := getUserID(c)
+	userDeviceID := c.Params("userDeviceID")
+	integrationID := c.Params("integrationID")
+
+	device, err := models.UserDevices(
+		models.UserDeviceWhere.UserID.EQ(userID),
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		qm.Load(
+			qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration),
+			models.IntegrationWhere.ID.EQ(integrationID),
+		),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, "no device found with that id")
+		}
+		return opaqueInternalError
+	}
+
+	if len(device.R.UserDeviceAPIIntegrations) == 0 {
+		return fiber.NewError(fiber.StatusNotFound, "device does not have the specified integration")
+	}
+
+	apiInt := device.R.UserDeviceAPIIntegrations[0]
+
+	vendor := apiInt.R.Integration.Vendor
+	if vendor != services.TeslaVendor {
+		return deviceIncapable
+	}
+
+	if apiInt.Status != models.UserDeviceAPIIntegrationStatusActive {
+		return fiber.NewError(fiber.StatusBadRequest, "integration is not active")
+	}
+
+	md := new(services.UserDeviceAPIIntegrationsMetadata)
+	if err := apiInt.Metadata.Unmarshal(md); err != nil {
+		return opaqueInternalError
+	}
+
+	if md.Commands == nil {
+		return fiber.NewError(fiber.StatusBadRequest, "not capable of this command")
+	}
+
+	for _, cap := range md.Commands.Enabled {
+		if cap == "charge/limit" {
+			var subTaskID string
+			b := new(ChargeLimitBody)
+			if err := c.BodyParser(b); err != nil {
+				return fiber.NewError(fiber.StatusBadRequest, "Couldn't parse request.")
+			}
+			if b.ChargeLimit == nil {
+				return fiber.NewError(fiber.StatusBadRequest, "Must provide charge limit.")
+			}
+			// In fact, the lower bound is much higher.
+			if *b.ChargeLimit < 0.0 || *b.ChargeLimit > 1.0 {
+				return fiber.NewError(fiber.StatusBadRequest, "Charge limit must be between 0 and 1.")
+			}
+			subTaskID, err = udc.teslaTaskService.SetChargeLimit(apiInt, *b.ChargeLimit)
+			if err != nil {
+				return opaqueInternalError
+			}
+			return c.JSON(map[string]any{"taskId": subTaskID})
+		}
+	}
+
+	return deviceIncapable
+}
+
+type ChargeLimitBody struct {
+	// ChargeLimit is the charge limit, a value from 0.0 to 1.0, inclusive.
+	// Note that not all of these values may be allowed by the device.
+	ChargeLimit *float64 `json:"chargeLimit"`
+}
+
 // GetAutoPiCommandStatus godoc
 // @Description gets the status of an autopi raw command by jobID
 // @Tags 		integrations
