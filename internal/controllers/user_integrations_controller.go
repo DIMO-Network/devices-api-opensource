@@ -499,7 +499,7 @@ func (udc *UserDevicesController) OpenFrunk(c *fiber.Ctx) error {
 	}
 
 	for _, cap := range md.Commands.Enabled {
-		if cap == "trunk/open" {
+		if cap == "frunk/open" {
 			var subTaskID string
 			subTaskID, err = udc.teslaTaskService.OpenFrunk(apiInt)
 			if err != nil {
