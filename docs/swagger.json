@@ -221,7 +221,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot"
+                                "$ref": "#/definitions/internal_controllers.DeviceMMYRoot"
                             }
                         }
                     }
@@ -1466,6 +1466,9 @@
                 "batteryCapacity": {
                     "type": "integer"
                 },
+                "chargeLimit": {
+                    "type": "number"
+                },
                 "charging": {
                     "type": "boolean"
                 },
@@ -1945,6 +1948,9 @@
             "properties": {
                 "batteryCapacity": {
                     "type": "integer"
+                },
+                "chargeLimit": {
+                    "type": "number"
                 },
                 "charging": {
                     "type": "boolean"

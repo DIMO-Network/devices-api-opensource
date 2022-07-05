@@ -123,6 +123,8 @@ definitions:
     properties:
       batteryCapacity:
         type: integer
+      chargeLimit:
+        type: number
       charging:
         type: boolean
       fuelPercentRemaining:
@@ -449,6 +451,8 @@ definitions:
     properties:
       batteryCapacity:
         type: integer
+      chargeLimit:
+        type: number
       charging:
         type: boolean
       fuelPercentRemaining:
@@ -1019,7 +1023,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot'
+              $ref: '#/definitions/internal_controllers.DeviceMMYRoot'
             type: array
       tags:
       - device-definitions

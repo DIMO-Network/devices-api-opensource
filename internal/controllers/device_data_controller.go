@@ -80,6 +80,11 @@ func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 				o := stateOfCharge.Float()
 				ds.StateOfCharge = &o
 			}
+			chargeLimit := gjson.GetBytes(datum.Data.JSON, "chargeLimit")
+			if chargeLimit.Exists() {
+				o := chargeLimit.Float()
+				ds.ChargeLimit = &o
+			}
 			odometer := gjson.GetBytes(datum.Data.JSON, "odometer")
 			if odometer.Exists() {
 				o := odometer.Float()
@@ -183,6 +188,7 @@ type DeviceSnapshot struct {
 	Longitude            *float64               `json:"longitude,omitempty"`
 	Range                *float64               `json:"range,omitempty"`
 	StateOfCharge        *float64               `json:"soc,omitempty"` // todo: change json to match after update frontend
+	ChargeLimit          *float64               `json:"chargeLimit,omitempty"`
 	RecordUpdatedAt      *time.Time             `json:"recordUpdatedAt,omitempty"`
 	RecordCreatedAt      *time.Time             `json:"recordCreatedAt,omitempty"`
 	TirePressure         *smartcar.TirePressure `json:"tirePressure,omitempty"`
