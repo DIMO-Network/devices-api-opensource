@@ -228,6 +228,8 @@ func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(commandResponse)
 }
 
+var deviceIncapable = fiber.NewError(fiber.StatusBadRequest, "integration is not active")
+
 func (udc *UserDevicesController) UnlockDoors(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	userDeviceID := c.Params("userDeviceID")
@@ -256,7 +258,7 @@ func (udc *UserDevicesController) UnlockDoors(c *fiber.Ctx) error {
 
 	vendor := apiInt.R.Integration.Vendor
 	if vendor != services.SmartCarVendor && vendor != services.TeslaVendor {
-		return fiber.NewError(fiber.StatusBadRequest, "integration does not support this commmand")
+		return deviceIncapable
 	}
 
 	if apiInt.Status != models.UserDeviceAPIIntegrationStatusActive {
@@ -269,7 +271,7 @@ func (udc *UserDevicesController) UnlockDoors(c *fiber.Ctx) error {
 	}
 
 	if md.Commands == nil {
-		return fiber.NewError(fiber.StatusBadRequest, "not capable of this command")
+		return deviceIncapable
 	}
 
 	for _, cap := range md.Commands.Enabled {
@@ -290,7 +292,7 @@ func (udc *UserDevicesController) UnlockDoors(c *fiber.Ctx) error {
 		}
 	}
 
-	return fiber.NewError(fiber.StatusBadRequest, "not capable of this command")
+	return deviceIncapable
 }
 
 func (udc *UserDevicesController) LockDoors(c *fiber.Ctx) error {
@@ -321,7 +323,7 @@ func (udc *UserDevicesController) LockDoors(c *fiber.Ctx) error {
 
 	vendor := apiInt.R.Integration.Vendor
 	if vendor != services.SmartCarVendor && vendor != services.TeslaVendor {
-		return fiber.NewError(fiber.StatusBadRequest, "integration does not support this commmand")
+		return deviceIncapable
 	}
 
 	if apiInt.Status != models.UserDeviceAPIIntegrationStatusActive {
@@ -355,7 +357,139 @@ func (udc *UserDevicesController) LockDoors(c *fiber.Ctx) error {
 		}
 	}
 
-	return fiber.NewError(fiber.StatusBadRequest, "not capable of this command")
+	return deviceIncapable
+}
+
+// OpenTrunk godoc
+// @Summary Open the device's rear trunk
+// @Description Open the device's front trunk. Currently, this only works for Teslas connected through Tesla.
+// @Id open-trunk
+// @Tags device,integration,command
+// @Produce json
+// @Param userDeviceID path string true "Device ID"
+// @Param integrationID path string true "Integration ID"
+func (udc *UserDevicesController) OpenTrunk(c *fiber.Ctx) error {
+	userID := getUserID(c)
+	userDeviceID := c.Params("userDeviceID")
+	integrationID := c.Params("integrationID")
+
+	device, err := models.UserDevices(
+		models.UserDeviceWhere.UserID.EQ(userID),
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		qm.Load(
+			qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration),
+			models.IntegrationWhere.ID.EQ(integrationID),
+		),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, "no device found with that id")
+		}
+		return opaqueInternalError
+	}
+
+	if len(device.R.UserDeviceAPIIntegrations) == 0 {
+		return fiber.NewError(fiber.StatusNotFound, "device does not have the specified integration")
+	}
+
+	apiInt := device.R.UserDeviceAPIIntegrations[0]
+
+	vendor := apiInt.R.Integration.Vendor
+	if vendor != services.TeslaVendor {
+		return deviceIncapable
+	}
+
+	if apiInt.Status != models.UserDeviceAPIIntegrationStatusActive {
+		return fiber.NewError(fiber.StatusBadRequest, "integration is not active")
+	}
+
+	md := new(services.UserDeviceAPIIntegrationsMetadata)
+	if err := apiInt.Metadata.Unmarshal(md); err != nil {
+		return opaqueInternalError
+	}
+
+	if md.Commands == nil {
+		return fiber.NewError(fiber.StatusBadRequest, "not capable of this command")
+	}
+
+	for _, cap := range md.Commands.Enabled {
+		if cap == "trunk/open" {
+			var subTaskID string
+			subTaskID, err = udc.teslaTaskService.OpenTrunk(apiInt)
+			if err != nil {
+				return opaqueInternalError
+			}
+			return c.JSON(map[string]any{"taskId": subTaskID})
+		}
+	}
+
+	return deviceIncapable
+}
+
+// OpenFrunk godoc
+// @Summary Open the device's front trunk
+// @Description Open the device's front trunk. Currently, this only works for Teslas connected through Tesla.
+// @Id open-frunk
+// @Tags device,integration,command
+// @Produce json
+// @Param userDeviceID path string true "Device ID"
+// @Param integrationID path string true "Integration ID"
+func (udc *UserDevicesController) OpenFrunk(c *fiber.Ctx) error {
+	userID := getUserID(c)
+	userDeviceID := c.Params("userDeviceID")
+	integrationID := c.Params("integrationID")
+
+	device, err := models.UserDevices(
+		models.UserDeviceWhere.UserID.EQ(userID),
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		qm.Load(
+			qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration),
+			models.IntegrationWhere.ID.EQ(integrationID),
+		),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, "no device found with that id")
+		}
+		return opaqueInternalError
+	}
+
+	if len(device.R.UserDeviceAPIIntegrations) == 0 {
+		return fiber.NewError(fiber.StatusNotFound, "device does not have the specified integration")
+	}
+
+	apiInt := device.R.UserDeviceAPIIntegrations[0]
+
+	vendor := apiInt.R.Integration.Vendor
+	if vendor != services.TeslaVendor {
+		return deviceIncapable
+	}
+
+	if apiInt.Status != models.UserDeviceAPIIntegrationStatusActive {
+		return fiber.NewError(fiber.StatusBadRequest, "integration is not active")
+	}
+
+	md := new(services.UserDeviceAPIIntegrationsMetadata)
+	if err := apiInt.Metadata.Unmarshal(md); err != nil {
+		return opaqueInternalError
+	}
+
+	if md.Commands == nil {
+		return fiber.NewError(fiber.StatusBadRequest, "not capable of this command")
+	}
+
+	for _, cap := range md.Commands.Enabled {
+		if cap == "trunk/open" {
+			var subTaskID string
+			subTaskID, err = udc.teslaTaskService.OpenFrunk(apiInt)
+			if err != nil {
+				return opaqueInternalError
+			}
+			return c.JSON(map[string]any{"taskId": subTaskID})
+		}
+	}
+
+	return deviceIncapable
 }
 
 // GetAutoPiCommandStatus godoc
@@ -1097,7 +1231,7 @@ func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zero
 	// TODO(elffjs): Stupid to marshal this again and again.
 	meta := services.UserDeviceAPIIntegrationsMetadata{
 		Commands: &services.UserDeviceAPIIntegrationsMetadataCommands{
-			Enabled: []string{"doors/unlock", "doors/lock"},
+			Enabled: []string{"doors/unlock", "doors/lock", "trunk/open", "frunk/open"},
 		},
 	}
 

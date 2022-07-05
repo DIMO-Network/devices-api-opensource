@@ -50,6 +50,36 @@ func (mr *MockTeslaTaskServiceMockRecorder) LockDoors(udai interface{}) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LockDoors", reflect.TypeOf((*MockTeslaTaskService)(nil).LockDoors), udai)
 }
 
+// OpenFrunk mocks base method.
+func (m *MockTeslaTaskService) OpenFrunk(udai *models.UserDeviceAPIIntegration) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "OpenFrunk", udai)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// OpenFrunk indicates an expected call of OpenFrunk.
+func (mr *MockTeslaTaskServiceMockRecorder) OpenFrunk(udai interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OpenFrunk", reflect.TypeOf((*MockTeslaTaskService)(nil).OpenFrunk), udai)
+}
+
+// OpenTrunk mocks base method.
+func (m *MockTeslaTaskService) OpenTrunk(udai *models.UserDeviceAPIIntegration) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "OpenTrunk", udai)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// OpenTrunk indicates an expected call of OpenTrunk.
+func (mr *MockTeslaTaskServiceMockRecorder) OpenTrunk(udai interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OpenTrunk", reflect.TypeOf((*MockTeslaTaskService)(nil).OpenTrunk), udai)
+}
+
 // StartPoll mocks base method.
 func (m *MockTeslaTaskService) StartPoll(vehicle *services.TeslaVehicle, udai *models.UserDeviceAPIIntegration) error {
 	m.ctrl.T.Helper()

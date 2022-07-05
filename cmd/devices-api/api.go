@@ -138,6 +138,8 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		// Device commands.
 		v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/doors/unlock", userDeviceController.UnlockDoors)
 		v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/doors/lock", userDeviceController.LockDoors)
+		v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/trunk/open", userDeviceController.OpenTrunk)
+		v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/frunk/open", userDeviceController.OpenFrunk)
 		// Device NFT.
 		v1Auth.Get("/user/devices/:userDeviceID/commands/mint", userDeviceController.GetMintDataToSign)
 		v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.MintDevice)
