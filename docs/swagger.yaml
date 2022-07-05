@@ -896,7 +896,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.AutoPiDeviceInfo'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo'
       security:
       - BearerAuth: []
       tags:
@@ -1019,7 +1019,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.DeviceMMYRoot'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot'
             type: array
       tags:
       - device-definitions
@@ -1186,14 +1186,14 @@ paths:
         name: user_device
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDevice'
+          $ref: '#/definitions/internal_controllers.RegisterUserDevice'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDeviceResponse'
+            $ref: '#/definitions/internal_controllers.RegisterUserDeviceResponse'
       security:
       - ApiKeyAuth: []
       - BearerAuth: []
@@ -1211,7 +1211,7 @@ paths:
         name: AutoPiCommandRequest
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.AutoPiCommandRequest'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest'
       responses:
         "200":
           description: ""
@@ -1250,7 +1250,7 @@ paths:
         name: userDeviceIntegrationRegistration
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.RegisterDeviceIntegrationRequest'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest'
       responses:
         "204":
           description: ""
@@ -1305,7 +1305,7 @@ paths:
         name: mintRequest
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.MintRequest'
+          $ref: '#/definitions/internal_controllers.MintRequest'
       responses:
         "200":
           description: ""
@@ -1342,7 +1342,7 @@ paths:
         name: name
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateCountryCodeReq'
+          $ref: '#/definitions/internal_controllers.UpdateCountryCodeReq'
       produces:
       - application/json
       responses:
@@ -1363,7 +1363,7 @@ paths:
         name: name
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateImageURLReq'
+          $ref: '#/definitions/internal_controllers.UpdateImageURLReq'
       produces:
       - application/json
       responses:
@@ -1389,11 +1389,105 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.GetUserDeviceIntegrationResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse'
       security:
       - BearerAuth: []
       tags:
       - integrations
+  /user/devices/{userDeviceID}/integrations/{integrationID}/commands/doors/lock:
+    post:
+      description: Lock the device's doors.
+      operationId: lock-doors
+      parameters:
+      - description: Device ID
+        in: path
+        name: userDeviceID
+        required: true
+        type: string
+      - description: Integration ID
+        in: path
+        name: integrationID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses: {}
+      summary: Lock the device's doors
+      tags:
+      - device
+      - integration
+      - command
+  /user/devices/{userDeviceID}/integrations/{integrationID}/commands/doors/unlock:
+    post:
+      description: Unlock the device's doors.
+      operationId: unlock-doors
+      parameters:
+      - description: Device ID
+        in: path
+        name: userDeviceID
+        required: true
+        type: string
+      - description: Integration ID
+        in: path
+        name: integrationID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses: {}
+      summary: Unlock the device's doors
+      tags:
+      - device
+      - integration
+      - command
+  /user/devices/{userDeviceID}/integrations/{integrationID}/commands/frunk/open:
+    post:
+      description: Open the device's front trunk. Currently, this only works for Teslas
+        connected through Tesla.
+      operationId: open-frunk
+      parameters:
+      - description: Device ID
+        in: path
+        name: userDeviceID
+        required: true
+        type: string
+      - description: Integration ID
+        in: path
+        name: integrationID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses: {}
+      summary: Open the device's front trunk
+      tags:
+      - device
+      - integration
+      - command
+  /user/devices/{userDeviceID}/integrations/{integrationID}/commands/trunk/open:
+    post:
+      description: Open the device's front trunk. Currently, this only works for Teslas
+        connected through Tesla.
+      operationId: open-trunk
+      parameters:
+      - description: Device ID
+        in: path
+        name: userDeviceID
+        required: true
+        type: string
+      - description: Integration ID
+        in: path
+        name: integrationID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses: {}
+      summary: Open the device's rear trunk
+      tags:
+      - device
+      - integration
+      - command
   /user/devices/{userDeviceID}/name:
     patch:
       consumes:
@@ -1405,7 +1499,7 @@ paths:
         name: name
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateNameReq'
+          $ref: '#/definitions/internal_controllers.UpdateNameReq'
       - description: user id
         in: path
         name: user_device_id
@@ -1437,7 +1531,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.DeviceSnapshot'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot'
       security:
       - BearerAuth: []
       tags:
@@ -1453,7 +1547,7 @@ paths:
         name: vin
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateVINReq'
+          $ref: '#/definitions/internal_controllers.UpdateVINReq'
       - description: user id
         in: path
         name: userDeviceID
@@ -1478,7 +1572,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceFull'
+              $ref: '#/definitions/internal_controllers.UserDeviceFull'
             type: array
       security:
       - BearerAuth: []

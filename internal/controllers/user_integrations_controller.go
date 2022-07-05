@@ -230,6 +230,15 @@ func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
 
 var deviceIncapable = fiber.NewError(fiber.StatusBadRequest, "integration is not active")
 
+// UnlockDoors godoc
+// @Summary Unlock the device's doors
+// @Description Unlock the device's doors.
+// @Id unlock-doors
+// @Tags device,integration,command
+// @Produce json
+// @Param userDeviceID path string true "Device ID"
+// @Param integrationID path string true "Integration ID"
+// @Router /user/devices/{userDeviceID}/integrations/{integrationID}/commands/doors/unlock [post]
 func (udc *UserDevicesController) UnlockDoors(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	userDeviceID := c.Params("userDeviceID")
@@ -295,6 +304,15 @@ func (udc *UserDevicesController) UnlockDoors(c *fiber.Ctx) error {
 	return deviceIncapable
 }
 
+// LockDoors godoc
+// @Summary Lock the device's doors
+// @Description Lock the device's doors.
+// @Id lock-doors
+// @Tags device,integration,command
+// @Produce json
+// @Param userDeviceID path string true "Device ID"
+// @Param integrationID path string true "Integration ID"
+// @Router /user/devices/{userDeviceID}/integrations/{integrationID}/commands/doors/lock [post]
 func (udc *UserDevicesController) LockDoors(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	userDeviceID := c.Params("userDeviceID")
@@ -368,6 +386,7 @@ func (udc *UserDevicesController) LockDoors(c *fiber.Ctx) error {
 // @Produce json
 // @Param userDeviceID path string true "Device ID"
 // @Param integrationID path string true "Integration ID"
+// @Router /user/devices/{userDeviceID}/integrations/{integrationID}/commands/trunk/open [post]
 func (udc *UserDevicesController) OpenTrunk(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	userDeviceID := c.Params("userDeviceID")
@@ -434,6 +453,7 @@ func (udc *UserDevicesController) OpenTrunk(c *fiber.Ctx) error {
 // @Produce json
 // @Param userDeviceID path string true "Device ID"
 // @Param integrationID path string true "Integration ID"
+// @Router /user/devices/{userDeviceID}/integrations/{integrationID}/commands/frunk/open [post]
 func (udc *UserDevicesController) OpenFrunk(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	userDeviceID := c.Params("userDeviceID")
