@@ -87,6 +87,11 @@ func main() {
 	case "generate-events":
 		eventService := services.NewEventService(&logger, &settings, deps.getKafkaProducer())
 		generateEvents(logger, &settings, pdb, eventService)
+	case "set-command-compat":
+		if err := setCommandCompatibility(ctx, logger, &settings, pdb); err != nil {
+			logger.Fatal().Err(err).Msg("Failed during command compatibility fill.")
+		}
+		logger.Info().Msg("Finished setting command compatibility.")
 	case "smartcar-sync":
 		syncSmartCarCompatibility(ctx, logger, &settings, pdb)
 	case "create-tesla-integrations":

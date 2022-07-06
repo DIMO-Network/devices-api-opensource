@@ -1336,7 +1336,7 @@ func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zero
 	// TODO(elffjs): Stupid to marshal this again and again.
 	meta := services.UserDeviceAPIIntegrationsMetadata{
 		Commands: &services.UserDeviceAPIIntegrationsMetadataCommands{
-			Enabled: []string{"doors/unlock", "doors/lock", "trunk/open", "frunk/open"},
+			Enabled: []string{"doors/unlock", "doors/lock", "trunk/open", "frunk/open", "charge/limit"},
 		},
 	}
 

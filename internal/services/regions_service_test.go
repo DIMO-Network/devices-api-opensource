@@ -18,6 +18,7 @@ func TestFindRegionForCountry(t *testing.T) {
 			want: &CountryInfo{
 				Name:          "United States of America",
 				Alpha3:        "USA",
+				Alpha2:        "US",
 				Region:        "Americas",
 				SubRegion:     "Northern America",
 				RegionCode:    19,

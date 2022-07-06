@@ -129,6 +129,7 @@ type UserDeviceAPIIntegrationsMetadata struct {
 
 type UserDeviceAPIIntegrationsMetadataCommands struct {
 	Enabled []string `json:"enabled,omitempty"`
+	Capable []string `json:"capable,omitempty"`
 }
 
 type UserDeviceMetadata struct {

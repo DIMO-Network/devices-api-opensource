@@ -32,6 +32,7 @@ func FindCountry(countryCode string) *CountryInfo {
 type CountryInfo struct {
 	Name          string `json:"name"`
 	Alpha3        string `json:"alpha_3"`
+	Alpha2        string `json:"alpha_2"`
 	Region        string `json:"region"`
 	SubRegion     string `json:"sub_region"`
 	RegionCode    int    `json:"region_code"`
