@@ -722,6 +722,12 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusNotFound, "No device with that ID found.")
 	}
 
+	mk := userDevice.R.DeviceDefinition.R.DeviceMake
+	if mk.TokenID.IsZero() {
+		return fiber.NewError(fiber.StatusConflict, fmt.Sprintf("Device make %s not yet minted.", mk.Name))
+	}
+	mkTokenID := (math.HexOrDecimal256)(*mk.TokenID.Int(new(big.Int)))
+
 	typedData := signer.TypedData{
 		Types: signer.Types{
 			"EIP712Domain": []signer.Type{
@@ -744,7 +750,7 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 			VerifyingContract: udc.Settings.NFTContractAddr,
 		},
 		Message: signer.TypedDataMessage{
-			"rootNode":   math.NewHexOrDecimal256(7), // Just hardcoding this. We need a node for each make, and to keep these in sync.
+			"rootNode":   mkTokenID,
 			"attributes": []any{"Make", "Model", "Year"},
 			"infos": []any{
 				userDevice.R.DeviceDefinition.R.DeviceMake.Name,
@@ -816,6 +822,12 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "No device with that ID found.")
 	}
+
+	mk := userDevice.R.DeviceDefinition.R.DeviceMake
+	if mk.TokenID.IsZero() {
+		return fiber.NewError(fiber.StatusConflict, fmt.Sprintf("Device make %s not yet minted.", mk.Name))
+	}
+	mkTokenID := (math.HexOrDecimal256)(*mk.TokenID.Int(new(big.Int)))
 
 	mr := new(MintRequest)
 	if err := c.BodyParser(mr); err != nil {
@@ -891,7 +903,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 			VerifyingContract: udc.Settings.NFTContractAddr,
 		},
 		Message: signer.TypedDataMessage{
-			"rootNode":   math.NewHexOrDecimal256(7), // Just hardcoding this. We need a node for each make, and to keep these in sync.
+			"rootNode":   mkTokenID,
 			"attributes": []any{"Make", "Model", "Year"},
 			"infos": []any{
 				userDevice.R.DeviceDefinition.R.DeviceMake.Name,
