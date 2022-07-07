@@ -811,6 +811,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
 		models.UserDeviceWhere.UserID.EQ(userID),
 		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
+		qm.Load(models.UserDeviceRels.MintRequest),
 	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "No device with that ID found.")
@@ -830,7 +831,12 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 	}
 
 	mintRequestID := ksuid.New().String()
-	logger := udc.log.With().Str("userId", userID).Str("userDeviceId", userDeviceID).Str("mintRequestId", mintRequestID).Str("handler", "MintDevice").Logger()
+	logger := udc.log.With().
+		Str("userId", userID).
+		Str("userDeviceId", userDeviceID).
+		Str("mintRequestId", mintRequestID).
+		Str("handler", "MintDevice").
+		Logger()
 
 	logger.Info().Msg("Mint request received.")
 
@@ -917,11 +923,6 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 		TXState:      models.TxstateUnstarted,
 	}
 
-	if err := mreq.Insert(c.Context(), udc.DBS().Writer, boil.Infer()); err != nil {
-		logger.Err(err).Msg("Failed to insert mint record.")
-		return opaqueInternalError
-	}
-
 	me := shared.CloudEvent[MintEventData]{
 		ID:          ksuid.New().String(),
 		Source:      "devices-api",
@@ -957,6 +958,11 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 	})
 	if err != nil {
 		logger.Err(err).Msgf("Couldn't produce mint request to Kafka.")
+		return opaqueInternalError
+	}
+
+	if err := mreq.Insert(c.Context(), udc.DBS().Writer, boil.Infer()); err != nil {
+		logger.Err(err).Msg("Failed to insert mint record.")
 		return opaqueInternalError
 	}
 
