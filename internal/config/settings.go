@@ -50,6 +50,7 @@ type Settings struct {
 	AWSRegion                      string `yaml:"AWS_REGION"`
 	KMSKeyID                       string `yaml:"KMS_KEY_ID"`
 	AutoPiAPIToken                 string `yaml:"AUTO_PI_API_TOKEN"`
+	AutoPiAPIURL                   string `yaml:"AUTO_PI_API_URL"`
 	SmartcarManagementToken        string `yaml:"SMARTCAR_MANAGEMENT_TOKEN"`
 	CIOSiteID                      string `yaml:"CIO_SITE_ID"`
 	CIOApiKey                      string `yaml:"CIO_API_KEY"`

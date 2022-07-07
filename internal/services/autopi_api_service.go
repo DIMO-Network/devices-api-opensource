@@ -21,7 +21,6 @@ import (
 )
 
 const (
-	autoPiBaseAPIURL  = "https://api.dimo.autopi.io"
 	AutoPiVendor      = "AutoPi"
 	AutoPiWebhookPath = "/webhooks/autopi-command"
 )
@@ -50,7 +49,7 @@ type autoPiAPIService struct {
 
 func NewAutoPiAPIService(settings *config.Settings, dbs func() *database.DBReaderWriter) AutoPiAPIService {
 	h := map[string]string{"Authorization": "APIToken " + settings.AutoPiAPIToken}
-	hcw, _ := shared.NewHTTPClientWrapper(autoPiBaseAPIURL, "", 10*time.Second, h, true) // ok to ignore err since only used for tor check
+	hcw, _ := shared.NewHTTPClientWrapper(settings.AutoPiAPIURL, "", 10*time.Second, h, true) // ok to ignore err since only used for tor check
 
 	return &autoPiAPIService{
 		Settings:   settings,
