@@ -32,6 +32,18 @@ spec:
                 name: {{ include "devices-api.fullname" . }}-config
             - secretRef:
                 name: {{ include "devices-api.fullname" . }}-secret
+
+          - name: smartcar-sync
+            securityContext:
+              {{ - toYaml .Values.securityContext | nindent 14 }}
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+            command: [ 'sh', '-c', "/devices-api smartcar-sync" ]
+            envFrom:
+            - configMapRef:
+                name: {{ include "devices-api.fullname" . }}-config
+            - secretRef:
+                name: {{ include "devices-api.fullname" . }}-secret
+
           - name: search-sync-dds
             securityContext:
               {{- toYaml .Values.securityContext | nindent 14 }}
