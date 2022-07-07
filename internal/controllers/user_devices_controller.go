@@ -918,6 +918,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 	}
 
 	if err := mreq.Insert(c.Context(), udc.DBS().Writer, boil.Infer()); err != nil {
+		logger.Err(err).Msg("Failed to insert mint record.")
 		return opaqueInternalError
 	}
 
