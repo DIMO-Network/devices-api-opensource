@@ -348,10 +348,11 @@ func startPrometheus(logger zerolog.Logger) {
 
 // dependencyContainer way to hold different dependencies we need for our app. We could put all our deps and follow this pattern for everything.
 type dependencyContainer struct {
-	kafkaProducer   sarama.SyncProducer
-	settings        *config.Settings
-	logger          *zerolog.Logger
-	s3ServiceClient *s3.Client
+	kafkaProducer      sarama.SyncProducer
+	settings           *config.Settings
+	logger             *zerolog.Logger
+	s3ServiceClient    *s3.Client
+	s3NFTServiceClient *s3.Client
 }
 
 func newDependencyContainer(settings *config.Settings, logger zerolog.Logger) dependencyContainer {
@@ -404,7 +405,7 @@ func (dc *dependencyContainer) getS3ServiceClient(ctx context.Context) *s3.Clien
 }
 
 func (dc *dependencyContainer) getS3NFTServiceClient(ctx context.Context) *s3.Client {
-	if dc.s3ServiceClient == nil {
+	if dc.s3NFTServiceClient == nil {
 
 		cfg, err := awsconfig.LoadDefaultConfig(ctx,
 			awsconfig.WithRegion(dc.settings.AWSRegion),
@@ -424,10 +425,10 @@ func (dc *dependencyContainer) getS3NFTServiceClient(ctx context.Context) *s3.Cl
 			dc.logger.Fatal().Err(err).Msg("Could not load aws config, terminating")
 		}
 
-		dc.s3ServiceClient = s3.NewFromConfig(cfg, func(o *s3.Options) {
+		dc.s3NFTServiceClient = s3.NewFromConfig(cfg, func(o *s3.Options) {
 			o.Region = dc.settings.AWSRegion
 			o.Credentials = credentials.NewStaticCredentialsProvider(dc.settings.NFTAWSAccessKeyID, dc.settings.NFTAWSSecretsAccessKey, "")
 		})
 	}
-	return dc.s3ServiceClient
+	return dc.s3NFTServiceClient
 }
