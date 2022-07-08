@@ -2,7 +2,7 @@ replicaCount: 1
 image:
   repository: dimozone/devices-api
   pullPolicy: IfNotPresent
-  tag: 0c47073
+  tag: 72e74e8
 imagePullSecrets: []
 nameOverride: ''
 fullnameOverride: ''
@@ -58,7 +58,7 @@ env:
   USERS_API_GRPC_ADDR: users-api-dev:8086
   NFT_CONTRACT_ADDR: '0xD7519fFbFb1f15Ef320F5bf7A325Aa1020e31988'
   NFT_CHAIN_ID: 80001
-  NFT_CONTRACT_NAME: 'DIMOBetaV1'
+  NFT_CONTRACT_NAME: DIMOBetaV1
   NFT_CONTRACT_VERSION: '1'
 service:
   type: ClusterIP
