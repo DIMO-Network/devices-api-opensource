@@ -133,15 +133,16 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID", userDeviceController.RegisterDeviceIntegration)
 	v1Auth.Get("/user/devices/:userDeviceID/status", userDeviceController.GetUserDeviceStatus)
 	v1Auth.Post("/user/devices/:userDeviceID/commands/refresh", userDeviceController.RefreshUserDeviceStatus)
+
+	// Device commands.
+	v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/doors/unlock", userDeviceController.UnlockDoors)
+	v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/doors/lock", userDeviceController.LockDoors)
+	v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/trunk/open", userDeviceController.OpenTrunk)
+	v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/frunk/open", userDeviceController.OpenFrunk)
+	v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/charge/limit", userDeviceController.SetChargeLimit)
+
 	// Endpoints not ready for everyone.
 	if settings.Environment != "prod" {
-		// Device commands.
-		v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/doors/unlock", userDeviceController.UnlockDoors)
-		v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/doors/lock", userDeviceController.LockDoors)
-		v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/trunk/open", userDeviceController.OpenTrunk)
-		v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/frunk/open", userDeviceController.OpenFrunk)
-		v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/charge/limit", userDeviceController.SetChargeLimit)
-
 		// Device NFT.
 		v1Auth.Get("/user/devices/:userDeviceID/commands/mint", userDeviceController.GetMintDataToSign)
 		v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.MintDevice)
