@@ -80,6 +80,12 @@ sqlboiler psql --no-tests --wipe
 
 ## Migrations
 
+To install goose in GO:
+```bash
+$ go get github.com/pressly/goose/v3/cmd/goose@v3.5.3
+export GOOSE_DRIVER=postgres
+```
+
 To install goose CLI:
 ```bash
 $ go install github.com/pressly/goose/v3/cmd/goose

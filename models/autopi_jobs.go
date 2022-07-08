@@ -32,6 +32,7 @@ type AutopiJob struct {
 	UserDeviceID       null.String `boil:"user_device_id" json:"user_device_id,omitempty" toml:"user_device_id" yaml:"user_device_id,omitempty"`
 	CreatedAt          time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt          time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	UnitID             null.String `boil:"unit_id" json:"unit_id,omitempty" toml:"unit_id" yaml:"unit_id,omitempty"`
 
 	R *autopiJobR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L autopiJobL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -46,6 +47,7 @@ var AutopiJobColumns = struct {
 	UserDeviceID       string
 	CreatedAt          string
 	UpdatedAt          string
+	UnitID             string
 }{
 	ID:                 "id",
 	AutopiDeviceID:     "autopi_device_id",
@@ -55,6 +57,7 @@ var AutopiJobColumns = struct {
 	UserDeviceID:       "user_device_id",
 	CreatedAt:          "created_at",
 	UpdatedAt:          "updated_at",
+	UnitID:             "unit_id",
 }
 
 var AutopiJobTableColumns = struct {
@@ -66,6 +69,7 @@ var AutopiJobTableColumns = struct {
 	UserDeviceID       string
 	CreatedAt          string
 	UpdatedAt          string
+	UnitID             string
 }{
 	ID:                 "autopi_jobs.id",
 	AutopiDeviceID:     "autopi_jobs.autopi_device_id",
@@ -75,6 +79,7 @@ var AutopiJobTableColumns = struct {
 	UserDeviceID:       "autopi_jobs.user_device_id",
 	CreatedAt:          "autopi_jobs.created_at",
 	UpdatedAt:          "autopi_jobs.updated_at",
+	UnitID:             "autopi_jobs.unit_id",
 }
 
 // Generated where
@@ -180,6 +185,7 @@ var AutopiJobWhere = struct {
 	UserDeviceID       whereHelpernull_String
 	CreatedAt          whereHelpertime_Time
 	UpdatedAt          whereHelpertime_Time
+	UnitID             whereHelpernull_String
 }{
 	ID:                 whereHelperstring{field: "\"devices_api\".\"autopi_jobs\".\"id\""},
 	AutopiDeviceID:     whereHelperstring{field: "\"devices_api\".\"autopi_jobs\".\"autopi_device_id\""},
@@ -189,17 +195,21 @@ var AutopiJobWhere = struct {
 	UserDeviceID:       whereHelpernull_String{field: "\"devices_api\".\"autopi_jobs\".\"user_device_id\""},
 	CreatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"autopi_jobs\".\"created_at\""},
 	UpdatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"autopi_jobs\".\"updated_at\""},
+	UnitID:             whereHelpernull_String{field: "\"devices_api\".\"autopi_jobs\".\"unit_id\""},
 }
 
 // AutopiJobRels is where relationship names are stored.
 var AutopiJobRels = struct {
+	Unit       string
 	UserDevice string
 }{
+	Unit:       "Unit",
 	UserDevice: "UserDevice",
 }
 
 // autopiJobR is where relationships are stored.
 type autopiJobR struct {
+	Unit       *AutopiUnit `boil:"Unit" json:"Unit" toml:"Unit" yaml:"Unit"`
 	UserDevice *UserDevice `boil:"UserDevice" json:"UserDevice" toml:"UserDevice" yaml:"UserDevice"`
 }
 
@@ -212,9 +222,9 @@ func (*autopiJobR) NewStruct() *autopiJobR {
 type autopiJobL struct{}
 
 var (
-	autopiJobAllColumns            = []string{"id", "autopi_device_id", "command", "state", "command_last_updated", "user_device_id", "created_at", "updated_at"}
+	autopiJobAllColumns            = []string{"id", "autopi_device_id", "command", "state", "command_last_updated", "user_device_id", "created_at", "updated_at", "unit_id"}
 	autopiJobColumnsWithoutDefault = []string{"id", "autopi_device_id", "command"}
-	autopiJobColumnsWithDefault    = []string{"state", "command_last_updated", "user_device_id", "created_at", "updated_at"}
+	autopiJobColumnsWithDefault    = []string{"state", "command_last_updated", "user_device_id", "created_at", "updated_at", "unit_id"}
 	autopiJobPrimaryKeyColumns     = []string{"id"}
 	autopiJobGeneratedColumns      = []string{}
 )
@@ -497,6 +507,20 @@ func (q autopiJobQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (
 	return count > 0, nil
 }
 
+// Unit pointed to by the foreign key.
+func (o *AutopiJob) Unit(mods ...qm.QueryMod) autopiUnitQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"unit_id\" = ?", o.UnitID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	query := AutopiUnits(queryMods...)
+	queries.SetFrom(query.Query, "\"devices_api\".\"autopi_units\"")
+
+	return query
+}
+
 // UserDevice pointed to by the foreign key.
 func (o *AutopiJob) UserDevice(mods ...qm.QueryMod) userDeviceQuery {
 	queryMods := []qm.QueryMod{
@@ -509,6 +533,114 @@ func (o *AutopiJob) UserDevice(mods ...qm.QueryMod) userDeviceQuery {
 	queries.SetFrom(query.Query, "\"devices_api\".\"user_devices\"")
 
 	return query
+}
+
+// LoadUnit allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (autopiJobL) LoadUnit(ctx context.Context, e boil.ContextExecutor, singular bool, maybeAutopiJob interface{}, mods queries.Applicator) error {
+	var slice []*AutopiJob
+	var object *AutopiJob
+
+	if singular {
+		object = maybeAutopiJob.(*AutopiJob)
+	} else {
+		slice = *maybeAutopiJob.(*[]*AutopiJob)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &autopiJobR{}
+		}
+		if !queries.IsNil(object.UnitID) {
+			args = append(args, object.UnitID)
+		}
+
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &autopiJobR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.UnitID) {
+					continue Outer
+				}
+			}
+
+			if !queries.IsNil(obj.UnitID) {
+				args = append(args, obj.UnitID)
+			}
+
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`devices_api.autopi_units`),
+		qm.WhereIn(`devices_api.autopi_units.unit_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load AutopiUnit")
+	}
+
+	var resultSlice []*AutopiUnit
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice AutopiUnit")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for autopi_units")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for autopi_units")
+	}
+
+	if len(autopiJobAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.Unit = foreign
+		if foreign.R == nil {
+			foreign.R = &autopiUnitR{}
+		}
+		foreign.R.UnitAutopiJobs = append(foreign.R.UnitAutopiJobs, object)
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if queries.Equal(local.UnitID, foreign.UnitID) {
+				local.R.Unit = foreign
+				if foreign.R == nil {
+					foreign.R = &autopiUnitR{}
+				}
+				foreign.R.UnitAutopiJobs = append(foreign.R.UnitAutopiJobs, local)
+				break
+			}
+		}
+	}
+
+	return nil
 }
 
 // LoadUserDevice allows an eager lookup of values, cached into the
@@ -616,6 +748,86 @@ func (autopiJobL) LoadUserDevice(ctx context.Context, e boil.ContextExecutor, si
 		}
 	}
 
+	return nil
+}
+
+// SetUnit of the autopiJob to the related item.
+// Sets o.R.Unit to related.
+// Adds o to related.R.UnitAutopiJobs.
+func (o *AutopiJob) SetUnit(ctx context.Context, exec boil.ContextExecutor, insert bool, related *AutopiUnit) error {
+	var err error
+	if insert {
+		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"devices_api\".\"autopi_jobs\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 1, []string{"unit_id"}),
+		strmangle.WhereClause("\"", "\"", 2, autopiJobPrimaryKeyColumns),
+	)
+	values := []interface{}{related.UnitID, o.ID}
+
+	if boil.IsDebug(ctx) {
+		writer := boil.DebugWriterFrom(ctx)
+		fmt.Fprintln(writer, updateQuery)
+		fmt.Fprintln(writer, values)
+	}
+	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	queries.Assign(&o.UnitID, related.UnitID)
+	if o.R == nil {
+		o.R = &autopiJobR{
+			Unit: related,
+		}
+	} else {
+		o.R.Unit = related
+	}
+
+	if related.R == nil {
+		related.R = &autopiUnitR{
+			UnitAutopiJobs: AutopiJobSlice{o},
+		}
+	} else {
+		related.R.UnitAutopiJobs = append(related.R.UnitAutopiJobs, o)
+	}
+
+	return nil
+}
+
+// RemoveUnit relationship.
+// Sets o.R.Unit to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+func (o *AutopiJob) RemoveUnit(ctx context.Context, exec boil.ContextExecutor, related *AutopiUnit) error {
+	var err error
+
+	queries.SetScanner(&o.UnitID, nil)
+	if _, err = o.Update(ctx, exec, boil.Whitelist("unit_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	if o.R != nil {
+		o.R.Unit = nil
+	}
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	for i, ri := range related.R.UnitAutopiJobs {
+		if queries.Equal(o.UnitID, ri.UnitID) {
+			continue
+		}
+
+		ln := len(related.R.UnitAutopiJobs)
+		if ln > 1 && i < ln-1 {
+			related.R.UnitAutopiJobs[i] = related.R.UnitAutopiJobs[ln-1]
+		}
+		related.R.UnitAutopiJobs = related.R.UnitAutopiJobs[:ln-1]
+		break
+	}
 	return nil
 }
 
