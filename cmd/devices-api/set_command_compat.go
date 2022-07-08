@@ -13,6 +13,7 @@ import (
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
@@ -84,7 +85,8 @@ func setCommandCompatSmartcar(ctx context.Context, logger zerolog.Logger, settin
 		country := services.FindCountry(su.R.UserDevice.CountryCode.String)
 		doors, err := checkSmartcarDoorCompatibility(settings, su.R.UserDevice.VinIdentifier.String, country.Alpha2)
 		if err != nil {
-			return err
+			log.Err(err).Msg("Error getting compat")
+			continue
 		}
 		if !doors {
 			continue
