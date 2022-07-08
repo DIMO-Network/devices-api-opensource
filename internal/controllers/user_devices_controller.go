@@ -752,8 +752,8 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 		},
 		PrimaryType: "MintVehicleSign",
 		Domain: signer.TypedDataDomain{
-			Name:              "DIMO",
-			Version:           "1",
+			Name:              udc.Settings.NFTContractName,
+			Version:           udc.Settings.NFTContractVersion,
 			ChainId:           math.NewHexOrDecimal256(int64(udc.Settings.NFTChainID)),
 			VerifyingContract: udc.Settings.NFTContractAddr,
 		},
@@ -961,8 +961,8 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 		},
 		PrimaryType: "MintVehicleSign",
 		Domain: signer.TypedDataDomain{
-			Name:              "DIMO",
-			Version:           "1",
+			Name:              udc.Settings.NFTContractName,
+			Version:           udc.Settings.NFTContractVersion,
 			ChainId:           math.NewHexOrDecimal256(int64(udc.Settings.NFTChainID)),
 			VerifyingContract: udc.Settings.NFTContractAddr,
 		},
