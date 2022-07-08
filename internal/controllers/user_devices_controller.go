@@ -716,6 +716,25 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 	}
 	mkTok := (*math.HexOrDecimal256)(mk.TokenID.Int(nil))
 
+	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		udc.log.Err(err).Msg("Failed to create users API client.")
+		return opaqueInternalError
+	}
+	defer conn.Close()
+
+	usersClient := pb.NewUserServiceClient(conn)
+
+	user, err := usersClient.GetUser(c.Context(), &pb.GetUserRequest{Id: userID})
+	if err != nil {
+		udc.log.Err(err).Msg("Couldn't retrieve user record.")
+		return opaqueInternalError
+	}
+
+	if user.EthereumAddress == nil {
+		return fiber.NewError(fiber.StatusBadRequest, "user does not have an ethereum address on file")
+	}
+
 	typedData := signer.TypedData{
 		Types: signer.Types{
 			"EIP712Domain": []signer.Type{
@@ -724,13 +743,14 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 				{Name: "chainId", Type: "uint256"},
 				{Name: "verifyingContract", Type: "address"},
 			},
-			"MintDevice": {
+			"MintVehicleSign": {
 				{Name: "rootNode", Type: "uint256"},
+				{Name: "_owner", Type: "address"},
 				{Name: "attributes", Type: "string[]"},
 				{Name: "infos", Type: "string[]"},
 			},
 		},
-		PrimaryType: "MintDevice",
+		PrimaryType: "MintVehicleSign",
 		Domain: signer.TypedDataDomain{
 			Name:              "DIMO",
 			Version:           "1",
@@ -739,6 +759,7 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 		},
 		Message: signer.TypedDataMessage{
 			"rootNode":   mkTok,
+			"_owner":     *user.EthereumAddress,
 			"attributes": []any{"Make", "Model", "Year"},
 			"infos": []any{
 				userDevice.R.DeviceDefinition.R.DeviceMake.Name,
@@ -931,13 +952,14 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 				{Name: "chainId", Type: "uint256"},
 				{Name: "verifyingContract", Type: "address"},
 			},
-			"MintDevice": {
+			"MintVehicleSign": {
 				{Name: "rootNode", Type: "uint256"},
+				{Name: "_owner", Type: "address"},
 				{Name: "attributes", Type: "string[]"},
 				{Name: "infos", Type: "string[]"},
 			},
 		},
-		PrimaryType: "MintDevice",
+		PrimaryType: "MintVehicleSign",
 		Domain: signer.TypedDataDomain{
 			Name:              "DIMO",
 			Version:           "1",
@@ -946,6 +968,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 		},
 		Message: signer.TypedDataMessage{
 			"rootNode":   mkTok,
+			"_owner":     *user.EthereumAddress,
 			"attributes": []any{"Make", "Model", "Year"},
 			"infos": []any{
 				userDevice.R.DeviceDefinition.R.DeviceMake.Name,

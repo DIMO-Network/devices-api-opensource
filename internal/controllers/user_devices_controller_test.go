@@ -71,7 +71,7 @@ func (s *UserDevicesControllerTestSuite) SetupSuite() {
 	testUserID2 := "3232451"
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, logger, s.deviceDefSvc, s.taskSvc,
 		&fakeEventService{}, scClient, scTaskSvc, teslaSvc, teslaTaskService, nil, nil,
-		s.nhtsaService, autoPiIngest, autoPiTaskSvc, nil)
+		s.nhtsaService, autoPiIngest, autoPiTaskSvc, nil, nil)
 	app := fiber.New()
 	app.Post("/user/devices", test.AuthInjectorTestHandler(s.testUserID), c.RegisterDeviceForUser)
 	app.Post("/user/devices/second", test.AuthInjectorTestHandler(testUserID2), c.RegisterDeviceForUser) // for different test user
