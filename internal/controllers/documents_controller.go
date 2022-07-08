@@ -351,6 +351,7 @@ const (
 	VehicleRegistration DocumentTypeEnum = "VehicleRegistration"
 	VehicleInsurance    DocumentTypeEnum = "VehicleInsurance"
 	VehicleMaintenance  DocumentTypeEnum = "VehicleMaintenance"
+	VehicleCustomImage  DocumentTypeEnum = "VehicleCustomImage"
 )
 
 func (r DocumentTypeEnum) String() string {
@@ -359,7 +360,7 @@ func (r DocumentTypeEnum) String() string {
 
 func (r DocumentTypeEnum) IsValid() error {
 	switch r {
-	case DriversLicense, VehicleMaintenance, VehicleRegistration, VehicleInsurance, VehicleTitle, Other:
+	case DriversLicense, VehicleMaintenance, VehicleRegistration, VehicleInsurance, VehicleTitle, Other, VehicleCustomImage:
 		return nil
 	}
 	return errors.New("invalid document type")
