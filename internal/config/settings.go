@@ -59,6 +59,8 @@ type Settings struct {
 	DocumentsAWSAccessKeyID        string `yaml:"DOCUMENTS_AWS_ACCESS_KEY_ID"`
 	DocumentsAWSSecretsAccessKey   string `yaml:"DOCUMENTS_AWS_SECRET_ACCESS_KEY"`
 	DocumentsAWSEndpoint           string `yaml:"DOCUMENTS_AWS_ENDPOINT"`
+	NFTAWSAccessKeyID              string `yaml:"NFT_AWS_ACCESS_KEY_ID"`
+	NFTAWSSecretsAccessKey         string `yaml:"NFT_AWS_SECRET_ACCESS_KEY"`
 }
 
 // GetWriterDSN builds the connection string to the db writer - for now same as reader

@@ -28,7 +28,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore, eventService services.EventService, producer sarama.SyncProducer, s3ServiceClient *s3.Client) {
+func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore, eventService services.EventService, producer sarama.SyncProducer, s3ServiceClient *s3.Client, s3NFTServiceClient *s3.Client) {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return ErrorHandler(c, err, logger, settings.Environment)
@@ -60,7 +60,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	autoPiTaskService := services.NewAutoPiTaskService(settings, autoPiSvc, logger)
 	// controllers
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc)
-	userDeviceController := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService, smartcarClient, scTaskSvc, teslaSvc, teslaTaskService, cipher, autoPiSvc, services.NewNHTSAService(), autoPiIngest, autoPiTaskService, producer)
+	userDeviceController := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, taskSvc, eventService, smartcarClient, scTaskSvc, teslaSvc, teslaTaskService, cipher, autoPiSvc, services.NewNHTSAService(), autoPiIngest, autoPiTaskService, producer, s3NFTServiceClient)
 	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer)
 	webhooksController := controllers.NewWebhooksController(settings, pdb.DBS, &logger, autoPiSvc)
 	documentsController := controllers.NewDocumentsController(settings, s3ServiceClient, pdb.DBS)
@@ -141,12 +141,10 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/frunk/open", userDeviceController.OpenFrunk)
 	v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/charge/limit", userDeviceController.SetChargeLimit)
 
-	// Endpoints not ready for everyone.
-	if settings.Environment != "prod" {
-		// Device NFT.
-		v1Auth.Get("/user/devices/:userDeviceID/commands/mint", userDeviceController.GetMintDataToSign)
-		v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.MintDevice)
-	}
+	// Device NFT.
+	v1Auth.Get("/user/devices/:userDeviceID/commands/mint", userDeviceController.GetMintDataToSign)
+	v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.MintDevice)
+
 	v1Auth.Get("/integrations", userDeviceController.GetIntegrations)
 	// autopi specific
 	v1Auth.Post("/user/devices/:userDeviceID/autopi/command", userDeviceController.SendAutoPiCommand)

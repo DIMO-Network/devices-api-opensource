@@ -193,7 +193,7 @@ func main() {
 		if settings.Environment != "prod" {
 			startMintStatusConsumer(logger, &settings, pdb)
 		}
-		startWebAPI(logger, &settings, pdb, eventService, deps.getKafkaProducer(), deps.getS3ServiceClient(ctx))
+		startWebAPI(logger, &settings, pdb, eventService, deps.getKafkaProducer(), deps.getS3ServiceClient(ctx), deps.getS3NFTServiceClient(ctx))
 	}
 }
 
@@ -398,6 +398,35 @@ func (dc *dependencyContainer) getS3ServiceClient(ctx context.Context) *s3.Clien
 		dc.s3ServiceClient = s3.NewFromConfig(cfg, func(o *s3.Options) {
 			o.Region = dc.settings.AWSRegion
 			o.Credentials = credentials.NewStaticCredentialsProvider(dc.settings.DocumentsAWSAccessKeyID, dc.settings.DocumentsAWSSecretsAccessKey, "")
+		})
+	}
+	return dc.s3ServiceClient
+}
+
+func (dc *dependencyContainer) getS3NFTServiceClient(ctx context.Context) *s3.Client {
+	if dc.s3ServiceClient == nil {
+
+		cfg, err := awsconfig.LoadDefaultConfig(ctx,
+			awsconfig.WithRegion(dc.settings.AWSRegion),
+			// Comment the below out if not using localhost
+			awsconfig.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(
+				func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+
+					if dc.settings.Environment == "local" {
+						return aws.Endpoint{PartitionID: "aws", URL: dc.settings.DocumentsAWSEndpoint, SigningRegion: dc.settings.AWSRegion}, nil // The SigningRegion key was what's was missing! D'oh.
+					}
+
+					// returning EndpointNotFoundError will allow the service to fallback to its default resolution
+					return aws.Endpoint{}, &aws.EndpointNotFoundError{}
+				})))
+
+		if err != nil {
+			dc.logger.Fatal().Err(err).Msg("Could not load aws config, terminating")
+		}
+
+		dc.s3ServiceClient = s3.NewFromConfig(cfg, func(o *s3.Options) {
+			o.Region = dc.settings.AWSRegion
+			o.Credentials = credentials.NewStaticCredentialsProvider(dc.settings.NFTAWSAccessKeyID, dc.settings.NFTAWSSecretsAccessKey, "")
 		})
 	}
 	return dc.s3ServiceClient

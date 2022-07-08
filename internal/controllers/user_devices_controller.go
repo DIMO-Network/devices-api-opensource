@@ -33,7 +33,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -80,18 +79,8 @@ func NewUserDevicesController(
 	autoPiIngestRegistrar services.IngestRegistrar,
 	autoPiTaskService services.AutoPiTaskService,
 	producer sarama.SyncProducer,
+	s3NFTClient *s3.Client,
 ) UserDevicesController {
-
-	var s3Client *s3.Client
-
-	if settings.Environment != "prod" {
-		awscfg, err := awsconfig.LoadDefaultConfig(context.Background(), awsconfig.WithRegion(settings.AWSRegion))
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Couldn't create AWS config.")
-		}
-		s3Client = s3.NewFromConfig(awscfg)
-	}
-
 	return UserDevicesController{
 		Settings:              settings,
 		DBS:                   dbs,
@@ -108,7 +97,7 @@ func NewUserDevicesController(
 		nhtsaService:          nhtsaService,
 		autoPiIngestRegistrar: autoPiIngestRegistrar,
 		autoPiTaskService:     autoPiTaskService,
-		s3:                    s3Client,
+		s3:                    s3NFTClient,
 		producer:              producer,
 	}
 }
