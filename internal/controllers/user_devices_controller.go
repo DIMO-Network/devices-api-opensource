@@ -844,8 +844,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 			continue
 		}
 		switch apiInt.R.Integration.Vendor {
-		case services.SmartCarVendor:
-		case services.TeslaVendor:
+		case services.SmartCarVendor, services.TeslaVendor:
 			eligible = true
 			// Sure hope this works!
 			mreq.Vin = userDevice.VinIdentifier
