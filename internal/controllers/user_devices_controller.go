@@ -131,8 +131,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
 		qm.Load(models.UserDeviceRels.MintRequest),
 		qm.OrderBy("created_at"),
-	).
-		All(c.Context(), udc.DBS().Reader)
+	).All(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
@@ -817,6 +816,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
 		models.UserDeviceWhere.UserID.EQ(userID),
 		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
+		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
 		qm.Load(models.UserDeviceRels.MintRequest),
 	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
@@ -828,6 +828,61 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusConflict, fmt.Sprintf("Device make %s not yet minted.", mk.Name))
 	}
 	mkTok := (*math.HexOrDecimal256)(mk.TokenID.Int(nil))
+
+	mintRequestID := ksuid.New().String()
+	mreq := &models.MintRequest{
+		ID:           mintRequestID,
+		UserDeviceID: null.StringFrom(userDeviceID),
+		TXState:      models.TxstateUnstarted,
+	}
+
+	eligible := false
+	// Check ability based on completed integrations.
+	for _, apiInt := range userDevice.R.UserDeviceAPIIntegrations {
+		// Might be able to do this check in the DB.
+		if apiInt.Status != models.UserDeviceAPIIntegrationStatusActive {
+			continue
+		}
+		switch apiInt.R.Integration.Vendor {
+		case services.SmartCarVendor:
+		case services.TeslaVendor:
+			eligible = true
+			// Sure hope this works!
+			mreq.Vin = userDevice.VinIdentifier
+		case services.AutoPiVendor:
+			eligible = true
+			mreq.ChildDeviceID = apiInt.ExternalID
+		}
+	}
+
+	if !eligible {
+		return fiber.NewError(fiber.StatusBadRequest, "Device does not have an active, eligible integration.")
+	}
+
+	// Check historical mints in prod.
+	if udc.Settings.Environment == "prod" {
+		var rateControlConds []qm.QueryMod
+		if mreq.Vin.Valid {
+			rateControlConds = []qm.QueryMod{models.MintRequestWhere.Vin.EQ(mreq.Vin)}
+		}
+		if mreq.ChildDeviceID.Valid {
+			if len(rateControlConds) == 0 {
+				rateControlConds = []qm.QueryMod{models.MintRequestWhere.ChildDeviceID.EQ(mreq.ChildDeviceID)}
+			} else {
+				rateControlConds = append(rateControlConds, qm.Or2(models.MintRequestWhere.ChildDeviceID.EQ(mreq.ChildDeviceID)))
+			}
+		}
+
+		conflict, err := models.MintRequests(rateControlConds...).Exists(c.Context(), udc.DBS().Reader)
+		if err != nil {
+			udc.log.Err(err).Msg("Couldn't search for old, conflicting records.")
+			return opaqueInternalError
+		}
+
+		if conflict {
+			return fiber.NewError(fiber.StatusConflict, "Already minted.")
+		}
+	}
 
 	mr := new(MintRequest)
 	if err := c.BodyParser(mr); err != nil {
@@ -842,7 +897,6 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "Field imageData not properly base64-encoded.")
 	}
 
-	mintRequestID := ksuid.New().String()
 	logger := udc.log.With().
 		Str("userId", userID).
 		Str("userDeviceId", userDeviceID).
@@ -927,12 +981,6 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 
 	if recAddr != realAddr {
 		return fiber.NewError(fiber.StatusBadRequest, "Signature incorrect.")
-	}
-
-	mreq := &models.MintRequest{
-		ID:           mintRequestID,
-		UserDeviceID: userDeviceID,
-		TXState:      models.TxstateUnstarted,
 	}
 
 	me := shared.CloudEvent[MintEventData]{

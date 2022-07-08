@@ -683,7 +683,7 @@ func (userDeviceL) LoadMintRequest(ctx context.Context, e boil.ContextExecutor, 
 			}
 
 			for _, a := range args {
-				if a == obj.ID {
+				if queries.Equal(a, obj.ID) {
 					continue Outer
 				}
 			}
@@ -744,7 +744,7 @@ func (userDeviceL) LoadMintRequest(ctx context.Context, e boil.ContextExecutor, 
 
 	for _, local := range slice {
 		for _, foreign := range resultSlice {
-			if local.ID == foreign.UserDeviceID {
+			if queries.Equal(local.ID, foreign.UserDeviceID) {
 				local.R.MintRequest = foreign
 				if foreign.R == nil {
 					foreign.R = &mintRequestR{}
@@ -1204,7 +1204,7 @@ func (o *UserDevice) SetMintRequest(ctx context.Context, exec boil.ContextExecut
 	var err error
 
 	if insert {
-		related.UserDeviceID = o.ID
+		queries.Assign(&related.UserDeviceID, o.ID)
 
 		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
 			return errors.Wrap(err, "failed to insert into foreign table")
@@ -1226,8 +1226,7 @@ func (o *UserDevice) SetMintRequest(ctx context.Context, exec boil.ContextExecut
 			return errors.Wrap(err, "failed to update foreign table")
 		}
 
-		related.UserDeviceID = o.ID
-
+		queries.Assign(&related.UserDeviceID, o.ID)
 	}
 
 	if o.R == nil {
@@ -1245,6 +1244,28 @@ func (o *UserDevice) SetMintRequest(ctx context.Context, exec boil.ContextExecut
 	} else {
 		related.R.UserDevice = o
 	}
+	return nil
+}
+
+// RemoveMintRequest relationship.
+// Sets o.R.MintRequest to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+func (o *UserDevice) RemoveMintRequest(ctx context.Context, exec boil.ContextExecutor, related *MintRequest) error {
+	var err error
+
+	queries.SetScanner(&related.UserDeviceID, nil)
+	if _, err = related.Update(ctx, exec, boil.Whitelist("user_device_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	if o.R != nil {
+		o.R.MintRequest = nil
+	}
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	related.R.UserDevice = nil
 	return nil
 }
 

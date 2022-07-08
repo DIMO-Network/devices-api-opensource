@@ -25,52 +25,62 @@ import (
 
 // MintRequest is an object representing the database table.
 type MintRequest struct {
-	ID           string            `boil:"id" json:"id" toml:"id" yaml:"id"`
-	UserDeviceID string            `boil:"user_device_id" json:"user_device_id" toml:"user_device_id" yaml:"user_device_id"`
-	TXState      string            `boil:"tx_state" json:"tx_state" toml:"tx_state" yaml:"tx_state"`
-	TokenID      types.NullDecimal `boil:"token_id" json:"token_id,omitempty" toml:"token_id" yaml:"token_id,omitempty"`
-	CreatedAt    time.Time         `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt    time.Time         `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	TXHash       null.Bytes        `boil:"tx_hash" json:"tx_hash,omitempty" toml:"tx_hash" yaml:"tx_hash,omitempty"`
+	ID            string            `boil:"id" json:"id" toml:"id" yaml:"id"`
+	UserDeviceID  null.String       `boil:"user_device_id" json:"user_device_id,omitempty" toml:"user_device_id" yaml:"user_device_id,omitempty"`
+	TXState       string            `boil:"tx_state" json:"tx_state" toml:"tx_state" yaml:"tx_state"`
+	TokenID       types.NullDecimal `boil:"token_id" json:"token_id,omitempty" toml:"token_id" yaml:"token_id,omitempty"`
+	CreatedAt     time.Time         `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt     time.Time         `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	TXHash        null.Bytes        `boil:"tx_hash" json:"tx_hash,omitempty" toml:"tx_hash" yaml:"tx_hash,omitempty"`
+	Vin           null.String       `boil:"vin" json:"vin,omitempty" toml:"vin" yaml:"vin,omitempty"`
+	ChildDeviceID null.String       `boil:"child_device_id" json:"child_device_id,omitempty" toml:"child_device_id" yaml:"child_device_id,omitempty"`
 
 	R *mintRequestR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L mintRequestL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var MintRequestColumns = struct {
-	ID           string
-	UserDeviceID string
-	TXState      string
-	TokenID      string
-	CreatedAt    string
-	UpdatedAt    string
-	TXHash       string
+	ID            string
+	UserDeviceID  string
+	TXState       string
+	TokenID       string
+	CreatedAt     string
+	UpdatedAt     string
+	TXHash        string
+	Vin           string
+	ChildDeviceID string
 }{
-	ID:           "id",
-	UserDeviceID: "user_device_id",
-	TXState:      "tx_state",
-	TokenID:      "token_id",
-	CreatedAt:    "created_at",
-	UpdatedAt:    "updated_at",
-	TXHash:       "tx_hash",
+	ID:            "id",
+	UserDeviceID:  "user_device_id",
+	TXState:       "tx_state",
+	TokenID:       "token_id",
+	CreatedAt:     "created_at",
+	UpdatedAt:     "updated_at",
+	TXHash:        "tx_hash",
+	Vin:           "vin",
+	ChildDeviceID: "child_device_id",
 }
 
 var MintRequestTableColumns = struct {
-	ID           string
-	UserDeviceID string
-	TXState      string
-	TokenID      string
-	CreatedAt    string
-	UpdatedAt    string
-	TXHash       string
+	ID            string
+	UserDeviceID  string
+	TXState       string
+	TokenID       string
+	CreatedAt     string
+	UpdatedAt     string
+	TXHash        string
+	Vin           string
+	ChildDeviceID string
 }{
-	ID:           "mint_requests.id",
-	UserDeviceID: "mint_requests.user_device_id",
-	TXState:      "mint_requests.tx_state",
-	TokenID:      "mint_requests.token_id",
-	CreatedAt:    "mint_requests.created_at",
-	UpdatedAt:    "mint_requests.updated_at",
-	TXHash:       "mint_requests.tx_hash",
+	ID:            "mint_requests.id",
+	UserDeviceID:  "mint_requests.user_device_id",
+	TXState:       "mint_requests.tx_state",
+	TokenID:       "mint_requests.token_id",
+	CreatedAt:     "mint_requests.created_at",
+	UpdatedAt:     "mint_requests.updated_at",
+	TXHash:        "mint_requests.tx_hash",
+	Vin:           "mint_requests.vin",
+	ChildDeviceID: "mint_requests.child_device_id",
 }
 
 // Generated where
@@ -100,21 +110,25 @@ func (w whereHelpernull_Bytes) IsNull() qm.QueryMod    { return qmhelper.WhereIs
 func (w whereHelpernull_Bytes) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
 
 var MintRequestWhere = struct {
-	ID           whereHelperstring
-	UserDeviceID whereHelperstring
-	TXState      whereHelperstring
-	TokenID      whereHelpertypes_NullDecimal
-	CreatedAt    whereHelpertime_Time
-	UpdatedAt    whereHelpertime_Time
-	TXHash       whereHelpernull_Bytes
+	ID            whereHelperstring
+	UserDeviceID  whereHelpernull_String
+	TXState       whereHelperstring
+	TokenID       whereHelpertypes_NullDecimal
+	CreatedAt     whereHelpertime_Time
+	UpdatedAt     whereHelpertime_Time
+	TXHash        whereHelpernull_Bytes
+	Vin           whereHelpernull_String
+	ChildDeviceID whereHelpernull_String
 }{
-	ID:           whereHelperstring{field: "\"devices_api\".\"mint_requests\".\"id\""},
-	UserDeviceID: whereHelperstring{field: "\"devices_api\".\"mint_requests\".\"user_device_id\""},
-	TXState:      whereHelperstring{field: "\"devices_api\".\"mint_requests\".\"tx_state\""},
-	TokenID:      whereHelpertypes_NullDecimal{field: "\"devices_api\".\"mint_requests\".\"token_id\""},
-	CreatedAt:    whereHelpertime_Time{field: "\"devices_api\".\"mint_requests\".\"created_at\""},
-	UpdatedAt:    whereHelpertime_Time{field: "\"devices_api\".\"mint_requests\".\"updated_at\""},
-	TXHash:       whereHelpernull_Bytes{field: "\"devices_api\".\"mint_requests\".\"tx_hash\""},
+	ID:            whereHelperstring{field: "\"devices_api\".\"mint_requests\".\"id\""},
+	UserDeviceID:  whereHelpernull_String{field: "\"devices_api\".\"mint_requests\".\"user_device_id\""},
+	TXState:       whereHelperstring{field: "\"devices_api\".\"mint_requests\".\"tx_state\""},
+	TokenID:       whereHelpertypes_NullDecimal{field: "\"devices_api\".\"mint_requests\".\"token_id\""},
+	CreatedAt:     whereHelpertime_Time{field: "\"devices_api\".\"mint_requests\".\"created_at\""},
+	UpdatedAt:     whereHelpertime_Time{field: "\"devices_api\".\"mint_requests\".\"updated_at\""},
+	TXHash:        whereHelpernull_Bytes{field: "\"devices_api\".\"mint_requests\".\"tx_hash\""},
+	Vin:           whereHelpernull_String{field: "\"devices_api\".\"mint_requests\".\"vin\""},
+	ChildDeviceID: whereHelpernull_String{field: "\"devices_api\".\"mint_requests\".\"child_device_id\""},
 }
 
 // MintRequestRels is where relationship names are stored.
@@ -138,9 +152,9 @@ func (*mintRequestR) NewStruct() *mintRequestR {
 type mintRequestL struct{}
 
 var (
-	mintRequestAllColumns            = []string{"id", "user_device_id", "tx_state", "token_id", "created_at", "updated_at", "tx_hash"}
-	mintRequestColumnsWithoutDefault = []string{"id", "user_device_id"}
-	mintRequestColumnsWithDefault    = []string{"tx_state", "token_id", "created_at", "updated_at", "tx_hash"}
+	mintRequestAllColumns            = []string{"id", "user_device_id", "tx_state", "token_id", "created_at", "updated_at", "tx_hash", "vin", "child_device_id"}
+	mintRequestColumnsWithoutDefault = []string{"id"}
+	mintRequestColumnsWithDefault    = []string{"user_device_id", "tx_state", "token_id", "created_at", "updated_at", "tx_hash", "vin", "child_device_id"}
 	mintRequestPrimaryKeyColumns     = []string{"id"}
 	mintRequestGeneratedColumns      = []string{}
 )
@@ -454,7 +468,9 @@ func (mintRequestL) LoadUserDevice(ctx context.Context, e boil.ContextExecutor, 
 		if object.R == nil {
 			object.R = &mintRequestR{}
 		}
-		args = append(args, object.UserDeviceID)
+		if !queries.IsNil(object.UserDeviceID) {
+			args = append(args, object.UserDeviceID)
+		}
 
 	} else {
 	Outer:
@@ -464,12 +480,14 @@ func (mintRequestL) LoadUserDevice(ctx context.Context, e boil.ContextExecutor, 
 			}
 
 			for _, a := range args {
-				if a == obj.UserDeviceID {
+				if queries.Equal(a, obj.UserDeviceID) {
 					continue Outer
 				}
 			}
 
-			args = append(args, obj.UserDeviceID)
+			if !queries.IsNil(obj.UserDeviceID) {
+				args = append(args, obj.UserDeviceID)
+			}
 
 		}
 	}
@@ -527,7 +545,7 @@ func (mintRequestL) LoadUserDevice(ctx context.Context, e boil.ContextExecutor, 
 
 	for _, local := range slice {
 		for _, foreign := range resultSlice {
-			if local.UserDeviceID == foreign.ID {
+			if queries.Equal(local.UserDeviceID, foreign.ID) {
 				local.R.UserDevice = foreign
 				if foreign.R == nil {
 					foreign.R = &userDeviceR{}
@@ -568,7 +586,7 @@ func (o *MintRequest) SetUserDevice(ctx context.Context, exec boil.ContextExecut
 		return errors.Wrap(err, "failed to update local table")
 	}
 
-	o.UserDeviceID = related.ID
+	queries.Assign(&o.UserDeviceID, related.ID)
 	if o.R == nil {
 		o.R = &mintRequestR{
 			UserDevice: related,
@@ -585,6 +603,28 @@ func (o *MintRequest) SetUserDevice(ctx context.Context, exec boil.ContextExecut
 		related.R.MintRequest = o
 	}
 
+	return nil
+}
+
+// RemoveUserDevice relationship.
+// Sets o.R.UserDevice to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+func (o *MintRequest) RemoveUserDevice(ctx context.Context, exec boil.ContextExecutor, related *UserDevice) error {
+	var err error
+
+	queries.SetScanner(&o.UserDeviceID, nil)
+	if _, err = o.Update(ctx, exec, boil.Whitelist("user_device_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	if o.R != nil {
+		o.R.UserDevice = nil
+	}
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	related.R.MintRequest = nil
 	return nil
 }
 
