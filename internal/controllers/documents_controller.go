@@ -217,6 +217,10 @@ func (udc *DocumentsController) PostDocument(c *fiber.Ctx) error {
 	_ = result
 
 	url := fmt.Sprintf("%s/v1/documents/%s/download", udc.settings.DeploymentBaseURL, id)
+	if len(udi) > 0 {
+		url = fmt.Sprintf("%s/v1/documents/%s-%s/download", udc.settings.DeploymentBaseURL, udi, id)
+	}
+
 	return c.JSON(DocumentResponse{
 		ID:           id,
 		Name:         documentName,
