@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"math/big"
@@ -18,7 +17,6 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/types"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
@@ -34,18 +32,13 @@ func NewNFTController(
 	settings *config.Settings,
 	dbs func() *database.DBReaderWriter,
 	logger *zerolog.Logger,
+	s3 *s3.Client,
 ) NFTController {
-	awscfg, err := awsconfig.LoadDefaultConfig(context.Background(), awsconfig.WithRegion(settings.AWSRegion))
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Couldn't create AWS config.")
-	}
-	s3Client := s3.NewFromConfig(awscfg)
-
 	return NFTController{
 		Settings: settings,
 		DBS:      dbs,
 		log:      logger,
-		s3:       s3Client,
+		s3:       s3,
 	}
 }
 

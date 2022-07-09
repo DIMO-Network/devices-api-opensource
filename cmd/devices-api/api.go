@@ -101,11 +101,9 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1.Get("/device-definitions/:id/integrations", deviceControllers.GetDeviceIntegrationsByID)
 	v1.Get("/device-definitions", deviceControllers.GetDeviceDefinitionByMMY)
 
-	if settings.Environment != "prod" {
-		nftController := controllers.NewNFTController(settings, pdb.DBS, &logger)
-		v1.Get("/nfts/:tokenID", nftController.GetNFTMetadata)
-		v1.Get("/nfts/:tokenID/image", nftController.GetNFTImage)
-	}
+	nftController := controllers.NewNFTController(settings, pdb.DBS, &logger, s3NFTServiceClient)
+	v1.Get("/nfts/:tokenID", nftController.GetNFTMetadata)
+	v1.Get("/nfts/:tokenID/image", nftController.GetNFTImage)
 
 	// webhooks, performs signature validation
 	v1.Post(services.AutoPiWebhookPath, webhooksController.ProcessCommand)
