@@ -837,7 +837,8 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 	if mk.TokenID.IsZero() {
 		return fiber.NewError(fiber.StatusConflict, fmt.Sprintf("Device make %s not yet minted.", mk.Name))
 	}
-	mkTok := (*math.HexOrDecimal256)(mk.TokenID.Int(nil))
+	mkBI := mk.TokenID.Int(nil)
+	mkTok := (*math.HexOrDecimal256)(mkBI)
 
 	mintRequestID := ksuid.New().String()
 	mreq := &models.MintRequest{
@@ -985,7 +986,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 
 	recAddr, err := recoverAddress(typedData, sigBytes)
 	if err != nil {
-		return opaqueInternalError
+		return fiber.NewError(fiber.StatusBadRequest, "Signature incorrect.")
 	}
 
 	realAddr := common.HexToAddress(*user.EthereumAddress)
@@ -1005,7 +1006,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 			RequestID:    mintRequestID,
 			UserDeviceID: userDeviceID,
 			Owner:        *user.EthereumAddress,
-			RootNode:     big.NewInt(7),
+			RootNode:     mkBI,
 			Attributes:   []string{"Make", "Model", "Year"},
 			Infos: []string{
 				userDevice.R.DeviceDefinition.R.DeviceMake.Name,
