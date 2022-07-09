@@ -986,12 +986,14 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 
 	recAddr, err := recoverAddress(typedData, sigBytes)
 	if err != nil {
+		logger.Err(err).Msg("Failed recovering address.")
 		return fiber.NewError(fiber.StatusBadRequest, "Signature incorrect.")
 	}
 
 	realAddr := common.HexToAddress(*user.EthereumAddress)
 
 	if recAddr != realAddr {
+		logger.Err(err).Str("recAddr", recAddr.String()).Msg("Recovered address, but incorrect.")
 		return fiber.NewError(fiber.StatusBadRequest, "Signature incorrect.")
 	}
 
