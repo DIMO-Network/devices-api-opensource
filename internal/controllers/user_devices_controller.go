@@ -984,6 +984,8 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "Signature has incorrect length, should be 65.")
 	}
 
+	logger.Info().Bytes("bytes", sigBytes).Msg("Hex Signature")
+
 	recAddr, err := recoverAddress(typedData, sigBytes)
 	if err != nil {
 		logger.Err(err).Msg("Failed recovering address.")
