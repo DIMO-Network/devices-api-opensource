@@ -30,7 +30,7 @@ env:
   DEVICE_DATA_INDEX_NAME: device-status-prod*
   AWS_DOCUMENTS_BUCKET_NAME: dimo-network-documents-prod
   NFT_CHAIN_ID: 137
-  NFT_CONTRACT_ADDR: '0x2808D309b28840210DF1DC0A3105203d83cBD5c3'
+  NFT_CONTRACT_ADDR: '0xD7519fFbFb1f15Ef320F5bf7A325Aa1020e31988'
   NFT_S3_BUCKET: dimo-network-nfts-prod
 ingress:
   enabled: true
