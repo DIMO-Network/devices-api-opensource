@@ -714,7 +714,7 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 	if mk.TokenID.IsZero() {
 		return fiber.NewError(fiber.StatusConflict, fmt.Sprintf("Device make %s not yet minted.", mk.Name))
 	}
-	mkTok := (*math.HexOrDecimal256)(mk.TokenID.Int(nil))
+	mkTok := mk.TokenID.Int(nil)
 
 	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -735,8 +735,10 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "user does not have an ethereum address on file")
 	}
 
-	typedData := signer.TypedData{
-		Types: signer.Types{
+	// Can't use signer.TypedData because the serialization of math.HexOrDecimal256
+	// makes Trust Wallet go nuts.
+	typedData := map[string]any{
+		"types": signer.Types{
 			"EIP712Domain": []signer.Type{
 				{Name: "name", Type: "string"},
 				{Name: "version", Type: "string"},
@@ -750,18 +752,18 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 				{Name: "infos", Type: "string[]"},
 			},
 		},
-		PrimaryType: "MintVehicleSign",
-		Domain: signer.TypedDataDomain{
-			Name:              udc.Settings.NFTContractName,
-			Version:           udc.Settings.NFTContractVersion,
-			ChainId:           math.NewHexOrDecimal256(int64(udc.Settings.NFTChainID)),
-			VerifyingContract: udc.Settings.NFTContractAddr,
+		"primaryType": "MintVehicleSign",
+		"domain": signer.TypedDataMessage{
+			"name":              udc.Settings.NFTContractName,
+			"version":           udc.Settings.NFTContractVersion,
+			"chainId":           udc.Settings.NFTChainID,
+			"verifyingContract": udc.Settings.NFTContractAddr,
 		},
-		Message: signer.TypedDataMessage{
+		"message": signer.TypedDataMessage{
 			"rootNode":   mkTok,
 			"_owner":     *user.EthereumAddress,
-			"attributes": []any{"Make", "Model", "Year"},
-			"infos": []any{
+			"attributes": []string{"Make", "Model", "Year"},
+			"infos": []string{
 				userDevice.R.DeviceDefinition.R.DeviceMake.Name,
 				userDevice.R.DeviceDefinition.Model,
 				strconv.Itoa(int(userDevice.R.DeviceDefinition.Year)),
