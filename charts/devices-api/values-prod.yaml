@@ -28,6 +28,7 @@ env:
   PRIVACY_FENCE_TOPIC: table.device.privacyfence
   EVENTS_TOPIC: topic.event
   DEVICE_DATA_INDEX_NAME: device-status-prod*
+  USERS_API_GRPC_ADDR: users-api-prod:8086
   AWS_DOCUMENTS_BUCKET_NAME: dimo-network-documents-prod
   NFT_CHAIN_ID: 137
   NFT_CONTRACT_ADDR: '0xD7519fFbFb1f15Ef320F5bf7A325Aa1020e31988'
