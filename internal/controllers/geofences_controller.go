@@ -22,6 +22,9 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
+// TODO(elffjs): Setting?
+const maxFenceTiles = 12
+
 type GeofencesController struct {
 	Settings *config.Settings
 	DBS      func() *database.DBReaderWriter
@@ -395,5 +398,6 @@ func (g *CreateGeofence) Validate() error {
 	return validation.ValidateStruct(g,
 		validation.Field(&g.Name, validation.Required),
 		validation.Field(&g.Type, validation.Required, validation.In("PrivacyFence", "TriggerEntry", "TriggerExit")),
+		validation.Field(&g.H3Indexes, validation.Length(0, maxFenceTiles)),
 	)
 }
