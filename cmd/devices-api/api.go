@@ -87,7 +87,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	})
 	// application routes
 	app.Get("/", healthCheck)
-	app.Put("/loglevel", changeLogLevel)
 
 	v1 := app.Group("/v1")
 	sc := swagger.Config{ // custom

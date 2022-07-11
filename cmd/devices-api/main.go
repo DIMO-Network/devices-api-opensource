@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -22,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/customerio/go-customerio/v3"
+	"github.com/gofiber/adaptor"
 	"github.com/gofiber/fiber/v2"
 	_ "github.com/lib/pq"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -185,7 +185,7 @@ func main() {
 		}
 		logger.Info().Msgf("Successfully started Smartcar task for %s.", userDeviceID)
 	default:
-		startPrometheus(logger)
+		startMonitoringServer(logger)
 		eventService := services.NewEventService(&logger, &settings, deps.getKafkaProducer())
 		startDeviceStatusConsumer(logger, &settings, pdb, eventService)
 		startCredentialConsumer(logger, &settings, pdb)
@@ -333,15 +333,18 @@ func startMintStatusConsumer(logger zerolog.Logger, settings *config.Settings, p
 	logger.Info().Msg("NFT mint status consumer started")
 }
 
-func startPrometheus(logger zerolog.Logger) {
-	http.Handle("/metrics", promhttp.Handler())
-	go func() {
-		err := http.ListenAndServe(":8888", nil)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("could not start consumer")
-		}
-	}()
-	logger.Info().Msg("prometheus metrics at :8888/metrics")
+func startMonitoringServer(logger zerolog.Logger) {
+	monApp := fiber.New(fiber.Config{DisableStartupMessage: true})
+
+	monApp.Get("/metrics", adaptor.HTTPHandler(promhttp.Handler()))
+	monApp.Put("/loglevel", changeLogLevel)
+
+	// TODO(elffjs): Make the port a setting.
+	if err := monApp.Listen(":8888"); err != nil {
+		logger.Fatal().Err(err).Str("port", "8888").Msg("Failed to start monitoring web server.")
+	}
+
+	logger.Info().Str("port", "8888").Msg("Started monitoring web server.")
 }
 
 // dependencyContainer way to hold different dependencies we need for our app. We could put all our deps and follow this pattern for everything.
