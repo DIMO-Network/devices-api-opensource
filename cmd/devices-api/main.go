@@ -339,10 +339,12 @@ func startMonitoringServer(logger zerolog.Logger) {
 	monApp.Get("/metrics", adaptor.HTTPHandler(promhttp.Handler()))
 	monApp.Put("/loglevel", changeLogLevel)
 
-	// TODO(elffjs): Make the port a setting.
-	if err := monApp.Listen(":8888"); err != nil {
-		logger.Fatal().Err(err).Str("port", "8888").Msg("Failed to start monitoring web server.")
-	}
+	go func() {
+		// TODO(elffjs): Make the port a setting.
+		if err := monApp.Listen(":8888"); err != nil {
+			logger.Fatal().Err(err).Str("port", "8888").Msg("Failed to start monitoring web server.")
+		}
+	}()
 
 	logger.Info().Str("port", "8888").Msg("Started monitoring web server.")
 }
