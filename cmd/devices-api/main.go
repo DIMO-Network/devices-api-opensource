@@ -190,9 +190,7 @@ func main() {
 		startDeviceStatusConsumer(logger, &settings, pdb, eventService)
 		startCredentialConsumer(logger, &settings, pdb)
 		startTaskStatusConsumer(logger, &settings, pdb)
-		if settings.Environment != "prod" {
-			startMintStatusConsumer(logger, &settings, pdb)
-		}
+		startMintStatusConsumer(logger, &settings, pdb)
 		startWebAPI(logger, &settings, pdb, eventService, deps.getKafkaProducer(), deps.getS3ServiceClient(ctx), deps.getS3NFTServiceClient(ctx))
 	}
 }
