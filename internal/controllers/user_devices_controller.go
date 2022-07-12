@@ -909,6 +909,10 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "Field imageData not properly base64-encoded.")
 	}
 
+	if len(image) == 0 {
+		return fiber.NewError(fiber.StatusBadRequest, "Empty image field.")
+	}
+
 	logger := udc.log.With().
 		Str("userId", userID).
 		Str("userDeviceId", userDeviceID).
