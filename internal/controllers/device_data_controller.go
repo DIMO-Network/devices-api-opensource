@@ -48,11 +48,11 @@ func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 	// merging data: foreach order by updatedAt desc, only set property if it exists in json data
 	for _, datum := range deviceData {
 		if datum.Data.Valid {
-			// note this means the date updated we sent may be inaccurate if have both smartcar and autopi
-			if ds.RecordUpdatedAt == nil {
-				ds.RecordCreatedAt = &datum.CreatedAt
-				ds.RecordUpdatedAt = &datum.UpdatedAt
-			}
+			// The response has the creation and update times of the most recently updated integration.
+			// For users with, e.g., both Smartcar and AutoPi this may produce confusing results.
+			ds.RecordCreatedAt = &datum.CreatedAt
+			ds.RecordUpdatedAt = &datum.UpdatedAt
+
 			// note we are assuming json property names are same accross smartcar, tesla, autopi, AND same types eg. int / float / string
 			// we could use reflection and just have single line assuming json name in struct matches what is in data
 			charging := gjson.GetBytes(datum.Data.JSON, "charging")
