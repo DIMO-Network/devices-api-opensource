@@ -255,7 +255,7 @@ func startDeviceStatusConsumer(logger zerolog.Logger, settings *config.Settings,
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Could not start device status update consumer")
 	}
-	ingestSvc := services.NewIngestService(pdb.DBS, &logger, eventService)
+	ingestSvc := services.NewDeviceStatusIngestService(pdb.DBS, &logger, eventService)
 	consumer.Start(context.Background(), ingestSvc.ProcessDeviceStatusMessages)
 
 	logger.Info().Msg("Device status update consumer started")

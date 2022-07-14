@@ -41,7 +41,7 @@ func TestIngestDeviceStatus(t *testing.T) {
 
 	scIntegration := test.SetupCreateSmartCarIntegration(t, pdb)
 
-	ingest := NewIngestService(pdb.DBS, &logger, mes)
+	ingest := NewDeviceStatusIngestService(pdb.DBS, &logger, mes)
 
 	dm := test.SetupCreateMake(t, "Tesla", pdb)
 	dd := test.SetupCreateDeviceDefinition(t, dm, "Model Y", 2021, pdb)
@@ -137,4 +137,68 @@ func TestIngestDeviceStatus(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAutoPiStatusMerge(t *testing.T) {
+	assert := assert.New(t)
+
+	mes := &testEventService{
+		Buffer: make([]*Event, 0),
+	}
+
+	logger := zerolog.New(os.Stdout).With().Timestamp().Str("app", "devices-api").Logger()
+	ctx := context.Background()
+	pdb, container := test.StartContainerDatabase(ctx, t, migrationsDirRelPath)
+	defer func() {
+		if err := container.Terminate(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	// Only making use the last parameter.
+	apInt := test.SetupCreateAutoPiIntegration(t, 1, nil, pdb)
+
+	ingest := NewDeviceStatusIngestService(pdb.DBS, &logger, mes)
+
+	dm := test.SetupCreateMake(t, "Toyota", pdb)
+	dd := test.SetupCreateDeviceDefinition(t, dm, "RAV4", 2021, pdb)
+	ud := test.SetupCreateUserDevice(t, "dylan", dd, nil, pdb)
+
+	udai := models.UserDeviceAPIIntegration{
+		UserDeviceID:  ud.ID,
+		IntegrationID: apInt.ID,
+		Status:        models.UserDeviceAPIIntegrationStatusActive,
+	}
+
+	err := udai.Insert(ctx, pdb.DBS().Writer, boil.Infer())
+	assert.NoError(err)
+
+	tx := pdb.DBS().Writer
+
+	dat1 := models.UserDeviceDatum{
+		UserDeviceID:        ud.ID,
+		Data:                null.JSONFrom([]byte(`{"odometer": 45.22, "latitude": 11.0, "longitude": -7.0}`)),
+		LastOdometerEventAt: null.TimeFrom(time.Now().Add(-10 * time.Second)),
+		IntegrationID:       apInt.ID,
+	}
+
+	err = dat1.Insert(ctx, tx, boil.Infer())
+	assert.NoError(err)
+
+	input := &DeviceStatusEvent{
+		Source:      "dimo/integration/" + apInt.ID,
+		Specversion: "1.0",
+		Subject:     ud.ID,
+		Type:        deviceStatusEventType,
+		Time:        time.Now(),
+		Data:        []byte(`{"latitude": 2.0, "longitude": 3.0}`),
+	}
+
+	err = ingest.processEvent(input)
+	assert.NoError(err)
+
+	err = dat1.Reload(ctx, tx)
+	assert.NoError(err)
+
+	assert.JSONEq(`{"odometer": 45.22, "latitude": 2.0, "longitude": 3.0}`, string(dat1.Data.JSON))
 }

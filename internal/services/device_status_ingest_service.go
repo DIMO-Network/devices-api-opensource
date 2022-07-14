@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
@@ -19,34 +18,42 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
-const deviceStatusEventType = "zone.dimo.device.status.update"
+const (
+	deviceStatusEventType = "zone.dimo.device.status.update"
+	odometerCooldown      = time.Hour
+)
 
-var odometerCooldown = time.Hour
-
-type IngestService struct {
+type DeviceStatusIngestService struct {
 	db           func() *database.DBReaderWriter
 	log          *zerolog.Logger
 	eventService EventService
 	integrations models.IntegrationSlice
 }
 
-func NewIngestService(db func() *database.DBReaderWriter, log *zerolog.Logger, eventService EventService) *IngestService {
-	// save integrations available
-	integrations, _ := models.Integrations().All(context.Background(), db().Reader)
-	return &IngestService{db: db, log: log, eventService: eventService, integrations: integrations}
+func NewDeviceStatusIngestService(db func() *database.DBReaderWriter, log *zerolog.Logger, eventService EventService) *DeviceStatusIngestService {
+	// Cache the list of integrations.
+	integrations, err := models.Integrations().All(context.Background(), db().Reader)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Couldn't retrieve global integration list.")
+	}
+	return &DeviceStatusIngestService{
+		db:           db,
+		log:          log,
+		eventService: eventService,
+		integrations: integrations,
+	}
 }
 
 // ProcessDeviceStatusMessages works on channel stream of messages from watermill kafka consumer
-func (i *IngestService) ProcessDeviceStatusMessages(messages <-chan *message.Message) {
+func (i *DeviceStatusIngestService) ProcessDeviceStatusMessages(messages <-chan *message.Message) {
 	for msg := range messages {
-		err := i.processMessage(msg)
-		if err != nil {
-			i.log.Err(err).Msg("error processing smartcar ingest msg")
+		if err := i.processMessage(msg); err != nil {
+			i.log.Err(err).Msg("Error processing device status message.")
 		}
 	}
 }
 
-func (i *IngestService) processMessage(msg *message.Message) error {
+func (i *DeviceStatusIngestService) processMessage(msg *message.Message) error {
 	// Keep the pipeline moving no matter what.
 	defer func() { msg.Ack() }()
 
@@ -58,14 +65,16 @@ func (i *IngestService) processMessage(msg *message.Message) error {
 	if event.Type != deviceStatusEventType {
 		return fmt.Errorf("received vehicle status event with unexpected type %s", event.Type)
 	}
+
 	integration, err := i.getIntegrationFromEvent(event)
 	if err != nil {
 		return err
 	}
-	if integration.Vendor == SmartCarVendor {
+
+	switch integration.Vendor {
+	case SmartCarVendor:
 		defer appmetrics.SmartcarIngestTotalOps.Inc()
-	}
-	if integration.Vendor == AutoPiVendor {
+	case AutoPiVendor:
 		defer appmetrics.AutoPiIngestTotalOps.Inc()
 	}
 
@@ -74,19 +83,10 @@ func (i *IngestService) processMessage(msg *message.Message) error {
 
 var userDeviceDataPrimaryKeyColumns = []string{models.UserDeviceDatumColumns.UserDeviceID, models.UserDeviceDatumColumns.IntegrationID}
 
-// integrationIDregexp is used to parse out the KSUID of the integration from the CloudEvent
-// source field.
-var integrationIDregexp = regexp.MustCompile("^dimo/integration/([a-zA-Z0-9]{27})$")
-
-func (i *IngestService) processEvent(event *DeviceStatusEvent) error {
+func (i *DeviceStatusIngestService) processEvent(event *DeviceStatusEvent) error {
 	ctx := context.Background() // should this be passed in so can cancel if application shutting down?
 	userDeviceID := event.Subject
 
-	match := integrationIDregexp.FindStringSubmatch(event.Source)
-	if match == nil {
-		return fmt.Errorf("failed to parse integration from event source %q", event.Source)
-	}
-	integrationID := match[1]
 	integration, err := i.getIntegrationFromEvent(event)
 	if err != nil {
 		return err
@@ -133,6 +133,9 @@ func (i *IngestService) processEvent(event *DeviceStatusEvent) error {
 	if o, err := extractOdometer(event.Data); err == nil {
 		newOdometer = null.Float64From(o)
 	} else if integration.Vendor == AutoPiVendor {
+		// For AutoPis, for the purpose of odometer events we are pretending to always have
+		// an odometer reading. Users became accustomed to seeing the associated events, even
+		// though we mostly don't have odometer readings for AutoPis. For now, we fake it.
 		newOdometer = null.Float64From(0.0)
 	}
 
@@ -145,7 +148,7 @@ func (i *IngestService) processEvent(event *DeviceStatusEvent) error {
 		datum = &models.UserDeviceDatum{UserDeviceID: userDeviceID, IntegrationID: integration.ID}
 	}
 
-	i.processOdometer(datum, newOdometer, device, integrationID)
+	i.processOdometer(datum, newOdometer, device, integration.ID)
 
 	switch integration.Vendor {
 	case SmartCarVendor, TeslaVendor:
@@ -155,7 +158,29 @@ func (i *IngestService) processEvent(event *DeviceStatusEvent) error {
 		} else {
 			datum.ErrorData = null.JSONFrom(event.Data)
 		}
+	// Again, most AutoPis don't have decoded odometer readings, so just let updates through.
+	case AutoPiVendor:
+		// Not every AutoPi update has every signal. Merge the new into the old.
+		compositeData := make(map[string]any)
+		if err := datum.Data.Unmarshal(&compositeData); err != nil {
+			return err
+		}
+
+		// This will preserve any mappings with keys present in datum.Data but not in
+		// event.Data, but mappings in event.Data take precedence.
+		//
+		// For example, if in the database we have {A: 1, B: 2} and the new event has
+		// {B: 4, C: 9} then the result should be {A: 1, B: 4, C: 9}.
+		if err := json.Unmarshal(event.Data, &compositeData); err != nil {
+			return err
+		}
+
+		if err := datum.Data.Marshal(compositeData); err != nil {
+			return err
+		}
+		datum.ErrorData = null.JSON{}
 	default:
+		// Not sure what this is.
 		datum.Data = null.JSONFrom(event.Data)
 		datum.ErrorData = null.JSON{}
 	}
@@ -184,7 +209,7 @@ func (i *IngestService) processEvent(event *DeviceStatusEvent) error {
 //      - the incoming status update has an odometer value, and
 //      - the old status update lacks an odometer value, or has an odometer value that differs from
 //        the new odometer reading
-func (i *IngestService) processOdometer(datum *models.UserDeviceDatum, newOdometer null.Float64, device *models.UserDevice, integrationID string) {
+func (i *DeviceStatusIngestService) processOdometer(datum *models.UserDeviceDatum, newOdometer null.Float64, device *models.UserDevice, integrationID string) {
 	if !newOdometer.Valid {
 		return
 	}
@@ -206,7 +231,7 @@ func (i *IngestService) processOdometer(datum *models.UserDeviceDatum, newOdomet
 	}
 }
 
-func (i *IngestService) emitOdometerEvent(device *models.UserDevice, integrationID string, odometer float64) {
+func (i *DeviceStatusIngestService) emitOdometerEvent(device *models.UserDevice, integrationID string, odometer float64) {
 	event := &Event{
 		Type:    "com.dimo.zone.device.odometer.update",
 		Subject: device.ID,
@@ -242,9 +267,9 @@ func extractOdometer(data []byte) (float64, error) {
 	return *partialData.Odometer, nil
 }
 
-func (i *IngestService) getIntegrationFromEvent(event *DeviceStatusEvent) (*models.Integration, error) {
+func (i *DeviceStatusIngestService) getIntegrationFromEvent(event *DeviceStatusEvent) (*models.Integration, error) {
 	for _, integration := range i.integrations {
-		if strings.Contains(event.Source, integration.ID) {
+		if strings.HasSuffix(event.Source, integration.ID) {
 			return integration, nil
 		}
 	}
