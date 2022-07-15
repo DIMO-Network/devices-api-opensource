@@ -218,8 +218,13 @@ func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
 		logger.Err(err).Msg("error finding user device autopi integration")
 		return err
 	}
+	apUnit, err := models.AutopiUnits(models.AutopiUnitWhere.DeviceID.EQ(udai.ExternalID), models.AutopiUnitWhere.UserID.EQ(userID)).
+		One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		return err
+	}
 	// call autopi
-	commandResponse, err := udc.autoPiSvc.CommandRaw(c.Context(), udai.ExternalID.String, req.Command, userDeviceID)
+	commandResponse, err := udc.autoPiSvc.CommandRaw(c.Context(), apUnit.UnitID, apUnit.DeviceID.String, req.Command, userDeviceID)
 	if err != nil {
 		logger.Err(err).Msg("autopi returned error when calling raw command")
 		return errors.Wrapf(err, "autopi returned error when calling raw command: %s", req.Command)
@@ -683,14 +688,18 @@ func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 	deviceID := ""
 	userDeviceID := ""
 	// check if unitId has already been assigned to a different user - don't allow querying in this case
-	udai, _ := udc.autoPiSvc.GetUserDeviceIntegrationByUnitID(c.Context(), unitID)
-	if udai != nil {
-		if udai.R.UserDevice.UserID != userID {
+	autopiUnit, _ := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, unitID)
+	if autopiUnit != nil {
+		if autopiUnit.UserID != userID {
 			return c.SendStatus(fiber.StatusForbidden)
 		}
-		deviceID = udai.ExternalID.String
-		userDeviceID = udai.UserDeviceID
+		deviceID = autopiUnit.DeviceID.String
+		udai, _ := udc.autoPiSvc.GetUserDeviceIntegrationByUnitID(c.Context(), unitID)
+		if udai != nil {
+			userDeviceID = udai.UserDeviceID
+		}
 	}
+	// get the deviceID if not set
 	if len(deviceID) == 0 {
 		unit, err := udc.autoPiSvc.GetDeviceByUnitID(unitID)
 		if err != nil {
@@ -698,8 +707,20 @@ func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 		}
 		deviceID = unit.ID
 	}
+	// insert autopi unit if not claimed
+	if autopiUnit == nil {
+		autopiUnit = &models.AutopiUnit{
+			UnitID:   unitID,
+			DeviceID: null.StringFrom(deviceID),
+			UserID:   userID,
+		}
+		err := autopiUnit.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
+		if err != nil {
+			return err
+		}
+	}
 	// send command without webhook since we'll just query the jobid
-	commandResponse, err := udc.autoPiSvc.CommandRaw(c.Context(), deviceID, "test.ping", userDeviceID)
+	commandResponse, err := udc.autoPiSvc.CommandRaw(c.Context(), unitID, deviceID, "test.ping", userDeviceID)
 	if err != nil {
 		return err
 	}
@@ -752,29 +773,42 @@ func (udc *UserDevicesController) StartAutoPiUpdateTask(c *fiber.Ctx) error {
 	deviceID := ""
 
 	// check if unitId has already been assigned to a different user - don't allow querying in this case
-	udai, _ := udc.autoPiSvc.GetUserDeviceIntegrationByUnitID(c.Context(), unitID)
-	if udai != nil {
-		if udai.R.UserDevice.UserID != userID {
+	autopiUnit, _ := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, unitID)
+	if autopiUnit != nil {
+		if autopiUnit.UserID != userID {
 			return c.SendStatus(fiber.StatusForbidden)
 		}
-		deviceID = udai.ExternalID.String
+		deviceID = autopiUnit.DeviceID.String
+	}
+	// check if device already updated
+	unit, err := udc.autoPiSvc.GetDeviceByUnitID(unitID)
+	if err != nil {
+		return err
+	}
+	if unit.IsUpdated {
+		return c.JSON(services.AutoPiTask{
+			TaskID:      "0",
+			Status:      string(services.Success),
+			Description: "autopi device is already up to date running version " + unit.Release.Version,
+			Code:        200,
+		})
 	}
 	if len(deviceID) == 0 {
-		unit, err := udc.autoPiSvc.GetDeviceByUnitID(unitID)
+		deviceID = unit.ID
+	}
+	// insert autopi unit if not claimed
+	if autopiUnit == nil {
+		autopiUnit = &models.AutopiUnit{
+			UnitID:   unitID,
+			DeviceID: null.StringFrom(deviceID),
+			UserID:   userID,
+		}
+		err = autopiUnit.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
 		if err != nil {
 			return err
 		}
-		deviceID = unit.ID
-		if unit.IsUpdated {
-			return c.JSON(services.AutoPiTask{
-				TaskID:      "0",
-				Status:      string(services.Success),
-				Description: "autopi device is already up to date running version " + unit.Release.Version,
-				Code:        200,
-			})
-		}
 	}
-
+	// fire off task
 	taskID, err := udc.autoPiTaskService.StartAutoPiUpdate(deviceID, userID, unitID)
 	if err != nil {
 		return err
@@ -916,17 +950,30 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "unable to parse body json")
 	}
+	reqBody.ExternalID = strings.ToLower(strings.TrimSpace(reqBody.ExternalID))
 	subLogger := logger.With().Str("autopi_unit_id", reqBody.ExternalID).Logger()
 
-	// check if an existing integration exists for the unitID
-	unitExists, err := models.UserDeviceAPIIntegrations(qm.Where("metadata ->> 'autoPiUnitId' = $1", reqBody.ExternalID),
+	// check if unitId claimed by different user
+	existingUnit, err := models.AutopiUnits(models.AutopiUnitWhere.UnitID.EQ(reqBody.ExternalID)).One(c.Context(), tx)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+	}
+	if existingUnit != nil && existingUnit.UserID != ud.UserID {
+		subLogger.Warn().Msgf("user tried pairing an autopi unit already claimed by user with id: %s", existingUnit.UserID)
+		return fiber.NewError(fiber.StatusBadRequest, "autopi unitID already claimed")
+	}
+
+	// check if an existing Active integration exists for the unitID
+	integrationExists, err := models.UserDeviceAPIIntegrations(qm.Where("metadata ->> 'autoPiUnitId' = $1", reqBody.ExternalID),
 		qm.And("status IN ('Pending', 'PendingFirstData', 'Active')")). // could not get sqlboiler typed qm.AndIn to work
 		Exists(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		return err
 	}
-	if unitExists {
-		subLogger.Warn().Str("autopi_unit_id", reqBody.ExternalID).Msg("user tried pairing an already paired unitID")
+	if integrationExists {
+		subLogger.Warn().Msg("user tried pairing an already paired unitID")
 		return fiber.NewError(fiber.StatusBadRequest, "autopi unitID already paired")
 	}
 
@@ -938,6 +985,18 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	subLogger = subLogger.With().
 		Str("autopi_deviceId", autoPiDevice.ID).
 		Str("original_templateId", strconv.Itoa(autoPiDevice.Template)).Logger()
+	// claim autopi unit for this user
+	if existingUnit == nil {
+		existingUnit = &models.AutopiUnit{
+			UnitID:   reqBody.ExternalID,
+			DeviceID: null.StringFrom(autoPiDevice.ID),
+			UserID:   ud.UserID,
+		}
+		err = existingUnit.Insert(c.Context(), tx, boil.Infer())
+		if err != nil {
+			return err
+		}
+	}
 
 	// validate necessary conditions:
 	//- integration metadata contains AutoPiDefaultTemplateID
@@ -978,6 +1037,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		IntegrationID: integration.ID,
 		ExternalID:    null.StringFrom(autoPiDevice.ID),
 		Status:        models.UserDeviceAPIIntegrationStatusPending,
+		UnitID:        null.StringFrom(existingUnit.UnitID),
 	}
 	err = apiInt.Metadata.Marshal(udMetadata)
 	if err != nil {
@@ -1051,7 +1111,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	}
 	substatus = services.AppliedTemplate
 	// send sync command in case autoPiDevice is on at this moment (should be during initial setup)
-	_, err = udc.autoPiSvc.CommandSyncDevice(c.Context(), autoPiDevice.ID, ud.ID)
+	_, err = udc.autoPiSvc.CommandSyncDevice(c.Context(), autoPiDevice.UnitID, autoPiDevice.ID, ud.ID)
 	if err != nil {
 		subLogger.Err(err).Send()
 		return errors.Wrapf(err, "failed to sync changes to autoPiDevice %s", autoPiDevice.ID)

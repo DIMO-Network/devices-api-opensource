@@ -3,12 +3,14 @@ package services
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"testing"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -134,4 +136,38 @@ func (s *AutoPiAPIServiceTestSuite) TestGetUserDeviceIntegrationByUnitID() {
 	require.NoError(s.T(), err)
 	require.NotNilf(s.T(), udai, "user device integration must not be nil")
 	assert.Equal(s.T(), testUserID, udai.R.UserDevice.UserID)
+}
+
+func (s *AutoPiAPIServiceTestSuite) TestCommandRaw() {
+	// arrange
+	const (
+		testUserID = "123123"
+		unitID     = "431d2e89-46f1-6884-6226-5d1ad20c84d9"
+		deviceID   = "device123"
+		apiURL     = "https://mock.town"
+		jobID      = "321"
+	)
+	_ = test.SetupCreateAutoPiUnit(s.T(), testUserID, unitID, func(s string) *string { return &s }(deviceID), s.pdb)
+	// http client mock
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+	respJSON := fmt.Sprintf(`{ "jid": "%s", "minions": ["minion"]}`, jobID)
+
+	url := fmt.Sprintf("%s/dongle/devices/%s/execute_raw/", apiURL, deviceID)
+	httpmock.RegisterResponder(http.MethodPost, url, httpmock.NewStringResponder(200, respJSON))
+
+	autoPiSvc := NewAutoPiAPIService(&config.Settings{AutoPiAPIToken: "fdff", AutoPiAPIURL: apiURL}, s.pdb.DBS)
+	// call method
+	commandResponse, err := autoPiSvc.CommandRaw(context.Background(), unitID, deviceID, "command", "")
+	require.NoError(s.T(), err)
+	// assert
+	assert.Equal(s.T(), jobID, commandResponse.Jid)
+	assert.Len(s.T(), commandResponse.Minions, 1)
+
+	apJob, err := models.FindAutopiJob(context.Background(), s.pdb.DBS().Writer, jobID)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), unitID, apJob.UnitID.String)
+	assert.Equal(s.T(), "", apJob.UserDeviceID.String)
+	assert.Equal(s.T(), "command", apJob.Command)
+	assert.Equal(s.T(), deviceID, apJob.AutopiDeviceID)
 }

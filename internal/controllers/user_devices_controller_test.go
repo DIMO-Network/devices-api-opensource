@@ -274,7 +274,12 @@ func (s *UserDevicesControllerTestSuite) TestGetMyUserDevices() {
 	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Mach E", 2022, s.pdb)
 	ud := test.SetupCreateUserDevice(s.T(), s.testUserID, dd, nil, s.pdb)
 	integ := test.SetupCreateAutoPiIntegration(s.T(), 10, nil, s.pdb)
-	_ = test.SetupCreateUserDeviceAPIIntegration(s.T(), "123", "device123", ud.ID, integ.ID, s.pdb)
+	const (
+		unitID   = "431d2e89-46f1-6884-6226-5d1ad20c84d9"
+		deviceID = "device123"
+	)
+	_ = test.SetupCreateAutoPiUnit(s.T(), testUserID, unitID, func(s string) *string { return &s }(deviceID), s.pdb)
+	_ = test.SetupCreateUserDeviceAPIIntegration(s.T(), unitID, deviceID, ud.ID, integ.ID, s.pdb)
 
 	request := test.BuildRequest("GET", "/user/devices/me", "")
 	response, _ := s.app.Test(request)

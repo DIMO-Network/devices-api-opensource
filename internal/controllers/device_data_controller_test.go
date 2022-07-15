@@ -63,8 +63,11 @@ func TestUserDevicesController_GetUserDeviceStatus(t *testing.T) {
 		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
 		autoPiInteg := test.SetupCreateAutoPiIntegration(t, 10, nil, pdb)
 		smartCarInt := test.SetupCreateSmartCarIntegration(t, pdb)
-		_ = test.SetupCreateUserDeviceAPIIntegration(t, "123", "device123", ud.ID, autoPiInteg.ID, pdb)
-		_ = test.SetupCreateUserDeviceAPIIntegration(t, "123", "device123", ud.ID, smartCarInt.ID, pdb)
+		const unitID = "431d2e89-46f1-6884-6226-5d1ad20c84d9"
+		const deviceID = "device123"
+		_ = test.SetupCreateAutoPiUnit(t, testUserID, unitID, func(s string) *string { return &s }(deviceID), pdb)
+		_ = test.SetupCreateUserDeviceAPIIntegration(t, unitID, deviceID, ud.ID, autoPiInteg.ID, pdb)
+		_ = test.SetupCreateUserDeviceAPIIntegration(t, unitID, deviceID, ud.ID, smartCarInt.ID, pdb)
 		// SC data setup to  older
 		smartCarData := models.UserDeviceDatum{
 			UserDeviceID:        ud.ID,

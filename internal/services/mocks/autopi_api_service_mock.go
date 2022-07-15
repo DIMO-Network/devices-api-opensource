@@ -65,33 +65,33 @@ func (mr *MockAutoPiAPIServiceMockRecorder) AssociateDeviceToTemplate(deviceID, 
 }
 
 // CommandRaw mocks base method.
-func (m *MockAutoPiAPIService) CommandRaw(ctx context.Context, deviceID, command, userDeviceID string) (*services.AutoPiCommandResponse, error) {
+func (m *MockAutoPiAPIService) CommandRaw(ctx context.Context, unitID, deviceID, command, userDeviceID string) (*services.AutoPiCommandResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CommandRaw", ctx, deviceID, command, userDeviceID)
+	ret := m.ctrl.Call(m, "CommandRaw", ctx, unitID, deviceID, command, userDeviceID)
 	ret0, _ := ret[0].(*services.AutoPiCommandResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CommandRaw indicates an expected call of CommandRaw.
-func (mr *MockAutoPiAPIServiceMockRecorder) CommandRaw(ctx, deviceID, command, userDeviceID interface{}) *gomock.Call {
+func (mr *MockAutoPiAPIServiceMockRecorder) CommandRaw(ctx, unitID, deviceID, command, userDeviceID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CommandRaw", reflect.TypeOf((*MockAutoPiAPIService)(nil).CommandRaw), ctx, deviceID, command, userDeviceID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CommandRaw", reflect.TypeOf((*MockAutoPiAPIService)(nil).CommandRaw), ctx, unitID, deviceID, command, userDeviceID)
 }
 
 // CommandSyncDevice mocks base method.
-func (m *MockAutoPiAPIService) CommandSyncDevice(ctx context.Context, deviceID, userDeviceID string) (*services.AutoPiCommandResponse, error) {
+func (m *MockAutoPiAPIService) CommandSyncDevice(ctx context.Context, unitID, deviceID, userDeviceID string) (*services.AutoPiCommandResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CommandSyncDevice", ctx, deviceID, userDeviceID)
+	ret := m.ctrl.Call(m, "CommandSyncDevice", ctx, unitID, deviceID, userDeviceID)
 	ret0, _ := ret[0].(*services.AutoPiCommandResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CommandSyncDevice indicates an expected call of CommandSyncDevice.
-func (mr *MockAutoPiAPIServiceMockRecorder) CommandSyncDevice(ctx, deviceID, userDeviceID interface{}) *gomock.Call {
+func (mr *MockAutoPiAPIServiceMockRecorder) CommandSyncDevice(ctx, unitID, deviceID, userDeviceID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CommandSyncDevice", reflect.TypeOf((*MockAutoPiAPIService)(nil).CommandSyncDevice), ctx, deviceID, userDeviceID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CommandSyncDevice", reflect.TypeOf((*MockAutoPiAPIService)(nil).CommandSyncDevice), ctx, unitID, deviceID, userDeviceID)
 }
 
 // GetCommandStatus mocks base method.

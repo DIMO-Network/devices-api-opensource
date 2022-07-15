@@ -34,8 +34,8 @@ type AutoPiAPIService interface {
 	UnassociateDeviceTemplate(deviceID string, templateID int) error
 	AssociateDeviceToTemplate(deviceID string, templateID int) error
 	ApplyTemplate(deviceID string, templateID int) error
-	CommandSyncDevice(ctx context.Context, deviceID, userDeviceID string) (*AutoPiCommandResponse, error)
-	CommandRaw(ctx context.Context, deviceID, command, userDeviceID string) (*AutoPiCommandResponse, error)
+	CommandSyncDevice(ctx context.Context, unitID, deviceID, userDeviceID string) (*AutoPiCommandResponse, error)
+	CommandRaw(ctx context.Context, unitID, deviceID, command, userDeviceID string) (*AutoPiCommandResponse, error)
 	GetCommandStatus(ctx context.Context, jobID string) (*AutoPiCommandJob, *models.AutopiJob, error)
 	GetCommandStatusFromAutoPi(deviceID string, jobID string) ([]byte, error)
 	UpdateJob(ctx context.Context, jobID, newState string) (*models.AutopiJob, error)
@@ -161,12 +161,12 @@ func (a *autoPiAPIService) ApplyTemplate(deviceID string, templateID int) error 
 }
 
 // CommandSyncDevice sends raw command to autopi only if it is online. Invokes syncing the pending changes (eg. template change) on the device.
-func (a *autoPiAPIService) CommandSyncDevice(ctx context.Context, deviceID, userDeviceID string) (*AutoPiCommandResponse, error) {
-	return a.CommandRaw(ctx, deviceID, "state.sls pending", userDeviceID)
+func (a *autoPiAPIService) CommandSyncDevice(ctx context.Context, unitID, deviceID, userDeviceID string) (*AutoPiCommandResponse, error) {
+	return a.CommandRaw(ctx, unitID, deviceID, "state.sls pending", userDeviceID)
 }
 
 // CommandRaw sends raw command to autopi and saves in autopi_jobs. If device is offline command will eventually timeout.
-func (a *autoPiAPIService) CommandRaw(ctx context.Context, deviceID, command, userDeviceID string) (*AutoPiCommandResponse, error) {
+func (a *autoPiAPIService) CommandRaw(ctx context.Context, unitID, deviceID, command, userDeviceID string) (*AutoPiCommandResponse, error) {
 	// todo: whitelist command
 	webhookURL := fmt.Sprintf("%s/v1%s", a.Settings.DeploymentBaseURL, AutoPiWebhookPath)
 	syncCommand := autoPiCommandRequest{
@@ -196,6 +196,7 @@ func (a *autoPiAPIService) CommandRaw(ctx context.Context, deviceID, command, us
 		ID:             d.Jid,
 		Command:        command,
 		AutopiDeviceID: deviceID,
+		UnitID:         null.StringFrom(unitID),
 	}
 	if len(userDeviceID) > 0 {
 		autoPiJob.UserDeviceID = null.StringFrom(userDeviceID)

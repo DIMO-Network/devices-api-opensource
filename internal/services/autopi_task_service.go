@@ -149,7 +149,7 @@ func (ats *autoPiTaskService) ProcessUpdate(ctx context.Context, taskID, deviceI
 		return err
 	}
 	//send command to update device, retry after 1m if get an error
-	cmd, err := ats.autoPiSvc.CommandRaw(ctx, deviceID, "minionutil.update_release", "")
+	cmd, err := ats.autoPiSvc.CommandRaw(ctx, unitID, deviceID, "minionutil.update_release", "")
 	if err != nil {
 		log.Err(err).Msg("failed to call autopi api svc with update command")
 		_ = ats.updateTaskState(taskID, "autopi api call failed", Failure, 500, err)

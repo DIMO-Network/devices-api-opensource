@@ -192,6 +192,15 @@ func SetupCreateUserDevice(t *testing.T, testUserID string, dd *models.DeviceDef
 	return ud
 }
 
+func SetupCreateAutoPiUnit(t *testing.T, userID, unitID string, deviceID *string, pdb database.DbStore) *models.AutopiUnit {
+	au := models.AutopiUnit{UnitID: unitID,
+		UserID: userID, DeviceID: null.StringFromPtr(deviceID),
+	}
+	err := au.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
+	assert.NoError(t, err)
+	return &au
+}
+
 func SetupCreateDeviceIntegration(t *testing.T, dd *models.DeviceDefinition, integration models.Integration, pdb database.DbStore) {
 	di := models.DeviceIntegration{
 		DeviceDefinitionID: dd.ID,
@@ -265,6 +274,7 @@ func SetupCreateUserDeviceAPIIntegration(t *testing.T, autoPiUnitID, externalID,
 	}
 	if autoPiUnitID != "" {
 		md := fmt.Sprintf(`{"autoPiUnitId": "%s"}`, autoPiUnitID)
+		udapiInt.UnitID = null.StringFrom(autoPiUnitID)
 		_ = udapiInt.Metadata.UnmarshalJSON([]byte(md))
 	}
 	err := udapiInt.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
