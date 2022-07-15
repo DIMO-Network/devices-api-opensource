@@ -196,7 +196,7 @@ func (a *autoPiAPIService) CommandRaw(ctx context.Context, unitID, deviceID, com
 		ID:             d.Jid,
 		Command:        command,
 		AutopiDeviceID: deviceID,
-		UnitID:         null.StringFrom(unitID),
+		AutopiUnitID:   null.StringFrom(unitID),
 	}
 	if len(userDeviceID) > 0 {
 		autoPiJob.UserDeviceID = null.StringFrom(userDeviceID)

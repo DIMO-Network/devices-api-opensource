@@ -24,80 +24,80 @@ import (
 
 // AutopiUnit is an object representing the database table.
 type AutopiUnit struct {
-	UnitID     string      `boil:"unit_id" json:"unit_id" toml:"unit_id" yaml:"unit_id"`
-	DeviceID   null.String `boil:"device_id" json:"device_id,omitempty" toml:"device_id" yaml:"device_id,omitempty"`
-	UserID     string      `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
-	NFTAddress string      `boil:"nft_address" json:"nft_address" toml:"nft_address" yaml:"nft_address"`
-	CreatedAt  time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt  time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	AutopiUnitID   string      `boil:"autopi_unit_id" json:"autopi_unit_id" toml:"autopi_unit_id" yaml:"autopi_unit_id"`
+	AutopiDeviceID null.String `boil:"autopi_device_id" json:"autopi_device_id,omitempty" toml:"autopi_device_id" yaml:"autopi_device_id,omitempty"`
+	UserID         string      `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
+	NFTAddress     null.String `boil:"nft_address" json:"nft_address,omitempty" toml:"nft_address" yaml:"nft_address,omitempty"`
+	CreatedAt      time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt      time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 
 	R *autopiUnitR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L autopiUnitL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var AutopiUnitColumns = struct {
-	UnitID     string
-	DeviceID   string
-	UserID     string
-	NFTAddress string
-	CreatedAt  string
-	UpdatedAt  string
+	AutopiUnitID   string
+	AutopiDeviceID string
+	UserID         string
+	NFTAddress     string
+	CreatedAt      string
+	UpdatedAt      string
 }{
-	UnitID:     "unit_id",
-	DeviceID:   "device_id",
-	UserID:     "user_id",
-	NFTAddress: "nft_address",
-	CreatedAt:  "created_at",
-	UpdatedAt:  "updated_at",
+	AutopiUnitID:   "autopi_unit_id",
+	AutopiDeviceID: "autopi_device_id",
+	UserID:         "user_id",
+	NFTAddress:     "nft_address",
+	CreatedAt:      "created_at",
+	UpdatedAt:      "updated_at",
 }
 
 var AutopiUnitTableColumns = struct {
-	UnitID     string
-	DeviceID   string
-	UserID     string
-	NFTAddress string
-	CreatedAt  string
-	UpdatedAt  string
+	AutopiUnitID   string
+	AutopiDeviceID string
+	UserID         string
+	NFTAddress     string
+	CreatedAt      string
+	UpdatedAt      string
 }{
-	UnitID:     "autopi_units.unit_id",
-	DeviceID:   "autopi_units.device_id",
-	UserID:     "autopi_units.user_id",
-	NFTAddress: "autopi_units.nft_address",
-	CreatedAt:  "autopi_units.created_at",
-	UpdatedAt:  "autopi_units.updated_at",
+	AutopiUnitID:   "autopi_units.autopi_unit_id",
+	AutopiDeviceID: "autopi_units.autopi_device_id",
+	UserID:         "autopi_units.user_id",
+	NFTAddress:     "autopi_units.nft_address",
+	CreatedAt:      "autopi_units.created_at",
+	UpdatedAt:      "autopi_units.updated_at",
 }
 
 // Generated where
 
 var AutopiUnitWhere = struct {
-	UnitID     whereHelperstring
-	DeviceID   whereHelpernull_String
-	UserID     whereHelperstring
-	NFTAddress whereHelperstring
-	CreatedAt  whereHelpertime_Time
-	UpdatedAt  whereHelpertime_Time
+	AutopiUnitID   whereHelperstring
+	AutopiDeviceID whereHelpernull_String
+	UserID         whereHelperstring
+	NFTAddress     whereHelpernull_String
+	CreatedAt      whereHelpertime_Time
+	UpdatedAt      whereHelpertime_Time
 }{
-	UnitID:     whereHelperstring{field: "\"devices_api\".\"autopi_units\".\"unit_id\""},
-	DeviceID:   whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"device_id\""},
-	UserID:     whereHelperstring{field: "\"devices_api\".\"autopi_units\".\"user_id\""},
-	NFTAddress: whereHelperstring{field: "\"devices_api\".\"autopi_units\".\"nft_address\""},
-	CreatedAt:  whereHelpertime_Time{field: "\"devices_api\".\"autopi_units\".\"created_at\""},
-	UpdatedAt:  whereHelpertime_Time{field: "\"devices_api\".\"autopi_units\".\"updated_at\""},
+	AutopiUnitID:   whereHelperstring{field: "\"devices_api\".\"autopi_units\".\"autopi_unit_id\""},
+	AutopiDeviceID: whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"autopi_device_id\""},
+	UserID:         whereHelperstring{field: "\"devices_api\".\"autopi_units\".\"user_id\""},
+	NFTAddress:     whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"nft_address\""},
+	CreatedAt:      whereHelpertime_Time{field: "\"devices_api\".\"autopi_units\".\"created_at\""},
+	UpdatedAt:      whereHelpertime_Time{field: "\"devices_api\".\"autopi_units\".\"updated_at\""},
 }
 
 // AutopiUnitRels is where relationship names are stored.
 var AutopiUnitRels = struct {
-	UnitAutopiJobs                string
-	UnitUserDeviceAPIIntegrations string
+	AutopiJobs                string
+	UserDeviceAPIIntegrations string
 }{
-	UnitAutopiJobs:                "UnitAutopiJobs",
-	UnitUserDeviceAPIIntegrations: "UnitUserDeviceAPIIntegrations",
+	AutopiJobs:                "AutopiJobs",
+	UserDeviceAPIIntegrations: "UserDeviceAPIIntegrations",
 }
 
 // autopiUnitR is where relationships are stored.
 type autopiUnitR struct {
-	UnitAutopiJobs                AutopiJobSlice                `boil:"UnitAutopiJobs" json:"UnitAutopiJobs" toml:"UnitAutopiJobs" yaml:"UnitAutopiJobs"`
-	UnitUserDeviceAPIIntegrations UserDeviceAPIIntegrationSlice `boil:"UnitUserDeviceAPIIntegrations" json:"UnitUserDeviceAPIIntegrations" toml:"UnitUserDeviceAPIIntegrations" yaml:"UnitUserDeviceAPIIntegrations"`
+	AutopiJobs                AutopiJobSlice                `boil:"AutopiJobs" json:"AutopiJobs" toml:"AutopiJobs" yaml:"AutopiJobs"`
+	UserDeviceAPIIntegrations UserDeviceAPIIntegrationSlice `boil:"UserDeviceAPIIntegrations" json:"UserDeviceAPIIntegrations" toml:"UserDeviceAPIIntegrations" yaml:"UserDeviceAPIIntegrations"`
 }
 
 // NewStruct creates a new relationship struct
@@ -109,10 +109,10 @@ func (*autopiUnitR) NewStruct() *autopiUnitR {
 type autopiUnitL struct{}
 
 var (
-	autopiUnitAllColumns            = []string{"unit_id", "device_id", "user_id", "nft_address", "created_at", "updated_at"}
-	autopiUnitColumnsWithoutDefault = []string{"unit_id", "user_id", "nft_address"}
-	autopiUnitColumnsWithDefault    = []string{"device_id", "created_at", "updated_at"}
-	autopiUnitPrimaryKeyColumns     = []string{"unit_id"}
+	autopiUnitAllColumns            = []string{"autopi_unit_id", "autopi_device_id", "user_id", "nft_address", "created_at", "updated_at"}
+	autopiUnitColumnsWithoutDefault = []string{"autopi_unit_id", "user_id"}
+	autopiUnitColumnsWithDefault    = []string{"autopi_device_id", "nft_address", "created_at", "updated_at"}
+	autopiUnitPrimaryKeyColumns     = []string{"autopi_unit_id"}
 	autopiUnitGeneratedColumns      = []string{}
 )
 
@@ -394,15 +394,15 @@ func (q autopiUnitQuery) Exists(ctx context.Context, exec boil.ContextExecutor) 
 	return count > 0, nil
 }
 
-// UnitAutopiJobs retrieves all the autopi_job's AutopiJobs with an executor via unit_id column.
-func (o *AutopiUnit) UnitAutopiJobs(mods ...qm.QueryMod) autopiJobQuery {
+// AutopiJobs retrieves all the autopi_job's AutopiJobs with an executor.
+func (o *AutopiUnit) AutopiJobs(mods ...qm.QueryMod) autopiJobQuery {
 	var queryMods []qm.QueryMod
 	if len(mods) != 0 {
 		queryMods = append(queryMods, mods...)
 	}
 
 	queryMods = append(queryMods,
-		qm.Where("\"devices_api\".\"autopi_jobs\".\"unit_id\"=?", o.UnitID),
+		qm.Where("\"devices_api\".\"autopi_jobs\".\"autopi_unit_id\"=?", o.AutopiUnitID),
 	)
 
 	query := AutopiJobs(queryMods...)
@@ -415,15 +415,15 @@ func (o *AutopiUnit) UnitAutopiJobs(mods ...qm.QueryMod) autopiJobQuery {
 	return query
 }
 
-// UnitUserDeviceAPIIntegrations retrieves all the user_device_api_integration's UserDeviceAPIIntegrations with an executor via unit_id column.
-func (o *AutopiUnit) UnitUserDeviceAPIIntegrations(mods ...qm.QueryMod) userDeviceAPIIntegrationQuery {
+// UserDeviceAPIIntegrations retrieves all the user_device_api_integration's UserDeviceAPIIntegrations with an executor.
+func (o *AutopiUnit) UserDeviceAPIIntegrations(mods ...qm.QueryMod) userDeviceAPIIntegrationQuery {
 	var queryMods []qm.QueryMod
 	if len(mods) != 0 {
 		queryMods = append(queryMods, mods...)
 	}
 
 	queryMods = append(queryMods,
-		qm.Where("\"devices_api\".\"user_device_api_integrations\".\"unit_id\"=?", o.UnitID),
+		qm.Where("\"devices_api\".\"user_device_api_integrations\".\"autopi_unit_id\"=?", o.AutopiUnitID),
 	)
 
 	query := UserDeviceAPIIntegrations(queryMods...)
@@ -436,9 +436,9 @@ func (o *AutopiUnit) UnitUserDeviceAPIIntegrations(mods ...qm.QueryMod) userDevi
 	return query
 }
 
-// LoadUnitAutopiJobs allows an eager lookup of values, cached into the
+// LoadAutopiJobs allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for a 1-M or N-M relationship.
-func (autopiUnitL) LoadUnitAutopiJobs(ctx context.Context, e boil.ContextExecutor, singular bool, maybeAutopiUnit interface{}, mods queries.Applicator) error {
+func (autopiUnitL) LoadAutopiJobs(ctx context.Context, e boil.ContextExecutor, singular bool, maybeAutopiUnit interface{}, mods queries.Applicator) error {
 	var slice []*AutopiUnit
 	var object *AutopiUnit
 
@@ -453,7 +453,7 @@ func (autopiUnitL) LoadUnitAutopiJobs(ctx context.Context, e boil.ContextExecuto
 		if object.R == nil {
 			object.R = &autopiUnitR{}
 		}
-		args = append(args, object.UnitID)
+		args = append(args, object.AutopiUnitID)
 	} else {
 	Outer:
 		for _, obj := range slice {
@@ -462,12 +462,12 @@ func (autopiUnitL) LoadUnitAutopiJobs(ctx context.Context, e boil.ContextExecuto
 			}
 
 			for _, a := range args {
-				if queries.Equal(a, obj.UnitID) {
+				if queries.Equal(a, obj.AutopiUnitID) {
 					continue Outer
 				}
 			}
 
-			args = append(args, obj.UnitID)
+			args = append(args, obj.AutopiUnitID)
 		}
 	}
 
@@ -477,7 +477,7 @@ func (autopiUnitL) LoadUnitAutopiJobs(ctx context.Context, e boil.ContextExecuto
 
 	query := NewQuery(
 		qm.From(`devices_api.autopi_jobs`),
-		qm.WhereIn(`devices_api.autopi_jobs.unit_id in ?`, args...),
+		qm.WhereIn(`devices_api.autopi_jobs.autopi_unit_id in ?`, args...),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -508,24 +508,24 @@ func (autopiUnitL) LoadUnitAutopiJobs(ctx context.Context, e boil.ContextExecuto
 		}
 	}
 	if singular {
-		object.R.UnitAutopiJobs = resultSlice
+		object.R.AutopiJobs = resultSlice
 		for _, foreign := range resultSlice {
 			if foreign.R == nil {
 				foreign.R = &autopiJobR{}
 			}
-			foreign.R.Unit = object
+			foreign.R.AutopiUnit = object
 		}
 		return nil
 	}
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
-			if queries.Equal(local.UnitID, foreign.UnitID) {
-				local.R.UnitAutopiJobs = append(local.R.UnitAutopiJobs, foreign)
+			if queries.Equal(local.AutopiUnitID, foreign.AutopiUnitID) {
+				local.R.AutopiJobs = append(local.R.AutopiJobs, foreign)
 				if foreign.R == nil {
 					foreign.R = &autopiJobR{}
 				}
-				foreign.R.Unit = local
+				foreign.R.AutopiUnit = local
 				break
 			}
 		}
@@ -534,9 +534,9 @@ func (autopiUnitL) LoadUnitAutopiJobs(ctx context.Context, e boil.ContextExecuto
 	return nil
 }
 
-// LoadUnitUserDeviceAPIIntegrations allows an eager lookup of values, cached into the
+// LoadUserDeviceAPIIntegrations allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for a 1-M or N-M relationship.
-func (autopiUnitL) LoadUnitUserDeviceAPIIntegrations(ctx context.Context, e boil.ContextExecutor, singular bool, maybeAutopiUnit interface{}, mods queries.Applicator) error {
+func (autopiUnitL) LoadUserDeviceAPIIntegrations(ctx context.Context, e boil.ContextExecutor, singular bool, maybeAutopiUnit interface{}, mods queries.Applicator) error {
 	var slice []*AutopiUnit
 	var object *AutopiUnit
 
@@ -551,7 +551,7 @@ func (autopiUnitL) LoadUnitUserDeviceAPIIntegrations(ctx context.Context, e boil
 		if object.R == nil {
 			object.R = &autopiUnitR{}
 		}
-		args = append(args, object.UnitID)
+		args = append(args, object.AutopiUnitID)
 	} else {
 	Outer:
 		for _, obj := range slice {
@@ -560,12 +560,12 @@ func (autopiUnitL) LoadUnitUserDeviceAPIIntegrations(ctx context.Context, e boil
 			}
 
 			for _, a := range args {
-				if queries.Equal(a, obj.UnitID) {
+				if queries.Equal(a, obj.AutopiUnitID) {
 					continue Outer
 				}
 			}
 
-			args = append(args, obj.UnitID)
+			args = append(args, obj.AutopiUnitID)
 		}
 	}
 
@@ -575,7 +575,7 @@ func (autopiUnitL) LoadUnitUserDeviceAPIIntegrations(ctx context.Context, e boil
 
 	query := NewQuery(
 		qm.From(`devices_api.user_device_api_integrations`),
-		qm.WhereIn(`devices_api.user_device_api_integrations.unit_id in ?`, args...),
+		qm.WhereIn(`devices_api.user_device_api_integrations.autopi_unit_id in ?`, args...),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -606,24 +606,24 @@ func (autopiUnitL) LoadUnitUserDeviceAPIIntegrations(ctx context.Context, e boil
 		}
 	}
 	if singular {
-		object.R.UnitUserDeviceAPIIntegrations = resultSlice
+		object.R.UserDeviceAPIIntegrations = resultSlice
 		for _, foreign := range resultSlice {
 			if foreign.R == nil {
 				foreign.R = &userDeviceAPIIntegrationR{}
 			}
-			foreign.R.Unit = object
+			foreign.R.AutopiUnit = object
 		}
 		return nil
 	}
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
-			if queries.Equal(local.UnitID, foreign.UnitID) {
-				local.R.UnitUserDeviceAPIIntegrations = append(local.R.UnitUserDeviceAPIIntegrations, foreign)
+			if queries.Equal(local.AutopiUnitID, foreign.AutopiUnitID) {
+				local.R.UserDeviceAPIIntegrations = append(local.R.UserDeviceAPIIntegrations, foreign)
 				if foreign.R == nil {
 					foreign.R = &userDeviceAPIIntegrationR{}
 				}
-				foreign.R.Unit = local
+				foreign.R.AutopiUnit = local
 				break
 			}
 		}
@@ -632,25 +632,25 @@ func (autopiUnitL) LoadUnitUserDeviceAPIIntegrations(ctx context.Context, e boil
 	return nil
 }
 
-// AddUnitAutopiJobs adds the given related objects to the existing relationships
+// AddAutopiJobs adds the given related objects to the existing relationships
 // of the autopi_unit, optionally inserting them as new records.
-// Appends related to o.R.UnitAutopiJobs.
-// Sets related.R.Unit appropriately.
-func (o *AutopiUnit) AddUnitAutopiJobs(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*AutopiJob) error {
+// Appends related to o.R.AutopiJobs.
+// Sets related.R.AutopiUnit appropriately.
+func (o *AutopiUnit) AddAutopiJobs(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*AutopiJob) error {
 	var err error
 	for _, rel := range related {
 		if insert {
-			queries.Assign(&rel.UnitID, o.UnitID)
+			queries.Assign(&rel.AutopiUnitID, o.AutopiUnitID)
 			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
 				return errors.Wrap(err, "failed to insert into foreign table")
 			}
 		} else {
 			updateQuery := fmt.Sprintf(
 				"UPDATE \"devices_api\".\"autopi_jobs\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 1, []string{"unit_id"}),
+				strmangle.SetParamNames("\"", "\"", 1, []string{"autopi_unit_id"}),
 				strmangle.WhereClause("\"", "\"", 2, autopiJobPrimaryKeyColumns),
 			)
-			values := []interface{}{o.UnitID, rel.ID}
+			values := []interface{}{o.AutopiUnitID, rel.ID}
 
 			if boil.IsDebug(ctx) {
 				writer := boil.DebugWriterFrom(ctx)
@@ -661,39 +661,39 @@ func (o *AutopiUnit) AddUnitAutopiJobs(ctx context.Context, exec boil.ContextExe
 				return errors.Wrap(err, "failed to update foreign table")
 			}
 
-			queries.Assign(&rel.UnitID, o.UnitID)
+			queries.Assign(&rel.AutopiUnitID, o.AutopiUnitID)
 		}
 	}
 
 	if o.R == nil {
 		o.R = &autopiUnitR{
-			UnitAutopiJobs: related,
+			AutopiJobs: related,
 		}
 	} else {
-		o.R.UnitAutopiJobs = append(o.R.UnitAutopiJobs, related...)
+		o.R.AutopiJobs = append(o.R.AutopiJobs, related...)
 	}
 
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &autopiJobR{
-				Unit: o,
+				AutopiUnit: o,
 			}
 		} else {
-			rel.R.Unit = o
+			rel.R.AutopiUnit = o
 		}
 	}
 	return nil
 }
 
-// SetUnitAutopiJobs removes all previously related items of the
+// SetAutopiJobs removes all previously related items of the
 // autopi_unit replacing them completely with the passed
 // in related items, optionally inserting them as new records.
-// Sets o.R.Unit's UnitAutopiJobs accordingly.
-// Replaces o.R.UnitAutopiJobs with related.
-// Sets related.R.Unit's UnitAutopiJobs accordingly.
-func (o *AutopiUnit) SetUnitAutopiJobs(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*AutopiJob) error {
-	query := "update \"devices_api\".\"autopi_jobs\" set \"unit_id\" = null where \"unit_id\" = $1"
-	values := []interface{}{o.UnitID}
+// Sets o.R.AutopiUnit's AutopiJobs accordingly.
+// Replaces o.R.AutopiJobs with related.
+// Sets related.R.AutopiUnit's AutopiJobs accordingly.
+func (o *AutopiUnit) SetAutopiJobs(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*AutopiJob) error {
+	query := "update \"devices_api\".\"autopi_jobs\" set \"autopi_unit_id\" = null where \"autopi_unit_id\" = $1"
+	values := []interface{}{o.AutopiUnitID}
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
 		fmt.Fprintln(writer, query)
@@ -705,35 +705,35 @@ func (o *AutopiUnit) SetUnitAutopiJobs(ctx context.Context, exec boil.ContextExe
 	}
 
 	if o.R != nil {
-		for _, rel := range o.R.UnitAutopiJobs {
-			queries.SetScanner(&rel.UnitID, nil)
+		for _, rel := range o.R.AutopiJobs {
+			queries.SetScanner(&rel.AutopiUnitID, nil)
 			if rel.R == nil {
 				continue
 			}
 
-			rel.R.Unit = nil
+			rel.R.AutopiUnit = nil
 		}
 
-		o.R.UnitAutopiJobs = nil
+		o.R.AutopiJobs = nil
 	}
-	return o.AddUnitAutopiJobs(ctx, exec, insert, related...)
+	return o.AddAutopiJobs(ctx, exec, insert, related...)
 }
 
-// RemoveUnitAutopiJobs relationships from objects passed in.
-// Removes related items from R.UnitAutopiJobs (uses pointer comparison, removal does not keep order)
-// Sets related.R.Unit.
-func (o *AutopiUnit) RemoveUnitAutopiJobs(ctx context.Context, exec boil.ContextExecutor, related ...*AutopiJob) error {
+// RemoveAutopiJobs relationships from objects passed in.
+// Removes related items from R.AutopiJobs (uses pointer comparison, removal does not keep order)
+// Sets related.R.AutopiUnit.
+func (o *AutopiUnit) RemoveAutopiJobs(ctx context.Context, exec boil.ContextExecutor, related ...*AutopiJob) error {
 	if len(related) == 0 {
 		return nil
 	}
 
 	var err error
 	for _, rel := range related {
-		queries.SetScanner(&rel.UnitID, nil)
+		queries.SetScanner(&rel.AutopiUnitID, nil)
 		if rel.R != nil {
-			rel.R.Unit = nil
+			rel.R.AutopiUnit = nil
 		}
-		if _, err = rel.Update(ctx, exec, boil.Whitelist("unit_id")); err != nil {
+		if _, err = rel.Update(ctx, exec, boil.Whitelist("autopi_unit_id")); err != nil {
 			return err
 		}
 	}
@@ -742,16 +742,16 @@ func (o *AutopiUnit) RemoveUnitAutopiJobs(ctx context.Context, exec boil.Context
 	}
 
 	for _, rel := range related {
-		for i, ri := range o.R.UnitAutopiJobs {
+		for i, ri := range o.R.AutopiJobs {
 			if rel != ri {
 				continue
 			}
 
-			ln := len(o.R.UnitAutopiJobs)
+			ln := len(o.R.AutopiJobs)
 			if ln > 1 && i < ln-1 {
-				o.R.UnitAutopiJobs[i] = o.R.UnitAutopiJobs[ln-1]
+				o.R.AutopiJobs[i] = o.R.AutopiJobs[ln-1]
 			}
-			o.R.UnitAutopiJobs = o.R.UnitAutopiJobs[:ln-1]
+			o.R.AutopiJobs = o.R.AutopiJobs[:ln-1]
 			break
 		}
 	}
@@ -759,25 +759,25 @@ func (o *AutopiUnit) RemoveUnitAutopiJobs(ctx context.Context, exec boil.Context
 	return nil
 }
 
-// AddUnitUserDeviceAPIIntegrations adds the given related objects to the existing relationships
+// AddUserDeviceAPIIntegrations adds the given related objects to the existing relationships
 // of the autopi_unit, optionally inserting them as new records.
-// Appends related to o.R.UnitUserDeviceAPIIntegrations.
-// Sets related.R.Unit appropriately.
-func (o *AutopiUnit) AddUnitUserDeviceAPIIntegrations(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*UserDeviceAPIIntegration) error {
+// Appends related to o.R.UserDeviceAPIIntegrations.
+// Sets related.R.AutopiUnit appropriately.
+func (o *AutopiUnit) AddUserDeviceAPIIntegrations(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*UserDeviceAPIIntegration) error {
 	var err error
 	for _, rel := range related {
 		if insert {
-			queries.Assign(&rel.UnitID, o.UnitID)
+			queries.Assign(&rel.AutopiUnitID, o.AutopiUnitID)
 			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
 				return errors.Wrap(err, "failed to insert into foreign table")
 			}
 		} else {
 			updateQuery := fmt.Sprintf(
 				"UPDATE \"devices_api\".\"user_device_api_integrations\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 1, []string{"unit_id"}),
+				strmangle.SetParamNames("\"", "\"", 1, []string{"autopi_unit_id"}),
 				strmangle.WhereClause("\"", "\"", 2, userDeviceAPIIntegrationPrimaryKeyColumns),
 			)
-			values := []interface{}{o.UnitID, rel.UserDeviceID, rel.IntegrationID}
+			values := []interface{}{o.AutopiUnitID, rel.UserDeviceID, rel.IntegrationID}
 
 			if boil.IsDebug(ctx) {
 				writer := boil.DebugWriterFrom(ctx)
@@ -788,39 +788,39 @@ func (o *AutopiUnit) AddUnitUserDeviceAPIIntegrations(ctx context.Context, exec 
 				return errors.Wrap(err, "failed to update foreign table")
 			}
 
-			queries.Assign(&rel.UnitID, o.UnitID)
+			queries.Assign(&rel.AutopiUnitID, o.AutopiUnitID)
 		}
 	}
 
 	if o.R == nil {
 		o.R = &autopiUnitR{
-			UnitUserDeviceAPIIntegrations: related,
+			UserDeviceAPIIntegrations: related,
 		}
 	} else {
-		o.R.UnitUserDeviceAPIIntegrations = append(o.R.UnitUserDeviceAPIIntegrations, related...)
+		o.R.UserDeviceAPIIntegrations = append(o.R.UserDeviceAPIIntegrations, related...)
 	}
 
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &userDeviceAPIIntegrationR{
-				Unit: o,
+				AutopiUnit: o,
 			}
 		} else {
-			rel.R.Unit = o
+			rel.R.AutopiUnit = o
 		}
 	}
 	return nil
 }
 
-// SetUnitUserDeviceAPIIntegrations removes all previously related items of the
+// SetUserDeviceAPIIntegrations removes all previously related items of the
 // autopi_unit replacing them completely with the passed
 // in related items, optionally inserting them as new records.
-// Sets o.R.Unit's UnitUserDeviceAPIIntegrations accordingly.
-// Replaces o.R.UnitUserDeviceAPIIntegrations with related.
-// Sets related.R.Unit's UnitUserDeviceAPIIntegrations accordingly.
-func (o *AutopiUnit) SetUnitUserDeviceAPIIntegrations(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*UserDeviceAPIIntegration) error {
-	query := "update \"devices_api\".\"user_device_api_integrations\" set \"unit_id\" = null where \"unit_id\" = $1"
-	values := []interface{}{o.UnitID}
+// Sets o.R.AutopiUnit's UserDeviceAPIIntegrations accordingly.
+// Replaces o.R.UserDeviceAPIIntegrations with related.
+// Sets related.R.AutopiUnit's UserDeviceAPIIntegrations accordingly.
+func (o *AutopiUnit) SetUserDeviceAPIIntegrations(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*UserDeviceAPIIntegration) error {
+	query := "update \"devices_api\".\"user_device_api_integrations\" set \"autopi_unit_id\" = null where \"autopi_unit_id\" = $1"
+	values := []interface{}{o.AutopiUnitID}
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
 		fmt.Fprintln(writer, query)
@@ -832,35 +832,35 @@ func (o *AutopiUnit) SetUnitUserDeviceAPIIntegrations(ctx context.Context, exec 
 	}
 
 	if o.R != nil {
-		for _, rel := range o.R.UnitUserDeviceAPIIntegrations {
-			queries.SetScanner(&rel.UnitID, nil)
+		for _, rel := range o.R.UserDeviceAPIIntegrations {
+			queries.SetScanner(&rel.AutopiUnitID, nil)
 			if rel.R == nil {
 				continue
 			}
 
-			rel.R.Unit = nil
+			rel.R.AutopiUnit = nil
 		}
 
-		o.R.UnitUserDeviceAPIIntegrations = nil
+		o.R.UserDeviceAPIIntegrations = nil
 	}
-	return o.AddUnitUserDeviceAPIIntegrations(ctx, exec, insert, related...)
+	return o.AddUserDeviceAPIIntegrations(ctx, exec, insert, related...)
 }
 
-// RemoveUnitUserDeviceAPIIntegrations relationships from objects passed in.
-// Removes related items from R.UnitUserDeviceAPIIntegrations (uses pointer comparison, removal does not keep order)
-// Sets related.R.Unit.
-func (o *AutopiUnit) RemoveUnitUserDeviceAPIIntegrations(ctx context.Context, exec boil.ContextExecutor, related ...*UserDeviceAPIIntegration) error {
+// RemoveUserDeviceAPIIntegrations relationships from objects passed in.
+// Removes related items from R.UserDeviceAPIIntegrations (uses pointer comparison, removal does not keep order)
+// Sets related.R.AutopiUnit.
+func (o *AutopiUnit) RemoveUserDeviceAPIIntegrations(ctx context.Context, exec boil.ContextExecutor, related ...*UserDeviceAPIIntegration) error {
 	if len(related) == 0 {
 		return nil
 	}
 
 	var err error
 	for _, rel := range related {
-		queries.SetScanner(&rel.UnitID, nil)
+		queries.SetScanner(&rel.AutopiUnitID, nil)
 		if rel.R != nil {
-			rel.R.Unit = nil
+			rel.R.AutopiUnit = nil
 		}
-		if _, err = rel.Update(ctx, exec, boil.Whitelist("unit_id")); err != nil {
+		if _, err = rel.Update(ctx, exec, boil.Whitelist("autopi_unit_id")); err != nil {
 			return err
 		}
 	}
@@ -869,16 +869,16 @@ func (o *AutopiUnit) RemoveUnitUserDeviceAPIIntegrations(ctx context.Context, ex
 	}
 
 	for _, rel := range related {
-		for i, ri := range o.R.UnitUserDeviceAPIIntegrations {
+		for i, ri := range o.R.UserDeviceAPIIntegrations {
 			if rel != ri {
 				continue
 			}
 
-			ln := len(o.R.UnitUserDeviceAPIIntegrations)
+			ln := len(o.R.UserDeviceAPIIntegrations)
 			if ln > 1 && i < ln-1 {
-				o.R.UnitUserDeviceAPIIntegrations[i] = o.R.UnitUserDeviceAPIIntegrations[ln-1]
+				o.R.UserDeviceAPIIntegrations[i] = o.R.UserDeviceAPIIntegrations[ln-1]
 			}
-			o.R.UnitUserDeviceAPIIntegrations = o.R.UnitUserDeviceAPIIntegrations[:ln-1]
+			o.R.UserDeviceAPIIntegrations = o.R.UserDeviceAPIIntegrations[:ln-1]
 			break
 		}
 	}
@@ -894,7 +894,7 @@ func AutopiUnits(mods ...qm.QueryMod) autopiUnitQuery {
 
 // FindAutopiUnit retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindAutopiUnit(ctx context.Context, exec boil.ContextExecutor, unitID string, selectCols ...string) (*AutopiUnit, error) {
+func FindAutopiUnit(ctx context.Context, exec boil.ContextExecutor, autopiUnitID string, selectCols ...string) (*AutopiUnit, error) {
 	autopiUnitObj := &AutopiUnit{}
 
 	sel := "*"
@@ -902,10 +902,10 @@ func FindAutopiUnit(ctx context.Context, exec boil.ContextExecutor, unitID strin
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from \"devices_api\".\"autopi_units\" where \"unit_id\"=$1", sel,
+		"select %s from \"devices_api\".\"autopi_units\" where \"autopi_unit_id\"=$1", sel,
 	)
 
-	q := queries.Raw(query, unitID)
+	q := queries.Raw(query, autopiUnitID)
 
 	err := q.Bind(ctx, exec, autopiUnitObj)
 	if err != nil {
@@ -1281,7 +1281,7 @@ func (o *AutopiUnit) Delete(ctx context.Context, exec boil.ContextExecutor) (int
 	}
 
 	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), autopiUnitPrimaryKeyMapping)
-	sql := "DELETE FROM \"devices_api\".\"autopi_units\" WHERE \"unit_id\"=$1"
+	sql := "DELETE FROM \"devices_api\".\"autopi_units\" WHERE \"autopi_unit_id\"=$1"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1378,7 +1378,7 @@ func (o AutopiUnitSlice) DeleteAll(ctx context.Context, exec boil.ContextExecuto
 // Reload refetches the object from the database
 // using the primary keys with an executor.
 func (o *AutopiUnit) Reload(ctx context.Context, exec boil.ContextExecutor) error {
-	ret, err := FindAutopiUnit(ctx, exec, o.UnitID)
+	ret, err := FindAutopiUnit(ctx, exec, o.AutopiUnitID)
 	if err != nil {
 		return err
 	}
@@ -1417,16 +1417,16 @@ func (o *AutopiUnitSlice) ReloadAll(ctx context.Context, exec boil.ContextExecut
 }
 
 // AutopiUnitExists checks if the AutopiUnit row exists.
-func AutopiUnitExists(ctx context.Context, exec boil.ContextExecutor, unitID string) (bool, error) {
+func AutopiUnitExists(ctx context.Context, exec boil.ContextExecutor, autopiUnitID string) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from \"devices_api\".\"autopi_units\" where \"unit_id\"=$1 limit 1)"
+	sql := "select exists(select 1 from \"devices_api\".\"autopi_units\" where \"autopi_unit_id\"=$1 limit 1)"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
 		fmt.Fprintln(writer, sql)
-		fmt.Fprintln(writer, unitID)
+		fmt.Fprintln(writer, autopiUnitID)
 	}
-	row := exec.QueryRowContext(ctx, sql, unitID)
+	row := exec.QueryRowContext(ctx, sql, autopiUnitID)
 
 	err := row.Scan(&exists)
 	if err != nil {

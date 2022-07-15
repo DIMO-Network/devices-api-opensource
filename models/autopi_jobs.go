@@ -32,7 +32,7 @@ type AutopiJob struct {
 	UserDeviceID       null.String `boil:"user_device_id" json:"user_device_id,omitempty" toml:"user_device_id" yaml:"user_device_id,omitempty"`
 	CreatedAt          time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt          time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	UnitID             null.String `boil:"unit_id" json:"unit_id,omitempty" toml:"unit_id" yaml:"unit_id,omitempty"`
+	AutopiUnitID       null.String `boil:"autopi_unit_id" json:"autopi_unit_id,omitempty" toml:"autopi_unit_id" yaml:"autopi_unit_id,omitempty"`
 
 	R *autopiJobR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L autopiJobL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -47,7 +47,7 @@ var AutopiJobColumns = struct {
 	UserDeviceID       string
 	CreatedAt          string
 	UpdatedAt          string
-	UnitID             string
+	AutopiUnitID       string
 }{
 	ID:                 "id",
 	AutopiDeviceID:     "autopi_device_id",
@@ -57,7 +57,7 @@ var AutopiJobColumns = struct {
 	UserDeviceID:       "user_device_id",
 	CreatedAt:          "created_at",
 	UpdatedAt:          "updated_at",
-	UnitID:             "unit_id",
+	AutopiUnitID:       "autopi_unit_id",
 }
 
 var AutopiJobTableColumns = struct {
@@ -69,7 +69,7 @@ var AutopiJobTableColumns = struct {
 	UserDeviceID       string
 	CreatedAt          string
 	UpdatedAt          string
-	UnitID             string
+	AutopiUnitID       string
 }{
 	ID:                 "autopi_jobs.id",
 	AutopiDeviceID:     "autopi_jobs.autopi_device_id",
@@ -79,7 +79,7 @@ var AutopiJobTableColumns = struct {
 	UserDeviceID:       "autopi_jobs.user_device_id",
 	CreatedAt:          "autopi_jobs.created_at",
 	UpdatedAt:          "autopi_jobs.updated_at",
-	UnitID:             "autopi_jobs.unit_id",
+	AutopiUnitID:       "autopi_jobs.autopi_unit_id",
 }
 
 // Generated where
@@ -185,7 +185,7 @@ var AutopiJobWhere = struct {
 	UserDeviceID       whereHelpernull_String
 	CreatedAt          whereHelpertime_Time
 	UpdatedAt          whereHelpertime_Time
-	UnitID             whereHelpernull_String
+	AutopiUnitID       whereHelpernull_String
 }{
 	ID:                 whereHelperstring{field: "\"devices_api\".\"autopi_jobs\".\"id\""},
 	AutopiDeviceID:     whereHelperstring{field: "\"devices_api\".\"autopi_jobs\".\"autopi_device_id\""},
@@ -195,21 +195,21 @@ var AutopiJobWhere = struct {
 	UserDeviceID:       whereHelpernull_String{field: "\"devices_api\".\"autopi_jobs\".\"user_device_id\""},
 	CreatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"autopi_jobs\".\"created_at\""},
 	UpdatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"autopi_jobs\".\"updated_at\""},
-	UnitID:             whereHelpernull_String{field: "\"devices_api\".\"autopi_jobs\".\"unit_id\""},
+	AutopiUnitID:       whereHelpernull_String{field: "\"devices_api\".\"autopi_jobs\".\"autopi_unit_id\""},
 }
 
 // AutopiJobRels is where relationship names are stored.
 var AutopiJobRels = struct {
-	Unit       string
+	AutopiUnit string
 	UserDevice string
 }{
-	Unit:       "Unit",
+	AutopiUnit: "AutopiUnit",
 	UserDevice: "UserDevice",
 }
 
 // autopiJobR is where relationships are stored.
 type autopiJobR struct {
-	Unit       *AutopiUnit `boil:"Unit" json:"Unit" toml:"Unit" yaml:"Unit"`
+	AutopiUnit *AutopiUnit `boil:"AutopiUnit" json:"AutopiUnit" toml:"AutopiUnit" yaml:"AutopiUnit"`
 	UserDevice *UserDevice `boil:"UserDevice" json:"UserDevice" toml:"UserDevice" yaml:"UserDevice"`
 }
 
@@ -222,9 +222,9 @@ func (*autopiJobR) NewStruct() *autopiJobR {
 type autopiJobL struct{}
 
 var (
-	autopiJobAllColumns            = []string{"id", "autopi_device_id", "command", "state", "command_last_updated", "user_device_id", "created_at", "updated_at", "unit_id"}
+	autopiJobAllColumns            = []string{"id", "autopi_device_id", "command", "state", "command_last_updated", "user_device_id", "created_at", "updated_at", "autopi_unit_id"}
 	autopiJobColumnsWithoutDefault = []string{"id", "autopi_device_id", "command"}
-	autopiJobColumnsWithDefault    = []string{"state", "command_last_updated", "user_device_id", "created_at", "updated_at", "unit_id"}
+	autopiJobColumnsWithDefault    = []string{"state", "command_last_updated", "user_device_id", "created_at", "updated_at", "autopi_unit_id"}
 	autopiJobPrimaryKeyColumns     = []string{"id"}
 	autopiJobGeneratedColumns      = []string{}
 )
@@ -507,10 +507,10 @@ func (q autopiJobQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (
 	return count > 0, nil
 }
 
-// Unit pointed to by the foreign key.
-func (o *AutopiJob) Unit(mods ...qm.QueryMod) autopiUnitQuery {
+// AutopiUnit pointed to by the foreign key.
+func (o *AutopiJob) AutopiUnit(mods ...qm.QueryMod) autopiUnitQuery {
 	queryMods := []qm.QueryMod{
-		qm.Where("\"unit_id\" = ?", o.UnitID),
+		qm.Where("\"autopi_unit_id\" = ?", o.AutopiUnitID),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -535,9 +535,9 @@ func (o *AutopiJob) UserDevice(mods ...qm.QueryMod) userDeviceQuery {
 	return query
 }
 
-// LoadUnit allows an eager lookup of values, cached into the
+// LoadAutopiUnit allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for an N-1 relationship.
-func (autopiJobL) LoadUnit(ctx context.Context, e boil.ContextExecutor, singular bool, maybeAutopiJob interface{}, mods queries.Applicator) error {
+func (autopiJobL) LoadAutopiUnit(ctx context.Context, e boil.ContextExecutor, singular bool, maybeAutopiJob interface{}, mods queries.Applicator) error {
 	var slice []*AutopiJob
 	var object *AutopiJob
 
@@ -552,8 +552,8 @@ func (autopiJobL) LoadUnit(ctx context.Context, e boil.ContextExecutor, singular
 		if object.R == nil {
 			object.R = &autopiJobR{}
 		}
-		if !queries.IsNil(object.UnitID) {
-			args = append(args, object.UnitID)
+		if !queries.IsNil(object.AutopiUnitID) {
+			args = append(args, object.AutopiUnitID)
 		}
 
 	} else {
@@ -564,13 +564,13 @@ func (autopiJobL) LoadUnit(ctx context.Context, e boil.ContextExecutor, singular
 			}
 
 			for _, a := range args {
-				if queries.Equal(a, obj.UnitID) {
+				if queries.Equal(a, obj.AutopiUnitID) {
 					continue Outer
 				}
 			}
 
-			if !queries.IsNil(obj.UnitID) {
-				args = append(args, obj.UnitID)
+			if !queries.IsNil(obj.AutopiUnitID) {
+				args = append(args, obj.AutopiUnitID)
 			}
 
 		}
@@ -582,7 +582,7 @@ func (autopiJobL) LoadUnit(ctx context.Context, e boil.ContextExecutor, singular
 
 	query := NewQuery(
 		qm.From(`devices_api.autopi_units`),
-		qm.WhereIn(`devices_api.autopi_units.unit_id in ?`, args...),
+		qm.WhereIn(`devices_api.autopi_units.autopi_unit_id in ?`, args...),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -619,22 +619,22 @@ func (autopiJobL) LoadUnit(ctx context.Context, e boil.ContextExecutor, singular
 
 	if singular {
 		foreign := resultSlice[0]
-		object.R.Unit = foreign
+		object.R.AutopiUnit = foreign
 		if foreign.R == nil {
 			foreign.R = &autopiUnitR{}
 		}
-		foreign.R.UnitAutopiJobs = append(foreign.R.UnitAutopiJobs, object)
+		foreign.R.AutopiJobs = append(foreign.R.AutopiJobs, object)
 		return nil
 	}
 
 	for _, local := range slice {
 		for _, foreign := range resultSlice {
-			if queries.Equal(local.UnitID, foreign.UnitID) {
-				local.R.Unit = foreign
+			if queries.Equal(local.AutopiUnitID, foreign.AutopiUnitID) {
+				local.R.AutopiUnit = foreign
 				if foreign.R == nil {
 					foreign.R = &autopiUnitR{}
 				}
-				foreign.R.UnitAutopiJobs = append(foreign.R.UnitAutopiJobs, local)
+				foreign.R.AutopiJobs = append(foreign.R.AutopiJobs, local)
 				break
 			}
 		}
@@ -751,10 +751,10 @@ func (autopiJobL) LoadUserDevice(ctx context.Context, e boil.ContextExecutor, si
 	return nil
 }
 
-// SetUnit of the autopiJob to the related item.
-// Sets o.R.Unit to related.
-// Adds o to related.R.UnitAutopiJobs.
-func (o *AutopiJob) SetUnit(ctx context.Context, exec boil.ContextExecutor, insert bool, related *AutopiUnit) error {
+// SetAutopiUnit of the autopiJob to the related item.
+// Sets o.R.AutopiUnit to related.
+// Adds o to related.R.AutopiJobs.
+func (o *AutopiJob) SetAutopiUnit(ctx context.Context, exec boil.ContextExecutor, insert bool, related *AutopiUnit) error {
 	var err error
 	if insert {
 		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
@@ -764,10 +764,10 @@ func (o *AutopiJob) SetUnit(ctx context.Context, exec boil.ContextExecutor, inse
 
 	updateQuery := fmt.Sprintf(
 		"UPDATE \"devices_api\".\"autopi_jobs\" SET %s WHERE %s",
-		strmangle.SetParamNames("\"", "\"", 1, []string{"unit_id"}),
+		strmangle.SetParamNames("\"", "\"", 1, []string{"autopi_unit_id"}),
 		strmangle.WhereClause("\"", "\"", 2, autopiJobPrimaryKeyColumns),
 	)
-	values := []interface{}{related.UnitID, o.ID}
+	values := []interface{}{related.AutopiUnitID, o.ID}
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -778,54 +778,54 @@ func (o *AutopiJob) SetUnit(ctx context.Context, exec boil.ContextExecutor, inse
 		return errors.Wrap(err, "failed to update local table")
 	}
 
-	queries.Assign(&o.UnitID, related.UnitID)
+	queries.Assign(&o.AutopiUnitID, related.AutopiUnitID)
 	if o.R == nil {
 		o.R = &autopiJobR{
-			Unit: related,
+			AutopiUnit: related,
 		}
 	} else {
-		o.R.Unit = related
+		o.R.AutopiUnit = related
 	}
 
 	if related.R == nil {
 		related.R = &autopiUnitR{
-			UnitAutopiJobs: AutopiJobSlice{o},
+			AutopiJobs: AutopiJobSlice{o},
 		}
 	} else {
-		related.R.UnitAutopiJobs = append(related.R.UnitAutopiJobs, o)
+		related.R.AutopiJobs = append(related.R.AutopiJobs, o)
 	}
 
 	return nil
 }
 
-// RemoveUnit relationship.
-// Sets o.R.Unit to nil.
+// RemoveAutopiUnit relationship.
+// Sets o.R.AutopiUnit to nil.
 // Removes o from all passed in related items' relationships struct (Optional).
-func (o *AutopiJob) RemoveUnit(ctx context.Context, exec boil.ContextExecutor, related *AutopiUnit) error {
+func (o *AutopiJob) RemoveAutopiUnit(ctx context.Context, exec boil.ContextExecutor, related *AutopiUnit) error {
 	var err error
 
-	queries.SetScanner(&o.UnitID, nil)
-	if _, err = o.Update(ctx, exec, boil.Whitelist("unit_id")); err != nil {
+	queries.SetScanner(&o.AutopiUnitID, nil)
+	if _, err = o.Update(ctx, exec, boil.Whitelist("autopi_unit_id")); err != nil {
 		return errors.Wrap(err, "failed to update local table")
 	}
 
 	if o.R != nil {
-		o.R.Unit = nil
+		o.R.AutopiUnit = nil
 	}
 	if related == nil || related.R == nil {
 		return nil
 	}
 
-	for i, ri := range related.R.UnitAutopiJobs {
-		if queries.Equal(o.UnitID, ri.UnitID) {
+	for i, ri := range related.R.AutopiJobs {
+		if queries.Equal(o.AutopiUnitID, ri.AutopiUnitID) {
 			continue
 		}
 
-		ln := len(related.R.UnitAutopiJobs)
+		ln := len(related.R.AutopiJobs)
 		if ln > 1 && i < ln-1 {
-			related.R.UnitAutopiJobs[i] = related.R.UnitAutopiJobs[ln-1]
+			related.R.AutopiJobs[i] = related.R.AutopiJobs[ln-1]
 		}
-		related.R.UnitAutopiJobs = related.R.UnitAutopiJobs[:ln-1]
+		related.R.AutopiJobs = related.R.AutopiJobs[:ln-1]
 		break
 	}
 	return nil

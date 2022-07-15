@@ -317,7 +317,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi_HappyPath() {
 	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
 	const (
 		jobID     = "123"
-		deviceID  = "device123"
+		deviceID  = "1dd96159-3bb2-9472-91f6-72fe9211cfeb"
 		unitID    = "431d2e89-46f1-6884-6226-5d1ad20c84d9" // note lowercase & 36 char, as we always lowercase input bc that is what autopi uses
 		vehicleID = 123
 		imei      = "IMEI321"
@@ -365,10 +365,10 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi_HappyPath() {
 	require.NoError(s.T(), err)
 
 	assert.Equal(s.T(), deviceID, apiInt.ExternalID.String)
-	assert.Equal(s.T(), unitID, apiInt.UnitID.String)
-	assert.Equal(s.T(), unitID, autoPiUnit.UnitID)
+	assert.Equal(s.T(), unitID, apiInt.AutopiUnitID.String)
+	assert.Equal(s.T(), unitID, autoPiUnit.AutopiUnitID)
 	assert.Equal(s.T(), ud.UserID, autoPiUnit.UserID)
-	assert.Equal(s.T(), deviceID, autoPiUnit.DeviceID.String)
+	assert.Equal(s.T(), deviceID, autoPiUnit.AutopiDeviceID.String)
 	assert.Equal(s.T(), "Pending", apiInt.Status)
 	assert.Equal(s.T(), templateID, *metadata.AutoPiTemplateApplied)
 	assert.Equal(s.T(), unitID, *metadata.AutoPiUnitID)
@@ -392,7 +392,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCustomPowerTrain() {
 	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, &powertrain, s.pdb)
 	const (
 		jobID     = "123"
-		deviceID  = "device123"
+		deviceID  = "1dd96159-3bb2-9472-91f6-72fe9211cfeb"
 		unitID    = "431d2e89-46f1-6884-6226-5d1ad20c84d9"
 		vehicleID = 123
 	)
@@ -452,7 +452,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateD
 	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model 4", 2022, s.pdb)
 	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
 	const (
-		deviceID = "device123"
+		deviceID = "1dd96159-3bb2-9472-91f6-72fe9211cfeb"
 		unitID   = "431d2e89-46f1-6884-6226-5d1ad20c84d9"
 	)
 	_ = test.SetupCreateAutoPiUnit(s.T(), testUserID, unitID, func(s string) *string { return &s }(deviceID), s.pdb)
@@ -484,7 +484,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateD
 	// the other user that already claimed unit
 	_ = test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
 	const (
-		deviceID = "device123"
+		deviceID = "1dd96159-3bb2-9472-91f6-72fe9211cfeb"
 		unitID   = "431d2e89-46f1-6884-6226-5d1ad20c84d9"
 	)
 	_ = test.SetupCreateAutoPiUnit(s.T(), testUserID, unitID, func(s string) *string { return &s }(deviceID), s.pdb)
@@ -517,7 +517,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCommand() {
 	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
 	test.SetupCreateDeviceIntegration(s.T(), dd, integ, s.pdb)
 	const (
-		deviceID = "device123"
+		deviceID = "1dd96159-3bb2-9472-91f6-72fe9211cfeb"
 		unitID   = "431d2e89-46f1-6884-6226-5d1ad20c84d9"
 	)
 	_ = test.SetupCreateAutoPiUnit(s.T(), testUserID, unitID, func(s string) *string { return &s }(deviceID), s.pdb)
@@ -580,8 +580,10 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiCommand() {
 	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model 4", 2022, s.pdb)
 	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
 	test.SetupCreateDeviceIntegration(s.T(), dd, integ, s.pdb)
-	const deviceID = "device123"
-	const jobID = "somepreviousjobId"
+	const (
+		deviceID = "1dd96159-3bb2-9472-91f6-72fe9211cfeb"
+		jobID    = "somepreviousjobId"
+	)
 	_ = test.SetupCreateUserDeviceAPIIntegration(s.T(), "", deviceID, ud.ID, integ.ID, s.pdb)
 
 	lastUpdated := time.Now()
@@ -621,7 +623,7 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiCommandNoResults400()
 	test.SetupCreateDeviceIntegration(s.T(), dd, integ, s.pdb)
 	const (
 		jobID    = "somepreviousjobId2"
-		deviceID = "device123"
+		deviceID = "1dd96159-3bb2-9472-91f6-72fe9211cfeb"
 		unitID   = "431d2e89-46f1-6884-6226-5d1ad20c84d9"
 	)
 	_ = test.SetupCreateAutoPiUnit(s.T(), testUserID, unitID, func(s string) *string { return &s }(deviceID), s.pdb)

@@ -166,7 +166,7 @@ func (s *AutoPiAPIServiceTestSuite) TestCommandRaw() {
 
 	apJob, err := models.FindAutopiJob(context.Background(), s.pdb.DBS().Writer, jobID)
 	require.NoError(s.T(), err)
-	assert.Equal(s.T(), unitID, apJob.UnitID.String)
+	assert.Equal(s.T(), unitID, apJob.AutopiUnitID.String)
 	assert.Equal(s.T(), "", apJob.UserDeviceID.String)
 	assert.Equal(s.T(), "command", apJob.Command)
 	assert.Equal(s.T(), deviceID, apJob.AutopiDeviceID)

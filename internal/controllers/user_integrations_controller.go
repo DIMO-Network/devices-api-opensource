@@ -218,13 +218,13 @@ func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
 		logger.Err(err).Msg("error finding user device autopi integration")
 		return err
 	}
-	apUnit, err := models.AutopiUnits(models.AutopiUnitWhere.DeviceID.EQ(udai.ExternalID), models.AutopiUnitWhere.UserID.EQ(userID)).
+	apUnit, err := models.AutopiUnits(models.AutopiUnitWhere.AutopiDeviceID.EQ(udai.ExternalID), models.AutopiUnitWhere.UserID.EQ(userID)).
 		One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		return err
 	}
 	// call autopi
-	commandResponse, err := udc.autoPiSvc.CommandRaw(c.Context(), apUnit.UnitID, apUnit.DeviceID.String, req.Command, userDeviceID)
+	commandResponse, err := udc.autoPiSvc.CommandRaw(c.Context(), apUnit.AutopiUnitID, apUnit.AutopiDeviceID.String, req.Command, userDeviceID)
 	if err != nil {
 		logger.Err(err).Msg("autopi returned error when calling raw command")
 		return errors.Wrapf(err, "autopi returned error when calling raw command: %s", req.Command)
@@ -693,7 +693,7 @@ func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 		if autopiUnit.UserID != userID {
 			return c.SendStatus(fiber.StatusForbidden)
 		}
-		deviceID = autopiUnit.DeviceID.String
+		deviceID = autopiUnit.AutopiDeviceID.String
 		udai, _ := udc.autoPiSvc.GetUserDeviceIntegrationByUnitID(c.Context(), unitID)
 		if udai != nil {
 			userDeviceID = udai.UserDeviceID
@@ -710,9 +710,9 @@ func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 	// insert autopi unit if not claimed
 	if autopiUnit == nil {
 		autopiUnit = &models.AutopiUnit{
-			UnitID:   unitID,
-			DeviceID: null.StringFrom(deviceID),
-			UserID:   userID,
+			AutopiUnitID:   unitID,
+			AutopiDeviceID: null.StringFrom(deviceID),
+			UserID:         userID,
 		}
 		err := autopiUnit.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
 		if err != nil {
@@ -778,7 +778,7 @@ func (udc *UserDevicesController) StartAutoPiUpdateTask(c *fiber.Ctx) error {
 		if autopiUnit.UserID != userID {
 			return c.SendStatus(fiber.StatusForbidden)
 		}
-		deviceID = autopiUnit.DeviceID.String
+		deviceID = autopiUnit.AutopiDeviceID.String
 	}
 	// check if device already updated
 	unit, err := udc.autoPiSvc.GetDeviceByUnitID(unitID)
@@ -799,9 +799,9 @@ func (udc *UserDevicesController) StartAutoPiUpdateTask(c *fiber.Ctx) error {
 	// insert autopi unit if not claimed
 	if autopiUnit == nil {
 		autopiUnit = &models.AutopiUnit{
-			UnitID:   unitID,
-			DeviceID: null.StringFrom(deviceID),
-			UserID:   userID,
+			AutopiUnitID:   unitID,
+			AutopiDeviceID: null.StringFrom(deviceID),
+			UserID:         userID,
 		}
 		err = autopiUnit.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
 		if err != nil {
@@ -954,7 +954,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	subLogger := logger.With().Str("autopi_unit_id", reqBody.ExternalID).Logger()
 
 	// check if unitId claimed by different user
-	existingUnit, err := models.AutopiUnits(models.AutopiUnitWhere.UnitID.EQ(reqBody.ExternalID)).One(c.Context(), tx)
+	existingUnit, err := models.AutopiUnits(models.AutopiUnitWhere.AutopiUnitID.EQ(reqBody.ExternalID)).One(c.Context(), tx)
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
 			return err
@@ -988,9 +988,9 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	// claim autopi unit for this user
 	if existingUnit == nil {
 		existingUnit = &models.AutopiUnit{
-			UnitID:   reqBody.ExternalID,
-			DeviceID: null.StringFrom(autoPiDevice.ID),
-			UserID:   ud.UserID,
+			AutopiUnitID:   reqBody.ExternalID,
+			AutopiDeviceID: null.StringFrom(autoPiDevice.ID),
+			UserID:         ud.UserID,
 		}
 		err = existingUnit.Insert(c.Context(), tx, boil.Infer())
 		if err != nil {
@@ -1037,7 +1037,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		IntegrationID: integration.ID,
 		ExternalID:    null.StringFrom(autoPiDevice.ID),
 		Status:        models.UserDeviceAPIIntegrationStatusPending,
-		UnitID:        null.StringFrom(existingUnit.UnitID),
+		AutopiUnitID:  null.StringFrom(existingUnit.AutopiUnitID),
 	}
 	err = apiInt.Metadata.Marshal(udMetadata)
 	if err != nil {
