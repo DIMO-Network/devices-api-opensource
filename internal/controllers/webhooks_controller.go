@@ -11,7 +11,6 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/gofiber/fiber/v2"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/tidwall/gjson"
 	"github.com/volatiletech/null/v8"
@@ -63,13 +62,14 @@ func (wc *WebhooksController) ProcessCommand(c *fiber.Ctx) error {
 	autopiJob, err := wc.autoPiSvc.UpdateJob(c.Context(), apwJID.String(), apwState.String())
 	if err != nil {
 		logger.Err(err).Msg("error updating autopi job")
-		return err
+		return c.SendStatus(fiber.StatusNoContent)
 	}
 	// if we can link the autopi job to a device, it could be a job related to an integration registration sync command
 	if !autopiJob.UserDeviceID.IsZero() && autopiJob.Command == "state.sls pending" && strings.EqualFold(apwState.String(), "COMMAND_EXECUTED") {
 		autoPiInteg, err := services.GetOrCreateAutoPiIntegration(c.Context(), wc.dbs().Reader)
 		if err != nil {
-			return err
+			logger.Err(err).Msg("could not create or get autopi integration record")
+			return c.SendStatus(fiber.StatusNoContent)
 		}
 		// we could have situation where there are multiple results, eg. if the AutoPi was moved from one car to another, so order by updated_at desc and grab first
 		apiIntegration, err := models.UserDeviceAPIIntegrations(models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(autoPiInteg.ID),
@@ -77,13 +77,15 @@ func (wc *WebhooksController) ProcessCommand(c *fiber.Ctx) error {
 			models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(autopiJob.UserDeviceID.String),
 			qm.OrderBy("updated_at desc"), qm.Limit(1)).One(c.Context(), wc.dbs().Reader)
 		if err != nil {
-			return err
+			logger.Err(err).Msg("could not get user device api integrations")
+			return c.SendStatus(fiber.StatusNoContent)
 		}
 		// get the metadata so we can update it
 		udMetadata := new(services.UserDeviceAPIIntegrationsMetadata)
 		err = apiIntegration.Metadata.Unmarshal(udMetadata)
 		if err != nil {
-			return errors.Wrapf(err, "failed to unmarshall metadata json for autopi device id %s", apwDeviceID.String())
+			logger.Err(err).Msg("failed to unmarshal user device api integrations metadata column into struct")
+			return c.SendStatus(fiber.StatusNoContent)
 		}
 		// update the integration state, Pending first data means we are succesfully paired and template applied, just waiting for data to stream
 		apiIntegration.Status = models.UserDeviceAPIIntegrationStatusPendingFirstData
@@ -92,18 +94,18 @@ func (wc *WebhooksController) ProcessCommand(c *fiber.Ctx) error {
 		// update database
 		err = apiIntegration.Metadata.Marshal(udMetadata)
 		if err != nil {
-			return errors.Wrap(err, "failed to marshal user device api integration metadata json from autopi webhook")
+			logger.Err(err).Msg("failed to marshal user device api integration metadata json from autopi webhook")
+			return c.SendStatus(fiber.StatusNoContent)
 		}
 		_, err = apiIntegration.Update(c.Context(), wc.dbs().Writer, boil.Whitelist(
 			models.UserDeviceAPIIntegrationColumns.Metadata, models.UserDeviceAPIIntegrationColumns.Status,
 			models.UserDeviceAPIIntegrationColumns.UpdatedAt))
 		if err != nil {
 			logger.Err(err).Msg("failed to save user device integration changes")
-			return errors.Wrap(err, "failed to save user device api changes to db from autopi webhook")
+			return c.SendStatus(fiber.StatusNoContent)
 		}
 	}
-	logger.Info().Msgf("processed webhook successfully, with autopi deviceId %s and jobId %s",
-		apwDeviceID.String(), apwJID.String())
+	logger.Info().Msg("processed webhook successfully")
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
