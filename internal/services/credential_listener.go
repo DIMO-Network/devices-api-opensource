@@ -103,7 +103,7 @@ func (i *CredentialListener) processEvent(event *TeslaCredentialsCloudEventV1V2)
 	// Upon initial connection, there will be message that we sent and there's no point in updating the database.
 	// TODO: Should we ignore these if they're expired?
 	if !integ.AccessToken.Valid || integ.AccessToken.String != accessToken {
-		i.log.Info().Msgf("Saving new credentials for device %s, integration %s", userDeviceID, integrationID)
+		i.log.Debug().Str("userDeviceId", userDeviceID).Str("integrationId", integrationID).Msgf("Saving new credentials.")
 		integ.AccessToken = null.StringFrom(accessToken)
 		integ.RefreshToken = null.StringFrom(refreshToken)
 		integ.AccessExpiresAt = null.TimeFrom(expiry)
