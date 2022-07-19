@@ -4,18 +4,16 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/Shopify/sarama"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
 	"github.com/volatiletech/null/v8"
 )
 
 // remakeAutoPiTopic re-populates the autopi ingest registrar topic based on data we have in user_device_api_integrations
-func remakeAutoPiTopic(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore, producer sarama.SyncProducer) error {
+func remakeAutoPiTopic(ctx context.Context, pdb database.DbStore, producer sarama.SyncProducer) error {
 	reg := services.NewIngestRegistrar(services.AutoPi, producer)
 	db := pdb.DBS().Reader
 

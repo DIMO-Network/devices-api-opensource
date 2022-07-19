@@ -20,6 +20,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/mock/gomock"
 	_ "github.com/lib/pq"
+	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -45,7 +46,7 @@ type UserDevicesControllerTestSuite struct {
 	app          *fiber.App
 	deviceDefSvc *mock_services.MockIDeviceDefinitionService
 	testUserID   string
-	taskSvc      *mock_services.MockITaskService
+	scTaskSvc    *mock_services.MockSmartcarTaskService
 	nhtsaService *mock_services.MockINHTSAService
 }
 
@@ -58,9 +59,8 @@ func (s *UserDevicesControllerTestSuite) SetupSuite() {
 	s.mockCtrl = mockCtrl
 
 	s.deviceDefSvc = mock_services.NewMockIDeviceDefinitionService(mockCtrl)
-	s.taskSvc = mock_services.NewMockITaskService(mockCtrl)
 	scClient := mock_services.NewMockSmartcarClient(mockCtrl)
-	scTaskSvc := mock_services.NewMockSmartcarTaskService(mockCtrl)
+	s.scTaskSvc = mock_services.NewMockSmartcarTaskService(mockCtrl)
 	teslaSvc := mock_services.NewMockTeslaService(mockCtrl)
 	teslaTaskService := mock_services.NewMockTeslaTaskService(mockCtrl)
 	s.nhtsaService = mock_services.NewMockINHTSAService(mockCtrl)
@@ -69,8 +69,8 @@ func (s *UserDevicesControllerTestSuite) SetupSuite() {
 
 	s.testUserID = "123123"
 	testUserID2 := "3232451"
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, logger, s.deviceDefSvc, s.taskSvc,
-		&fakeEventService{}, scClient, scTaskSvc, teslaSvc, teslaTaskService, nil, nil,
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, logger, s.deviceDefSvc,
+		&fakeEventService{}, scClient, s.scTaskSvc, teslaSvc, teslaTaskService, nil, nil,
 		s.nhtsaService, autoPiIngest, autoPiTaskSvc, nil, nil)
 	app := fiber.New()
 	app.Post("/user/devices", test.AuthInjectorTestHandler(s.testUserID), c.RegisterDeviceForUser)
@@ -435,6 +435,7 @@ func (s *UserDevicesControllerTestSuite) TestPostRefreshSmartCar() {
 	ud := test.SetupCreateUserDevice(s.T(), s.testUserID, dd, nil, s.pdb)
 	// arrange some additional data for this to work
 	smartCarInt := test.SetupCreateSmartCarIntegration(s.T(), s.pdb)
+
 	udiai := models.UserDeviceAPIIntegration{
 		UserDeviceID:    ud.ID,
 		IntegrationID:   smartCarInt.ID,
@@ -443,6 +444,7 @@ func (s *UserDevicesControllerTestSuite) TestPostRefreshSmartCar() {
 		AccessExpiresAt: null.TimeFrom(time.Now().Add(time.Duration(10) * time.Hour)),
 		RefreshToken:    null.StringFrom("caca-refresh"),
 		ExternalID:      null.StringFrom("caca-external-id"),
+		TaskID:          null.StringFrom(ksuid.New().String()),
 	}
 	err := udiai.Insert(s.ctx, s.pdb.DBS().Writer, boil.Infer())
 	require.NoError(s.T(), err)
@@ -455,11 +457,23 @@ func (s *UserDevicesControllerTestSuite) TestPostRefreshSmartCar() {
 	}
 	err = udd.Insert(s.ctx, s.pdb.DBS().Writer, boil.Infer())
 	require.NoError(s.T(), err)
+
+	var oUdai *models.UserDeviceAPIIntegration
+
 	// arrange mock
-	s.taskSvc.EXPECT().StartSmartcarRefresh(ud.ID, smartCarInt.ID).Return(nil)
+	s.scTaskSvc.EXPECT().Refresh(gomock.AssignableToTypeOf(oUdai)).DoAndReturn(
+		func(udai *models.UserDeviceAPIIntegration) error {
+			oUdai = udai
+			return nil
+		},
+	)
+
 	payload := `{}`
 	request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/commands/refresh", payload)
-	response, _ := s.app.Test(request)
+	response, err := s.app.Test(request)
+	assert.NoError(s.T(), err)
+
+	assert.Equal(s.T(), ud.ID, oUdai.UserDeviceID)
 
 	if assert.Equal(s.T(), fiber.StatusNoContent, response.StatusCode) == false {
 		body, _ := ioutil.ReadAll(response.Body)

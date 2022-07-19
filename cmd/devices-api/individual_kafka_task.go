@@ -1,19 +1,16 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/Shopify/sarama"
-	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
 )
 
-func stopTaskByKey(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore, taskKey string, producer sarama.SyncProducer) error {
+func stopTaskByKey(settings *config.Settings, taskKey string, producer sarama.SyncProducer) error {
 	tt := struct {
 		services.CloudEventHeaders
 		Data interface{} `json:"data"`

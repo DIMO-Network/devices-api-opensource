@@ -12,7 +12,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/PuerkitoBio/goquery"
@@ -67,7 +66,7 @@ func get(url string, processBody func(io.Reader) error) error {
 	return processBody(resp.Body)
 }
 
-func loadParkersDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore) error {
+func loadParkersDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, pdb database.DbStore) error {
 	var numRanges uint64
 	var numRangesProcessed uint64
 
@@ -187,7 +186,7 @@ func loadParkersDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, s
 							}
 							trimName := s.Text()
 							versionSelector := fmt.Sprintf(`ul[data-derivative-id^="%s-engine_"]`, val)
-							modelDoc.Find(versionSelector).Find("li").Each(func(i int, s *goquery.Selection) {
+							modelDoc.Find(versionSelector).Find("li").Each(func(_ int, s *goquery.Selection) {
 								versionName := s.Text()
 								versionID, exists := s.Attr("value")
 								if !exists {

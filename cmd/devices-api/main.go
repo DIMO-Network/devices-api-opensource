@@ -86,14 +86,14 @@ func main() {
 		migrateDatabase(logger, &settings, command)
 	case "generate-events":
 		eventService := services.NewEventService(&logger, &settings, deps.getKafkaProducer())
-		generateEvents(logger, &settings, pdb, eventService)
+		generateEvents(logger, pdb, eventService)
 	case "set-command-compat":
-		if err := setCommandCompatibility(ctx, logger, &settings, pdb); err != nil {
+		if err := setCommandCompatibility(ctx, &settings, pdb); err != nil {
 			logger.Fatal().Err(err).Msg("Failed during command compatibility fill.")
 		}
 		logger.Info().Msg("Finished setting command compatibility.")
 	case "smartcar-sync":
-		syncSmartCarCompatibility(ctx, logger, &settings, pdb)
+		syncSmartCarCompatibility(ctx, logger, pdb)
 	case "create-tesla-integrations":
 		if err := createTeslaIntegrations(ctx, pdb, &logger); err != nil {
 			logger.Fatal().Err(err).Msg("Failed to create Tesla integrations")
@@ -105,12 +105,12 @@ func main() {
 			logger.Fatal().Err(err).Msg("error trying to sync edmunds")
 		}
 	case "parkers-vehicles-sync":
-		err = loadParkersDeviceDefinitions(ctx, &logger, &settings, pdb)
+		err = loadParkersDeviceDefinitions(ctx, &logger, pdb)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error syncing with Parkers")
 		}
 	case "adac-vehicles-sync":
-		err = loadADACDeviceDefinitions(ctx, &logger, &settings, pdb)
+		err = loadADACDeviceDefinitions(ctx, &logger, pdb)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error syncing with ADAC")
 		}
@@ -128,17 +128,17 @@ func main() {
 		logger.Info().Msgf("Loading edmunds images for device definitions with overwrite: %v", overwrite)
 		loadEdmundsImages(ctx, logger, &settings, pdb, overwrite)
 	case "remake-smartcar-topic":
-		err = remakeSmartcarTopic(ctx, &logger, &settings, pdb, deps.getKafkaProducer())
+		err = remakeSmartcarTopic(ctx, pdb, deps.getKafkaProducer())
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error running Smartcar Kafka re-registration")
 		}
 	case "remake-autopi-topic":
-		err = remakeAutoPiTopic(ctx, &logger, &settings, pdb, deps.getKafkaProducer())
+		err = remakeAutoPiTopic(ctx, pdb, deps.getKafkaProducer())
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error running AutoPi Kafka re-registration")
 		}
 	case "remake-fence-topic":
-		err = remakeFenceTopic(&logger, &settings, pdb, deps.getKafkaProducer())
+		err = remakeFenceTopic(&settings, pdb, deps.getKafkaProducer())
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error running Smartcar Kafka re-registration")
 		}
@@ -151,7 +151,7 @@ func main() {
 	case "populate-usa-powertrain":
 		logger.Info().Msg("Populating USA powertrain data from VINs")
 		nhtsaSvc := services.NewNHTSAService()
-		err := populateUSAPowertrain(ctx, &logger, &settings, pdb, nhtsaSvc)
+		err := populateUSAPowertrain(ctx, &logger, pdb, nhtsaSvc)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error filling in powertrain data.")
 		}
@@ -161,7 +161,7 @@ func main() {
 		}
 		taskKey := os.Args[2]
 		logger.Info().Msgf("Stopping task %s", taskKey)
-		err := stopTaskByKey(ctx, &logger, &settings, pdb, taskKey, deps.getKafkaProducer())
+		err := stopTaskByKey(&settings, taskKey, deps.getKafkaProducer())
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error stopping task.")
 		}

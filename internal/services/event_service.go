@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/shared"
 	"github.com/Shopify/sarama"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
@@ -39,7 +40,7 @@ func NewEventService(logger *zerolog.Logger, settings *config.Settings, producer
 }
 
 func (e *eventService) Emit(event *Event) error {
-	msgBytes, err := json.Marshal(CloudEventMessage{
+	msgBytes, err := json.Marshal(shared.CloudEvent[any]{
 		ID:          ksuid.New().String(),
 		Source:      event.Source,
 		SpecVersion: "1.0",

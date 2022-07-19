@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 
-	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
@@ -12,7 +11,7 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
-func populateUSAPowertrain(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore, nhtsaService services.INHTSAService) error {
+func populateUSAPowertrain(ctx context.Context, logger *zerolog.Logger, pdb database.DbStore, nhtsaService services.INHTSAService) error {
 	devices, err := models.UserDevices(
 		models.UserDeviceWhere.CountryCode.EQ(null.StringFrom("USA")),
 		models.UserDeviceWhere.VinIdentifier.IsNotNull(),

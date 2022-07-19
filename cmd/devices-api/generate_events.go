@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 
-	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/controllers"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
@@ -12,7 +11,7 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
-func generateEvents(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore, eventService services.EventService) {
+func generateEvents(logger zerolog.Logger, pdb database.DbStore, eventService services.EventService) {
 	ctx := context.Background()
 	tx, err := pdb.DBS().Reader.BeginTx(ctx, nil)
 	if err != nil {

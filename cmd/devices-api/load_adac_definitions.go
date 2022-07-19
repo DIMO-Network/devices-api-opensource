@@ -15,7 +15,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/pkg/errors"
@@ -202,7 +201,7 @@ func modelYear(t time.Time) int {
 
 const adacSource = "adac"
 
-func loadADACDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore) error {
+func loadADACDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, pdb database.DbStore) error {
 	client := &ADACClient{
 		HTTPClient: &http.Client{},
 	}

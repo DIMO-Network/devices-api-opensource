@@ -149,7 +149,6 @@ func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
 
 	for _, deviceDatum := range ud.R.UserDeviceData {
 		if deviceDatum.R.Integration.Type == models.IntegrationTypeAPI && deviceDatum.R.Integration.Vendor == services.SmartCarVendor {
-
 			nextAvailableTime := deviceDatum.UpdatedAt.Add(time.Second * time.Duration(deviceDatum.R.Integration.RefreshLimitSecs))
 			if time.Now().Before(nextAvailableTime) {
 				return fiber.NewError(fiber.StatusTooManyRequests, "rate limit for integration refresh hit")
@@ -159,18 +158,15 @@ func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
 			if err != nil {
 				return err
 			}
-			if udai.TaskID.Valid {
+			if udai.Status == models.UserDeviceAPIIntegrationStatusActive && udai.TaskID.Valid {
 				err = udc.smartcarTaskSvc.Refresh(udai)
 				if err != nil {
 					return err
 				}
-			} else {
-				err = udc.taskSvc.StartSmartcarRefresh(udi, deviceDatum.IntegrationID)
-				if err != nil {
-					return err
-				}
+				return c.SendStatus(204)
 			}
-			return c.SendStatus(204)
+
+			return fiber.NewError(fiber.StatusConflict, "Integration not active.")
 		}
 	}
 	return fiber.NewError(fiber.StatusBadRequest, "no active Smartcar integration found for this device")

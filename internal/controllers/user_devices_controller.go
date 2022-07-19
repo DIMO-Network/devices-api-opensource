@@ -46,7 +46,6 @@ type UserDevicesController struct {
 	DBS                   func() *database.DBReaderWriter
 	DeviceDefSvc          services.IDeviceDefinitionService
 	log                   *zerolog.Logger
-	taskSvc               services.ITaskService
 	eventService          services.EventService
 	smartcarClient        services.SmartcarClient
 	smartcarTaskSvc       services.SmartcarTaskService
@@ -67,7 +66,6 @@ func NewUserDevicesController(
 	dbs func() *database.DBReaderWriter,
 	logger *zerolog.Logger,
 	ddSvc services.IDeviceDefinitionService,
-	taskSvc services.ITaskService,
 	eventService services.EventService,
 	smartcarClient services.SmartcarClient,
 	smartcarTaskSvc services.SmartcarTaskService,
@@ -86,7 +84,6 @@ func NewUserDevicesController(
 		DBS:                   dbs,
 		log:                   logger,
 		DeviceDefSvc:          ddSvc,
-		taskSvc:               taskSvc,
 		eventService:          eventService,
 		smartcarClient:        smartcarClient,
 		smartcarTaskSvc:       smartcarTaskSvc,
@@ -608,12 +605,8 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 					if err != nil {
 						return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 					}
-				} else {
-					err = udc.taskSvc.StartSmartcarDeregistrationTasks(udi, apiInteg.IntegrationID, apiInteg.ExternalID.String, apiInteg.AccessToken.String)
-					if err != nil {
-						return errorResponseHandler(c, err, fiber.StatusInternalServerError)
-					}
 				}
+				// Otherwise, it was on a webhook and we were never able to create a task for it.
 			}
 		} else if apiInteg.R.Integration.Vendor == "Tesla" {
 			if apiInteg.ExternalID.Valid {

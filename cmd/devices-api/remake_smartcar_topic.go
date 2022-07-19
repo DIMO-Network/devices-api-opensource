@@ -4,16 +4,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/Shopify/sarama"
-	"github.com/rs/zerolog"
 	"github.com/volatiletech/null/v8"
 )
 
-func remakeSmartcarTopic(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore, producer sarama.SyncProducer) error {
+func remakeSmartcarTopic(ctx context.Context, pdb database.DbStore, producer sarama.SyncProducer) error {
 	reg := services.NewIngestRegistrar(services.Smartcar, producer)
 	db := pdb.DBS().Reader
 

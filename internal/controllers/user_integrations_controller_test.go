@@ -55,7 +55,6 @@ func (s *UserIntegrationsControllerTestSuite) SetupSuite() {
 	s.mockCtrl = gomock.NewController(s.T())
 
 	deviceDefSvc := mock_services.NewMockIDeviceDefinitionService(s.mockCtrl)
-	taskSvc := mock_services.NewMockITaskService(s.mockCtrl)
 	s.scClient = mock_services.NewMockSmartcarClient(s.mockCtrl)
 	s.scTaskSvc = mock_services.NewMockSmartcarTaskService(s.mockCtrl)
 	s.teslaSvc = mock_services.NewMockTeslaService(s.mockCtrl)
@@ -64,7 +63,7 @@ func (s *UserIntegrationsControllerTestSuite) SetupSuite() {
 	s.autoPiIngest = mock_services.NewMockIngestRegistrar(s.mockCtrl)
 	autoPiTaskSvc := mock_services.NewMockAutoPiTaskService(s.mockCtrl)
 
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), deviceDefSvc, taskSvc,
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), deviceDefSvc,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), s.autopiAPISvc,
 		nil, s.autoPiIngest, autoPiTaskSvc, nil, nil)
 	app := fiber.New()
@@ -304,7 +303,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostTeslaAndUpdateDD() {
 func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi_HappyPath() {
 	// specific dependency and controller
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
 		nil, s.autoPiIngest, nil, nil, nil)
 	app := fiber.New()
@@ -378,7 +377,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi_HappyPath() {
 func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCustomPowerTrain() {
 	// specific dependency and controller
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
 		nil, s.autoPiIngest, nil, nil, nil)
 	app := fiber.New()
@@ -441,7 +440,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCustomPowerTrain() {
 func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateDeviceSameUser() {
 	// specific dependency and controller
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
 		nil, s.autoPiIngest, nil, nil, nil)
 	app := fiber.New()
@@ -472,7 +471,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateD
 func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateDeviceDifferentUser() {
 	// specific dependency and controller
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
 		nil, s.autoPiIngest, nil, nil, nil)
 	app := fiber.New()
@@ -505,7 +504,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateD
 func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCommand() {
 	// specific dependency and controller
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
 		nil, s.autoPiIngest, nil, nil, nil)
 	app := fiber.New()
@@ -569,7 +568,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCommand() {
 }
 func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiCommand() {
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
 		nil, s.autoPiIngest, nil, nil, nil)
 	app := fiber.New()
@@ -640,7 +639,7 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiCommandNoResults400()
 func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI_ShouldUpdate() {
 	// specific dependency and controller
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
 		nil, s.autoPiIngest, nil, nil, nil)
 	app := fiber.New()
@@ -677,7 +676,7 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI_ShouldUpda
 func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI_UpToDate() {
 	// specific dependency and controller
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
 		nil, s.autoPiIngest, nil, nil, nil)
 	app := fiber.New()
@@ -711,7 +710,7 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI_UpToDate()
 func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI_FutureUpdate() {
 	// specific dependency and controller
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
 		nil, s.autoPiIngest, nil, nil, nil)
 	app := fiber.New()
@@ -745,7 +744,7 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI_FutureUpda
 func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoMatchUDAI() {
 	// specific dependency and controller
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil, nil,
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
 		nil, s.autoPiIngest, nil, nil, nil)
 	app := fiber.New()

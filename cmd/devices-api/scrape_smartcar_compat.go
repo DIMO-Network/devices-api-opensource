@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
@@ -20,7 +19,7 @@ import (
 
 const sunsetYearCutoff = 2017
 
-func syncSmartCarCompatibility(ctx context.Context, logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) {
+func syncSmartCarCompatibility(ctx context.Context, logger zerolog.Logger, pdb database.DbStore) {
 	smartCarSvc := services.NewSmartCarService(pdb.DBS, logger)
 
 	smartCarVehicleData, err := services.GetSmartCarVehicleData()

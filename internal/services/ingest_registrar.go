@@ -1,6 +1,7 @@
 package services
 
 import (
+	"github.com/DIMO-Network/shared"
 	"github.com/Shopify/sarama"
 	"github.com/segmentio/ksuid"
 
@@ -45,19 +46,23 @@ type ingestRegistrar struct {
 	Producer    sarama.SyncProducer
 }
 
+type deviceIDLink struct {
+	DeviceID   string `json:"deviceId"`
+	ExternalID string `json:"externalId"`
+}
+
 func (s *ingestRegistrar) Register(externalID, userDeviceID, integrationID string) error {
-	data := struct {
-		DeviceID   string `json:"deviceId"`
-		ExternalID string `json:"externalId"`
-	}{userDeviceID, externalID}
-	value := CloudEventMessage{
+	value := shared.CloudEvent[deviceIDLink]{
 		ID:          ksuid.New().String(),
 		Source:      "dimo/integration/" + integrationID,
 		Subject:     userDeviceID,
 		SpecVersion: "1.0",
 		Time:        time.Now(),
 		Type:        s.eventType,
-		Data:        data,
+		Data: deviceIDLink{
+			DeviceID:   userDeviceID,
+			ExternalID: externalID,
+		},
 	}
 	valueb, err := json.Marshal(value)
 	if err != nil {

@@ -8,16 +8,14 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/controllers"
 	"github.com/DIMO-Network/devices-api/internal/database"
-	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
 	"github.com/Shopify/sarama"
-	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
-func remakeFenceTopic(logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore, producer sarama.SyncProducer) error {
+func remakeFenceTopic(settings *config.Settings, pdb database.DbStore, producer sarama.SyncProducer) error {
 	ctx := context.Background()
 
 	rels, err := models.UserDeviceToGeofences(
@@ -42,7 +40,7 @@ func remakeFenceTopic(logger *zerolog.Logger, settings *config.Settings, pdb dat
 		if indexes.Len() == 0 {
 			continue
 		}
-		ce := services.CloudEventMessage{
+		ce := shared.CloudEvent[controllers.FenceData]{
 			ID:          ksuid.New().String(),
 			Source:      "devices-api",
 			SpecVersion: "1.0",

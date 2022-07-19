@@ -9,7 +9,6 @@ import (
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
-	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
 	"github.com/Shopify/sarama"
@@ -164,7 +163,7 @@ func (g *GeofencesController) EmitPrivacyFenceUpdates(ctx context.Context, db bo
 	var value sarama.Encoder
 
 	if indexes.Len() > 0 {
-		ce := services.CloudEventMessage{
+		ce := shared.CloudEvent[FenceData]{
 			ID:          ksuid.New().String(),
 			Source:      "devices-api",
 			SpecVersion: "1.0",

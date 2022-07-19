@@ -12,7 +12,6 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -20,19 +19,19 @@ import (
 
 var teslaEnabledCommands = []string{"doors/lock", "doors/unlock", "trunk/open", "frunk/open", "charge/limit"}
 
-func setCommandCompatibility(ctx context.Context, logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) error {
+func setCommandCompatibility(ctx context.Context, settings *config.Settings, pdb database.DbStore) error {
 
-	if err := setCommandCompatTesla(ctx, logger, settings, pdb); err != nil {
+	if err := setCommandCompatTesla(ctx, pdb); err != nil {
 		return err
 	}
-	if err := setCommandCompatSmartcar(ctx, logger, settings, pdb); err != nil {
+	if err := setCommandCompatSmartcar(ctx, settings, pdb); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func setCommandCompatTesla(ctx context.Context, logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) error {
+func setCommandCompatTesla(ctx context.Context, pdb database.DbStore) error {
 	teslaInt, err := models.Integrations(models.IntegrationWhere.Vendor.EQ(services.TeslaVendor)).One(ctx, pdb.DBS().Reader)
 	if err != nil {
 		return err
@@ -66,7 +65,7 @@ func setCommandCompatTesla(ctx context.Context, logger zerolog.Logger, settings 
 	return nil
 }
 
-func setCommandCompatSmartcar(ctx context.Context, logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) error {
+func setCommandCompatSmartcar(ctx context.Context, settings *config.Settings, pdb database.DbStore) error {
 	scInt, err := models.Integrations(models.IntegrationWhere.Vendor.EQ(services.SmartCarVendor)).One(ctx, pdb.DBS().Reader)
 	if err != nil {
 		return err

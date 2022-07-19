@@ -106,12 +106,8 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 				if err != nil {
 					return err
 				}
-			} else {
-				err = udc.taskSvc.StartSmartcarDeregistrationTasks(userDeviceID, integrationID, apiIntegration.ExternalID.String, apiIntegration.AccessToken.String)
-				if err != nil {
-					return err
-				}
 			}
+			// It was on the webhook and we were never able to create a task for it.
 		}
 	} else if apiIntegration.R.Integration.Vendor == "Tesla" {
 		if apiIntegration.ExternalID.Valid {
