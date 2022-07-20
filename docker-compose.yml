@@ -13,6 +13,7 @@ services:
       - POSTGRES_DB=devices_api
     volumes:
       - postgresdb:/var/lib/postgresql/data:delegated
+    profiles: ["core"]
   redis:
     image: redis:6.2 # latest version on ElastiCache
     container_name: redis-devices-api
@@ -20,6 +21,7 @@ services:
       - "6379:6379"
     volumes:
       - redis:/data:delegated
+    profiles: ["core"]
 
   es01:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.16.3
