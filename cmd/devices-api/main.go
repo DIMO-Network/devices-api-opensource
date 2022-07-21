@@ -74,6 +74,7 @@ func main() {
 	if len(os.Args) > 1 {
 		arg = os.Args[1]
 	}
+
 	switch arg {
 	case "migrate":
 		command := "up"
@@ -184,6 +185,12 @@ func main() {
 			logger.Fatal().Err(err).Msg("Error starting Smartcar task.")
 		}
 		logger.Info().Msgf("Successfully started Smartcar task for %s.", userDeviceID)
+	case "ipfs-sync-data":
+		logger.Info().Msgf("Sync IPFS")
+		err = loadSyncIPFSDeviceDefinition(ctx, &logger, &settings, pdb)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("error trying to sync IPFS")
+		}
 	default:
 		startMonitoringServer(logger)
 		eventService := services.NewEventService(&logger, &settings, deps.getKafkaProducer())

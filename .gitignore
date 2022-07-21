@@ -16,6 +16,7 @@ bin/
 vendor/
 resources/data/
 resources/redis/
+data/ipfs/
 
 dist/
 # ignore settings file as it could contain secrets
