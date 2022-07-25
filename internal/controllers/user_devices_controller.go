@@ -906,6 +906,14 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "Empty image field.")
 	}
 
+	// This may not be there, but if it is we should delete it.
+	imageDataTransparent := strings.TrimPrefix(mr.ImageDataTransparent, "data:image/png;base64,")
+
+	imageTransparent, err := base64.StdEncoding.DecodeString(imageDataTransparent)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Field imageDataTransparent not properly base64-encoded.")
+	}
+
 	logger := udc.log.With().
 		Str("userId", userID).
 		Str("userDeviceId", userDeviceID).
@@ -923,6 +931,18 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 	if err != nil {
 		logger.Err(err).Msg("Failed to save image to S3.")
 		return opaqueInternalError
+	}
+
+	if len(imageTransparent) != 0 {
+		_, err = udc.s3.PutObject(c.Context(), &s3.PutObjectInput{
+			Bucket: &udc.Settings.NFTS3Bucket,
+			Key:    aws.String(mintRequestID + "_transparent.png"), // This will be the request ID.
+			Body:   bytes.NewReader(imageTransparent),
+		})
+		if err != nil {
+			logger.Err(err).Msg("Failed to save transparent image to S3.")
+			return opaqueInternalError
+		}
 	}
 
 	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -1062,6 +1082,9 @@ type MintRequest struct {
 	Signature string `json:"signature"`
 	// ImageData contains the base64-encoded NFT PNG image.
 	ImageData string `json:"imageData"`
+	// ImageDataTransparent contains the base64-encoded NFT PNG image
+	// with a transparent background, for use in the app.
+	ImageDataTransparent string `json:"imageDataTransparent"`
 }
 
 type RegisterUserDevice struct {

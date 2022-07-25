@@ -230,6 +230,11 @@ definitions:
       imageData:
         description: ImageData contains the base64-encoded NFT PNG image.
         type: string
+      imageDataTransparent:
+        description: |-
+          ImageDataTransparent contains the base64-encoded NFT PNG image
+          with a transparent background, for use in the app.
+        type: string
       signature:
         description: Signature is the hex encoding of the EIP-712 signature result.
         type: string
@@ -571,6 +576,11 @@ definitions:
     properties:
       imageData:
         description: ImageData contains the base64-encoded NFT PNG image.
+        type: string
+      imageDataTransparent:
+        description: |-
+          ImageDataTransparent contains the base64-encoded NFT PNG image
+          with a transparent background, for use in the app.
         type: string
       signature:
         description: Signature is the hex encoding of the EIP-712 signature result.
@@ -1051,7 +1061,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot'
+              $ref: '#/definitions/internal_controllers.DeviceMMYRoot'
             type: array
       tags:
       - device-definitions
@@ -1067,7 +1077,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.DocumentResponse'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
             type: array
       security:
       - BearerAuth: []
@@ -1104,7 +1114,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_controllers.DocumentResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
       security:
       - BearerAuth: []
       tags:
@@ -1145,7 +1155,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.DocumentResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
       security:
       - BearerAuth: []
       tags:
@@ -1184,26 +1194,42 @@ paths:
       - BearerAuth: []
       tags:
       - integrations
-  /nfts/:tokenID:
+  /nfts/:tokenID/image:
     get:
       description: retrieves NFT metadata for a given tokenID
+      parameters:
+      - description: NFT token ID
+        in: path
+        name: tokenID
+        required: true
+        type: integer
+      - description: If true, remove the background in the PNG. Defaults to false.
+        in: query
+        name: transparent
+        type: boolean
+      produces:
+      - image/png
+      responses: {}
+      tags:
+      - nfts
+  /nfts/{tokenID}:
+    get:
+      description: retrieves NFT metadata for a given tokenID
+      parameters:
+      - description: NFT token ID
+        in: path
+        name: tokenID
+        required: true
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp'
+            $ref: '#/definitions/internal_controllers.NFTMetadataResp'
         "404":
           description: Not Found
-      tags:
-      - nfts
-  /nfts/:tokenID/image:
-    get:
-      description: retrieves NFT metadata for a given tokenID
-      produces:
-      - image/png
-      responses: {}
       tags:
       - nfts
   /user/devices:
@@ -1593,7 +1619,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot'
+            $ref: '#/definitions/internal_controllers.DeviceSnapshot'
       security:
       - BearerAuth: []
       tags:

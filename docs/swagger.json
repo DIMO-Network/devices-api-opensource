@@ -221,7 +221,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot"
+                                "$ref": "#/definitions/internal_controllers.DeviceMMYRoot"
                             }
                         }
                     }
@@ -282,7 +282,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_controllers.DocumentResponse"
+                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
                             }
                         }
                     }
@@ -337,7 +337,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.DocumentResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
                         }
                     }
                 }
@@ -373,7 +373,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.DocumentResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
                         }
                     }
                 }
@@ -466,28 +466,6 @@
                 }
             }
         },
-        "/nfts/:tokenID": {
-            "get": {
-                "description": "retrieves NFT metadata for a given tokenID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "nfts"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    }
-                }
-            }
-        },
         "/nfts/:tokenID/image": {
             "get": {
                 "description": "retrieves NFT metadata for a given tokenID",
@@ -497,7 +475,53 @@
                 "tags": [
                     "nfts"
                 ],
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "NFT token ID",
+                        "name": "tokenID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "If true, remove the background in the PNG. Defaults to false.",
+                        "name": "transparent",
+                        "in": "query"
+                    }
+                ],
                 "responses": {}
+            }
+        },
+        "/nfts/{tokenID}": {
+            "get": {
+                "description": "retrieves NFT metadata for a given tokenID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "nfts"
+                ],
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "NFT token ID",
+                        "name": "tokenID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
             }
         },
         "/user/devices": {
@@ -1131,7 +1155,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot"
+                            "$ref": "#/definitions/internal_controllers.DeviceSnapshot"
                         }
                     }
                 }
@@ -1658,6 +1682,10 @@
                     "description": "ImageData contains the base64-encoded NFT PNG image.",
                     "type": "string"
                 },
+                "imageDataTransparent": {
+                    "description": "ImageDataTransparent contains the base64-encoded NFT PNG image\nwith a transparent background, for use in the app.",
+                    "type": "string"
+                },
                 "signature": {
                     "description": "Signature is the hex encoding of the EIP-712 signature result.",
                     "type": "string"
@@ -2155,6 +2183,10 @@
             "properties": {
                 "imageData": {
                     "description": "ImageData contains the base64-encoded NFT PNG image.",
+                    "type": "string"
+                },
+                "imageDataTransparent": {
+                    "description": "ImageDataTransparent contains the base64-encoded NFT PNG image\nwith a transparent background, for use in the app.",
                     "type": "string"
                 },
                 "signature": {

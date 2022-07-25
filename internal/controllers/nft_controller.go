@@ -45,10 +45,11 @@ func NewNFTController(
 // GetNFTMetadata godoc
 // @Description retrieves NFT metadata for a given tokenID
 // @Tags        nfts
+// @Param       tokenID path int true "NFT token ID"
 // @Produce     json
 // @Success     200 {object} controllers.NFTMetadataResp
 // @Failure     404
-// @Router      /nfts/:tokenID [get]
+// @Router      /nfts/{tokenID} [get]
 func (udc *NFTController) GetNFTMetadata(c *fiber.Ctx) error {
 	tis := c.Params("tokenID")
 	ti, ok := new(big.Int).SetString(tis, 10)
@@ -105,6 +106,8 @@ type NFTAttribute struct {
 // GetNFTImage godoc
 // @Description retrieves NFT metadata for a given tokenID
 // @Tags        nfts
+// @Param       tokenID     path  int  true  "NFT token ID"
+// @Param       transparent query bool false "If true, remove the background in the PNG. Defaults to false."
 // @Produce     png
 // @Router      /nfts/:tokenID/image [get]
 func (udc *NFTController) GetNFTImage(c *fiber.Ctx) error {
@@ -116,6 +119,12 @@ func (udc *NFTController) GetNFTImage(c *fiber.Ctx) error {
 
 	tid := types.NewNullDecimal(new(decimal.Big).SetBigMantScale(ti, 0))
 
+	transparentStr := c.Query("transparent", "false")
+	transparent, err := strconv.ParseBool(transparentStr)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, `Couldn't parse query parameter "transparent".`)
+	}
+
 	mr, err := models.MintRequests(
 		models.MintRequestWhere.TokenID.EQ(tid),
 	).One(c.Context(), udc.DBS().Writer)
@@ -126,10 +135,16 @@ func (udc *NFTController) GetNFTImage(c *fiber.Ctx) error {
 		return opaqueInternalError
 	}
 
+	suffix := ".png"
+	if transparent {
+		suffix = "_transparent.png"
+	}
+
 	s3o, err := udc.s3.GetObject(c.Context(), &s3.GetObjectInput{
 		Bucket: aws.String(udc.Settings.NFTS3Bucket),
-		Key:    aws.String(mr.ID + ".png"),
+		Key:    aws.String(mr.ID + suffix),
 	})
+
 	if err != nil {
 		udc.log.Err(err).Msg("Failure communicating with S3.")
 		return opaqueInternalError
