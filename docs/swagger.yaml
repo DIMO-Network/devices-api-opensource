@@ -928,7 +928,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.AutoPiDeviceInfo'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo'
       security:
       - BearerAuth: []
       tags:
@@ -947,7 +947,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: ""
+          description: OK
       security:
       - BearerAuth: []
       tags:
@@ -1051,7 +1051,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.DeviceMMYRoot'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot'
             type: array
       tags:
       - device-definitions
@@ -1067,7 +1067,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
+              $ref: '#/definitions/internal_controllers.DocumentResponse'
             type: array
       security:
       - BearerAuth: []
@@ -1104,7 +1104,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
+            $ref: '#/definitions/internal_controllers.DocumentResponse'
       security:
       - BearerAuth: []
       tags:
@@ -1124,7 +1124,7 @@ paths:
       - application/json
       responses:
         "204":
-          description: ""
+          description: No Content
       security:
       - BearerAuth: []
       tags:
@@ -1145,7 +1145,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
+            $ref: '#/definitions/internal_controllers.DocumentResponse'
       security:
       - BearerAuth: []
       tags:
@@ -1165,7 +1165,7 @@ paths:
       - image/jpeg
       responses:
         "200":
-          description: ""
+          description: OK
       security:
       - BearerAuth: []
       tags:
@@ -1195,7 +1195,7 @@ paths:
           schema:
             $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp'
         "404":
-          description: ""
+          description: Not Found
       tags:
       - nfts
   /nfts/:tokenID/image:
@@ -1243,10 +1243,10 @@ paths:
         name: AutoPiCommandRequest
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.AutoPiCommandRequest'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest'
       responses:
         "200":
-          description: ""
+          description: OK
       security:
       - BearerAuth: []
       tags:
@@ -1282,10 +1282,10 @@ paths:
         name: userDeviceIntegrationRegistration
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.RegisterDeviceIntegrationRequest'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest'
       responses:
         "204":
-          description: ""
+          description: No Content
       security:
       - BearerAuth: []
       tags:
@@ -1301,7 +1301,7 @@ paths:
         type: string
       responses:
         "204":
-          description: ""
+          description: No Content
       security:
       - BearerAuth: []
       tags:
@@ -1340,7 +1340,7 @@ paths:
           $ref: '#/definitions/internal_controllers.MintRequest'
       responses:
         "200":
-          description: ""
+          description: OK
       security:
       - BearerAuth: []
       tags:
@@ -1356,7 +1356,7 @@ paths:
         type: string
       responses:
         "204":
-          description: ""
+          description: No Content
         "429":
           description: rate limit hit for integration
       security:
@@ -1379,7 +1379,7 @@ paths:
       - application/json
       responses:
         "204":
-          description: ""
+          description: No Content
       security:
       - BearerAuth: []
       tags:
@@ -1400,7 +1400,7 @@ paths:
       - application/json
       responses:
         "204":
-          description: ""
+          description: No Content
       security:
       - BearerAuth: []
       tags:
@@ -1410,7 +1410,7 @@ paths:
       description: Remove an user device's integration
       responses:
         "204":
-          description: ""
+          description: No Content
       security:
       - BearerAuth: []
       tags:
@@ -1421,7 +1421,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.GetUserDeviceIntegrationResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse'
       security:
       - BearerAuth: []
       tags:
@@ -1447,7 +1447,7 @@ paths:
         name: chargeLimitRequest
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.ChargeLimitBody'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.ChargeLimitBody'
       produces:
       - application/json
       responses: {}
@@ -1571,7 +1571,7 @@ paths:
       - application/json
       responses:
         "204":
-          description: ""
+          description: No Content
       security:
       - BearerAuth: []
       tags:
@@ -1619,7 +1619,7 @@ paths:
       - application/json
       responses:
         "204":
-          description: ""
+          description: No Content
       security:
       - BearerAuth: []
       tags:
@@ -1692,7 +1692,7 @@ paths:
         type: string
       responses:
         "204":
-          description: ""
+          description: No Content
       security:
       - ApiKeyAuth: []
       - BearerAuth: []
@@ -1718,7 +1718,7 @@ paths:
       - application/json
       responses:
         "204":
-          description: ""
+          description: No Content
       security:
       - ApiKeyAuth: []
       - BearerAuth: []
