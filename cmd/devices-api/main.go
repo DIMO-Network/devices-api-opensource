@@ -13,13 +13,13 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/kafka"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/shared"
-	"github.com/Jeffail/benthos/v3/lib/util/hash/murmur2"
 	"github.com/Shopify/sarama"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/burdiyan/kafkautil"
 	"github.com/customerio/go-customerio/v3"
 	"github.com/gofiber/adaptor/v2"
 	"github.com/gofiber/fiber/v2"
@@ -206,10 +206,7 @@ func createKafkaProducer(settings *config.Settings) (sarama.SyncProducer, error)
 	config := sarama.NewConfig()
 	config.Version = sarama.V2_8_1_0
 	config.Producer.Return.Successes = true
-	config.Producer.Partitioner = sarama.NewCustomPartitioner(
-		sarama.WithAbsFirst(),
-		sarama.WithCustomHashFunction(murmur2.New32),
-	)
+	config.Producer.Partitioner = kafkautil.NewJVMCompatiblePartitioner
 	p, err := sarama.NewSyncProducer(strings.Split(settings.KafkaBrokers, ","), config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct producer with broker list %s: %w", settings.KafkaBrokers, err)

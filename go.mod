@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/DIMO-Network/shared v0.2.3
 	github.com/DIMO-Network/zflogger v1.0.0-beta
-	github.com/Shopify/sarama v1.32.0
+	github.com/Shopify/sarama v1.33.0
 	github.com/ThreeDotsLabs/watermill v1.1.1
 	github.com/ThreeDotsLabs/watermill-kafka/v2 v2.2.1
 	github.com/ahmetb/go-linq/v3 v3.2.0
@@ -15,6 +15,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.15
 	github.com/aws/aws-sdk-go-v2/service/kms v1.17.3
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.26.11
+	github.com/burdiyan/kafkautil v0.0.0-20190131162249-eaf83ed22d5b
 	github.com/docker/go-connections v0.4.0
 	github.com/friendsofgo/errors v0.9.2
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
@@ -33,7 +34,7 @@ require (
 	github.com/prometheus/client_golang v1.12.1
 	github.com/rs/zerolog v1.26.1
 	github.com/segmentio/ksuid v1.0.4
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.1
 	github.com/swaggo/swag v1.8.1
 	github.com/testcontainers/testcontainers-go v0.13.0
 	github.com/tidwall/gjson v1.14.0
@@ -46,10 +47,12 @@ require (
 )
 
 require (
+	github.com/avast/retry-go v3.0.0+incompatible // indirect
 	github.com/btcsuite/btcd v0.20.1-beta // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
 	github.com/crackcomm/go-gitignore v0.0.0-20170627025303-887ab5e44cc3 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
+	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gofiber/utils v0.1.2 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/ipfs/go-cid v0.0.7 // indirect
@@ -57,6 +60,7 @@ require (
 	github.com/libp2p/go-flow-metrics v0.0.3 // indirect
 	github.com/libp2p/go-libp2p-core v0.6.1 // indirect
 	github.com/libp2p/go-openssl v0.0.7 // indirect
+	github.com/lovoo/goka v1.1.7 // indirect
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1 // indirect
 	github.com/minio/sha256-simd v0.1.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
@@ -69,7 +73,9 @@ require (
 	github.com/multiformats/go-varint v0.0.6 // indirect
 	github.com/spacemonkeygo/spacelog v0.0.0-20180420211403-2296661a0572 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
+	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
 	github.com/whyrusleeping/tar-utils v0.0.0-20180509141711-8c6c8ba81d5c // indirect
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/time v0.0.0-20211116232009-f0f3c7e86c11 // indirect
 )
 
@@ -158,7 +164,6 @@ require (
 )
 
 require (
-	github.com/Jeffail/benthos/v3 v3.63.0
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/PuerkitoBio/goquery v1.8.0
 	github.com/RichardKnop/machinery v1.10.6
@@ -174,7 +179,7 @@ require (
 	github.com/gofrs/uuid v4.2.0+incompatible // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
-	github.com/klauspost/compress v1.15.1 // indirect
+	github.com/klauspost/compress v1.15.6 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/smartcar/go-sdk v1.4.0
@@ -187,7 +192,7 @@ require (
 	github.com/valyala/tcplisten v1.0.0 // indirect
 	github.com/volatiletech/inflect v0.0.1 // indirect
 	github.com/volatiletech/randomize v0.0.1 // indirect
-	golang.org/x/net v0.0.0-20220412020605-290c469a71a5 // indirect
+	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2 // indirect
 	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/tools v0.1.10 // indirect
