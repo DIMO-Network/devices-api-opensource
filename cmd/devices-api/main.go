@@ -29,12 +29,12 @@ import (
 	_ "go.uber.org/automaxprocs"
 )
 
-// @title                       DIMO Devices API
-// @version                     1.0
-// @BasePath                    /v1
-// @securityDefinitions.apikey  BearerAuth
-// @in                          header
-// @name                        Authorization
+// @title                      DIMO Devices API
+// @version                    1.0
+// @BasePath                   /v1
+// @securityDefinitions.apikey BearerAuth
+// @in                         header
+// @name                       Authorization
 func main() {
 	gitSha1 := os.Getenv("GIT_SHA1")
 	ctx := context.Background()

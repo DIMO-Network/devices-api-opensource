@@ -100,12 +100,12 @@ func NewUserDevicesController(
 }
 
 // GetUserDevices godoc
-// @Description  gets all devices associated with current user - pulled from token
-// @Tags           user-devices
-// @Produce      json
-// @Success      200  {object}  []controllers.UserDeviceFull
-// @Security     BearerAuth
-// @Router       /user/devices/me [get]
+// @Description gets all devices associated with current user - pulled from token
+// @Tags        user-devices
+// @Produce     json
+// @Success     200 {object} []controllers.UserDeviceFull
+// @Security    BearerAuth
+// @Router      /user/devices/me [get]
 func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	devices, err := models.UserDevices(qm.Where("user_id = ?", userID),
@@ -218,15 +218,15 @@ type UserDeviceEvent struct {
 }
 
 // RegisterDeviceForUser godoc
-// @Description  adds a device to a user. can add with only device_definition_id or with MMY, which will create a device_definition on the fly
-// @Tags           user-devices
-// @Produce      json
-// @Accept       json
-// @Param        user_device  body  controllers.RegisterUserDevice  true  "add device to user. either MMY or id are required"
-// @Security     ApiKeyAuth
-// @Success      201  {object}  controllers.RegisterUserDeviceResponse
-// @Security     BearerAuth
-// @Router       /user/devices [post]
+// @Description adds a device to a user. can add with only device_definition_id or with MMY, which will create a device_definition on the fly
+// @Tags        user-devices
+// @Produce     json
+// @Accept      json
+// @Param       user_device body controllers.RegisterUserDevice true "add device to user. either MMY or id are required"
+// @Security    ApiKeyAuth
+// @Success     201 {object} controllers.RegisterUserDeviceResponse
+// @Security    BearerAuth
+// @Router      /user/devices [post]
 func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	reg := &RegisterUserDevice{}
@@ -374,15 +374,15 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 var opaqueInternalError = fiber.NewError(fiber.StatusBadGateway, "Internal error.")
 
 // UpdateVIN godoc
-// @Description  updates the VIN on the user device record
-// @Tags         user-devices
-// @Produce      json
-// @Accept       json
-// @Param        vin           body  controllers.UpdateVINReq  true  "VIN"
-// @Param        userDeviceID  path  string                    true  "user id"
-// @Success      204
-// @Security     BearerAuth
-// @Router       /user/devices/{userDeviceID}/vin [patch]
+// @Description updates the VIN on the user device record
+// @Tags        user-devices
+// @Produce     json
+// @Accept      json
+// @Param       vin          body controllers.UpdateVINReq true "VIN"
+// @Param       userDeviceID path string                   true "user id"
+// @Success     204
+// @Security    BearerAuth
+// @Router      /user/devices/{userDeviceID}/vin [patch]
 func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
@@ -458,15 +458,15 @@ func (udc *UserDevicesController) updateUSAPowertrain(ctx context.Context, userD
 }
 
 // UpdateName godoc
-// @Description  updates the Name on the user device record
-// @Tags           user-devices
-// @Produce      json
-// @Accept       json
-// @Param        name            body  controllers.UpdateNameReq  true  "Name"
-// @Param        user_device_id  path  string                     true  "user id"
-// @Success      204
-// @Security     BearerAuth
-// @Router       /user/devices/{userDeviceID}/name [patch]
+// @Description updates the Name on the user device record
+// @Tags        user-devices
+// @Produce     json
+// @Accept      json
+// @Param       name           body controllers.UpdateNameReq true "Name"
+// @Param       user_device_id path string                    true "user id"
+// @Success     204
+// @Security    BearerAuth
+// @Router      /user/devices/{userDeviceID}/name [patch]
 func (udc *UserDevicesController) UpdateName(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
@@ -498,14 +498,14 @@ func (udc *UserDevicesController) UpdateName(c *fiber.Ctx) error {
 }
 
 // UpdateCountryCode godoc
-// @Description  updates the CountryCode on the user device record
-// @Tags           user-devices
-// @Produce      json
-// @Accept       json
-// @Param        name  body  controllers.UpdateCountryCodeReq  true  "Country code"
-// @Success      204
-// @Security     BearerAuth
-// @Router       /user/devices/{userDeviceID}/country_code [patch]
+// @Description updates the CountryCode on the user device record
+// @Tags        user-devices
+// @Produce     json
+// @Accept      json
+// @Param       name body controllers.UpdateCountryCodeReq true "Country code"
+// @Success     204
+// @Security    BearerAuth
+// @Router      /user/devices/{userDeviceID}/country_code [patch]
 func (udc *UserDevicesController) UpdateCountryCode(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
@@ -532,14 +532,14 @@ func (udc *UserDevicesController) UpdateCountryCode(c *fiber.Ctx) error {
 }
 
 // UpdateImage godoc
-// @Description  updates the ImageUrl on the user device record
-// @Tags         user-devices
-// @Produce      json
-// @Accept       json
-// @Param        name  body  controllers.UpdateImageURLReq  true  "Image URL"
-// @Success      204
-// @Security     BearerAuth
-// @Router       /user/devices/{userDeviceID}/image [patch]
+// @Description updates the ImageUrl on the user device record
+// @Tags        user-devices
+// @Produce     json
+// @Accept      json
+// @Param       name body controllers.UpdateImageURLReq true "Image URL"
+// @Success     204
+// @Security    BearerAuth
+// @Router      /user/devices/{userDeviceID}/image [patch]
 func (udc *UserDevicesController) UpdateImage(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
@@ -567,12 +567,12 @@ func (udc *UserDevicesController) UpdateImage(c *fiber.Ctx) error {
 }
 
 // DeleteUserDevice godoc
-// @Description  delete the user device record (hard delete)
-// @Tags                       user-devices
-// @Param        userDeviceID  path  string  true  "user id"
-// @Success      204
-// @Security     BearerAuth
-// @Router       /user/devices/{userDeviceID} [delete]
+// @Description delete the user device record (hard delete)
+// @Tags        user-devices
+// @Param       userDeviceID path string true "user id"
+// @Success     204
+// @Security    BearerAuth
+// @Router      /user/devices/{userDeviceID} [delete]
 func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
@@ -684,12 +684,12 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 }
 
 // GetMintDataToSign godoc
-// @Description  Returns the data the user must sign in order to mint this device.
-// @Tags         user-devices
-// @Param        userDeviceID path string true "user device ID"
-// @Success      200 {object} signer.TypedData
-// @Security     BearerAuth
-// @Router       /user/devices/{userDeviceID}/commands/mint [get]
+// @Description Returns the data the user must sign in order to mint this device.
+// @Tags        user-devices
+// @Param       userDeviceID path     string true "user device ID"
+// @Success     200          {object} signer.TypedData
+// @Security    BearerAuth
+// @Router      /user/devices/{userDeviceID}/commands/mint [get]
 func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 	userDeviceID := c.Params("userDeviceID")
 	userID := getUserID(c)
@@ -806,13 +806,13 @@ func recoverAddress(td *signer.TypedData, signature []byte) (addr common.Address
 }
 
 // MintDevice godoc
-// @Description  Sends a mint device request to the blockchain
-// @Tags         user-devices
-// @Param        userDeviceID path string true "user device ID"
-// @Param        mintRequest body controllers.MintRequest true "Signature and NFT data"
-// @Success      200
-// @Security     BearerAuth
-// @Router       /user/devices/{userDeviceID}/commands/mint [post]
+// @Description Sends a mint device request to the blockchain
+// @Tags        user-devices
+// @Param       userDeviceID path string                  true "user device ID"
+// @Param       mintRequest  body controllers.MintRequest true "Signature and NFT data"
+// @Success     200
+// @Security    BearerAuth
+// @Router      /user/devices/{userDeviceID}/commands/mint [post]
 func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 	userDeviceID := c.Params("userDeviceID")
 	userID := getUserID(c)

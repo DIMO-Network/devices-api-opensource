@@ -43,12 +43,12 @@ func NewNFTController(
 }
 
 // GetNFTMetadata godoc
-// @Description  retrieves NFT metadata for a given tokenID
-// @Tags         nfts
-// @Produce      json
-// @Success      200  {object}  controllers.NFTMetadataResp
-// @Failure      404
-// @Router       /nfts/:tokenID [get]
+// @Description retrieves NFT metadata for a given tokenID
+// @Tags        nfts
+// @Produce     json
+// @Success     200 {object} controllers.NFTMetadataResp
+// @Failure     404
+// @Router      /nfts/:tokenID [get]
 func (udc *NFTController) GetNFTMetadata(c *fiber.Ctx) error {
 	tis := c.Params("tokenID")
 	ti, ok := new(big.Int).SetString(tis, 10)
@@ -103,10 +103,10 @@ type NFTAttribute struct {
 }
 
 // GetNFTImage godoc
-// @Description  retrieves NFT metadata for a given tokenID
-// @Tags         nfts
-// @Produce      png
-// @Router       /nfts/:tokenID/image [get]
+// @Description retrieves NFT metadata for a given tokenID
+// @Tags        nfts
+// @Produce     png
+// @Router      /nfts/:tokenID/image [get]
 func (udc *NFTController) GetNFTImage(c *fiber.Ctx) error {
 	tis := c.Params("tokenID")
 	ti, ok := new(big.Int).SetString(tis, 10)

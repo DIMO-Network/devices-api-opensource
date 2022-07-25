@@ -23,11 +23,11 @@ import (
 )
 
 // GetUserDeviceIntegration godoc
-// @Description  Receive status updates about a Smartcar integration
-// @Tags         integrations
-// @Success      200  {object}  controllers.GetUserDeviceIntegrationResponse
-// @Security     BearerAuth
-// @Router       /user/devices/{userDeviceID}/integrations/{integrationID} [get]
+// @Description Receive status updates about a Smartcar integration
+// @Tags        integrations
+// @Success     200 {object} controllers.GetUserDeviceIntegrationResponse
+// @Security    BearerAuth
+// @Router      /user/devices/{userDeviceID}/integrations/{integrationID} [get]
 func (udc *UserDevicesController) GetUserDeviceIntegration(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	userDeviceID := c.Params("userDeviceID")
@@ -57,11 +57,11 @@ func (udc *UserDevicesController) GetUserDeviceIntegration(c *fiber.Ctx) error {
 }
 
 // DeleteUserDeviceIntegration godoc
-// @Description  Remove an user device's integration
-// @Tags         integrations
-// @Success      204
-// @Security     BearerAuth
-// @Router       /user/devices/{userDeviceID}/integrations/{integrationID} [delete]
+// @Description Remove an user device's integration
+// @Tags        integrations
+// @Success     204
+// @Security    BearerAuth
+// @Router      /user/devices/{userDeviceID}/integrations/{integrationID} [delete]
 func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	userDeviceID := c.Params("userDeviceID")
@@ -164,12 +164,12 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 }
 
 // GetIntegrations godoc
-// @Description  gets list of integrations we have defined
-// @Tags         integrations
-// @Produce      json
-// @Success      200  {object}  models.Integration
-// @Security     BearerAuth
-// @Router       /integrations [get]
+// @Description gets list of integrations we have defined
+// @Tags        integrations
+// @Produce     json
+// @Success     200 {object} models.Integration
+// @Security    BearerAuth
+// @Router      /integrations [get]
 func (udc *UserDevicesController) GetIntegrations(c *fiber.Ctx) error {
 	all, err := models.Integrations(qm.Limit(100)).All(c.Context(), udc.DBS().Reader)
 	if err != nil {
@@ -183,12 +183,12 @@ func (udc *UserDevicesController) GetIntegrations(c *fiber.Ctx) error {
 
 // SendAutoPiCommand godoc
 // @Description Closed off in prod. Submit a raw autopi command to unit. Device must be registered with autopi before this can be used
-// @Tags 		integrations
-// @Accept 		json
-// @Param 		AutoPiCommandRequest body controllers.AutoPiCommandRequest true "raw autopi command"
-// @Success 	200
-// @Security     BearerAuth
-// @Router 		/user/devices/:userDeviceID/autopi/command [post]
+// @Tags        integrations
+// @Accept      json
+// @Param       AutoPiCommandRequest body controllers.AutoPiCommandRequest true "raw autopi command"
+// @Success     200
+// @Security    BearerAuth
+// @Router      /user/devices/:userDeviceID/autopi/command [post]
 func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
 	if udc.Settings.Environment == "prod" {
 		return c.SendStatus(fiber.StatusGone)
@@ -232,14 +232,14 @@ func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
 var deviceIncapable = fiber.NewError(fiber.StatusBadRequest, "integration is not active")
 
 // UnlockDoors godoc
-// @Summary Unlock the device's doors
+// @Summary     Unlock the device's doors
 // @Description Unlock the device's doors.
-// @Id unlock-doors
-// @Tags device,integration,command
-// @Produce json
-// @Param userDeviceID path string true "Device ID"
-// @Param integrationID path string true "Integration ID"
-// @Router /user/devices/{userDeviceID}/integrations/{integrationID}/commands/doors/unlock [post]
+// @Id          unlock-doors
+// @Tags        device,integration,command
+// @Produce     json
+// @Param       userDeviceID  path string true "Device ID"
+// @Param       integrationID path string true "Integration ID"
+// @Router      /user/devices/{userDeviceID}/integrations/{integrationID}/commands/doors/unlock [post]
 func (udc *UserDevicesController) UnlockDoors(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	userDeviceID := c.Params("userDeviceID")
@@ -306,14 +306,14 @@ func (udc *UserDevicesController) UnlockDoors(c *fiber.Ctx) error {
 }
 
 // LockDoors godoc
-// @Summary Lock the device's doors
+// @Summary     Lock the device's doors
 // @Description Lock the device's doors.
-// @Id lock-doors
-// @Tags device,integration,command
-// @Produce json
-// @Param userDeviceID path string true "Device ID"
-// @Param integrationID path string true "Integration ID"
-// @Router /user/devices/{userDeviceID}/integrations/{integrationID}/commands/doors/lock [post]
+// @Id          lock-doors
+// @Tags        device,integration,command
+// @Produce     json
+// @Param       userDeviceID  path string true "Device ID"
+// @Param       integrationID path string true "Integration ID"
+// @Router      /user/devices/{userDeviceID}/integrations/{integrationID}/commands/doors/lock [post]
 func (udc *UserDevicesController) LockDoors(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	userDeviceID := c.Params("userDeviceID")
@@ -380,14 +380,14 @@ func (udc *UserDevicesController) LockDoors(c *fiber.Ctx) error {
 }
 
 // OpenTrunk godoc
-// @Summary Open the device's rear trunk
+// @Summary     Open the device's rear trunk
 // @Description Open the device's front trunk. Currently, this only works for Teslas connected through Tesla.
-// @Id open-trunk
-// @Tags device,integration,command
-// @Produce json
-// @Param userDeviceID path string true "Device ID"
-// @Param integrationID path string true "Integration ID"
-// @Router /user/devices/{userDeviceID}/integrations/{integrationID}/commands/trunk/open [post]
+// @Id          open-trunk
+// @Tags        device,integration,command
+// @Produce     json
+// @Param       userDeviceID  path string true "Device ID"
+// @Param       integrationID path string true "Integration ID"
+// @Router      /user/devices/{userDeviceID}/integrations/{integrationID}/commands/trunk/open [post]
 func (udc *UserDevicesController) OpenTrunk(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	userDeviceID := c.Params("userDeviceID")
@@ -447,14 +447,14 @@ func (udc *UserDevicesController) OpenTrunk(c *fiber.Ctx) error {
 }
 
 // OpenFrunk godoc
-// @Summary Open the device's front trunk
+// @Summary     Open the device's front trunk
 // @Description Open the device's front trunk. Currently, this only works for Teslas connected through Tesla.
-// @Id open-frunk
-// @Tags device,integration,command
-// @Produce json
-// @Param userDeviceID path string true "Device ID"
-// @Param integrationID path string true "Integration ID"
-// @Router /user/devices/{userDeviceID}/integrations/{integrationID}/commands/frunk/open [post]
+// @Id          open-frunk
+// @Tags        device,integration,command
+// @Produce     json
+// @Param       userDeviceID  path string true "Device ID"
+// @Param       integrationID path string true "Integration ID"
+// @Router      /user/devices/{userDeviceID}/integrations/{integrationID}/commands/frunk/open [post]
 func (udc *UserDevicesController) OpenFrunk(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	userDeviceID := c.Params("userDeviceID")
@@ -514,15 +514,15 @@ func (udc *UserDevicesController) OpenFrunk(c *fiber.Ctx) error {
 }
 
 // SetChargeLimit godoc
-// @Summary Set the device's charge limit.
+// @Summary     Set the device's charge limit.
 // @Description Set the device's charge limit. Currently, this only works for Teslas connected through Tesla.
-// @Id set-charge-limit
-// @Tags device,integration,command
-// @Produce json
-// @Param userDeviceID path string true "Device ID"
-// @Param integrationID path string true "Integration ID"
-// @Param chargeLimitRequest body controllers.ChargeLimitBody true "Specify the charge limit"
-// @Router /user/devices/{userDeviceID}/integrations/{integrationID}/commands/charge/limit [post]
+// @Id          set-charge-limit
+// @Tags        device,integration,command
+// @Produce     json
+// @Param       userDeviceID       path string                      true "Device ID"
+// @Param       integrationID      path string                      true "Integration ID"
+// @Param       chargeLimitRequest body controllers.ChargeLimitBody true "Specify the charge limit"
+// @Router      /user/devices/{userDeviceID}/integrations/{integrationID}/commands/charge/limit [post]
 func (udc *UserDevicesController) SetChargeLimit(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	userDeviceID := c.Params("userDeviceID")
@@ -600,12 +600,12 @@ type ChargeLimitBody struct {
 
 // GetAutoPiCommandStatus godoc
 // @Description gets the status of an autopi raw command by jobID
-// @Tags 		integrations
+// @Tags        integrations
 // @Produce     json
-// @Param       jobID        path  string  true  "job id, from autopi"
-// @Success     200  {object}  services.AutoPiCommandJob
-// @Security     BearerAuth
-// @Router 		/user/devices/:userDeviceID/autopi/command/:jobID [get]
+// @Param       jobID path     string true "job id, from autopi"
+// @Success     200   {object} services.AutoPiCommandJob
+// @Security    BearerAuth
+// @Router      /user/devices/:userDeviceID/autopi/command/:jobID [get]
 func (udc *UserDevicesController) GetAutoPiCommandStatus(c *fiber.Ctx) error {
 	_ = getUserID(c)
 	userDeviceID := c.Params("userDeviceID")
@@ -626,12 +626,12 @@ func (udc *UserDevicesController) GetAutoPiCommandStatus(c *fiber.Ctx) error {
 
 // GetAutoPiUnitInfo godoc
 // @Description gets the information about the autopi by the unitId
-// @Tags 		integrations
+// @Tags        integrations
 // @Produce     json
-// @Param       unitID        path  string  true  "autopi unit id"
-// @Success     200 {object} controllers.AutoPiDeviceInfo
-// @Security     BearerAuth
-// @Router 		/autopi/unit/:unitID [get]
+// @Param       unitID path     string true "autopi unit id"
+// @Success     200    {object} controllers.AutoPiDeviceInfo
+// @Security    BearerAuth
+// @Router      /autopi/unit/:unitID [get]
 func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 	const minimumAutoPiRelease = "v1.21.9" // correct semver has leading v
 
@@ -669,12 +669,12 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 
 // GetIsAutoPiOnline godoc
 // @Description gets whether the autopi is online right now, if already paired with a user, makes sure user has access. returns json with {"online": true/false}
-// @Tags 		integrations
+// @Tags        integrations
 // @Produce     json
-// @Param       unitID        path  string  true  "autopi unit id"
+// @Param       unitID path string true "autopi unit id"
 // @Success     200
 // @Security    BearerAuth
-// @Router 		/autopi/unit/:unitID/is-online [get]
+// @Router      /autopi/unit/:unitID/is-online [get]
 func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 	unitID := c.Params("unitID")
 	if len(unitID) == 0 {
@@ -754,12 +754,12 @@ func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 
 // StartAutoPiUpdateTask godoc
 // @Description checks to see if autopi unit needs to be updated, and starts update process if so.
-// @Tags 		integrations
+// @Tags        integrations
 // @Produce     json
-// @Param       unitID        path  string  true  "autopi unit id", ie. physical barcode
-// @Success     200  {object}  services.AutoPiTask
+// @Param       unitID path     string true "autopi unit id", ie. physical barcode
+// @Success     200    {object} services.AutoPiTask
 // @Security    BearerAuth
-// @Router 		/autopi/unit/:unitID/update [post]
+// @Router      /autopi/unit/:unitID/update [post]
 func (udc *UserDevicesController) StartAutoPiUpdateTask(c *fiber.Ctx) error {
 	unitID := c.Params("unitID") // save in task
 	if len(unitID) == 0 {
@@ -820,12 +820,12 @@ func (udc *UserDevicesController) StartAutoPiUpdateTask(c *fiber.Ctx) error {
 
 // GetAutoPiTask godoc
 // @Description gets the status of an autopi related task. In future could be other tasks too?
-// @Tags 		integrations
+// @Tags        integrations
 // @Produce     json
-// @Param       taskID        path  string  true  "task id", returned from endpoint that starts a task
-// @Success     200  {object}  services.AutoPiTask
+// @Param       taskID path     string true "task id", returned from endpoint that starts a task
+// @Success     200    {object} services.AutoPiTask
 // @Security    BearerAuth
-// @Router 		/autopi/task/:taskID [get]
+// @Router      /autopi/task/:taskID [get]
 func (udc *UserDevicesController) GetAutoPiTask(c *fiber.Ctx) error {
 	taskID := c.Params("taskID") // save in task
 	if len(taskID) == 0 {
@@ -843,12 +843,12 @@ func (udc *UserDevicesController) GetAutoPiTask(c *fiber.Ctx) error {
 
 // RegisterDeviceIntegration godoc
 // @Description Submit credentials for registering a device with a given integration.
-// @Tags 		integrations
-// @Accept 		json
-// @Param 		userDeviceIntegrationRegistration body controllers.RegisterDeviceIntegrationRequest true "Integration credentials"
-// @Success 	204
-// @Security     BearerAuth
-// @Router 		/user/devices/:userDeviceID/integrations/:integrationID [post]
+// @Tags        integrations
+// @Accept      json
+// @Param       userDeviceIntegrationRegistration body controllers.RegisterDeviceIntegrationRequest true "Integration credentials"
+// @Success     204
+// @Security    BearerAuth
+// @Router      /user/devices/:userDeviceID/integrations/:integrationID [post]
 func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	userDeviceID := c.Params("userDeviceID")

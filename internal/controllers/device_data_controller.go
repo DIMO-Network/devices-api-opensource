@@ -14,14 +14,14 @@ import (
 )
 
 // GetUserDeviceStatus godoc
-// @Description  Returns the latest status update for the device. May return 404 if the
-// @Description  user does not have a device with the ID, or if no status updates have come
-// @Tags         user-devices
-// @Produce      json
-// @Param        user_device_id  path  string  true  "user device ID"
-// @Success      200 {object} controllers.DeviceSnapshot
-// @Security     BearerAuth
-// @Router       /user/devices/{userDeviceID}/status [get]
+// @Description Returns the latest status update for the device. May return 404 if the
+// @Description user does not have a device with the ID, or if no status updates have come
+// @Tags        user-devices
+// @Produce     json
+// @Param       user_device_id path     string true "user device ID"
+// @Success     200            {object} controllers.DeviceSnapshot
+// @Security    BearerAuth
+// @Router      /user/devices/{userDeviceID}/status [get]
 func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
@@ -122,13 +122,13 @@ func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 }
 
 // RefreshUserDeviceStatus godoc
-// @Description  Starts the process of refreshing device status from Smartcar
-// @Tags         user-devices
-// @Param        user_device_id  path  string  true  "user device ID"
-// @Success      204
-// @Failure      429  "rate limit hit for integration"
-// @Security     BearerAuth
-// @Router       /user/devices/{userDeviceID}/commands/refresh [post]
+// @Description Starts the process of refreshing device status from Smartcar
+// @Tags        user-devices
+// @Param       user_device_id path string true "user device ID"
+// @Success     204
+// @Failure     429 "rate limit hit for integration"
+// @Security    BearerAuth
+// @Router      /user/devices/{userDeviceID}/commands/refresh [post]
 func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
 	userID := getUserID(c)

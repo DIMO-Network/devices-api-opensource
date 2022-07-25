@@ -34,13 +34,13 @@ func NewDocumentsController(
 }
 
 // GetDocuments godoc
-// @Description  gets all documents associated with current user - pulled from token
-// @Tags           documents
-// @Produce      json
-// @Accept       json
-// @Success      200  {object}  []controllers.DocumentResponse
-// @Security     BearerAuth
-// @Router       /documents [get]
+// @Description gets all documents associated with current user - pulled from token
+// @Tags        documents
+// @Produce     json
+// @Accept      json
+// @Success     200 {object} []controllers.DocumentResponse
+// @Security    BearerAuth
+// @Router      /documents [get]
 func (udc *DocumentsController) GetDocuments(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	udi := c.Query("user_device_id")
@@ -88,14 +88,14 @@ func (udc *DocumentsController) GetDocuments(c *fiber.Ctx) error {
 }
 
 // GetDocumentByID godoc
-// @Description  get document by id associated with current user - pulled from token
-// @Tags           documents
-// @Produce      json
-// @Accept       json
-// @Param        id   path      string  true  "Document ID"
-// @Success      200  {object}  controllers.DocumentResponse
-// @Security     BearerAuth
-// @Router       /documents/{id} [get]
+// @Description get document by id associated with current user - pulled from token
+// @Tags        documents
+// @Produce     json
+// @Accept      json
+// @Param       id  path     string true "Document ID"
+// @Success     200 {object} controllers.DocumentResponse
+// @Security    BearerAuth
+// @Router      /documents/{id} [get]
 func (udc *DocumentsController) GetDocumentByID(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	fileID := c.Params("id")
@@ -125,17 +125,17 @@ func (udc *DocumentsController) GetDocumentByID(c *fiber.Ctx) error {
 }
 
 // PostDocument godoc
-// @Description  post document by id associated with current user - pulled from token
-// @Tags           documents
-// @Produce      json
-// @Accept       multipart/form-data
-// @Param        file  formData  file  true  "The file to upload. file is required"
-// @Param        name  formData  string  true  "The document name. name is required"
-// @Param        type  formData  string  true  "The document type. type is required"
-// @Param        userDeviceID  formData  string  false  "The user device ID, optional"
-// @Success      201  {object}  controllers.DocumentResponse
-// @Security     BearerAuth
-// @Router       /documents [post]
+// @Description post document by id associated with current user - pulled from token
+// @Tags        documents
+// @Produce     json
+// @Accept      multipart/form-data
+// @Param       file         formData file   true  "The file to upload. file is required"
+// @Param       name         formData string true  "The document name. name is required"
+// @Param       type         formData string true  "The document type. type is required"
+// @Param       userDeviceID formData string false "The user device ID, optional"
+// @Success     201          {object} controllers.DocumentResponse
+// @Security    BearerAuth
+// @Router      /documents [post]
 func (udc *DocumentsController) PostDocument(c *fiber.Ctx) error {
 
 	userID := getUserID(c)
@@ -233,14 +233,14 @@ func (udc *DocumentsController) PostDocument(c *fiber.Ctx) error {
 }
 
 // DeleteDocument godoc
-// @Description  delete document associated with current user - pulled from token
-// @Tags           documents
-// @Produce      json
-// @Accept       json
-// @Param        id   path      string  true  "Document ID"
-// @Success      204
-// @Security     BearerAuth
-// @Router       /documents/{id} [delete]
+// @Description delete document associated with current user - pulled from token
+// @Tags        documents
+// @Produce     json
+// @Accept      json
+// @Param       id path string true "Document ID"
+// @Success     204
+// @Security    BearerAuth
+// @Router      /documents/{id} [delete]
 func (udc *DocumentsController) DeleteDocument(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	fileID := c.Params("id")
@@ -259,15 +259,15 @@ func (udc *DocumentsController) DeleteDocument(c *fiber.Ctx) error {
 }
 
 // DownloadDocument godoc
-// @Description  download document associated with current user - pulled from token
-// @Tags           documents
-// @Produce      octet-stream
-// @Produce      png
-// @Produce      jpeg
-// @Param        id   path      string  true  "Document ID"
-// @Success      200
-// @Security     BearerAuth
-// @Router       /documents/{id}/download [get]
+// @Description download document associated with current user - pulled from token
+// @Tags        documents
+// @Produce     octet-stream
+// @Produce     png
+// @Produce     jpeg
+// @Param       id path string true "Document ID"
+// @Success     200
+// @Security    BearerAuth
+// @Router      /documents/{id}/download [get]
 func (udc *DocumentsController) DownloadDocument(c *fiber.Ctx) error {
 	userID := getUserID(c)
 	fileID := c.Params("id")
