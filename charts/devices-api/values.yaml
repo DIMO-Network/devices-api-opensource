@@ -60,7 +60,7 @@ env:
   NFT_CHAIN_ID: 80001
   NFT_CONTRACT_NAME: DIMOBetaV1
   NFT_CONTRACT_VERSION: '1'
-  IPFS_NODE_ENDPOINT: http://cluster-0-ipfs-cluster.web3:9096
+  IPFS_NODE_ENDPOINT: http://cluster-0-ipfs-cluster.web3.svc.cluster.local:9096
 service:
   type: ClusterIP
   ports:
