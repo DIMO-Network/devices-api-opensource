@@ -191,6 +191,12 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("error trying to sync IPFS")
 		}
+	case "drivly-sync-data":
+		logger.Info().Msgf("Sync drivly")
+		err = loadUserDeviceDrively(ctx, &logger, &settings, pdb)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("error trying to sync IPFS")
+		}
 	default:
 		startMonitoringServer(logger)
 		eventService := services.NewEventService(&logger, &settings, deps.getKafkaProducer())
