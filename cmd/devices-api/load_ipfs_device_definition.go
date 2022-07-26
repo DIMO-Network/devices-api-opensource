@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
@@ -39,23 +40,35 @@ func loadSyncIPFSDeviceDefinition(ctx context.Context, logger *zerolog.Logger, s
 		return err
 	}
 
-	err = sh.FilesRm(ctx, "/makes", true)
+	basePath := "/makes"
 
-	if err != nil {
+	logger.Info().Msgf("Get %s directory", basePath)
+	_, err = sh.FileList(basePath)
+
+	if err != nil && !strings.Contains(err.Error(), "invalid path") {
+		logger.Info().Msgf(err.Error())
 		return err
 	}
 
-	err = sh.FilesMkdir(ctx, "/makes")
+	logger.Info().Msgf("Creating %s directory", basePath)
+	err = sh.FilesMkdir(ctx, basePath)
 
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "file already exists") {
+		logger.Info().Msgf("error creating %s directory %s", basePath, err.Error())
 		return err
 	}
+
+	logger.Info().Msgf("Creation of makes folders")
 
 	for _, v := range makes {
-		// create path
-		path := fmt.Sprintf("/makes/%s", slug.Make(v.Name))
+		// create make path
+		path := fmt.Sprintf("%s/%s", basePath, slug.Make(v.Name))
+
+		logger.Info().Msgf("Creating make directory => %s", path)
+
 		err := sh.FilesMkdir(ctx, path)
-		if err != nil {
+		if err != nil && !strings.Contains(err.Error(), "file already exists") {
+			logger.Info().Msgf("error creating make %s directory %s", basePath, err.Error())
 			return err
 		}
 
@@ -81,19 +94,19 @@ func loadSyncIPFSDeviceDefinition(ctx context.Context, logger *zerolog.Logger, s
 
 	}
 
+	logger.Info().Msgf("Creation of models folders")
+
 	for _, definition := range all {
 		path := fmt.Sprintf("%s/%s/%s",
-			"/makes",
+			basePath,
 			slug.Make(definition.R.DeviceMake.Name),
 			slug.Make(definition.Model))
-		logger.Info().Msgf("model path: %s", path)
-		err = sh.FilesRm(ctx, path, true)
-		if err != nil {
-			return err
-		}
+
+		logger.Info().Msgf("Creating model directory => %s", path)
 
 		err := sh.FilesMkdir(ctx, path)
-		if err != nil {
+		if err != nil && !strings.Contains(err.Error(), "file already exists") {
+			logger.Info().Msgf("error creating model %s directory %s", basePath, err.Error())
 			return err
 		}
 
@@ -117,21 +130,21 @@ func loadSyncIPFSDeviceDefinition(ctx context.Context, logger *zerolog.Logger, s
 			return err
 		}
 	}
+
+	logger.Info().Msgf("Creation of models/years folders")
 
 	for _, definition := range all {
 		path := fmt.Sprintf("%s/%s/%s/%d",
-			"/makes",
+			basePath,
 			slug.Make(definition.R.DeviceMake.Name),
 			slug.Make(definition.Model),
 			definition.Year)
-		logger.Info().Msgf("%s", path)
-		err = sh.FilesRm(ctx, path, true)
-		if err != nil {
-			return err
-		}
+
+		logger.Info().Msgf("Creating model/year directory => %s", path)
 
 		err := sh.FilesMkdir(ctx, path)
-		if err != nil {
+		if err != nil && !strings.Contains(err.Error(), "file already exists") {
+			logger.Info().Msgf("error creating model/year %s directory %s", basePath, err.Error())
 			return err
 		}
 
@@ -155,6 +168,8 @@ func loadSyncIPFSDeviceDefinition(ctx context.Context, logger *zerolog.Logger, s
 			return err
 		}
 	}
+
+	logger.Info().Msgf("Done !!")
 
 	return nil
 }
