@@ -7,7 +7,7 @@ Api for managing devices on the DIMO platform.
 ```bash
 cp settings.sample.yaml settings.yaml
 mkdir ./resources/data
-docker compose up -d # optionally --profile core (before up) to only start basic dependencies needed
+docker compose up -d
 go run ./cmd/devices-api migrate
 brew services start zookeeper
 brew services start kafka

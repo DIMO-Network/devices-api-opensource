@@ -13,7 +13,7 @@ services:
       - POSTGRES_DB=devices_api
     volumes:
       - postgresdb:/var/lib/postgresql/data:delegated
-    profiles: ["core"]
+
   redis:
     image: redis:6.2 # latest version on ElastiCache
     container_name: redis-devices-api
@@ -21,7 +21,7 @@ services:
       - "6379:6379"
     volumes:
       - redis:/data:delegated
-    profiles: ["core"]
+    profiles: ["core", ""]
 
   es01:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.16.3
@@ -80,6 +80,7 @@ services:
       - data03:/usr/share/elasticsearch/data
     networks:
       - elastic
+
   kib01:
     image: docker.elastic.co/kibana/kibana:7.16.3
     container_name: kib01
@@ -102,6 +103,7 @@ services:
     volumes: 
       - "${TEMPDIR:-/tmp/localstack}:/tmp/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
+
   ipfs:
     image: ipfs/go-ipfs:latest
     environment:
