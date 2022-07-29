@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/rs/zerolog/log"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
@@ -35,7 +36,9 @@ func loadUserDeviceDrively(ctx context.Context, logger *zerolog.Logger, settings
 
 		vinInfo, err := drivlyService.GetVINInfo(ud.VinIdentifier.String)
 		if err != nil {
-			return err
+			// should we do a VIN checksum before, a lot of these seem to be just failed vin checksum
+			log.Err(err).Msgf("error getting VIN %s. skipping", ud.VinIdentifier.String)
+			continue
 		}
 
 		deviceDefinition, err := models.FindDeviceDefinition(ctx, pdb.DBS().Reader, ud.DeviceDefinitionID)
@@ -61,6 +64,7 @@ func loadUserDeviceDrively(ctx context.Context, logger *zerolog.Logger, settings
 		if err != nil {
 			return err
 		}
+		// todo future: set the device_style_id based on the edmunds response, will need gjson probably.
 
 		_, err = deviceDefinition.Update(ctx, pdb.DBS().Writer, boil.Infer())
 		if err != nil {
