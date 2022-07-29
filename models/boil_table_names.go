@@ -10,6 +10,7 @@ var TableNames = struct {
 	DeviceIntegrations        string
 	DeviceMakes               string
 	DeviceStyles              string
+	DrivlyData                string
 	Geofences                 string
 	Integrations              string
 	MintRequests              string
@@ -24,6 +25,7 @@ var TableNames = struct {
 	DeviceIntegrations:        "device_integrations",
 	DeviceMakes:               "device_makes",
 	DeviceStyles:              "device_styles",
+	DrivlyData:                "drivly_data",
 	Geofences:                 "geofences",
 	Integrations:              "integrations",
 	MintRequests:              "mint_requests",

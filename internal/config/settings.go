@@ -64,6 +64,9 @@ type Settings struct {
 	NFTAWSAccessKeyID              string `yaml:"NFT_AWS_ACCESS_KEY_ID"`
 	NFTAWSSecretsAccessKey         string `yaml:"NFT_AWS_SECRET_ACCESS_KEY"`
 	IPFSNodeEndpoint               string `yaml:"IPFS_NODE_ENDPOINT"`
+	DrivlyAPIKey                   string `yaml:"DRIVLY_API_KEY"`
+	DrivlyVINAPIURL                string `yaml:"DRIVLY_VIN_API_URL"`
+	DrivlyOfferAPIURL              string `yaml:"DRIVLY_OFFER_API_URL"`
 }
 
 // GetWriterDSN builds the connection string to the db writer - for now same as reader

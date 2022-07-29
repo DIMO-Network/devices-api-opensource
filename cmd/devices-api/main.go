@@ -192,10 +192,10 @@ func main() {
 			logger.Fatal().Err(err).Msg("error trying to sync IPFS")
 		}
 	case "drivly-sync-data":
-		logger.Info().Msgf("Sync drivly")
+		logger.Info().Msgf("Sync driv.ly")
 		err = loadUserDeviceDrively(ctx, &logger, &settings, pdb)
 		if err != nil {
-			logger.Fatal().Err(err).Msg("error trying to sync IPFS")
+			logger.Fatal().Err(err).Msg("error trying to sync driv.ly")
 		}
 	default:
 		startMonitoringServer(logger)

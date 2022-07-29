@@ -44,14 +44,15 @@ type DeviceType struct {
 
 // DeviceVehicleInfo represents some standard vehicle specific properties stored in the metadata json field in DB
 type DeviceVehicleInfo struct {
-	FuelType      string `json:"fuel_type,omitempty"`
-	DrivenWheels  string `json:"driven_wheels,omitempty"`
-	NumberOfDoors string `json:"number_of_doors,omitempty"`
-	BaseMSRP      int    `json:"base_msrp,omitempty"`
-	EPAClass      string `json:"epa_class,omitempty"`
-	VehicleType   string `json:"vehicle_type,omitempty"` // VehicleType PASSENGER CAR, from NHTSA
-	MPGHighway    string `json:"mpg_highway,omitempty"`
-	MPGCity       string `json:"mpg_city,omitempty"`
+	FuelType            string `json:"fuel_type,omitempty"`
+	DrivenWheels        string `json:"driven_wheels,omitempty"`
+	NumberOfDoors       string `json:"number_of_doors,omitempty"`
+	BaseMSRP            int    `json:"base_msrp,omitempty"`
+	EPAClass            string `json:"epa_class,omitempty"`
+	VehicleType         string `json:"vehicle_type,omitempty"` // VehicleType PASSENGER CAR, from NHTSA
+	MPGHighway          string `json:"mpg_highway,omitempty"`
+	MPGCity             string `json:"mpg_city,omitempty"`
+	FuelTankCapacityGal string `json:"fuel_tank_capacity_gal,omitempty"`
 }
 
 // Converters

@@ -35,6 +35,7 @@ type UserDevice struct {
 	UpdatedAt          time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 	VinConfirmed       bool        `boil:"vin_confirmed" json:"vin_confirmed" toml:"vin_confirmed" yaml:"vin_confirmed"`
 	Metadata           null.JSON   `boil:"metadata" json:"metadata,omitempty" toml:"metadata" yaml:"metadata,omitempty"`
+	DeviceStyleID      null.String `boil:"device_style_id" json:"device_style_id,omitempty" toml:"device_style_id" yaml:"device_style_id,omitempty"`
 
 	R *userDeviceR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userDeviceL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -52,6 +53,7 @@ var UserDeviceColumns = struct {
 	UpdatedAt          string
 	VinConfirmed       string
 	Metadata           string
+	DeviceStyleID      string
 }{
 	ID:                 "id",
 	UserID:             "user_id",
@@ -64,6 +66,7 @@ var UserDeviceColumns = struct {
 	UpdatedAt:          "updated_at",
 	VinConfirmed:       "vin_confirmed",
 	Metadata:           "metadata",
+	DeviceStyleID:      "device_style_id",
 }
 
 var UserDeviceTableColumns = struct {
@@ -78,6 +81,7 @@ var UserDeviceTableColumns = struct {
 	UpdatedAt          string
 	VinConfirmed       string
 	Metadata           string
+	DeviceStyleID      string
 }{
 	ID:                 "user_devices.id",
 	UserID:             "user_devices.user_id",
@@ -90,6 +94,7 @@ var UserDeviceTableColumns = struct {
 	UpdatedAt:          "user_devices.updated_at",
 	VinConfirmed:       "user_devices.vin_confirmed",
 	Metadata:           "user_devices.metadata",
+	DeviceStyleID:      "user_devices.device_style_id",
 }
 
 // Generated where
@@ -106,6 +111,7 @@ var UserDeviceWhere = struct {
 	UpdatedAt          whereHelpertime_Time
 	VinConfirmed       whereHelperbool
 	Metadata           whereHelpernull_JSON
+	DeviceStyleID      whereHelpernull_String
 }{
 	ID:                 whereHelperstring{field: "\"devices_api\".\"user_devices\".\"id\""},
 	UserID:             whereHelperstring{field: "\"devices_api\".\"user_devices\".\"user_id\""},
@@ -118,20 +124,25 @@ var UserDeviceWhere = struct {
 	UpdatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"user_devices\".\"updated_at\""},
 	VinConfirmed:       whereHelperbool{field: "\"devices_api\".\"user_devices\".\"vin_confirmed\""},
 	Metadata:           whereHelpernull_JSON{field: "\"devices_api\".\"user_devices\".\"metadata\""},
+	DeviceStyleID:      whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"device_style_id\""},
 }
 
 // UserDeviceRels is where relationship names are stored.
 var UserDeviceRels = struct {
 	DeviceDefinition          string
+	DeviceStyle               string
 	MintRequest               string
 	AutopiJobs                string
+	DrivlyData                string
 	UserDeviceAPIIntegrations string
 	UserDeviceData            string
 	UserDeviceToGeofences     string
 }{
 	DeviceDefinition:          "DeviceDefinition",
+	DeviceStyle:               "DeviceStyle",
 	MintRequest:               "MintRequest",
 	AutopiJobs:                "AutopiJobs",
+	DrivlyData:                "DrivlyData",
 	UserDeviceAPIIntegrations: "UserDeviceAPIIntegrations",
 	UserDeviceData:            "UserDeviceData",
 	UserDeviceToGeofences:     "UserDeviceToGeofences",
@@ -140,8 +151,10 @@ var UserDeviceRels = struct {
 // userDeviceR is where relationships are stored.
 type userDeviceR struct {
 	DeviceDefinition          *DeviceDefinition             `boil:"DeviceDefinition" json:"DeviceDefinition" toml:"DeviceDefinition" yaml:"DeviceDefinition"`
+	DeviceStyle               *DeviceStyle                  `boil:"DeviceStyle" json:"DeviceStyle" toml:"DeviceStyle" yaml:"DeviceStyle"`
 	MintRequest               *MintRequest                  `boil:"MintRequest" json:"MintRequest" toml:"MintRequest" yaml:"MintRequest"`
 	AutopiJobs                AutopiJobSlice                `boil:"AutopiJobs" json:"AutopiJobs" toml:"AutopiJobs" yaml:"AutopiJobs"`
+	DrivlyData                DrivlyDatumSlice              `boil:"DrivlyData" json:"DrivlyData" toml:"DrivlyData" yaml:"DrivlyData"`
 	UserDeviceAPIIntegrations UserDeviceAPIIntegrationSlice `boil:"UserDeviceAPIIntegrations" json:"UserDeviceAPIIntegrations" toml:"UserDeviceAPIIntegrations" yaml:"UserDeviceAPIIntegrations"`
 	UserDeviceData            UserDeviceDatumSlice          `boil:"UserDeviceData" json:"UserDeviceData" toml:"UserDeviceData" yaml:"UserDeviceData"`
 	UserDeviceToGeofences     UserDeviceToGeofenceSlice     `boil:"UserDeviceToGeofences" json:"UserDeviceToGeofences" toml:"UserDeviceToGeofences" yaml:"UserDeviceToGeofences"`
@@ -156,9 +169,9 @@ func (*userDeviceR) NewStruct() *userDeviceR {
 type userDeviceL struct{}
 
 var (
-	userDeviceAllColumns            = []string{"id", "user_id", "device_definition_id", "vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed", "metadata"}
+	userDeviceAllColumns            = []string{"id", "user_id", "device_definition_id", "vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed", "metadata", "device_style_id"}
 	userDeviceColumnsWithoutDefault = []string{"id", "user_id", "device_definition_id"}
-	userDeviceColumnsWithDefault    = []string{"vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed", "metadata"}
+	userDeviceColumnsWithDefault    = []string{"vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed", "metadata", "device_style_id"}
 	userDevicePrimaryKeyColumns     = []string{"id"}
 	userDeviceGeneratedColumns      = []string{}
 )
@@ -455,6 +468,20 @@ func (o *UserDevice) DeviceDefinition(mods ...qm.QueryMod) deviceDefinitionQuery
 	return query
 }
 
+// DeviceStyle pointed to by the foreign key.
+func (o *UserDevice) DeviceStyle(mods ...qm.QueryMod) deviceStyleQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"id\" = ?", o.DeviceStyleID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	query := DeviceStyles(queryMods...)
+	queries.SetFrom(query.Query, "\"devices_api\".\"device_styles\"")
+
+	return query
+}
+
 // MintRequest pointed to by the foreign key.
 func (o *UserDevice) MintRequest(mods ...qm.QueryMod) mintRequestQuery {
 	queryMods := []qm.QueryMod{
@@ -485,6 +512,27 @@ func (o *UserDevice) AutopiJobs(mods ...qm.QueryMod) autopiJobQuery {
 
 	if len(queries.GetSelect(query.Query)) == 0 {
 		queries.SetSelect(query.Query, []string{"\"devices_api\".\"autopi_jobs\".*"})
+	}
+
+	return query
+}
+
+// DrivlyData retrieves all the drivly_datum's DrivlyData with an executor.
+func (o *UserDevice) DrivlyData(mods ...qm.QueryMod) drivlyDatumQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"devices_api\".\"drivly_data\".\"user_device_id\"=?", o.ID),
+	)
+
+	query := DrivlyData(queryMods...)
+	queries.SetFrom(query.Query, "\"devices_api\".\"drivly_data\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"devices_api\".\"drivly_data\".*"})
 	}
 
 	return query
@@ -647,6 +695,114 @@ func (userDeviceL) LoadDeviceDefinition(ctx context.Context, e boil.ContextExecu
 				local.R.DeviceDefinition = foreign
 				if foreign.R == nil {
 					foreign.R = &deviceDefinitionR{}
+				}
+				foreign.R.UserDevices = append(foreign.R.UserDevices, local)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadDeviceStyle allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (userDeviceL) LoadDeviceStyle(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserDevice interface{}, mods queries.Applicator) error {
+	var slice []*UserDevice
+	var object *UserDevice
+
+	if singular {
+		object = maybeUserDevice.(*UserDevice)
+	} else {
+		slice = *maybeUserDevice.(*[]*UserDevice)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &userDeviceR{}
+		}
+		if !queries.IsNil(object.DeviceStyleID) {
+			args = append(args, object.DeviceStyleID)
+		}
+
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &userDeviceR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.DeviceStyleID) {
+					continue Outer
+				}
+			}
+
+			if !queries.IsNil(obj.DeviceStyleID) {
+				args = append(args, obj.DeviceStyleID)
+			}
+
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`devices_api.device_styles`),
+		qm.WhereIn(`devices_api.device_styles.id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load DeviceStyle")
+	}
+
+	var resultSlice []*DeviceStyle
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice DeviceStyle")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for device_styles")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for device_styles")
+	}
+
+	if len(userDeviceAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.DeviceStyle = foreign
+		if foreign.R == nil {
+			foreign.R = &deviceStyleR{}
+		}
+		foreign.R.UserDevices = append(foreign.R.UserDevices, object)
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if queries.Equal(local.DeviceStyleID, foreign.ID) {
+				local.R.DeviceStyle = foreign
+				if foreign.R == nil {
+					foreign.R = &deviceStyleR{}
 				}
 				foreign.R.UserDevices = append(foreign.R.UserDevices, local)
 				break
@@ -846,6 +1002,104 @@ func (userDeviceL) LoadAutopiJobs(ctx context.Context, e boil.ContextExecutor, s
 				local.R.AutopiJobs = append(local.R.AutopiJobs, foreign)
 				if foreign.R == nil {
 					foreign.R = &autopiJobR{}
+				}
+				foreign.R.UserDevice = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadDrivlyData allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (userDeviceL) LoadDrivlyData(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserDevice interface{}, mods queries.Applicator) error {
+	var slice []*UserDevice
+	var object *UserDevice
+
+	if singular {
+		object = maybeUserDevice.(*UserDevice)
+	} else {
+		slice = *maybeUserDevice.(*[]*UserDevice)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &userDeviceR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &userDeviceR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.ID) {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`devices_api.drivly_data`),
+		qm.WhereIn(`devices_api.drivly_data.user_device_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load drivly_data")
+	}
+
+	var resultSlice []*DrivlyDatum
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice drivly_data")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on drivly_data")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for drivly_data")
+	}
+
+	if len(drivlyDatumAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.DrivlyData = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &drivlyDatumR{}
+			}
+			foreign.R.UserDevice = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if queries.Equal(local.ID, foreign.UserDeviceID) {
+				local.R.DrivlyData = append(local.R.DrivlyData, foreign)
+				if foreign.R == nil {
+					foreign.R = &drivlyDatumR{}
 				}
 				foreign.R.UserDevice = local
 				break
@@ -1197,6 +1451,86 @@ func (o *UserDevice) SetDeviceDefinition(ctx context.Context, exec boil.ContextE
 	return nil
 }
 
+// SetDeviceStyle of the userDevice to the related item.
+// Sets o.R.DeviceStyle to related.
+// Adds o to related.R.UserDevices.
+func (o *UserDevice) SetDeviceStyle(ctx context.Context, exec boil.ContextExecutor, insert bool, related *DeviceStyle) error {
+	var err error
+	if insert {
+		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"devices_api\".\"user_devices\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 1, []string{"device_style_id"}),
+		strmangle.WhereClause("\"", "\"", 2, userDevicePrimaryKeyColumns),
+	)
+	values := []interface{}{related.ID, o.ID}
+
+	if boil.IsDebug(ctx) {
+		writer := boil.DebugWriterFrom(ctx)
+		fmt.Fprintln(writer, updateQuery)
+		fmt.Fprintln(writer, values)
+	}
+	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	queries.Assign(&o.DeviceStyleID, related.ID)
+	if o.R == nil {
+		o.R = &userDeviceR{
+			DeviceStyle: related,
+		}
+	} else {
+		o.R.DeviceStyle = related
+	}
+
+	if related.R == nil {
+		related.R = &deviceStyleR{
+			UserDevices: UserDeviceSlice{o},
+		}
+	} else {
+		related.R.UserDevices = append(related.R.UserDevices, o)
+	}
+
+	return nil
+}
+
+// RemoveDeviceStyle relationship.
+// Sets o.R.DeviceStyle to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+func (o *UserDevice) RemoveDeviceStyle(ctx context.Context, exec boil.ContextExecutor, related *DeviceStyle) error {
+	var err error
+
+	queries.SetScanner(&o.DeviceStyleID, nil)
+	if _, err = o.Update(ctx, exec, boil.Whitelist("device_style_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	if o.R != nil {
+		o.R.DeviceStyle = nil
+	}
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	for i, ri := range related.R.UserDevices {
+		if queries.Equal(o.DeviceStyleID, ri.DeviceStyleID) {
+			continue
+		}
+
+		ln := len(related.R.UserDevices)
+		if ln > 1 && i < ln-1 {
+			related.R.UserDevices[i] = related.R.UserDevices[ln-1]
+		}
+		related.R.UserDevices = related.R.UserDevices[:ln-1]
+		break
+	}
+	return nil
+}
+
 // SetMintRequest of the userDevice to the related item.
 // Sets o.R.MintRequest to related.
 // Adds o to related.R.UserDevice.
@@ -1389,6 +1723,133 @@ func (o *UserDevice) RemoveAutopiJobs(ctx context.Context, exec boil.ContextExec
 				o.R.AutopiJobs[i] = o.R.AutopiJobs[ln-1]
 			}
 			o.R.AutopiJobs = o.R.AutopiJobs[:ln-1]
+			break
+		}
+	}
+
+	return nil
+}
+
+// AddDrivlyData adds the given related objects to the existing relationships
+// of the user_device, optionally inserting them as new records.
+// Appends related to o.R.DrivlyData.
+// Sets related.R.UserDevice appropriately.
+func (o *UserDevice) AddDrivlyData(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*DrivlyDatum) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			queries.Assign(&rel.UserDeviceID, o.ID)
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"devices_api\".\"drivly_data\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"user_device_id"}),
+				strmangle.WhereClause("\"", "\"", 2, drivlyDatumPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			queries.Assign(&rel.UserDeviceID, o.ID)
+		}
+	}
+
+	if o.R == nil {
+		o.R = &userDeviceR{
+			DrivlyData: related,
+		}
+	} else {
+		o.R.DrivlyData = append(o.R.DrivlyData, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &drivlyDatumR{
+				UserDevice: o,
+			}
+		} else {
+			rel.R.UserDevice = o
+		}
+	}
+	return nil
+}
+
+// SetDrivlyData removes all previously related items of the
+// user_device replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.UserDevice's DrivlyData accordingly.
+// Replaces o.R.DrivlyData with related.
+// Sets related.R.UserDevice's DrivlyData accordingly.
+func (o *UserDevice) SetDrivlyData(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*DrivlyDatum) error {
+	query := "update \"devices_api\".\"drivly_data\" set \"user_device_id\" = null where \"user_device_id\" = $1"
+	values := []interface{}{o.ID}
+	if boil.IsDebug(ctx) {
+		writer := boil.DebugWriterFrom(ctx)
+		fmt.Fprintln(writer, query)
+		fmt.Fprintln(writer, values)
+	}
+	_, err := exec.ExecContext(ctx, query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	if o.R != nil {
+		for _, rel := range o.R.DrivlyData {
+			queries.SetScanner(&rel.UserDeviceID, nil)
+			if rel.R == nil {
+				continue
+			}
+
+			rel.R.UserDevice = nil
+		}
+
+		o.R.DrivlyData = nil
+	}
+	return o.AddDrivlyData(ctx, exec, insert, related...)
+}
+
+// RemoveDrivlyData relationships from objects passed in.
+// Removes related items from R.DrivlyData (uses pointer comparison, removal does not keep order)
+// Sets related.R.UserDevice.
+func (o *UserDevice) RemoveDrivlyData(ctx context.Context, exec boil.ContextExecutor, related ...*DrivlyDatum) error {
+	if len(related) == 0 {
+		return nil
+	}
+
+	var err error
+	for _, rel := range related {
+		queries.SetScanner(&rel.UserDeviceID, nil)
+		if rel.R != nil {
+			rel.R.UserDevice = nil
+		}
+		if _, err = rel.Update(ctx, exec, boil.Whitelist("user_device_id")); err != nil {
+			return err
+		}
+	}
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.DrivlyData {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.DrivlyData)
+			if ln > 1 && i < ln-1 {
+				o.R.DrivlyData[i] = o.R.DrivlyData[ln-1]
+			}
+			o.R.DrivlyData = o.R.DrivlyData[:ln-1]
 			break
 		}
 	}

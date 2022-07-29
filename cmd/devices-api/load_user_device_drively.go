@@ -2,15 +2,16 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/rs/zerolog"
+	"github.com/segmentio/ksuid"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
 // load user devices.
@@ -20,50 +21,94 @@ func loadUserDeviceDrively(ctx context.Context, logger *zerolog.Logger, settings
 	if err != nil {
 		return err
 	}
-	logger.Info().Msgf("found %d user device verified", len(all))
+	logger.Info().Msgf("found %d user ud verified", len(all))
 
-	client := &http.Client{}
+	drivlyService := services.NewDrivlyAPIService(settings, pdb.DBS)
 
-	for _, device := range all {
-		url := fmt.Sprintf("%s/api/%s", baseURL, device.VinIdentifier.String)
-		logger.Info().Msgf("URL: %s", url)
-		req, _ := http.NewRequest("GET", url, nil)
-		req.Header.Set("x-api-key", "")
-		res, err := client.Do(req)
+	deviceDefIDs := make([]string, len(all)) // preallocate for all, but likely won't hit max size
+	for _, ud := range all {
+		if contains(deviceDefIDs, ud.DeviceDefinitionID) {
+			logger.Info().Msgf("DeviceDefinitionID %s already exists, skipping", ud.DeviceDefinitionID)
+			continue
+		}
+		deviceDefIDs = append(deviceDefIDs, ud.DeviceDefinitionID)
 
+		vinInfo, err := drivlyService.GetVINInfo(ud.VinIdentifier.String)
 		if err != nil {
 			return err
 		}
 
-		if res.StatusCode != http.StatusOK {
-			logger.Info().Msgf("Unexpected response %#v", res)
-			return err
-		}
-
-		resBody, err := ioutil.ReadAll(res.Body)
+		deviceDefinition, err := models.FindDeviceDefinition(ctx, pdb.DBS().Reader, ud.DeviceDefinitionID)
 		if err != nil {
-			logger.Info().Msgf("Could not read response body: %s\n", err)
 			return err
 		}
 
-		vinModel := DrivlyVINMetaData{}
+		logger.Info().Msgf("DeviceDefinitionID Year %d Model %s", deviceDefinition.Year, deviceDefinition.Model)
 
-		err = json.Unmarshal(resBody, &vinModel)
+		metaData := new(services.DeviceVehicleInfo) // make as pointer
+		if err := deviceDefinition.Metadata.Unmarshal(metaData); err == nil {
+			if vinInfo["mpgCity"] != nil {
+				metaData.MPGCity = fmt.Sprintf("%f", vinInfo["mpgCity"])
+			}
+			if vinInfo["mpgHighway"] != nil {
+				metaData.MPGHighway = fmt.Sprintf("%f", vinInfo["mpgHighway"])
+			}
+			if vinInfo["fuelTankCapacityGal"] != nil {
+				metaData.FuelTankCapacityGal = fmt.Sprintf("%f", vinInfo["fuelTankCapacityGal"])
+			}
+		}
+		err = deviceDefinition.Metadata.Marshal(metaData)
 		if err != nil {
-			logger.Info().Msgf("Could not parse response body %", err)
 			return err
 		}
 
-		metadata := map[string]string{}
-		metadata["mpg"] = vinModel.mpg
+		_, err = deviceDefinition.Update(ctx, pdb.DBS().Writer, boil.Infer())
+		if err != nil {
+			return err
+		}
+		// insert drivly raw json data
+		drivlyData := &models.DrivlyDatum{
+			ID:                 ksuid.New().String(),
+			DeviceDefinitionID: null.StringFrom(deviceDefinition.ID),
+			Vin:                ud.VinIdentifier.String,
+			UserDeviceID:       null.StringFrom(ud.ID),
+		}
 
-		fmt.Println("Id :", metadata)
+		summary, err := drivlyService.GetSummaryByVIN(ud.VinIdentifier.String)
+		if err != nil {
+			logger.Err(err).Msg("error getting summary for vin for all sources") // just continue if problem here
+		}
+		// does martiallying nil object cause crash?
+		_ = drivlyData.VinMetadata.Marshal(vinInfo)
+		_ = drivlyData.BuildMetadata.Marshal(summary.Build)
+		_ = drivlyData.AutocheckMetadata.Marshal(summary.AutoCheck)
+		_ = drivlyData.CargurusMetadata.Marshal(summary.Cargurus)
+		_ = drivlyData.CarmaxMetadata.Marshal(summary.Carmax)
+		_ = drivlyData.KBBMetadata.Marshal(summary.KBB)
+		_ = drivlyData.CarstoryMetadata.Marshal(summary.Carstory)
+		_ = drivlyData.CarvanaMetadata.Marshal(summary.Carvana)
+		_ = drivlyData.EdmundsMetadata.Marshal(summary.Edmunds)
+		_ = drivlyData.OfferMetadata.Marshal(summary.Offers)
+		_ = drivlyData.TMVMetadata.Marshal(summary.TMV)
+		_ = drivlyData.VroomMetadata.Marshal(summary.VRoom)
+		//_ = drivlyData.PricingMetadata.Marshal(summary.Pricing) todo
 
+		err = drivlyData.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
+		if err != nil {
+			return err
+		}
+
+		// todo future: did MMY from vininfo match the device definition?
 	}
 
 	return nil
 }
 
-type DrivlyVINMetaData struct {
-	mpg string
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }

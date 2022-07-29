@@ -101,13 +101,16 @@ var DeviceStyleWhere = struct {
 // DeviceStyleRels is where relationship names are stored.
 var DeviceStyleRels = struct {
 	DeviceDefinition string
+	UserDevices      string
 }{
 	DeviceDefinition: "DeviceDefinition",
+	UserDevices:      "UserDevices",
 }
 
 // deviceStyleR is where relationships are stored.
 type deviceStyleR struct {
 	DeviceDefinition *DeviceDefinition `boil:"DeviceDefinition" json:"DeviceDefinition" toml:"DeviceDefinition" yaml:"DeviceDefinition"`
+	UserDevices      UserDeviceSlice   `boil:"UserDevices" json:"UserDevices" toml:"UserDevices" yaml:"UserDevices"`
 }
 
 // NewStruct creates a new relationship struct
@@ -418,6 +421,27 @@ func (o *DeviceStyle) DeviceDefinition(mods ...qm.QueryMod) deviceDefinitionQuer
 	return query
 }
 
+// UserDevices retrieves all the user_device's UserDevices with an executor.
+func (o *DeviceStyle) UserDevices(mods ...qm.QueryMod) userDeviceQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"devices_api\".\"user_devices\".\"device_style_id\"=?", o.ID),
+	)
+
+	query := UserDevices(queryMods...)
+	queries.SetFrom(query.Query, "\"devices_api\".\"user_devices\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"devices_api\".\"user_devices\".*"})
+	}
+
+	return query
+}
+
 // LoadDeviceDefinition allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for an N-1 relationship.
 func (deviceStyleL) LoadDeviceDefinition(ctx context.Context, e boil.ContextExecutor, singular bool, maybeDeviceStyle interface{}, mods queries.Applicator) error {
@@ -522,6 +546,104 @@ func (deviceStyleL) LoadDeviceDefinition(ctx context.Context, e boil.ContextExec
 	return nil
 }
 
+// LoadUserDevices allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (deviceStyleL) LoadUserDevices(ctx context.Context, e boil.ContextExecutor, singular bool, maybeDeviceStyle interface{}, mods queries.Applicator) error {
+	var slice []*DeviceStyle
+	var object *DeviceStyle
+
+	if singular {
+		object = maybeDeviceStyle.(*DeviceStyle)
+	} else {
+		slice = *maybeDeviceStyle.(*[]*DeviceStyle)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &deviceStyleR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &deviceStyleR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.ID) {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`devices_api.user_devices`),
+		qm.WhereIn(`devices_api.user_devices.device_style_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load user_devices")
+	}
+
+	var resultSlice []*UserDevice
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice user_devices")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on user_devices")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for user_devices")
+	}
+
+	if len(userDeviceAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.UserDevices = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &userDeviceR{}
+			}
+			foreign.R.DeviceStyle = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if queries.Equal(local.ID, foreign.DeviceStyleID) {
+				local.R.UserDevices = append(local.R.UserDevices, foreign)
+				if foreign.R == nil {
+					foreign.R = &userDeviceR{}
+				}
+				foreign.R.DeviceStyle = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // SetDeviceDefinition of the deviceStyle to the related item.
 // Sets o.R.DeviceDefinition to related.
 // Adds o to related.R.DeviceStyles.
@@ -564,6 +686,133 @@ func (o *DeviceStyle) SetDeviceDefinition(ctx context.Context, exec boil.Context
 		}
 	} else {
 		related.R.DeviceStyles = append(related.R.DeviceStyles, o)
+	}
+
+	return nil
+}
+
+// AddUserDevices adds the given related objects to the existing relationships
+// of the device_style, optionally inserting them as new records.
+// Appends related to o.R.UserDevices.
+// Sets related.R.DeviceStyle appropriately.
+func (o *DeviceStyle) AddUserDevices(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*UserDevice) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			queries.Assign(&rel.DeviceStyleID, o.ID)
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"devices_api\".\"user_devices\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"device_style_id"}),
+				strmangle.WhereClause("\"", "\"", 2, userDevicePrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			queries.Assign(&rel.DeviceStyleID, o.ID)
+		}
+	}
+
+	if o.R == nil {
+		o.R = &deviceStyleR{
+			UserDevices: related,
+		}
+	} else {
+		o.R.UserDevices = append(o.R.UserDevices, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &userDeviceR{
+				DeviceStyle: o,
+			}
+		} else {
+			rel.R.DeviceStyle = o
+		}
+	}
+	return nil
+}
+
+// SetUserDevices removes all previously related items of the
+// device_style replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.DeviceStyle's UserDevices accordingly.
+// Replaces o.R.UserDevices with related.
+// Sets related.R.DeviceStyle's UserDevices accordingly.
+func (o *DeviceStyle) SetUserDevices(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*UserDevice) error {
+	query := "update \"devices_api\".\"user_devices\" set \"device_style_id\" = null where \"device_style_id\" = $1"
+	values := []interface{}{o.ID}
+	if boil.IsDebug(ctx) {
+		writer := boil.DebugWriterFrom(ctx)
+		fmt.Fprintln(writer, query)
+		fmt.Fprintln(writer, values)
+	}
+	_, err := exec.ExecContext(ctx, query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	if o.R != nil {
+		for _, rel := range o.R.UserDevices {
+			queries.SetScanner(&rel.DeviceStyleID, nil)
+			if rel.R == nil {
+				continue
+			}
+
+			rel.R.DeviceStyle = nil
+		}
+
+		o.R.UserDevices = nil
+	}
+	return o.AddUserDevices(ctx, exec, insert, related...)
+}
+
+// RemoveUserDevices relationships from objects passed in.
+// Removes related items from R.UserDevices (uses pointer comparison, removal does not keep order)
+// Sets related.R.DeviceStyle.
+func (o *DeviceStyle) RemoveUserDevices(ctx context.Context, exec boil.ContextExecutor, related ...*UserDevice) error {
+	if len(related) == 0 {
+		return nil
+	}
+
+	var err error
+	for _, rel := range related {
+		queries.SetScanner(&rel.DeviceStyleID, nil)
+		if rel.R != nil {
+			rel.R.DeviceStyle = nil
+		}
+		if _, err = rel.Update(ctx, exec, boil.Whitelist("device_style_id")); err != nil {
+			return err
+		}
+	}
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.UserDevices {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.UserDevices)
+			if ln > 1 && i < ln-1 {
+				o.R.UserDevices[i] = o.R.UserDevices[ln-1]
+			}
+			o.R.UserDevices = o.R.UserDevices[:ln-1]
+			break
+		}
 	}
 
 	return nil
