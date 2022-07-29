@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"time"
@@ -45,12 +47,13 @@ func loadUserDeviceDrively(ctx context.Context, logger *zerolog.Logger, settings
 			models.DrivlyDatumWhere.DeviceDefinitionID.EQ(null.StringFrom(ud.DeviceDefinitionID)),
 			qm.OrderBy("updated_at desc"), qm.Limit(1)).
 			One(context.Background(), pdb.DBS().Writer)
-		if err != nil {
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return err
 		}
 		if existingData != nil && existingData.UpdatedAt.Add(time.Hour*24*14).After(time.Now()) {
 			log.Info().Msgf("skipping device definition %s %s %d since already pulled in last 2 weeks",
 				deviceDefinition.ID, deviceDefinition.Model, deviceDefinition.Year)
+			deviceDefIDs = append(deviceDefIDs, ud.DeviceDefinitionID)
 			continue
 		}
 
