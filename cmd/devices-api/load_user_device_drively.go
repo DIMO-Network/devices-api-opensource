@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/rs/zerolog/log"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
@@ -33,17 +35,29 @@ func loadUserDeviceDrively(ctx context.Context, logger *zerolog.Logger, settings
 			continue
 		}
 		deviceDefIDs = append(deviceDefIDs, ud.DeviceDefinitionID)
-
-		vinInfo, err := drivlyService.GetVINInfo(ud.VinIdentifier.String)
-		if err != nil {
-			// should we do a VIN checksum before, a lot of these seem to be just failed vin checksum
-			log.Err(err).Msgf("error getting VIN %s. skipping", ud.VinIdentifier.String)
-			continue
-		}
-
+		// should we do a VIN checksum before, a lot of these seem to be just failed vin checksum
 		deviceDefinition, err := models.FindDeviceDefinition(ctx, pdb.DBS().Reader, ud.DeviceDefinitionID)
 		if err != nil {
 			return err
+		}
+		// skip if already pulled this data in last 2 weeks
+		existingData, err := models.DrivlyData(
+			models.DrivlyDatumWhere.DeviceDefinitionID.EQ(null.StringFrom(ud.DeviceDefinitionID)),
+			qm.OrderBy("updated_at desc"), qm.Limit(1)).
+			One(context.Background(), pdb.DBS().Writer)
+		if err != nil {
+			return err
+		}
+		if existingData != nil && existingData.UpdatedAt.Add(time.Hour*24*14).After(time.Now()) {
+			log.Info().Msgf("skipping device definition %s %s %d since already pulled in last 2 weeks",
+				deviceDefinition.ID, deviceDefinition.Model, deviceDefinition.Year)
+			continue
+		}
+
+		vinInfo, err := drivlyService.GetVINInfo(ud.VinIdentifier.String)
+		if err != nil {
+			log.Err(err).Msgf("error getting VIN %s. skipping", ud.VinIdentifier.String)
+			continue
 		}
 
 		logger.Info().Msgf("DeviceDefinitionID Year %d Model %s", deviceDefinition.Year, deviceDefinition.Model)
