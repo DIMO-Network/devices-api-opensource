@@ -3,20 +3,22 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
-	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/segmentio/ksuid"
+	"github.com/tidwall/gjson"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
 // load user devices.
@@ -117,6 +119,28 @@ func loadUserDeviceDrively(ctx context.Context, logger *zerolog.Logger, settings
 		err = drivlyData.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
 		if err != nil {
 			return err
+		}
+		// try to fill in edmunds style_id in our user_device
+		if summary.Edmunds != nil {
+			edmundsJSON, err := json.Marshal(summary.Edmunds)
+			if err != nil {
+				logger.Err(err).Msg("could not marshal edmunds response to json")
+				continue
+			}
+			styleIDResult := gjson.GetBytes(edmundsJSON, "edmundsStyle.data.style.id")
+			styleID := styleIDResult.String()
+			if styleIDResult.Exists() && len(styleID) > 0 {
+				deviceStyle, err := models.DeviceStyles(models.DeviceStyleWhere.ExternalStyleID.EQ(styleID)).One(ctx, pdb.DBS().Reader)
+				if err != nil {
+					logger.Err(err).Msgf("unable to find device_style for edmunds style_id %s", styleID)
+					continue
+				}
+				ud.DeviceStyleID = null.StringFrom(deviceStyle.ID) // set foreign key
+				_, err = ud.Update(ctx, pdb.DBS().Writer, boil.Infer())
+				if err != nil {
+					logger.Err(err).Msgf("unable to update user_device_id %s with styleID %s", ud.ID, deviceStyle.ID)
+				}
+			}
 		}
 
 		// todo future: did MMY from vininfo match the device definition?

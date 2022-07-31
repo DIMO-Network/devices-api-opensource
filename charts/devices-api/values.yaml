@@ -61,7 +61,7 @@ env:
   NFT_CONTRACT_NAME: DIMOBetaV1
   NFT_CONTRACT_VERSION: '1'
   IPFS_NODE_ENDPOINT: http://cluster-ipfs-cluster.web3.svc.cluster.local:9094
-  DRIVLY_VIN_API_URL: https://vin.dev.driv.ly
+  DRIVLY_VIN_API_URL: https://vin-git-fc.dev.driv.ly
   DRIVLY_OFFER_API_URL: https://offers.dev.driv.ly
 service:
   type: ClusterIP
