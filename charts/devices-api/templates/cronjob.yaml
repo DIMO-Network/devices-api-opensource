@@ -14,7 +14,6 @@ spec:
       template:
         metadata:
           annotations:
-            linkerd.io/inject: disabled
           {{- with .Values.podAnnotations }}
             {{- toYaml . | nindent 8 }}
           {{- end }}
@@ -26,7 +25,8 @@ spec:
             securityContext:
               {{- toYaml .Values.securityContext | nindent 14 }}
             image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-            command: ['sh', '-c', "/devices-api edmunds-vehicles-sync"]
+            command: ["/bin/sh"]
+            args: ["-c", "/devices-api edmunds-vehicles-sync","; CODE=$?; wget --post-data hello=shutdown http://localhost:4191/shutdown; exit $CODE;"]
             envFrom:
             - configMapRef:
                 name: {{ include "devices-api.fullname" . }}-config
@@ -36,7 +36,8 @@ spec:
             securityContext:
               {{- toYaml .Values.securityContext | nindent 14 }}
             image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-            command: [ 'sh', '-c', "/devices-api smartcar-sync" ]
+            command: ["/bin/sh"]
+            args: ["-c", "/devices-api smartcar-sync","; CODE=$?; wget --post-data hello=shutdown http://localhost:4191/shutdown; exit $CODE;"]
             envFrom:
             - configMapRef:
                 name: {{ include "devices-api.fullname" . }}-config
@@ -46,7 +47,8 @@ spec:
             securityContext:
               {{- toYaml .Values.securityContext | nindent 14 }}
             image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-            command: ['sh', '-c', "/devices-api search-sync-dds"]
+            command: ["/bin/sh"]
+            args: ["-c", "/devices-api search-sync-dds","; CODE=$?; wget --post-data hello=shutdown http://localhost:4191/shutdown; exit $CODE;"]
             envFrom:
             - configMapRef:
                 name: {{ include "devices-api.fullname" . }}-config
