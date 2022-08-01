@@ -20,43 +20,17 @@ spec:
           labels:
             {{- include "devices-api.selectorLabels" . | nindent 12 }}
         spec:
-          initContainers:
+          containers:
           - name: edmunds-vehicles-sync
             securityContext:
               {{- toYaml .Values.securityContext | nindent 14 }}
             image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
             command: ["/bin/sh"]
-            args: ["-c", "/devices-api edmunds-vehicles-sync","; CODE=$?; wget --post-data hello=shutdown http://localhost:4191/shutdown; exit $CODE;"]
+            args: ["-c", "/devices-api edmunds-vehicles-sync;","/devices-api smartcar-sync;","/devices-api search-sync-dds;"," CODE=$?; echo "edmunds-vehicles-sync and search-sync-dds completed"; wget --post-data hello=shutdown http://localhost:4191/shutdown; exit $CODE;"]
             envFrom:
             - configMapRef:
                 name: {{ include "devices-api.fullname" . }}-config
             - secretRef:
                 name: {{ include "devices-api.fullname" . }}-secret
-          - name: smartcar-sync
-            securityContext:
-              {{- toYaml .Values.securityContext | nindent 14 }}
-            image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-            command: ["/bin/sh"]
-            args: ["-c", "/devices-api smartcar-sync","; CODE=$?; wget --post-data hello=shutdown http://localhost:4191/shutdown; exit $CODE;"]
-            envFrom:
-            - configMapRef:
-                name: {{ include "devices-api.fullname" . }}-config
-            - secretRef:
-                name: {{ include "devices-api.fullname" . }}-secret
-          - name: search-sync-dds
-            securityContext:
-              {{- toYaml .Values.securityContext | nindent 14 }}
-            image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-            command: ["/bin/sh"]
-            args: ["-c", "/devices-api search-sync-dds","; CODE=$?; wget --post-data hello=shutdown http://localhost:4191/shutdown; exit $CODE;"]
-            envFrom:
-            - configMapRef:
-                name: {{ include "devices-api.fullname" . }}-config
-            - secretRef:
-                name: {{ include "devices-api.fullname" . }}-secret
-          containers:
-          - name: completed
-            image: busybox
-            command: ['sh', '-c', 'echo "edmunds-vehicles-sync and search-sync-dds completed"']
           restartPolicy: OnFailure
 {{ end }}          
