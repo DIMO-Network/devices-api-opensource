@@ -256,6 +256,12 @@ func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) (services.Devi
 		Name:                   fmt.Sprintf("%d %s %s", dd.Year, dd.R.DeviceMake.Name, dd.Model),
 		ImageURL:               dd.ImageURL.Ptr(),
 		CompatibleIntegrations: []services.DeviceCompatibility{},
+		DeviceMake: services.DeviceMake{
+			ID:              dd.R.DeviceMake.ID,
+			Name:            dd.R.DeviceMake.Name,
+			LogoURL:         dd.R.DeviceMake.LogoURL,
+			OemPlatformName: dd.R.DeviceMake.OemPlatformName,
+		},
 		Type: services.DeviceType{
 			Type:  "Vehicle",
 			Make:  dd.R.DeviceMake.Name,

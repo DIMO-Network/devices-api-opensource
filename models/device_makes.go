@@ -25,47 +25,57 @@ import (
 
 // DeviceMake is an object representing the database table.
 type DeviceMake struct {
-	ID          string            `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Name        string            `boil:"name" json:"name" toml:"name" yaml:"name"`
-	ExternalIds null.JSON         `boil:"external_ids" json:"external_ids,omitempty" toml:"external_ids" yaml:"external_ids,omitempty"`
-	CreatedAt   time.Time         `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt   time.Time         `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	TokenID     types.NullDecimal `boil:"token_id" json:"token_id,omitempty" toml:"token_id" yaml:"token_id,omitempty"`
+	ID              string            `boil:"id" json:"id" toml:"id" yaml:"id"`
+	Name            string            `boil:"name" json:"name" toml:"name" yaml:"name"`
+	ExternalIds     null.JSON         `boil:"external_ids" json:"external_ids,omitempty" toml:"external_ids" yaml:"external_ids,omitempty"`
+	CreatedAt       time.Time         `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt       time.Time         `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	TokenID         types.NullDecimal `boil:"token_id" json:"token_id,omitempty" toml:"token_id" yaml:"token_id,omitempty"`
+	LogoURL         null.String       `boil:"logo_url" json:"logo_url,omitempty" toml:"logo_url" yaml:"logo_url,omitempty"`
+	OemPlatformName null.String       `boil:"oem_platform_name" json:"oem_platform_name,omitempty" toml:"oem_platform_name" yaml:"oem_platform_name,omitempty"`
 
 	R *deviceMakeR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L deviceMakeL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var DeviceMakeColumns = struct {
-	ID          string
-	Name        string
-	ExternalIds string
-	CreatedAt   string
-	UpdatedAt   string
-	TokenID     string
+	ID              string
+	Name            string
+	ExternalIds     string
+	CreatedAt       string
+	UpdatedAt       string
+	TokenID         string
+	LogoURL         string
+	OemPlatformName string
 }{
-	ID:          "id",
-	Name:        "name",
-	ExternalIds: "external_ids",
-	CreatedAt:   "created_at",
-	UpdatedAt:   "updated_at",
-	TokenID:     "token_id",
+	ID:              "id",
+	Name:            "name",
+	ExternalIds:     "external_ids",
+	CreatedAt:       "created_at",
+	UpdatedAt:       "updated_at",
+	TokenID:         "token_id",
+	LogoURL:         "logo_url",
+	OemPlatformName: "oem_platform_name",
 }
 
 var DeviceMakeTableColumns = struct {
-	ID          string
-	Name        string
-	ExternalIds string
-	CreatedAt   string
-	UpdatedAt   string
-	TokenID     string
+	ID              string
+	Name            string
+	ExternalIds     string
+	CreatedAt       string
+	UpdatedAt       string
+	TokenID         string
+	LogoURL         string
+	OemPlatformName string
 }{
-	ID:          "device_makes.id",
-	Name:        "device_makes.name",
-	ExternalIds: "device_makes.external_ids",
-	CreatedAt:   "device_makes.created_at",
-	UpdatedAt:   "device_makes.updated_at",
-	TokenID:     "device_makes.token_id",
+	ID:              "device_makes.id",
+	Name:            "device_makes.name",
+	ExternalIds:     "device_makes.external_ids",
+	CreatedAt:       "device_makes.created_at",
+	UpdatedAt:       "device_makes.updated_at",
+	TokenID:         "device_makes.token_id",
+	LogoURL:         "device_makes.logo_url",
+	OemPlatformName: "device_makes.oem_platform_name",
 }
 
 // Generated where
@@ -97,19 +107,23 @@ func (w whereHelpertypes_NullDecimal) IsNotNull() qm.QueryMod {
 }
 
 var DeviceMakeWhere = struct {
-	ID          whereHelperstring
-	Name        whereHelperstring
-	ExternalIds whereHelpernull_JSON
-	CreatedAt   whereHelpertime_Time
-	UpdatedAt   whereHelpertime_Time
-	TokenID     whereHelpertypes_NullDecimal
+	ID              whereHelperstring
+	Name            whereHelperstring
+	ExternalIds     whereHelpernull_JSON
+	CreatedAt       whereHelpertime_Time
+	UpdatedAt       whereHelpertime_Time
+	TokenID         whereHelpertypes_NullDecimal
+	LogoURL         whereHelpernull_String
+	OemPlatformName whereHelpernull_String
 }{
-	ID:          whereHelperstring{field: "\"devices_api\".\"device_makes\".\"id\""},
-	Name:        whereHelperstring{field: "\"devices_api\".\"device_makes\".\"name\""},
-	ExternalIds: whereHelpernull_JSON{field: "\"devices_api\".\"device_makes\".\"external_ids\""},
-	CreatedAt:   whereHelpertime_Time{field: "\"devices_api\".\"device_makes\".\"created_at\""},
-	UpdatedAt:   whereHelpertime_Time{field: "\"devices_api\".\"device_makes\".\"updated_at\""},
-	TokenID:     whereHelpertypes_NullDecimal{field: "\"devices_api\".\"device_makes\".\"token_id\""},
+	ID:              whereHelperstring{field: "\"devices_api\".\"device_makes\".\"id\""},
+	Name:            whereHelperstring{field: "\"devices_api\".\"device_makes\".\"name\""},
+	ExternalIds:     whereHelpernull_JSON{field: "\"devices_api\".\"device_makes\".\"external_ids\""},
+	CreatedAt:       whereHelpertime_Time{field: "\"devices_api\".\"device_makes\".\"created_at\""},
+	UpdatedAt:       whereHelpertime_Time{field: "\"devices_api\".\"device_makes\".\"updated_at\""},
+	TokenID:         whereHelpertypes_NullDecimal{field: "\"devices_api\".\"device_makes\".\"token_id\""},
+	LogoURL:         whereHelpernull_String{field: "\"devices_api\".\"device_makes\".\"logo_url\""},
+	OemPlatformName: whereHelpernull_String{field: "\"devices_api\".\"device_makes\".\"oem_platform_name\""},
 }
 
 // DeviceMakeRels is where relationship names are stored.
@@ -140,9 +154,9 @@ func (r *deviceMakeR) GetDeviceDefinitions() DeviceDefinitionSlice {
 type deviceMakeL struct{}
 
 var (
-	deviceMakeAllColumns            = []string{"id", "name", "external_ids", "created_at", "updated_at", "token_id"}
+	deviceMakeAllColumns            = []string{"id", "name", "external_ids", "created_at", "updated_at", "token_id", "logo_url", "oem_platform_name"}
 	deviceMakeColumnsWithoutDefault = []string{"id", "name"}
-	deviceMakeColumnsWithDefault    = []string{"external_ids", "created_at", "updated_at", "token_id"}
+	deviceMakeColumnsWithDefault    = []string{"external_ids", "created_at", "updated_at", "token_id", "logo_url", "oem_platform_name"}
 	deviceMakePrimaryKeyColumns     = []string{"id"}
 	deviceMakeGeneratedColumns      = []string{}
 )

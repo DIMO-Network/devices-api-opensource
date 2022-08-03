@@ -5,13 +5,16 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+
+	"github.com/volatiletech/null/v8"
 )
 
 // DeviceDefinition represents a device for to clients in generic form, ie. not specific to a user
 type DeviceDefinition struct {
-	DeviceDefinitionID string  `json:"deviceDefinitionId"`
-	Name               string  `json:"name"`
-	ImageURL           *string `json:"imageUrl"`
+	DeviceDefinitionID string     `json:"deviceDefinitionId"`
+	Name               string     `json:"name"`
+	ImageURL           *string    `json:"imageUrl"`
+	DeviceMake         DeviceMake `json:"make"`
 	// CompatibleIntegrations has systems this vehicle can integrate with
 	CompatibleIntegrations []DeviceCompatibility `json:"compatibleIntegrations"`
 	Type                   DeviceType            `json:"type"`
@@ -19,6 +22,13 @@ type DeviceDefinition struct {
 	VehicleInfo DeviceVehicleInfo `json:"vehicleData,omitempty"`
 	Metadata    interface{}       `json:"metadata"`
 	Verified    bool              `json:"verified"`
+}
+
+type DeviceMake struct {
+	ID              string      `json:"id"`
+	Name            string      `json:"name"`
+	LogoURL         null.String `json:"logo_url"`
+	OemPlatformName null.String `json:"oem_platform_name"`
 }
 
 // DeviceCompatibility represents what systems we know this is compatible with
