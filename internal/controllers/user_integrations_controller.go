@@ -247,6 +247,8 @@ func (udc *UserDevicesController) handleEnqueueCommand(c *fiber.Ctx, commandPath
 		Str("commandPath", commandPath).
 		Logger()
 
+	logger.Info().Msg("Received command request.")
+
 	// Checking both that the device exists and that the user owns it.
 	deviceOK, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
@@ -320,6 +322,8 @@ func (udc *UserDevicesController) handleEnqueueCommand(c *fiber.Ctx, commandPath
 		logger.Err(err).Msg("Failed to start command task.")
 		return opaqueInternalError
 	}
+
+	logger.Info().Msg("Successfully enqueued command.")
 
 	return c.JSON(CommandResponse{subTaskID})
 }
