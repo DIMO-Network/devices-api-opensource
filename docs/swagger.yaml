@@ -68,19 +68,10 @@ definitions:
       unitId:
         type: string
     type: object
-  github.com_DIMO-Network_devices-api_internal_controllers.ChargeLimitBody:
+  github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse:
     properties:
-      chargeLimit:
-        description: |-
-          ChargeLimit is the charge limit, a value from 0.0 to 1.0, inclusive.
-          Note that not all of these values may be allowed by the device.
-        example: 0.7
-        format: float
-        maximum: 1
-        minimum: 0
-        type: number
-    required:
-    - chargeLimit
+      taskId:
+        type: string
     type: object
   github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence:
     properties:
@@ -415,19 +406,10 @@ definitions:
       unitId:
         type: string
     type: object
-  internal_controllers.ChargeLimitBody:
+  internal_controllers.CommandResponse:
     properties:
-      chargeLimit:
-        description: |-
-          ChargeLimit is the charge limit, a value from 0.0 to 1.0, inclusive.
-          Note that not all of these values may be allowed by the device.
-        example: 0.7
-        format: float
-        maximum: 1
-        minimum: 0
-        type: number
-    required:
-    - chargeLimit
+      taskId:
+        type: string
     type: object
   internal_controllers.CreateGeofence:
     properties:
@@ -860,6 +842,8 @@ definitions:
         type: string
       epa_class:
         type: string
+      fuel_tank_capacity_gal:
+        type: string
       fuel_type:
         type: string
       mpg_city:
@@ -938,7 +922,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo'
+            $ref: '#/definitions/internal_controllers.AutoPiDeviceInfo'
       security:
       - BearerAuth: []
       tags:
@@ -1269,7 +1253,7 @@ paths:
         name: AutoPiCommandRequest
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest'
+          $ref: '#/definitions/internal_controllers.AutoPiCommandRequest'
       responses:
         "200":
           description: OK
@@ -1308,7 +1292,7 @@ paths:
         name: userDeviceIntegrationRegistration
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest'
+          $ref: '#/definitions/internal_controllers.RegisterDeviceIntegrationRequest'
       responses:
         "204":
           description: No Content
@@ -1447,41 +1431,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse'
+            $ref: '#/definitions/internal_controllers.GetUserDeviceIntegrationResponse'
       security:
       - BearerAuth: []
       tags:
       - integrations
-  /user/devices/{userDeviceID}/integrations/{integrationID}/commands/charge/limit:
-    post:
-      description: Set the device's charge limit. Currently, this only works for Teslas
-        connected through Tesla.
-      operationId: set-charge-limit
-      parameters:
-      - description: Device ID
-        in: path
-        name: userDeviceID
-        required: true
-        type: string
-      - description: Integration ID
-        in: path
-        name: integrationID
-        required: true
-        type: string
-      - description: Specify the charge limit
-        in: body
-        name: chargeLimitRequest
-        required: true
-        schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.ChargeLimitBody'
-      produces:
-      - application/json
-      responses: {}
-      summary: Set the device's charge limit.
-      tags:
-      - device
-      - integration
-      - command
   /user/devices/{userDeviceID}/integrations/{integrationID}/commands/doors/lock:
     post:
       description: Lock the device's doors.
@@ -1499,7 +1453,11 @@ paths:
         type: string
       produces:
       - application/json
-      responses: {}
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_controllers.CommandResponse'
       summary: Lock the device's doors
       tags:
       - device
@@ -1522,7 +1480,11 @@ paths:
         type: string
       produces:
       - application/json
-      responses: {}
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_controllers.CommandResponse'
       summary: Unlock the device's doors
       tags:
       - device
@@ -1546,7 +1508,11 @@ paths:
         type: string
       produces:
       - application/json
-      responses: {}
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_controllers.CommandResponse'
       summary: Open the device's front trunk
       tags:
       - device
@@ -1570,7 +1536,11 @@ paths:
         type: string
       produces:
       - application/json
-      responses: {}
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_controllers.CommandResponse'
       summary: Open the device's rear trunk
       tags:
       - device

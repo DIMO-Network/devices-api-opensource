@@ -19,6 +19,7 @@ import (
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+	"golang.org/x/exp/slices"
 	"golang.org/x/mod/semver"
 )
 
@@ -229,78 +230,116 @@ func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(commandResponse)
 }
 
-var deviceIncapable = fiber.NewError(fiber.StatusBadRequest, "integration is not active")
+// handleEnqueueCommand enqueues the command specified by commandPath with the
+// appropriate task service.
+//
+// Grabs user ID, device ID, and integration ID from Ctx.
+func (udc *UserDevicesController) handleEnqueueCommand(c *fiber.Ctx, commandPath string) error {
+	userID := getUserID(c)
+	userDeviceID := c.Params("userDeviceID")
+	integrationID := c.Params("integrationID")
+
+	logger := udc.log.With().
+		Str("feature", "commands").
+		Str("userId", userID).
+		Str("userDeviceId", userDeviceID).
+		Str("integrationId", integrationID).
+		Str("commandPath", commandPath).
+		Logger()
+
+	// Checking both that the device exists and that the user owns it.
+	deviceOK, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		models.UserDeviceWhere.UserID.EQ(userID),
+	).Exists(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		logger.Err(err).Msg("Failed to search for device.")
+		return opaqueInternalError
+	}
+
+	if !deviceOK {
+		return fiber.NewError(fiber.StatusNotFound, "Device not found.")
+	}
+
+	udai, err := models.UserDeviceAPIIntegrations(
+		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(userDeviceID),
+		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID),
+		qm.Load(models.UserDeviceAPIIntegrationRels.Integration), // Load the integration to get the vendor.
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, "Integration not found for this device.")
+		}
+		logger.Err(err).Msg("Failed to search for device integration record.")
+		return opaqueInternalError
+	}
+
+	if udai.Status != models.UserDeviceAPIIntegrationStatusActive {
+		return fiber.NewError(fiber.StatusConflict, "Integration is not active for this device.")
+	}
+
+	md := new(services.UserDeviceAPIIntegrationsMetadata)
+	if err := udai.Metadata.Unmarshal(md); err != nil {
+		logger.Err(err).Msg("Couldn't parse metadata JSON.")
+		return opaqueInternalError
+	}
+
+	// TODO(elffjs): This map is ugly. Surely we interface our way out of this?
+	commandMap := map[string]map[string]func(udai *models.UserDeviceAPIIntegration) (string, error){
+		services.SmartCarVendor: {
+			"doors/unlock": udc.smartcarTaskSvc.UnlockDoors,
+			"doors/lock":   udc.smartcarTaskSvc.LockDoors,
+		},
+		services.TeslaVendor: {
+			"doors/unlock": udc.teslaTaskService.UnlockDoors,
+			"doors/lock":   udc.teslaTaskService.LockDoors,
+			"trunk/open":   udc.teslaTaskService.OpenTrunk,
+			"frunk/open":   udc.teslaTaskService.OpenFrunk,
+		},
+	}
+
+	vendorCommandMap, ok := commandMap[udai.R.Integration.Vendor]
+	if !ok {
+		return fiber.NewError(fiber.StatusConflict, "Integration is not capable of this command.")
+	}
+
+	// This correctly handles md.Commands.Enabled being nil.
+	if !slices.Contains(md.Commands.Enabled, commandPath) {
+		return fiber.NewError(fiber.StatusConflict, "Integration is not capable of this command with this device.")
+	}
+
+	commandFunc, ok := vendorCommandMap[commandPath]
+	if !ok {
+		// Should never get here.
+		logger.Error().Msg("Command was enabled for this device, but there is no function to execute it.")
+		return fiber.NewError(fiber.StatusConflict, "Integration is not capable of this command.")
+	}
+
+	subTaskID, err := commandFunc(udai)
+	if err != nil {
+		logger.Err(err).Msg("Failed to start command task.")
+		return opaqueInternalError
+	}
+
+	return c.JSON(CommandResponse{subTaskID})
+}
+
+type CommandResponse struct {
+	TaskID string `json:"taskId"`
+}
 
 // UnlockDoors godoc
 // @Summary     Unlock the device's doors
 // @Description Unlock the device's doors.
 // @Id          unlock-doors
 // @Tags        device,integration,command
+// @Success 200 {object} controllers.CommandResponse
 // @Produce     json
 // @Param       userDeviceID  path string true "Device ID"
 // @Param       integrationID path string true "Integration ID"
 // @Router      /user/devices/{userDeviceID}/integrations/{integrationID}/commands/doors/unlock [post]
 func (udc *UserDevicesController) UnlockDoors(c *fiber.Ctx) error {
-	userID := getUserID(c)
-	userDeviceID := c.Params("userDeviceID")
-	integrationID := c.Params("integrationID")
-
-	device, err := models.UserDevices(
-		models.UserDeviceWhere.UserID.EQ(userID),
-		models.UserDeviceWhere.ID.EQ(userDeviceID),
-		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID)),
-		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
-	).One(c.Context(), udc.DBS().Reader)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusNotFound, "no device found with that id")
-		}
-		return opaqueInternalError
-	}
-
-	if len(device.R.UserDeviceAPIIntegrations) == 0 {
-		return fiber.NewError(fiber.StatusNotFound, "device does not have the specified integration")
-	}
-
-	apiInt := device.R.UserDeviceAPIIntegrations[0]
-
-	vendor := apiInt.R.Integration.Vendor
-	if vendor != services.SmartCarVendor && vendor != services.TeslaVendor {
-		return deviceIncapable
-	}
-
-	if apiInt.Status != models.UserDeviceAPIIntegrationStatusActive {
-		return fiber.NewError(fiber.StatusBadRequest, "integration is not active")
-	}
-
-	md := new(services.UserDeviceAPIIntegrationsMetadata)
-	if err := apiInt.Metadata.Unmarshal(md); err != nil {
-		return opaqueInternalError
-	}
-
-	if md.Commands == nil {
-		return deviceIncapable
-	}
-
-	for _, cap := range md.Commands.Enabled {
-		if cap == "doors/unlock" {
-			var subTaskID string
-			if vendor == services.SmartCarVendor {
-				subTaskID, err = udc.smartcarTaskSvc.UnlockDoors(apiInt)
-				if err != nil {
-					return opaqueInternalError
-				}
-			} else {
-				subTaskID, err = udc.teslaTaskService.UnlockDoors(apiInt)
-				if err != nil {
-					return opaqueInternalError
-				}
-			}
-			return c.JSON(map[string]any{"taskId": subTaskID})
-		}
-	}
-
-	return deviceIncapable
+	return udc.handleEnqueueCommand(c, "doors/unlock")
 }
 
 // LockDoors godoc
@@ -308,71 +347,13 @@ func (udc *UserDevicesController) UnlockDoors(c *fiber.Ctx) error {
 // @Description Lock the device's doors.
 // @Id          lock-doors
 // @Tags        device,integration,command
+// @Success 200 {object} controllers.CommandResponse
 // @Produce     json
 // @Param       userDeviceID  path string true "Device ID"
 // @Param       integrationID path string true "Integration ID"
 // @Router      /user/devices/{userDeviceID}/integrations/{integrationID}/commands/doors/lock [post]
 func (udc *UserDevicesController) LockDoors(c *fiber.Ctx) error {
-	userID := getUserID(c)
-	userDeviceID := c.Params("userDeviceID")
-	integrationID := c.Params("integrationID")
-
-	device, err := models.UserDevices(
-		models.UserDeviceWhere.UserID.EQ(userID),
-		models.UserDeviceWhere.ID.EQ(userDeviceID),
-		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID)),
-		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
-	).One(c.Context(), udc.DBS().Reader)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusNotFound, "no device found with that id")
-		}
-		return opaqueInternalError
-	}
-
-	if len(device.R.UserDeviceAPIIntegrations) == 0 {
-		return fiber.NewError(fiber.StatusNotFound, "device does not have the specified integration")
-	}
-
-	apiInt := device.R.UserDeviceAPIIntegrations[0]
-
-	vendor := apiInt.R.Integration.Vendor
-	if vendor != services.SmartCarVendor && vendor != services.TeslaVendor {
-		return deviceIncapable
-	}
-
-	if apiInt.Status != models.UserDeviceAPIIntegrationStatusActive {
-		return fiber.NewError(fiber.StatusBadRequest, "integration is not active")
-	}
-
-	md := new(services.UserDeviceAPIIntegrationsMetadata)
-	if err := apiInt.Metadata.Unmarshal(md); err != nil {
-		return opaqueInternalError
-	}
-
-	if md.Commands == nil {
-		return fiber.NewError(fiber.StatusBadRequest, "not capable of this command")
-	}
-
-	for _, cap := range md.Commands.Enabled {
-		if cap == "doors/lock" {
-			var subTaskID string
-			if vendor == services.SmartCarVendor {
-				subTaskID, err = udc.smartcarTaskSvc.LockDoors(apiInt)
-				if err != nil {
-					return opaqueInternalError
-				}
-			} else {
-				subTaskID, err = udc.teslaTaskService.LockDoors(apiInt)
-				if err != nil {
-					return opaqueInternalError
-				}
-			}
-			return c.JSON(map[string]any{"taskId": subTaskID})
-		}
-	}
-
-	return deviceIncapable
+	return udc.handleEnqueueCommand(c, "doors/lock")
 }
 
 // OpenTrunk godoc
@@ -380,64 +361,13 @@ func (udc *UserDevicesController) LockDoors(c *fiber.Ctx) error {
 // @Description Open the device's front trunk. Currently, this only works for Teslas connected through Tesla.
 // @Id          open-trunk
 // @Tags        device,integration,command
+// @Success 200 {object} controllers.CommandResponse
 // @Produce     json
 // @Param       userDeviceID  path string true "Device ID"
 // @Param       integrationID path string true "Integration ID"
 // @Router      /user/devices/{userDeviceID}/integrations/{integrationID}/commands/trunk/open [post]
 func (udc *UserDevicesController) OpenTrunk(c *fiber.Ctx) error {
-	userID := getUserID(c)
-	userDeviceID := c.Params("userDeviceID")
-	integrationID := c.Params("integrationID")
-
-	device, err := models.UserDevices(
-		models.UserDeviceWhere.UserID.EQ(userID),
-		models.UserDeviceWhere.ID.EQ(userDeviceID),
-		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID)),
-		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
-	).One(c.Context(), udc.DBS().Reader)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusNotFound, "no device found with that id")
-		}
-		return opaqueInternalError
-	}
-
-	if len(device.R.UserDeviceAPIIntegrations) == 0 {
-		return fiber.NewError(fiber.StatusNotFound, "device does not have the specified integration")
-	}
-
-	apiInt := device.R.UserDeviceAPIIntegrations[0]
-
-	vendor := apiInt.R.Integration.Vendor
-	if vendor != services.TeslaVendor {
-		return deviceIncapable
-	}
-
-	if apiInt.Status != models.UserDeviceAPIIntegrationStatusActive {
-		return fiber.NewError(fiber.StatusBadRequest, "integration is not active")
-	}
-
-	md := new(services.UserDeviceAPIIntegrationsMetadata)
-	if err := apiInt.Metadata.Unmarshal(md); err != nil {
-		return opaqueInternalError
-	}
-
-	if md.Commands == nil {
-		return fiber.NewError(fiber.StatusBadRequest, "not capable of this command")
-	}
-
-	for _, cap := range md.Commands.Enabled {
-		if cap == "trunk/open" {
-			var subTaskID string
-			subTaskID, err = udc.teslaTaskService.OpenTrunk(apiInt)
-			if err != nil {
-				return opaqueInternalError
-			}
-			return c.JSON(map[string]any{"taskId": subTaskID})
-		}
-	}
-
-	return deviceIncapable
+	return udc.handleEnqueueCommand(c, "trunk/open")
 }
 
 // OpenFrunk godoc
@@ -445,147 +375,13 @@ func (udc *UserDevicesController) OpenTrunk(c *fiber.Ctx) error {
 // @Description Open the device's front trunk. Currently, this only works for Teslas connected through Tesla.
 // @Id          open-frunk
 // @Tags        device,integration,command
+// @Success 200 {object} controllers.CommandResponse
 // @Produce     json
 // @Param       userDeviceID  path string true "Device ID"
 // @Param       integrationID path string true "Integration ID"
 // @Router      /user/devices/{userDeviceID}/integrations/{integrationID}/commands/frunk/open [post]
 func (udc *UserDevicesController) OpenFrunk(c *fiber.Ctx) error {
-	userID := getUserID(c)
-	userDeviceID := c.Params("userDeviceID")
-	integrationID := c.Params("integrationID")
-
-	device, err := models.UserDevices(
-		models.UserDeviceWhere.UserID.EQ(userID),
-		models.UserDeviceWhere.ID.EQ(userDeviceID),
-		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID)),
-		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
-	).One(c.Context(), udc.DBS().Reader)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusNotFound, "no device found with that id")
-		}
-		return opaqueInternalError
-	}
-
-	if len(device.R.UserDeviceAPIIntegrations) == 0 {
-		return fiber.NewError(fiber.StatusNotFound, "device does not have the specified integration")
-	}
-
-	apiInt := device.R.UserDeviceAPIIntegrations[0]
-
-	vendor := apiInt.R.Integration.Vendor
-	if vendor != services.TeslaVendor {
-		return deviceIncapable
-	}
-
-	if apiInt.Status != models.UserDeviceAPIIntegrationStatusActive {
-		return fiber.NewError(fiber.StatusBadRequest, "integration is not active")
-	}
-
-	md := new(services.UserDeviceAPIIntegrationsMetadata)
-	if err := apiInt.Metadata.Unmarshal(md); err != nil {
-		return opaqueInternalError
-	}
-
-	if md.Commands == nil {
-		return fiber.NewError(fiber.StatusBadRequest, "not capable of this command")
-	}
-
-	for _, cap := range md.Commands.Enabled {
-		if cap == "frunk/open" {
-			var subTaskID string
-			subTaskID, err = udc.teslaTaskService.OpenFrunk(apiInt)
-			if err != nil {
-				return opaqueInternalError
-			}
-			return c.JSON(map[string]any{"taskId": subTaskID})
-		}
-	}
-
-	return deviceIncapable
-}
-
-// SetChargeLimit godoc
-// @Summary     Set the device's charge limit.
-// @Description Set the device's charge limit. Currently, this only works for Teslas connected through Tesla.
-// @Id          set-charge-limit
-// @Tags        device,integration,command
-// @Produce     json
-// @Param       userDeviceID       path string                      true "Device ID"
-// @Param       integrationID      path string                      true "Integration ID"
-// @Param       chargeLimitRequest body controllers.ChargeLimitBody true "Specify the charge limit"
-// @Router      /user/devices/{userDeviceID}/integrations/{integrationID}/commands/charge/limit [post]
-func (udc *UserDevicesController) SetChargeLimit(c *fiber.Ctx) error {
-	userID := getUserID(c)
-	userDeviceID := c.Params("userDeviceID")
-	integrationID := c.Params("integrationID")
-
-	device, err := models.UserDevices(
-		models.UserDeviceWhere.UserID.EQ(userID),
-		models.UserDeviceWhere.ID.EQ(userDeviceID),
-		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID)),
-		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
-	).One(c.Context(), udc.DBS().Reader)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusNotFound, "no device found with that id")
-		}
-		return opaqueInternalError
-	}
-
-	if len(device.R.UserDeviceAPIIntegrations) == 0 {
-		return fiber.NewError(fiber.StatusNotFound, "device does not have the specified integration")
-	}
-
-	apiInt := device.R.UserDeviceAPIIntegrations[0]
-
-	vendor := apiInt.R.Integration.Vendor
-	if vendor != services.TeslaVendor {
-		return deviceIncapable
-	}
-
-	if apiInt.Status != models.UserDeviceAPIIntegrationStatusActive {
-		return fiber.NewError(fiber.StatusBadRequest, "integration is not active")
-	}
-
-	md := new(services.UserDeviceAPIIntegrationsMetadata)
-	if err := apiInt.Metadata.Unmarshal(md); err != nil {
-		return opaqueInternalError
-	}
-
-	if md.Commands == nil {
-		return fiber.NewError(fiber.StatusBadRequest, "not capable of this command")
-	}
-
-	for _, cap := range md.Commands.Enabled {
-		if cap == "charge/limit" {
-			var subTaskID string
-			b := new(ChargeLimitBody)
-			if err := c.BodyParser(b); err != nil {
-				return fiber.NewError(fiber.StatusBadRequest, "Couldn't parse request.")
-			}
-			if b.ChargeLimit == nil {
-				return fiber.NewError(fiber.StatusBadRequest, "Must provide charge limit.")
-			}
-			// In fact, the lower bound is much higher.
-			if *b.ChargeLimit < 0.0 || *b.ChargeLimit > 1.0 {
-				return fiber.NewError(fiber.StatusBadRequest, "Charge limit must be between 0 and 1.")
-			}
-			subTaskID, err = udc.teslaTaskService.SetChargeLimit(apiInt, *b.ChargeLimit)
-			if err != nil {
-				return opaqueInternalError
-			}
-			return c.JSON(map[string]any{"taskId": subTaskID})
-		}
-	}
-
-	return deviceIncapable
-}
-
-type ChargeLimitBody struct {
-	// ChargeLimit is the charge limit, a value from 0.0 to 1.0, inclusive.
-	// Note that not all of these values may be allowed by the device.
-	ChargeLimit *float64 `json:"chargeLimit" validate:"required" format:"float" maximum:"1.0" minimum:"0.0" example:"0.7"`
+	return udc.handleEnqueueCommand(c, "frunk/open")
 }
 
 // GetAutoPiCommandStatus godoc

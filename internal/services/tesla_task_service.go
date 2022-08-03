@@ -24,7 +24,6 @@ type TeslaTaskService interface {
 	LockDoors(udai *models.UserDeviceAPIIntegration) (string, error)
 	OpenTrunk(udai *models.UserDeviceAPIIntegration) (string, error)
 	OpenFrunk(udai *models.UserDeviceAPIIntegration) (string, error)
-	SetChargeLimit(udai *models.UserDeviceAPIIntegration, limit float64) (string, error)
 }
 
 func NewTeslaTaskService(settings *config.Settings, producer sarama.SyncProducer) TeslaTaskService {
@@ -33,6 +32,9 @@ func NewTeslaTaskService(settings *config.Settings, producer sarama.SyncProducer
 		Settings: settings,
 	}
 }
+
+// Make sure we satisfy the interface.
+var _ TeslaTaskService = &teslaTaskService{}
 
 type teslaTaskService struct {
 	Producer sarama.SyncProducer
@@ -354,47 +356,6 @@ func (t *teslaTaskService) OpenFrunk(udai *models.UserDeviceAPIIntegration) (str
 			Identifiers: TeslaIdentifiers{
 				ID: id,
 			},
-		},
-	}
-
-	ttb, err := json.Marshal(tt)
-	if err != nil {
-		return "", err
-	}
-
-	_, _, err = t.Producer.SendMessage(
-		&sarama.ProducerMessage{
-			Topic: t.Settings.TaskRunNowTopic,
-			Key:   sarama.StringEncoder(udai.TaskID.String),
-			Value: sarama.ByteEncoder(ttb),
-		},
-	)
-
-	return tt.Data.SubTaskID, err
-}
-
-func (t *teslaTaskService) SetChargeLimit(udai *models.UserDeviceAPIIntegration, limit float64) (string, error) {
-	id, err := strconv.Atoi(udai.ExternalID.String)
-	if err != nil {
-		return "", err
-	}
-
-	tt := shared.CloudEvent[TeslaDoorTask]{
-		ID:          ksuid.New().String(),
-		Source:      "dimo/integration/" + udai.IntegrationID,
-		SpecVersion: "1.0",
-		Subject:     udai.UserDeviceID,
-		Time:        time.Now(),
-		Type:        "zone.dimo.task.tesla.charge.limit",
-		Data: TeslaDoorTask{
-			TaskID:        udai.TaskID.String,
-			SubTaskID:     ksuid.New().String(),
-			UserDeviceID:  udai.UserDeviceID,
-			IntegrationID: udai.IntegrationID,
-			Identifiers: TeslaIdentifiers{
-				ID: id,
-			},
-			ChargeLimit: &limit,
 		},
 	}
 

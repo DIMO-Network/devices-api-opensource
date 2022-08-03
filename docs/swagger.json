@@ -67,7 +67,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo"
+                            "$ref": "#/definitions/internal_controllers.AutoPiDeviceInfo"
                         }
                     }
                 }
@@ -586,7 +586,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest"
+                            "$ref": "#/definitions/internal_controllers.AutoPiCommandRequest"
                         }
                     }
                 ],
@@ -651,7 +651,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest"
+                            "$ref": "#/definitions/internal_controllers.RegisterDeviceIntegrationRequest"
                         }
                     }
                 ],
@@ -895,7 +895,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse"
+                            "$ref": "#/definitions/internal_controllers.GetUserDeviceIntegrationResponse"
                         }
                     }
                 }
@@ -915,47 +915,6 @@
                         "description": "No Content"
                     }
                 }
-            }
-        },
-        "/user/devices/{userDeviceID}/integrations/{integrationID}/commands/charge/limit": {
-            "post": {
-                "description": "Set the device's charge limit. Currently, this only works for Teslas connected through Tesla.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "device",
-                    "integration",
-                    "command"
-                ],
-                "summary": "Set the device's charge limit.",
-                "operationId": "set-charge-limit",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Device ID",
-                        "name": "userDeviceID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Integration ID",
-                        "name": "integrationID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Specify the charge limit",
-                        "name": "chargeLimitRequest",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.ChargeLimitBody"
-                        }
-                    }
-                ],
-                "responses": {}
             }
         },
         "/user/devices/{userDeviceID}/integrations/{integrationID}/commands/doors/lock": {
@@ -987,7 +946,14 @@
                         "required": true
                     }
                 ],
-                "responses": {}
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                        }
+                    }
+                }
             }
         },
         "/user/devices/{userDeviceID}/integrations/{integrationID}/commands/doors/unlock": {
@@ -1019,7 +985,14 @@
                         "required": true
                     }
                 ],
-                "responses": {}
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                        }
+                    }
+                }
             }
         },
         "/user/devices/{userDeviceID}/integrations/{integrationID}/commands/frunk/open": {
@@ -1051,7 +1024,14 @@
                         "required": true
                     }
                 ],
-                "responses": {}
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                        }
+                    }
+                }
             }
         },
         "/user/devices/{userDeviceID}/integrations/{integrationID}/commands/trunk/open": {
@@ -1083,7 +1063,14 @@
                         "required": true
                     }
                 ],
-                "responses": {}
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                        }
+                    }
+                }
             }
         },
         "/user/devices/{userDeviceID}/name": {
@@ -1451,19 +1438,11 @@
                 }
             }
         },
-        "github.com_DIMO-Network_devices-api_internal_controllers.ChargeLimitBody": {
+        "github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse": {
             "type": "object",
-            "required": [
-                "chargeLimit"
-            ],
             "properties": {
-                "chargeLimit": {
-                    "description": "ChargeLimit is the charge limit, a value from 0.0 to 1.0, inclusive.\nNote that not all of these values may be allowed by the device.",
-                    "type": "number",
-                    "format": "float",
-                    "maximum": 1,
-                    "minimum": 0,
-                    "example": 0.7
+                "taskId": {
+                    "type": "string"
                 }
             }
         },
@@ -1954,19 +1933,11 @@
                 }
             }
         },
-        "internal_controllers.ChargeLimitBody": {
+        "internal_controllers.CommandResponse": {
             "type": "object",
-            "required": [
-                "chargeLimit"
-            ],
             "properties": {
-                "chargeLimit": {
-                    "description": "ChargeLimit is the charge limit, a value from 0.0 to 1.0, inclusive.\nNote that not all of these values may be allowed by the device.",
-                    "type": "number",
-                    "format": "float",
-                    "maximum": 1,
-                    "minimum": 0,
-                    "example": 0.7
+                "taskId": {
+                    "type": "string"
                 }
             }
         },
@@ -2600,6 +2571,9 @@
                     "type": "string"
                 },
                 "epa_class": {
+                    "type": "string"
+                },
+                "fuel_tank_capacity_gal": {
                     "type": "string"
                 },
                 "fuel_type": {
