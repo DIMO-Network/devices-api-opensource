@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+//go:generate mockgen -source drivly_api_service.go -destination mocks/drivly_api_service_mock.go
 type DrivlyAPIService interface {
 	GetVINInfo(vin string) (map[string]interface{}, error)
 	GetVINPricing(vin string) (map[string]interface{}, error)

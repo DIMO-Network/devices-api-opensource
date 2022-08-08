@@ -80,6 +80,20 @@ func (mr *MockIDeviceDefinitionServiceMockRecorder) GetOrCreateMake(ctx, tx, mak
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrCreateMake", reflect.TypeOf((*MockIDeviceDefinitionService)(nil).GetOrCreateMake), ctx, tx, makeName)
 }
 
+// PullDrivlyData mocks base method.
+func (m *MockIDeviceDefinitionService) PullDrivlyData(ctx context.Context, userDeviceID, deviceDefinitionID, vin string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PullDrivlyData", ctx, userDeviceID, deviceDefinitionID, vin)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PullDrivlyData indicates an expected call of PullDrivlyData.
+func (mr *MockIDeviceDefinitionServiceMockRecorder) PullDrivlyData(ctx, userDeviceID, deviceDefinitionID, vin interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PullDrivlyData", reflect.TypeOf((*MockIDeviceDefinitionService)(nil).PullDrivlyData), ctx, userDeviceID, deviceDefinitionID, vin)
+}
+
 // UpdateDeviceDefinitionFromNHTSA mocks base method.
 func (m *MockIDeviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Context, deviceDefinitionID, vin string) error {
 	m.ctrl.T.Helper()

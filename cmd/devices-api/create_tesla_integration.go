@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
@@ -19,14 +20,14 @@ var teslaRegions = []string{services.AmericasRegion.String(), services.EuropeReg
 // createTeslaIntegrations ensures that we have a Tesla integration and that it is attached to all
 // Tesla device definitions in our supported countries. This behaves well if some of these records
 // already exist.
-func createTeslaIntegrations(ctx context.Context, pdb database.DbStore, logger *zerolog.Logger) error {
+func createTeslaIntegrations(ctx context.Context, pdb database.DbStore, logger *zerolog.Logger, settings *config.Settings) error {
 	tx, err := pdb.DBS().Writer.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback() //nolint
 
-	deviceDefSvc := services.NewDeviceDefinitionService("", pdb.DBS, logger, nil)
+	deviceDefSvc := services.NewDeviceDefinitionService(pdb.DBS, logger, nil, settings)
 
 	var teslaInt *models.Integration
 

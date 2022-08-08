@@ -94,9 +94,9 @@ func main() {
 		}
 		logger.Info().Msg("Finished setting command compatibility.")
 	case "smartcar-sync":
-		syncSmartCarCompatibility(ctx, logger, pdb)
+		syncSmartCarCompatibility(ctx, logger, pdb, &settings)
 	case "create-tesla-integrations":
-		if err := createTeslaIntegrations(ctx, pdb, &logger); err != nil {
+		if err := createTeslaIntegrations(ctx, pdb, &logger, &settings); err != nil {
 			logger.Fatal().Err(err).Msg("Failed to create Tesla integrations")
 		}
 	case "edmunds-vehicles-sync":
@@ -117,7 +117,7 @@ func main() {
 		}
 	case "smartcar-compatibility":
 		logger.Info().Msg("starting smartcar compatibility equalizer check to set smartcar compat forwards")
-		err = smartCarForwardCompatibility(ctx, logger, pdb)
+		err = smartCarForwardCompatibility(ctx, logger, pdb, &settings)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("error trying to run smartcar forwards compatibility")
 		}

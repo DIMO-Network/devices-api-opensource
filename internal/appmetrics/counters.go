@@ -23,4 +23,8 @@ var (
 		Name: "devices_api_autopi_ingest_success_ops_total",
 		Help: "Total successful AutoPi ingest events completed",
 	})
+	DrivlyIngestTotalOps = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "devices_api_drivly_ingest_success_ops_total",
+		Help: "Total successful Drivly used",
+	})
 )

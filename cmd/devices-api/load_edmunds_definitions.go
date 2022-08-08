@@ -27,7 +27,7 @@ func loadEdmundsDeviceDefinitions(ctx context.Context, logger *zerolog.Logger, s
 	//nhtsaSvc := services.NewNHTSAService()
 	//ddSvc := services.NewDeviceDefinitionService(settings, pdb.dbs, &logger, nhtsaSvc)
 	edmundsSvc := services.NewEdmundsService(settings.TorProxyURL, logger)
-	deviceDefSvc := services.NewDeviceDefinitionService(settings.TorProxyURL, pdb.DBS, logger, nil)
+	deviceDefSvc := services.NewDeviceDefinitionService(pdb.DBS, logger, nil, settings)
 
 	latestEdmunds, err := edmundsSvc.GetFlattenedVehicles()
 	if err != nil {

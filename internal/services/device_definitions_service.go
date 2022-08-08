@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/DIMO-Network/devices-api/internal/appmetrics"
+	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/pkg/errors"
@@ -24,18 +26,20 @@ type IDeviceDefinitionService interface {
 	FindDeviceDefinitionByMMY(ctx context.Context, db boil.ContextExecutor, mk, model string, year int, loadIntegrations bool) (*models.DeviceDefinition, error)
 	CheckAndSetImage(dd *models.DeviceDefinition, overwrite bool) error
 	UpdateDeviceDefinitionFromNHTSA(ctx context.Context, deviceDefinitionID string, vin string) error
+	PullDrivlyData(ctx context.Context, userDeviceID, deviceDefinitionID string, vin string) error
 	GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*models.DeviceMake, error)
 }
 
 type DeviceDefinitionService struct {
 	DBS        func() *database.DBReaderWriter
 	EdmundsSvc EdmundsService
+	DrivlySvc  DrivlyAPIService
 	log        *zerolog.Logger
 	nhtsaSvc   INHTSAService
 }
 
-func NewDeviceDefinitionService(torProxyURL string, DBS func() *database.DBReaderWriter, log *zerolog.Logger, nhtsaService INHTSAService) *DeviceDefinitionService {
-	return &DeviceDefinitionService{DBS: DBS, log: log, EdmundsSvc: NewEdmundsService(torProxyURL, log), nhtsaSvc: nhtsaService}
+func NewDeviceDefinitionService(DBS func() *database.DBReaderWriter, log *zerolog.Logger, nhtsaService INHTSAService, settings *config.Settings) *DeviceDefinitionService {
+	return &DeviceDefinitionService{DBS: DBS, log: log, EdmundsSvc: NewEdmundsService(settings.TorProxyURL, log), nhtsaSvc: nhtsaService, DrivlySvc: NewDrivlyAPIService(settings, DBS)}
 }
 
 // FindDeviceDefinitionByMMY builds and execs query to find device definition for MMY, returns db object and db error if occurs. if db tx is nil, just uses one from service, useful for tx
@@ -138,6 +142,54 @@ func (d *DeviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Co
 		// just log for now if no MMY match.
 		d.log.Warn().Msgf("No MMY match between deviceDefinitionID: %s and NHTSA for VIN: %s, %s", deviceDefinitionID, vin, dd.Name)
 	}
+
+	return nil
+}
+
+// UpdateDeviceDefinitionFromNHTSA pulls vin info from nhtsa, and updates the device definition metadata if the MMY from nhtsa matches ours, and the Source is not NHTSA verified
+func (d *DeviceDefinitionService) PullDrivlyData(ctx context.Context, userDeviceID string, deviceDefinitionID string, vin string) error {
+	dbDeviceDef, err := models.DeviceDefinitions(
+		models.DeviceDefinitionWhere.ID.EQ(deviceDefinitionID),
+		qm.Load(models.DeviceDefinitionRels.DeviceMake),
+	).One(ctx, d.DBS().Reader)
+	if err != nil {
+		return err
+	}
+
+	// insert drivly raw json data
+	drivlyData := &models.DrivlyDatum{
+		ID:                 ksuid.New().String(),
+		DeviceDefinitionID: null.StringFrom(dbDeviceDef.ID),
+		Vin:                vin,
+		UserDeviceID:       null.StringFrom(userDeviceID),
+	}
+
+	summary, err := d.DrivlySvc.GetSummaryByVIN(vin)
+	if err != nil {
+		return err
+	}
+
+	// does martiallying nil object cause crash?
+	_ = drivlyData.VinMetadata.Marshal(summary.VIN)
+	_ = drivlyData.BuildMetadata.Marshal(summary.Build)
+	_ = drivlyData.AutocheckMetadata.Marshal(summary.AutoCheck)
+	_ = drivlyData.CargurusMetadata.Marshal(summary.Cargurus)
+	_ = drivlyData.CarmaxMetadata.Marshal(summary.Carmax)
+	_ = drivlyData.KBBMetadata.Marshal(summary.KBB)
+	_ = drivlyData.CarstoryMetadata.Marshal(summary.Carstory)
+	_ = drivlyData.CarvanaMetadata.Marshal(summary.Carvana)
+	_ = drivlyData.EdmundsMetadata.Marshal(summary.Edmunds)
+	_ = drivlyData.OfferMetadata.Marshal(summary.Offers)
+	_ = drivlyData.TMVMetadata.Marshal(summary.TMV)
+	_ = drivlyData.VroomMetadata.Marshal(summary.VRoom)
+
+	err = drivlyData.Insert(ctx, d.DBS().Writer, boil.Infer())
+
+	if err != nil {
+		return err
+	}
+
+	defer appmetrics.DrivlyIngestTotalOps.Inc()
 
 	return nil
 }

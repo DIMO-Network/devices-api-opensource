@@ -14,7 +14,7 @@ import (
 
 func loadEdmundsImages(ctx context.Context, logger zerolog.Logger, settings *config.Settings, pdb database.DbStore, overwrite bool) {
 	nhtsaSvc := services.NewNHTSAService()
-	ddSvc := services.NewDeviceDefinitionService(settings.TorProxyURL, pdb.DBS, &logger, nhtsaSvc)
+	ddSvc := services.NewDeviceDefinitionService(pdb.DBS, &logger, nhtsaSvc, settings)
 	var all models.DeviceDefinitionSlice
 	var err error
 

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/pkg/errors"
@@ -30,12 +31,12 @@ type SmartCarService struct {
 	deviceDefSvc *DeviceDefinitionService
 }
 
-func NewSmartCarService(dbs func() *database.DBReaderWriter, logger zerolog.Logger) SmartCarService {
+func NewSmartCarService(dbs func() *database.DBReaderWriter, logger zerolog.Logger, settings *config.Settings) SmartCarService {
 	return SmartCarService{
 		baseURL:      "https://api.smartcar.com/v2.0/",
 		DBS:          dbs,
 		log:          logger,
-		deviceDefSvc: NewDeviceDefinitionService("", dbs, &logger, nil), // not using nhtsa service or settings
+		deviceDefSvc: NewDeviceDefinitionService(dbs, &logger, nil, settings), // not using nhtsa service or settings
 	}
 }
 

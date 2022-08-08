@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
@@ -19,8 +20,8 @@ import (
 
 const sunsetYearCutoff = 2017
 
-func syncSmartCarCompatibility(ctx context.Context, logger zerolog.Logger, pdb database.DbStore) {
-	smartCarSvc := services.NewSmartCarService(pdb.DBS, logger)
+func syncSmartCarCompatibility(ctx context.Context, logger zerolog.Logger, pdb database.DbStore, settings *config.Settings) {
+	smartCarSvc := services.NewSmartCarService(pdb.DBS, logger, settings)
 
 	smartCarVehicleData, err := services.GetSmartCarVehicleData()
 	if err != nil {
@@ -128,13 +129,13 @@ func setIntegrationForMatchingMakeYears(ctx context.Context, logger zerolog.Logg
 	return nil
 }
 
-func smartCarForwardCompatibility(ctx context.Context, logger zerolog.Logger, pdb database.DbStore) error {
+func smartCarForwardCompatibility(ctx context.Context, logger zerolog.Logger, pdb database.DbStore, settings *config.Settings) error {
 	// get all device integrations where smartcar ordered by date asc.
 	// then group them by make and model, so we can iterate over the years.
 	// if there is a gap in the years, insert device_integration
-	scSvc := services.NewSmartCarService(pdb.DBS, logger)
+	scSvc := services.NewSmartCarService(pdb.DBS, logger, settings)
 	integrationID, err := scSvc.GetOrCreateSmartCarIntegration(ctx)
-	deviceDefSvc := services.NewDeviceDefinitionService("", pdb.DBS, &logger, nil)
+	deviceDefSvc := services.NewDeviceDefinitionService(pdb.DBS, &logger, nil, settings)
 
 	if err != nil {
 		return err
