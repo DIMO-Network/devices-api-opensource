@@ -442,7 +442,14 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+
 	svc := semver.Compare("v"+unit.Release.Version, minimumAutoPiRelease)
+
+	//If you are not in prod, do not require an update.
+	if udc.Settings.Environment != "prod" {
+		svc = 0
+	}
+
 	adi := AutoPiDeviceInfo{
 		IsUpdated:         unit.IsUpdated,
 		DeviceID:          unit.ID,

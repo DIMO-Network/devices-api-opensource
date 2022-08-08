@@ -17,6 +17,8 @@ vendor/
 resources/data/
 resources/redis/
 data/ipfs/
+.vscode/
+.vscode
 
 dist/
 .idea/

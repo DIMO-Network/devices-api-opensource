@@ -640,9 +640,10 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiCommandNoResults400()
 	assert.Equal(s.T(), fiber.StatusBadRequest, response.StatusCode)
 }
 func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI_ShouldUpdate() {
+	const environment = "prod" // shouldUpdate only applies in prod
 	// specific dependency and controller
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
+	c := NewUserDevicesController(&config.Settings{Port: "3000", Environment: environment}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
 		nil, s.autoPiIngest, nil, nil, nil, s.drivlyTaskSvc)
 	app := fiber.New()
@@ -677,9 +678,10 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI_ShouldUpda
 	assert.Equal(s.T(), true, gjson.GetBytes(body, "shouldUpdate").Bool()) // this because releaseVersion below 1.21.9
 }
 func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI_UpToDate() {
+	const environment = "prod" // shouldUpdate only applies in prod
 	// specific dependency and controller
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
+	c := NewUserDevicesController(&config.Settings{Port: "3000", Environment: environment}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
 		nil, s.autoPiIngest, nil, nil, nil, s.drivlyTaskSvc)
 	app := fiber.New()
@@ -711,9 +713,10 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI_UpToDate()
 	assert.Equal(s.T(), false, gjson.GetBytes(body, "shouldUpdate").Bool()) // returned version is 1.21.9 which is our cutoff
 }
 func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI_FutureUpdate() {
+	const environment = "prod" // shouldUpdate only applies in prod
 	// specific dependency and controller
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
+	c := NewUserDevicesController(&config.Settings{Port: "3000", Environment: environment}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
 		nil, s.autoPiIngest, nil, nil, nil, s.drivlyTaskSvc)
 	app := fiber.New()
