@@ -154,5 +154,13 @@ func (i *TaskStatusListener) processCommandStatusEvent(event *shared.CloudEvent[
 		return fmt.Errorf("failed to update command request: %w", err)
 	}
 
+	i.log.Info().
+		Str("subTaskId", event.Data.SubTaskID).
+		Str("command", dcr.Command).
+		Str("userDeviceId", dcr.UserDeviceID).
+		Str("integrationId", dcr.IntegrationID).
+		Str("status", dcr.Status).
+		Msg("Updated command request status.")
+
 	return nil
 }
