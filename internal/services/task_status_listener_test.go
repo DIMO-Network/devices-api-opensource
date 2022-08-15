@@ -7,6 +7,7 @@ import (
 
 	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
@@ -55,13 +56,11 @@ func TestTaskStatusListener(t *testing.T) {
 	err := udai.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 	assert.NoError(t, err)
 
-	input := &TaskStatusCloudEvent{
-		CloudEventHeaders: CloudEventHeaders{
-			Source:      "dimo/integration/" + scIntegration.ID,
-			SpecVersion: "1.0",
-			Subject:     ud.ID,
-			Type:        "zone.dimo.task.smartcar.poll.status.update",
-		},
+	input := &shared.CloudEvent[TaskStatusData]{
+		Source:      "dimo/integration/" + scIntegration.ID,
+		SpecVersion: "1.0",
+		Subject:     ud.ID,
+		Type:        "zone.dimo.task.smartcar.poll.status.update",
 		Data: TaskStatusData{
 			TaskID:        ksuid.New().String(),
 			UserDeviceID:  ud.ID,

@@ -323,9 +323,22 @@ func (udc *UserDevicesController) handleEnqueueCommand(c *fiber.Ctx, commandPath
 		return opaqueInternalError
 	}
 
+	comRow := &models.DeviceCommandRequest{
+		ID:            subTaskID,
+		UserDeviceID:  userDeviceID,
+		IntegrationID: integrationID,
+		Command:       commandPath,
+		Status:        models.DeviceCommandRequestStatusPending,
+	}
+
+	if err := comRow.Insert(c.Context(), udc.DBS().Writer, boil.Infer()); err != nil {
+		logger.Err(err).Msg("Couldn't insert device command request record.")
+		return opaqueInternalError
+	}
+
 	logger.Info().Msg("Successfully enqueued command.")
 
-	return c.JSON(CommandResponse{subTaskID})
+	return c.JSON(CommandResponse{TaskID: subTaskID})
 }
 
 type CommandResponse struct {

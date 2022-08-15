@@ -32,12 +32,12 @@ func (s *AutoPiAPIServiceTestSuite) SetupSuite() {
 	s.pdb, s.container = test.StartContainerDatabase(s.ctx, s.T(), migrationsDirRelPath)
 }
 
-//TearDownTest after each test truncate tables
+// TearDownTest after each test truncate tables
 func (s *AutoPiAPIServiceTestSuite) TearDownTest() {
 	test.TruncateTables(s.pdb.DBS().Writer.DB, s.T())
 }
 
-//TearDownSuite cleanup at end by terminating container
+// TearDownSuite cleanup at end by terminating container
 func (s *AutoPiAPIServiceTestSuite) TearDownSuite() {
 	fmt.Printf("shutting down postgres at with session: %s \n", s.container.SessionID())
 	if err := s.container.Terminate(s.ctx); err != nil {

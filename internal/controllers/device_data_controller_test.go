@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"testing"
 	"time"
@@ -92,7 +92,7 @@ func TestUserDevicesController_GetUserDeviceStatus(t *testing.T) {
 
 		request := test.BuildRequest("GET", "/user/devices/"+ud.ID+"/status", "")
 		response, _ := app.Test(request)
-		body, _ := ioutil.ReadAll(response.Body)
+		body, _ := io.ReadAll(response.Body)
 
 		if assert.Equal(t, fiber.StatusOK, response.StatusCode) == false {
 			fmt.Println("response body: " + string(body))

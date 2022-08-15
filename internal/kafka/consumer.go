@@ -44,9 +44,10 @@ func NewConsumer(config *Config, logger *zerolog.Logger) (*Consumer, error) {
 }
 
 // Start reads messages from subscriber and processes them with passed in function.
-// eg: for msg := range messages {
-//		fmt.Printf("received message: %s, payload: %s", msg.UUID, string(msg.Payload))
-//		msg.Ack() }
+//
+//	eg: for msg := range messages {
+//			fmt.Printf("received message: %s, payload: %s", msg.UUID, string(msg.Payload))
+//			msg.Ack() }
 func (c *Consumer) Start(ctx context.Context, process func(messages <-chan *message.Message)) {
 	messages, err := c.subscriber.Subscribe(ctx, c.topic)
 	if err != nil {

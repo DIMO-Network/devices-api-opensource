@@ -5,7 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -64,7 +64,7 @@ func (s *DevicesControllerTestSuite) SetupSuite() {
 	// note we do not want to truncate tables after each test for this one
 }
 
-//TearDownSuite cleanup at end by terminating container
+// TearDownSuite cleanup at end by terminating container
 func (s *DevicesControllerTestSuite) TearDownSuite() {
 	fmt.Printf("shutting down postgres at with session: %s \n", s.container.SessionID())
 	if err := s.container.Terminate(s.ctx); err != nil {
@@ -82,7 +82,7 @@ func TestDevicesControllerTestSuite(t *testing.T) {
 func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionById() {
 	request, _ := http.NewRequest("GET", "/device-definitions/"+s.deviceDefID, nil)
 	response, _ := s.app.Test(request)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	// assert
 	assert.Equal(s.T(), 200, response.StatusCode)
 
@@ -105,7 +105,7 @@ func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionDoesNotAddAutoPiForO
 	dbDdOldCar := test.SetupCreateDeviceDefinition(s.T(), s.dbMake, "Oldie", 1999, s.pdb)
 	request, _ := http.NewRequest("GET", "/device-definitions/"+dbDdOldCar.ID, nil)
 	response, _ := s.app.Test(request)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	// assert
 	assert.Equal(s.T(), 200, response.StatusCode)
 	v := gjson.GetBytes(body, "deviceDefinition")
@@ -121,7 +121,7 @@ func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionDoesNotAddAutoPiForT
 	teslaCar := test.SetupCreateDeviceDefinition(s.T(), tesla, "Cyber Truck never", 2022, s.pdb)
 	request, _ := http.NewRequest("GET", "/device-definitions/"+teslaCar.ID, nil)
 	response, _ := s.app.Test(request)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	// assert
 	assert.Equal(s.T(), 200, response.StatusCode)
 	v := gjson.GetBytes(body, "deviceDefinition")
@@ -134,7 +134,7 @@ func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionDoesNotAddAutoPiForT
 func (s *DevicesControllerTestSuite) TestGetDeviceIntegrationsById() {
 	request, _ := http.NewRequest("GET", "/device-definitions/"+s.deviceDefID+"/integrations", nil)
 	response, _ := s.app.Test(request)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	// assert
 	assert.Equal(s.T(), 200, response.StatusCode)
 	v := gjson.GetBytes(body, "compatibleIntegrations")
@@ -166,7 +166,7 @@ func (s *DevicesControllerTestSuite) TestGetDeviceDefIntegrationWithInvalidID() 
 func (s *DevicesControllerTestSuite) TestGetAll() {
 	request, _ := http.NewRequest("GET", "/device-definitions/all", nil)
 	response, _ := s.app.Test(request)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	// assert
 	assert.Equal(s.T(), 200, response.StatusCode)
 	v := gjson.GetBytes(body, "makes")

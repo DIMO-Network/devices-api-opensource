@@ -43,12 +43,12 @@ func (s *WebHooksControllerTestSuite) SetupSuite() {
 	s.app = app
 }
 
-//TearDownTest after each test truncate tables
+// TearDownTest after each test truncate tables
 func (s *WebHooksControllerTestSuite) TearDownTest() {
 	test.TruncateTables(s.pdb.DBS().Writer.DB, s.T())
 }
 
-//TearDownSuite cleanup at end by terminating container
+// TearDownSuite cleanup at end by terminating container
 func (s *WebHooksControllerTestSuite) TearDownSuite() {
 	fmt.Printf("shutting down postgres at with session: %s \n", s.container.SessionID())
 	if err := s.container.Terminate(s.ctx); err != nil {
@@ -57,7 +57,7 @@ func (s *WebHooksControllerTestSuite) TearDownSuite() {
 	s.mockCtrl.Finish()
 }
 
-//Test Runner
+// Test Runner
 func TestWebHooksControllerTestSuite(t *testing.T) {
 	suite.Run(t, new(WebHooksControllerTestSuite))
 }

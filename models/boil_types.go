@@ -51,6 +51,21 @@ func makeCacheKey(cols boil.Columns, nzDefaults []string) string {
 	return str
 }
 
+// Enum values for DeviceCommandRequestStatus
+const (
+	DeviceCommandRequestStatusPending  string = "Pending"
+	DeviceCommandRequestStatusComplete string = "Complete"
+	DeviceCommandRequestStatusFailed   string = "Failed"
+)
+
+func AllDeviceCommandRequestStatus() []string {
+	return []string{
+		DeviceCommandRequestStatusPending,
+		DeviceCommandRequestStatusComplete,
+		DeviceCommandRequestStatusFailed,
+	}
+}
+
 // Enum values for GeofenceType
 const (
 	GeofenceTypePrivacyFence string = "PrivacyFence"

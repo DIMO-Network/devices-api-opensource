@@ -205,10 +205,10 @@ func (i *DeviceStatusIngestService) processEvent(event *DeviceStatusEvent) error
 
 // processOdometer emits an odometer event and updates the last_odometer_event timestamp on the
 // data record if the following conditions are met:
-//      - there is no existing timestamp, or an hour has passed since that timestamp,
-//      - the incoming status update has an odometer value, and
-//      - the old status update lacks an odometer value, or has an odometer value that differs from
-//        the new odometer reading
+//   - there is no existing timestamp, or an hour has passed since that timestamp,
+//   - the incoming status update has an odometer value, and
+//   - the old status update lacks an odometer value, or has an odometer value that differs from
+//     the new odometer reading
 func (i *DeviceStatusIngestService) processOdometer(datum *models.UserDeviceDatum, newOdometer null.Float64, device *models.UserDevice, integrationID string) {
 	if !newOdometer.Valid {
 		return

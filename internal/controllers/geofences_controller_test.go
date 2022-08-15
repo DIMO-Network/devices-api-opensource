@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 
@@ -84,12 +84,12 @@ func (s *GeofencesControllerTestSuite) SetupSuite() {
 	s.logger = test.Logger()
 }
 
-//TearDownTest after each test cleanup eg. truncate tables
+// TearDownTest after each test cleanup eg. truncate tables
 func (s *GeofencesControllerTestSuite) TearDownTest() {
 	test.TruncateTables(s.pdb.DBS().Writer.DB, s.T())
 }
 
-//TearDownSuite cleanup at end by terminating container
+// TearDownSuite cleanup at end by terminating container
 func (s *GeofencesControllerTestSuite) TearDownSuite() {
 	fmt.Printf("shutting down postgres at with session: %s \n", s.container.SessionID())
 	if err := s.container.Terminate(s.ctx); err != nil {
@@ -124,7 +124,7 @@ func (s *GeofencesControllerTestSuite) TestPostGeofence() {
 
 	request := test.BuildRequest("POST", "/user/geofences", string(j))
 	response, _ := app.Test(request)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	if assert.Equal(s.T(), fiber.StatusCreated, response.StatusCode) == false {
 		fmt.Println("error message: " + string(body))
 		assert.Fail(s.T(), "could not create geofence")
@@ -144,7 +144,7 @@ func (s *GeofencesControllerTestSuite) TestPostGeofence() {
 	request = test.BuildRequest("POST", "/user/geofences", string(j))
 	response, _ = app.Test(request)
 	if assert.Equal(s.T(), fiber.StatusCreated, response.StatusCode, "expected create OK without h3 indexes") == false {
-		body, _ = ioutil.ReadAll(response.Body)
+		body, _ = io.ReadAll(response.Body)
 		fmt.Println("message: " + string(body))
 	}
 	_ = producer.Close()
@@ -200,7 +200,7 @@ func (s *GeofencesControllerTestSuite) TestGetAllUserGeofences() {
 
 	request, _ := http.NewRequest("GET", "/user/geofences", nil)
 	response, _ := app.Test(request)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	// assert
 	assert.Equal(s.T(), fiber.StatusOK, response.StatusCode)
 	get := gjson.Get(string(body), "geofences")
@@ -232,7 +232,7 @@ func (s *GeofencesControllerTestSuite) TestPutGeofence() {
 	j, _ := json.Marshal(req)
 	request := test.BuildRequest("PUT", "/user/geofences/"+gf.ID, string(j))
 	response, _ := app.Test(request)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	if assert.Equal(s.T(), fiber.StatusNoContent, response.StatusCode) == false {
 		fmt.Println("message: " + string(body))
 		fmt.Println("id: " + gf.ID)
@@ -240,7 +240,7 @@ func (s *GeofencesControllerTestSuite) TestPutGeofence() {
 	// validate update was performed
 	request, _ = http.NewRequest("GET", "/user/geofences", nil)
 	response, _ = app.Test(request)
-	body, _ = ioutil.ReadAll(response.Body)
+	body, _ = io.ReadAll(response.Body)
 	// assert changes
 	assert.Equal(s.T(), fiber.StatusOK, response.StatusCode)
 	get := gjson.Get(string(body), "geofences").Array()

@@ -133,6 +133,7 @@ var UserDeviceRels = struct {
 	DeviceStyle               string
 	MintRequest               string
 	AutopiJobs                string
+	DeviceCommandRequests     string
 	DrivlyData                string
 	UserDeviceAPIIntegrations string
 	UserDeviceData            string
@@ -142,6 +143,7 @@ var UserDeviceRels = struct {
 	DeviceStyle:               "DeviceStyle",
 	MintRequest:               "MintRequest",
 	AutopiJobs:                "AutopiJobs",
+	DeviceCommandRequests:     "DeviceCommandRequests",
 	DrivlyData:                "DrivlyData",
 	UserDeviceAPIIntegrations: "UserDeviceAPIIntegrations",
 	UserDeviceData:            "UserDeviceData",
@@ -154,6 +156,7 @@ type userDeviceR struct {
 	DeviceStyle               *DeviceStyle                  `boil:"DeviceStyle" json:"DeviceStyle" toml:"DeviceStyle" yaml:"DeviceStyle"`
 	MintRequest               *MintRequest                  `boil:"MintRequest" json:"MintRequest" toml:"MintRequest" yaml:"MintRequest"`
 	AutopiJobs                AutopiJobSlice                `boil:"AutopiJobs" json:"AutopiJobs" toml:"AutopiJobs" yaml:"AutopiJobs"`
+	DeviceCommandRequests     DeviceCommandRequestSlice     `boil:"DeviceCommandRequests" json:"DeviceCommandRequests" toml:"DeviceCommandRequests" yaml:"DeviceCommandRequests"`
 	DrivlyData                DrivlyDatumSlice              `boil:"DrivlyData" json:"DrivlyData" toml:"DrivlyData" yaml:"DrivlyData"`
 	UserDeviceAPIIntegrations UserDeviceAPIIntegrationSlice `boil:"UserDeviceAPIIntegrations" json:"UserDeviceAPIIntegrations" toml:"UserDeviceAPIIntegrations" yaml:"UserDeviceAPIIntegrations"`
 	UserDeviceData            UserDeviceDatumSlice          `boil:"UserDeviceData" json:"UserDeviceData" toml:"UserDeviceData" yaml:"UserDeviceData"`
@@ -191,6 +194,13 @@ func (r *userDeviceR) GetAutopiJobs() AutopiJobSlice {
 		return nil
 	}
 	return r.AutopiJobs
+}
+
+func (r *userDeviceR) GetDeviceCommandRequests() DeviceCommandRequestSlice {
+	if r == nil {
+		return nil
+	}
+	return r.DeviceCommandRequests
 }
 
 func (r *userDeviceR) GetDrivlyData() DrivlyDatumSlice {
@@ -555,6 +565,20 @@ func (o *UserDevice) AutopiJobs(mods ...qm.QueryMod) autopiJobQuery {
 	)
 
 	return AutopiJobs(queryMods...)
+}
+
+// DeviceCommandRequests retrieves all the device_command_request's DeviceCommandRequests with an executor.
+func (o *UserDevice) DeviceCommandRequests(mods ...qm.QueryMod) deviceCommandRequestQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"devices_api\".\"device_command_requests\".\"user_device_id\"=?", o.ID),
+	)
+
+	return DeviceCommandRequests(queryMods...)
 }
 
 // DrivlyData retrieves all the drivly_datum's DrivlyData with an executor.
@@ -1078,6 +1102,120 @@ func (userDeviceL) LoadAutopiJobs(ctx context.Context, e boil.ContextExecutor, s
 				local.R.AutopiJobs = append(local.R.AutopiJobs, foreign)
 				if foreign.R == nil {
 					foreign.R = &autopiJobR{}
+				}
+				foreign.R.UserDevice = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadDeviceCommandRequests allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (userDeviceL) LoadDeviceCommandRequests(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserDevice interface{}, mods queries.Applicator) error {
+	var slice []*UserDevice
+	var object *UserDevice
+
+	if singular {
+		var ok bool
+		object, ok = maybeUserDevice.(*UserDevice)
+		if !ok {
+			object = new(UserDevice)
+			ok = queries.SetFromEmbeddedStruct(&object, &maybeUserDevice)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", object, maybeUserDevice))
+			}
+		}
+	} else {
+		s, ok := maybeUserDevice.(*[]*UserDevice)
+		if ok {
+			slice = *s
+		} else {
+			ok = queries.SetFromEmbeddedStruct(&slice, maybeUserDevice)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", slice, maybeUserDevice))
+			}
+		}
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &userDeviceR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &userDeviceR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`devices_api.device_command_requests`),
+		qm.WhereIn(`devices_api.device_command_requests.user_device_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load device_command_requests")
+	}
+
+	var resultSlice []*DeviceCommandRequest
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice device_command_requests")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on device_command_requests")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for device_command_requests")
+	}
+
+	if len(deviceCommandRequestAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.DeviceCommandRequests = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &deviceCommandRequestR{}
+			}
+			foreign.R.UserDevice = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.UserDeviceID {
+				local.R.DeviceCommandRequests = append(local.R.DeviceCommandRequests, foreign)
+				if foreign.R == nil {
+					foreign.R = &deviceCommandRequestR{}
 				}
 				foreign.R.UserDevice = local
 				break
@@ -1869,6 +2007,59 @@ func (o *UserDevice) RemoveAutopiJobs(ctx context.Context, exec boil.ContextExec
 		}
 	}
 
+	return nil
+}
+
+// AddDeviceCommandRequests adds the given related objects to the existing relationships
+// of the user_device, optionally inserting them as new records.
+// Appends related to o.R.DeviceCommandRequests.
+// Sets related.R.UserDevice appropriately.
+func (o *UserDevice) AddDeviceCommandRequests(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*DeviceCommandRequest) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.UserDeviceID = o.ID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"devices_api\".\"device_command_requests\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"user_device_id"}),
+				strmangle.WhereClause("\"", "\"", 2, deviceCommandRequestPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.UserDeviceID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &userDeviceR{
+			DeviceCommandRequests: related,
+		}
+	} else {
+		o.R.DeviceCommandRequests = append(o.R.DeviceCommandRequests, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &deviceCommandRequestR{
+				UserDevice: o,
+			}
+		} else {
+			rel.R.UserDevice = o
+		}
+	}
 	return nil
 }
 

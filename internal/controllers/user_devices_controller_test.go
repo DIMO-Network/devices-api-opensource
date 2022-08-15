@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"testing"
 	"time"
 
@@ -86,12 +86,12 @@ func (s *UserDevicesControllerTestSuite) SetupSuite() {
 	s.app = app
 }
 
-//TearDownTest after each test truncate tables
+// TearDownTest after each test truncate tables
 func (s *UserDevicesControllerTestSuite) TearDownTest() {
 	test.TruncateTables(s.pdb.DBS().Writer.DB, s.T())
 }
 
-//TearDownSuite cleanup at end by terminating container
+// TearDownSuite cleanup at end by terminating container
 func (s *UserDevicesControllerTestSuite) TearDownSuite() {
 	fmt.Printf("shutting down postgres at with session: %s \n", s.container.SessionID())
 	if err := s.container.Terminate(s.ctx); err != nil {
@@ -100,7 +100,7 @@ func (s *UserDevicesControllerTestSuite) TearDownSuite() {
 	s.mockCtrl.Finish() // might need to do mockctrl on every test, and refactor setup into one method
 }
 
-//Test Runner
+// Test Runner
 func TestUserDevicesControllerTestSuite(t *testing.T) {
 	suite.Run(t, new(UserDevicesControllerTestSuite))
 }
@@ -121,7 +121,7 @@ func (s *UserDevicesControllerTestSuite) TestPostWithExistingDefinitionID() {
 	j, _ := json.Marshal(reg)
 	request := test.BuildRequest("POST", "/user/devices", string(j))
 	response, _ := s.app.Test(request)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	// assert
 	if assert.Equal(s.T(), fiber.StatusCreated, response.StatusCode) == false {
 		fmt.Println("message: " + string(body))
@@ -163,7 +163,7 @@ func (s *UserDevicesControllerTestSuite) TestPostWithMMYOnTheFlyCreateDD() {
 	j, _ := json.Marshal(reg)
 	request := test.BuildRequest("POST", "/user/devices", string(j))
 	response, _ := s.app.Test(request)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	// assert
 	if assert.Equal(s.T(), fiber.StatusCreated, response.StatusCode) == false {
 		fmt.Println("message: " + string(body))
@@ -198,7 +198,7 @@ func (s *UserDevicesControllerTestSuite) TestPostWithMMYExistingDD() {
 	j, _ := json.Marshal(reg)
 	request := test.BuildRequest("POST", "/user/devices", string(j))
 	response, _ := s.app.Test(request)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	// assert
 	if assert.Equal(s.T(), fiber.StatusCreated, response.StatusCode) == false {
 		fmt.Println("message: " + string(body))
@@ -231,7 +231,7 @@ func (s *UserDevicesControllerTestSuite) TestPostWithMMYDoesNotDuplicateDD() {
 	j, _ := json.Marshal(reg)
 	request := test.BuildRequest("POST", "/user/devices/second", string(j))
 	response, _ := s.app.Test(request)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	// assert
 	if assert.Equal(s.T(), fiber.StatusCreated, response.StatusCode) == false {
 		fmt.Println("message: " + string(body))
@@ -247,7 +247,7 @@ func (s *UserDevicesControllerTestSuite) TestPostWithMMYDoesNotDuplicateDD() {
 func (s *UserDevicesControllerTestSuite) TestPostBadPayload() {
 	request := test.BuildRequest("POST", "/user/devices", "{}")
 	response, _ := s.app.Test(request)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	assert.Equal(s.T(), fiber.StatusBadRequest, response.StatusCode)
 	msg := gjson.Get(string(body), "errorMessage").String()
 	assert.Contains(s.T(), msg, "cannot be blank")
@@ -262,7 +262,7 @@ func (s *UserDevicesControllerTestSuite) TestPostInvalidDefinitionID() {
 	j, _ := json.Marshal(reg)
 	request := test.BuildRequest("POST", "/user/devices", string(j))
 	response, _ := s.app.Test(request)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	assert.Equal(s.T(), fiber.StatusBadRequest, response.StatusCode)
 	msg := gjson.Get(string(body), "errorMessage").String()
 	fmt.Println("message: " + msg)
@@ -284,7 +284,7 @@ func (s *UserDevicesControllerTestSuite) TestGetMyUserDevices() {
 
 	request := test.BuildRequest("GET", "/user/devices/me", "")
 	response, _ := s.app.Test(request)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 
 	assert.Equal(s.T(), fiber.StatusOK, response.StatusCode)
 
@@ -317,12 +317,12 @@ func (s *UserDevicesControllerTestSuite) TestPatchVIN() {
 	request := test.BuildRequest("PATCH", "/user/devices/"+ud.ID+"/vin", payload)
 	response, _ := s.app.Test(request)
 	if assert.Equal(s.T(), fiber.StatusNoContent, response.StatusCode) == false {
-		body, _ := ioutil.ReadAll(response.Body)
+		body, _ := io.ReadAll(response.Body)
 		fmt.Println("message: " + string(body))
 	}
 	request = test.BuildRequest("GET", "/user/devices/me", "")
 	response, _ = s.app.Test(request)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	fmt.Println(string(body))
 	pt := gjson.GetBytes(body, "userDevices.0.metadata.powertrainType").String()
 	assert.Equal(s.T(), "BEV", pt)
@@ -411,7 +411,7 @@ func (s *UserDevicesControllerTestSuite) TestPatchName() {
 	request := test.BuildRequest("PATCH", "/user/devices/"+ud.ID+"/name", payload)
 	response, _ := s.app.Test(request)
 	if assert.Equal(s.T(), fiber.StatusNoContent, response.StatusCode) == false {
-		body, _ := ioutil.ReadAll(response.Body)
+		body, _ := io.ReadAll(response.Body)
 		fmt.Println("message: " + string(body))
 	}
 }
@@ -425,7 +425,7 @@ func (s *UserDevicesControllerTestSuite) TestPatchImageURL() {
 	request := test.BuildRequest("PATCH", "/user/devices/"+ud.ID+"/image", payload)
 	response, _ := s.app.Test(request)
 	if assert.Equal(s.T(), fiber.StatusNoContent, response.StatusCode) == false {
-		body, _ := ioutil.ReadAll(response.Body)
+		body, _ := io.ReadAll(response.Body)
 		fmt.Println("message: " + string(body))
 	}
 }
@@ -477,7 +477,7 @@ func (s *UserDevicesControllerTestSuite) TestPostRefreshSmartCar() {
 	assert.Equal(s.T(), ud.ID, oUdai.UserDeviceID)
 
 	if assert.Equal(s.T(), fiber.StatusNoContent, response.StatusCode) == false {
-		body, _ := ioutil.ReadAll(response.Body)
+		body, _ := io.ReadAll(response.Body)
 		fmt.Println("unexpected response: " + string(body))
 	}
 }
@@ -512,7 +512,7 @@ func (s *UserDevicesControllerTestSuite) TestPostRefreshSmartCarRateLimited() {
 	request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/commands/refresh", payload)
 	response, _ := s.app.Test(request)
 	if assert.Equal(s.T(), fiber.StatusTooManyRequests, response.StatusCode) == false {
-		body, _ := ioutil.ReadAll(response.Body)
+		body, _ := io.ReadAll(response.Body)
 		fmt.Println("unexpected response: " + string(body))
 	}
 }

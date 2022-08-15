@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"testing"
 	"time"
 
@@ -77,12 +77,12 @@ func (s *UserIntegrationsControllerTestSuite) SetupSuite() {
 	s.app = app
 }
 
-//TearDownTest after each test truncate tables
+// TearDownTest after each test truncate tables
 func (s *UserIntegrationsControllerTestSuite) TearDownTest() {
 	test.TruncateTables(s.pdb.DBS().Writer.DB, s.T())
 }
 
-//TearDownSuite cleanup at end by terminating container
+// TearDownSuite cleanup at end by terminating container
 func (s *UserIntegrationsControllerTestSuite) TearDownSuite() {
 	fmt.Printf("shutting down postgres at with session: %s \n", s.container.SessionID())
 	if err := s.container.Terminate(s.ctx); err != nil {
@@ -91,7 +91,7 @@ func (s *UserIntegrationsControllerTestSuite) TearDownSuite() {
 	s.mockCtrl.Finish()
 }
 
-//Test Runner
+// Test Runner
 func TestUserIntegrationsControllerTestSuite(t *testing.T) {
 	suite.Run(t, new(UserIntegrationsControllerTestSuite))
 }
@@ -104,7 +104,7 @@ func (s *UserIntegrationsControllerTestSuite) TestGetIntegrations() {
 	request := test.BuildRequest("GET", "/integrations", "")
 	response, err := s.app.Test(request)
 	require.NoError(s.T(), err)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 
 	assert.Equal(s.T(), fiber.StatusOK, response.StatusCode)
 
@@ -173,7 +173,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostSmartCar() {
 	require.NoError(s.T(), err)
 	fmt.Println(response)
 	if assert.Equal(s.T(), fiber.StatusNoContent, response.StatusCode, "should return success") == false {
-		body, _ := ioutil.ReadAll(response.Body)
+		body, _ := io.ReadAll(response.Body)
 		fmt.Println("unexpected response: " + string(body))
 	}
 	apiInt, _ := models.FindUserDeviceAPIIntegration(s.ctx, s.pdb.DBS().Writer, ud.ID, integration.ID)
@@ -350,7 +350,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi_HappyPath() {
 	response, err := app.Test(request, 2000)
 	require.NoError(s.T(), err)
 	if assert.Equal(s.T(), fiber.StatusNoContent, response.StatusCode, "should return success") == false {
-		body, _ := ioutil.ReadAll(response.Body)
+		body, _ := io.ReadAll(response.Body)
 		fmt.Println("unexpected response: " + string(body) + "\n")
 		fmt.Println("body sent to post: " + req)
 	}
@@ -423,7 +423,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCustomPowerTrain() {
 	request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.ID, req)
 	response, _ := app.Test(request)
 	if assert.Equal(s.T(), fiber.StatusNoContent, response.StatusCode, "should return success") == false {
-		body, _ := ioutil.ReadAll(response.Body)
+		body, _ := io.ReadAll(response.Body)
 		fmt.Println("unexpected response: " + string(body) + "\n")
 		fmt.Println("body sent to post: " + req)
 	}
@@ -468,7 +468,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateD
 	request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.ID, req)
 	response, _ := app.Test(request)
 	assert.Equal(s.T(), fiber.StatusBadRequest, response.StatusCode, "should return failure")
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	fmt.Println("body response: " + string(body) + "\n")
 }
 func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateDeviceDifferentUser() {
@@ -501,7 +501,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateD
 	response, err := app.Test(request, 2000)
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), fiber.StatusBadRequest, response.StatusCode, "should return bad request")
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	fmt.Println("body response: " + string(body) + "\n")
 }
 func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCommand() {
@@ -563,7 +563,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCommand() {
 		}`, cmd)
 	request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/autopi/command", req)
 	response, _ := app.Test(request)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	//assert
 	assert.Equal(s.T(), fiber.StatusOK, response.StatusCode)
 	jid := gjson.GetBytes(body, "jid")
@@ -609,7 +609,7 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiCommand() {
 	response, _ := app.Test(request)
 	require.Equal(s.T(), fiber.StatusOK, response.StatusCode)
 
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	//assert
 	assert.Equal(s.T(), jobID, gjson.GetBytes(body, "commandJobId").String())
 	assert.Equal(s.T(), "COMMAND_EXECUTED", gjson.GetBytes(body, "commandState").String())
@@ -668,7 +668,7 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI_ShouldUpda
 	require.NoError(s.T(), err)
 	// assert
 	assert.Equal(s.T(), fiber.StatusOK, response.StatusCode)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	//assert
 	assert.Equal(s.T(), false, gjson.GetBytes(body, "isUpdated").Bool())
 	assert.Equal(s.T(), unitID, gjson.GetBytes(body, "unitId").String())
@@ -706,7 +706,7 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI_UpToDate()
 	require.NoError(s.T(), err)
 	// assert
 	assert.Equal(s.T(), fiber.StatusOK, response.StatusCode)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	//assert
 	assert.Equal(s.T(), true, gjson.GetBytes(body, "isUpdated").Bool())
 	assert.Equal(s.T(), "1.21.9", gjson.GetBytes(body, "releaseVersion").String())
@@ -741,7 +741,7 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI_FutureUpda
 	require.NoError(s.T(), err)
 	// assert
 	assert.Equal(s.T(), fiber.StatusOK, response.StatusCode)
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 	//assert
 	assert.Equal(s.T(), false, gjson.GetBytes(body, "isUpdated").Bool())
 	assert.Equal(s.T(), "1.23.1", gjson.GetBytes(body, "releaseVersion").String())
