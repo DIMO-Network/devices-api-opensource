@@ -21,7 +21,6 @@ services:
       - "6379:6379"
     volumes:
       - redis:/data:delegated
-    profiles: ["core", ""]
 
   es01:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.16.3

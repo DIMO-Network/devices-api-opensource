@@ -35,4 +35,4 @@ DOCUMENTS_AWS_ENDPOINT : http://localhost:4566
 IPFS_NODE_ENDPOINT: http://localhost:5001
 DRIVLY_VIN_API_URL: https://vin.dev.driv.ly
 DRIVLY_OFFER_API_URL: https://offers.dev.driv.ly
-DRIVLY_API_KEY: 
+DRIVLY_API_KEY: xxx
