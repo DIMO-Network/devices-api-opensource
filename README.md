@@ -82,6 +82,21 @@ Finally, if you want to test document uploads:
    aws --endpoint-url=http://localhost:4566 s3 mb s3://documents
    ```
 
+### Authenticating
+
+One of the variables set in `settings.yaml` is `JWT_KEY_SET_URL`. By default this is set to `http://127.0.0.1:5556/dex/keys`. To make use of this, clone the DIMO Dex fork:
+```sh
+git clone git@github.com:DIMO-Network/dex.git
+cd dex
+make build examples
+./bin/dex serve examples/config-dev.yaml
+```
+This will start up the Dex identity server on port 5556. Next, start up the example interface by running
+```sh
+./bin/example-app
+```
+You can reach this on port 5555. The "Log in with Example" option is probably the easiest. This will give you an ID token you can provide to the [API](#api).
+
 ### Kafka test producer
 
 This tool can be useful to test the consumer when running locally.
