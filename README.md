@@ -1,6 +1,20 @@
 # devices-api
 Api for managing devices on the DIMO platform.
 
+## Table of contents
+
+- [Developing locally](#developing-locally)
+  - [Kafka test producer](#kafka-test-producer)
+  - [Linting](#linting)
+  - [Database ORM](#database-orm)
+- [Migrations](#migrations)
+  - [Managing migrations from k8s](#managing-migrations-from-k8s)
+- [Mocks](#mocks)
+- [Helm requirements](#helm-requirements)
+- [API](#api)
+  - [Generating Swagger / OpenAPI spec](#generating-swagger--openapi-spec)
+
+
 ## Developing locally
 
 **TL;DR**
@@ -143,7 +157,7 @@ kc exec devices-api-dev-65f8f47ff5-94dp4 -n dev -it -- /bin/sh
 To regenerate a mock, you can use go gen since the files that are mocked have a `//go:generate mockgen ...` at the top. For example:
 `nhtsa_api_service.go`
 
-## Helm Requirements
+## Helm requirements
 
 * cf-credentials
   ```sh
