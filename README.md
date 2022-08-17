@@ -6,45 +6,67 @@ Api for managing devices on the DIMO platform.
 **TL;DR**
 ```bash
 cp settings.sample.yaml settings.yaml
-mkdir ./resources/data
 docker compose up -d
 go run ./cmd/devices-api migrate
-brew services start zookeeper
-brew services start kafka
 go run ./cmd/devices-api
 ```
 
-1. Copy settings: `$ cp settings.sample.yaml settings.yaml`
-Adjust secrets or settings as necessary. The sample file should have what you need with correct defaults for local dev (make sure you do this step each time you run `git pull` in case there have been any changes to the sample settings file since you last created it).
+1. Create a settings file by copying the sample
+   ```sh
+   cp settings.sample.yaml settings.yaml
+   ```
+   Adjust these as necessary—the sample file should have what you need for local development. (Make sure you do this step each time you run `git pull` in case there have been any changes to the sample settings file.)
 
-2. Make sure a data folder exists under: `$ mkdir ./resources/data`
-Start Database: `$ docker compose up -d`
-This will start the db on port 5432, if you have conflicting port issue can check with: `$ lsof -i :5432`. 
-Data will be persisted across sessions b/c we have the volume set. 
-To check container status: `$ docker ps`
-You can connect to db eg: `psql -h localhost -p 5432 -U dimo` or with your favorite db IDE
+2. Start the services
+   ```sh
+   docker compose up -d
+   ```
+   This will start a bunch of services. Briefly:
 
-3. Migrate DB to latest: 
-`$ go run ./cmd/devices-api migrate`
+   - Postgres, used to store the basic data models, on port 5432.
+   - [Redis](https://redis.io), used by the [taskq library](https://taskq.uptrace.dev) to enqueue interactions with the AutoPi API, on port 6379.
+   - [ElasticSearch](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html), only used by the sub-command `search-sync-dds`, on port 9200. Kibana provides a UI for this on port 5601.
+   - [LocalStack](https://localstack.cloud), for testing our use of AWS S3 to store user documents and NFTs, takes up ports 4566–4583.
+   - [IPFS](https://ipfs.tech), which we hope to use to store device definitions, takes up ports 4001, 8080, 8081, and 5001.
+   - [Kafka](https://kafka.apache.org) is used to receive vehicle and task status updates, and emit events. It lives on port 9092, and the supporting Zookeeper service lives on port 2181.
 
-4. Install kafka with brew, and run it
-`$ brew install kafka`
-`$ brew services start zookeeper`
-`$ brew services start kafka`
+   If you get a port conflict, you can find the existing process using the port with, e.g., `lsof -i :5432`. Most of these containers have attached volumes, so their data will persist across restarts. To check container status, run `docker ps`.
 
-5. Run application
-`$ go run ./cmd/devices-api`
- 
-6. Seed data from Edmunds / merging it with Smartcar data previously loaded
-`$ go run ./cmd/devices-api edmunds-vehicles-sync --mergemmy`
-7. Sync SmartCar compatibilities:
-`$ go run ./cmd/devices-api smartcar-sync`
+3. You can log into the database now with
+   ```sh
+   psql -h localhost -p 5432 -U dimo
+   ```
+   using password `dimo`, or use your favorite UI like [DataGrip](https://www.jetbrains.com/datagrip/). To do anything useful, you'll have to apply the database migrations from the `migrations` folder: 
+   ```sh
+   go run ./cmd/devices-api migrate
+   ```
 
-8. Set some vehicle images from edmunds:
-`$ go run ./cmd/devices-api edmunds-images [--overwrite]`
+5. You are now ready to run the application:
+   ```sh
+   go run ./cmd/devices-api
+   ```
 
-9. If you are going to work with uploading documents, execute the following command
-`$ aws --endpoint-url=http://localhost:4566 s3 mb s3://documents`
+It may be helpful to seed the database with test data:
+
+6. Scrape device definitions from Edmunds:
+   ```sh
+   go run ./cmd/devices-api edmunds-vehicles-sync --mergemmy
+   ```
+7. Sync Smartcar integration compatibility:
+   ```sh
+   go run ./cmd/devices-api smartcar-sync
+   ```
+8. Scrape vehicle images from edmunds:
+   ```sh
+   go run ./cmd/devices-api edmunds-images [--overwrite]
+   ```
+
+Finally, if you want to test document uploads:
+
+9. Execute the following command to point the AWS CLI at LocalStack:
+   ```sh
+   aws --endpoint-url=http://localhost:4566 s3 mb s3://documents
+   ```
 
 ### Kafka test producer
 
