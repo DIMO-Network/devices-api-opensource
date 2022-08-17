@@ -230,6 +230,58 @@ func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(commandResponse)
 }
 
+// GetCommandRequestStatus godoc
+// @Summary     Get the status of a submitted command.
+// @Description Get the status of a submitted command by request id.
+// @Id          get-command-request-status
+// @Tags        device,integration,command
+// @Success 200 {object} controllers.CommandRequestStatusResp
+// @Produce     json
+// @Param       userDeviceID  path string true "Device ID"
+// @Param       integrationID path string true "Integration ID"
+// @Param       requestID path string true "Command request ID"
+// @Router      /user/devices/{userDeviceID}/integrations/{integrationID}/commands/{requestID} [get]
+func (udc *UserDevicesController) GetCommandRequestStatus(c *fiber.Ctx) error {
+	userID := getUserID(c)
+	requestID := c.Params("requestID")
+
+	// Don't actually validate userDeviceID or integrationID, just following a URL pattern.
+	// Is this beyond the pale?
+	cr, err := models.DeviceCommandRequests(
+		models.DeviceCommandRequestWhere.ID.EQ(requestID),
+		qm.Load(models.DeviceCommandRequestRels.UserDevice),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, "No command request with that id found.")
+		}
+		udc.log.Err(err).Msg("Failed to search for command status.")
+		return opaqueInternalError
+	}
+
+	if cr.R.UserDevice.UserID != userID {
+		return fiber.NewError(fiber.StatusNotFound, "No command request with that id found.")
+	}
+
+	dcr := CommandRequestStatusResp{
+		ID:        requestID,
+		Command:   cr.Command,
+		Status:    cr.Status,
+		CreatedAt: cr.CreatedAt,
+		UpdatedAt: cr.UpdatedAt,
+	}
+
+	return c.JSON(dcr)
+}
+
+type CommandRequestStatusResp struct {
+	ID        string    `json:"id" example:"2D8LqUHQtaMHH6LYPqznmJMBeZm"`
+	Command   string    `json:"command" example:"doors/unlock"`
+	Status    string    `json:"status" enums:"Pending,Complete,Failed" example:"Complete"`
+	CreatedAt time.Time `json:"createdAt" example:"2022-08-09T19:38:39Z"`
+	UpdatedAt time.Time `json:"updatedAt" example:"2022-08-09T19:39:22Z"`
+}
+
 // handleEnqueueCommand enqueues the command specified by commandPath with the
 // appropriate task service.
 //
@@ -338,11 +390,11 @@ func (udc *UserDevicesController) handleEnqueueCommand(c *fiber.Ctx, commandPath
 
 	logger.Info().Msg("Successfully enqueued command.")
 
-	return c.JSON(CommandResponse{TaskID: subTaskID})
+	return c.JSON(CommandResponse{RequestID: subTaskID})
 }
 
 type CommandResponse struct {
-	TaskID string `json:"taskId"`
+	RequestID string `json:"requestId"`
 }
 
 // UnlockDoors godoc

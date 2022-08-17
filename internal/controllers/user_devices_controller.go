@@ -119,11 +119,6 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
 		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
 		qm.Load(models.UserDeviceRels.MintRequest),
-		qm.Load(
-			models.UserDeviceRels.DeviceCommandRequests,
-			models.DeviceCommandRequestWhere.UpdatedAt.GTE(time.Now().Add(-24*time.Hour)),
-			qm.OrderBy(models.DeviceCommandRequestColumns.UpdatedAt+" DESC"),
-		),
 		qm.OrderBy("created_at"),
 	).All(c.Context(), udc.DBS().Reader)
 	if err != nil {
@@ -172,18 +167,6 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 			}
 		}
 
-		recentCommands := make([]DeviceCommandRequest, len(d.R.DeviceCommandRequests))
-		for i, r := range d.R.DeviceCommandRequests {
-			recentCommands[i] = DeviceCommandRequest{
-				ID:            r.ID,
-				IntegrationID: r.IntegrationID,
-				Command:       r.Command,
-				Status:        r.Status,
-				CreatedAt:     r.CreatedAt,
-				UpdatedAt:     r.UpdatedAt,
-			}
-		}
-
 		rp[i] = UserDeviceFull{
 			ID:               d.ID,
 			VIN:              d.VinIdentifier.Ptr(),
@@ -195,7 +178,6 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 			Integrations:     NewUserDeviceIntegrationStatusesFromDatabase(d.R.UserDeviceAPIIntegrations),
 			Metadata:         *md,
 			NFT:              nft,
-			RecentCommands:   recentCommands,
 		}
 	}
 
@@ -1228,16 +1210,6 @@ type UserDeviceFull struct {
 	Integrations     []UserDeviceIntegrationStatus `json:"integrations"`
 	Metadata         services.UserDeviceMetadata   `json:"metadata"`
 	NFT              *NFTData                      `json:"nft,omitempty"`
-	RecentCommands   []DeviceCommandRequest        `json:"recentCommands"`
-}
-
-type DeviceCommandRequest struct {
-	ID            string    `json:"id" example:"2D8LqUHQtaMHH6LYPqznmJMBeZm"`
-	IntegrationID string    `json:"integrationId" example:"2D8LqXhGRUG8dUUBnk4Z7NRsI54"`
-	Command       string    `json:"command" example:"doors/unlock"`
-	Status        string    `json:"status" enums:"Pending,Complete,Failed" example:"Complete"`
-	CreatedAt     time.Time `json:"createdAt" example:"2022-08-09T19:38:39Z"`
-	UpdatedAt     time.Time `json:"updatedAt" example:"2022-08-09T19:39:22Z"`
 }
 
 type NFTData struct {

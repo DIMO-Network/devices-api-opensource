@@ -282,7 +282,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_controllers.DocumentResponse"
+                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
                             }
                         }
                     }
@@ -337,7 +337,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.DocumentResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
                         }
                     }
                 }
@@ -373,7 +373,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.DocumentResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
                         }
                     }
                 }
@@ -1073,6 +1073,52 @@
                 }
             }
         },
+        "/user/devices/{userDeviceID}/integrations/{integrationID}/commands/{requestID}": {
+            "get": {
+                "description": "Get the status of a submitted command by request id.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device",
+                    "integration",
+                    "command"
+                ],
+                "summary": "Get the status of a submitted command.",
+                "operationId": "get-command-request-status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device ID",
+                        "name": "userDeviceID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Integration ID",
+                        "name": "integrationID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Command request ID",
+                        "name": "requestID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandRequestStatusResp"
+                        }
+                    }
+                }
+            }
+        },
         "/user/devices/{userDeviceID}/name": {
             "patch": {
                 "security": [
@@ -1438,10 +1484,40 @@
                 }
             }
         },
+        "github.com_DIMO-Network_devices-api_internal_controllers.CommandRequestStatusResp": {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string",
+                    "example": "doors/unlock"
+                },
+                "createdAt": {
+                    "type": "string",
+                    "example": "2022-08-09T19:38:39Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "2D8LqUHQtaMHH6LYPqznmJMBeZm"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "Pending",
+                        "Complete",
+                        "Failed"
+                    ],
+                    "example": "Complete"
+                },
+                "updatedAt": {
+                    "type": "string",
+                    "example": "2022-08-09T19:39:22Z"
+                }
+            }
+        },
         "github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse": {
             "type": "object",
             "properties": {
-                "taskId": {
+                "requestId": {
                     "type": "string"
                 }
             }
@@ -1478,40 +1554,6 @@
             "properties": {
                 "id": {
                     "type": "string"
-                }
-            }
-        },
-        "github.com_DIMO-Network_devices-api_internal_controllers.DeviceCommandRequest": {
-            "type": "object",
-            "properties": {
-                "command": {
-                    "type": "string",
-                    "example": "doors/unlock"
-                },
-                "createdAt": {
-                    "type": "string",
-                    "example": "2022-08-09T19:38:39Z"
-                },
-                "id": {
-                    "type": "string",
-                    "example": "2D8LqUHQtaMHH6LYPqznmJMBeZm"
-                },
-                "integrationId": {
-                    "type": "string",
-                    "example": "2D8LqXhGRUG8dUUBnk4Z7NRsI54"
-                },
-                "status": {
-                    "type": "string",
-                    "enum": [
-                        "Pending",
-                        "Complete",
-                        "Failed"
-                    ],
-                    "example": "Complete"
-                },
-                "updatedAt": {
-                    "type": "string",
-                    "example": "2022-08-09T19:39:22Z"
                 }
             }
         },
@@ -1890,12 +1932,6 @@
                 "nft": {
                     "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTData"
                 },
-                "recentCommands": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceCommandRequest"
-                    }
-                },
                 "vin": {
                     "type": "string"
                 },
@@ -1973,10 +2009,40 @@
                 }
             }
         },
+        "internal_controllers.CommandRequestStatusResp": {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string",
+                    "example": "doors/unlock"
+                },
+                "createdAt": {
+                    "type": "string",
+                    "example": "2022-08-09T19:38:39Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "2D8LqUHQtaMHH6LYPqznmJMBeZm"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "Pending",
+                        "Complete",
+                        "Failed"
+                    ],
+                    "example": "Complete"
+                },
+                "updatedAt": {
+                    "type": "string",
+                    "example": "2022-08-09T19:39:22Z"
+                }
+            }
+        },
         "internal_controllers.CommandResponse": {
             "type": "object",
             "properties": {
-                "taskId": {
+                "requestId": {
                     "type": "string"
                 }
             }
@@ -2013,40 +2079,6 @@
             "properties": {
                 "id": {
                     "type": "string"
-                }
-            }
-        },
-        "internal_controllers.DeviceCommandRequest": {
-            "type": "object",
-            "properties": {
-                "command": {
-                    "type": "string",
-                    "example": "doors/unlock"
-                },
-                "createdAt": {
-                    "type": "string",
-                    "example": "2022-08-09T19:38:39Z"
-                },
-                "id": {
-                    "type": "string",
-                    "example": "2D8LqUHQtaMHH6LYPqznmJMBeZm"
-                },
-                "integrationId": {
-                    "type": "string",
-                    "example": "2D8LqXhGRUG8dUUBnk4Z7NRsI54"
-                },
-                "status": {
-                    "type": "string",
-                    "enum": [
-                        "Pending",
-                        "Complete",
-                        "Failed"
-                    ],
-                    "example": "Complete"
-                },
-                "updatedAt": {
-                    "type": "string",
-                    "example": "2022-08-09T19:39:22Z"
                 }
             }
         },
@@ -2424,12 +2456,6 @@
                 },
                 "nft": {
                     "$ref": "#/definitions/internal_controllers.NFTData"
-                },
-                "recentCommands": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_controllers.DeviceCommandRequest"
-                    }
                 },
                 "vin": {
                     "type": "string"
