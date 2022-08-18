@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -850,6 +851,9 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 			AutopiDeviceID: null.StringFrom(autoPiDevice.ID),
 			UserID:         ud.UserID,
 		}
+		if len(autoPiDevice.EthereumAddress) > 0 && isValidAddress(autoPiDevice.EthereumAddress) {
+			existingUnit.NFTAddress = null.StringFrom(autoPiDevice.EthereumAddress)
+		}
 		err = existingUnit.Insert(c.Context(), tx, boil.Infer())
 		if err != nil {
 			return err
@@ -1461,6 +1465,11 @@ func createDeviceIntegrationIfAutoPi(ctx context.Context, integrationID, deviceD
 		return &di, nil
 	}
 	return nil, nil
+}
+
+func isValidAddress(v string) bool {
+	re := regexp.MustCompile("^0x[0-9a-fA-F]{40}$")
+	return re.MatchString(v)
 }
 
 /** Structs for request / response **/

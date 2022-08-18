@@ -384,6 +384,7 @@ type AutoPiDongleDevice struct {
 	Display           string              `json:"display"`
 	LastCommunication time.Time           `json:"last_communication"`
 	IsUpdated         bool                `json:"is_updated"`
+	EthereumAddress   string              `json:"ethereum_address"`
 	Release           struct {
 		Version string `json:"version"`
 	} `json:"release"`

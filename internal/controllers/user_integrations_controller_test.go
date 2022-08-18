@@ -323,6 +323,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi_HappyPath() {
 		unitID    = "431d2e89-46f1-6884-6226-5d1ad20c84d9" // note lowercase & 36 char, as we always lowercase input bc that is what autopi uses
 		vehicleID = 123
 		imei      = "IMEI321"
+		nftAddr   = "0x323b5d4c32345ced77393b3530b1eed0f346429d"
 	)
 
 	req := fmt.Sprintf(`{
@@ -335,6 +336,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi_HappyPath() {
 		Vehicle:           services.AutoPiDongleVehicle{ID: vehicleID}, // vehicle profile id
 		IMEI:              imei,
 		Template:          1,
+		EthereumAddress:   nftAddr,
 		LastCommunication: time.Now().Add(time.Second * -15).UTC(),
 	}, nil)
 	autopiAPISvc.EXPECT().PatchVehicleProfile(vehicleID, gomock.Any()).Times(1).Return(nil)
@@ -371,6 +373,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi_HappyPath() {
 	assert.Equal(s.T(), unitID, autoPiUnit.AutopiUnitID)
 	assert.Equal(s.T(), ud.UserID, autoPiUnit.UserID)
 	assert.Equal(s.T(), deviceID, autoPiUnit.AutopiDeviceID.String)
+	assert.Equal(s.T(), nftAddr, autoPiUnit.NFTAddress.String)
 	assert.Equal(s.T(), "Pending", apiInt.Status)
 	assert.Equal(s.T(), templateID, *metadata.AutoPiTemplateApplied)
 	assert.Equal(s.T(), unitID, *metadata.AutoPiUnitID)
