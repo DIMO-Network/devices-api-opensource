@@ -488,6 +488,9 @@ func (udc *UserDevicesController) UpdateName(c *fiber.Ctx) error {
 	}
 
 	if err := name.validate(); err != nil {
+		if name.Name != nil {
+			udc.log.Warn().Err(err).Str("userDeviceId", udi).Str("userId", userID).Str("name", *name.Name).Msg("Proposed device name is invalid.")
+		}
 		return fiber.NewError(fiber.StatusBadRequest, "Name field is limited to 16 alphanumeric characters.")
 	}
 
