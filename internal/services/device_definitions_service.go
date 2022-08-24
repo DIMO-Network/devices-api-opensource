@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/appmetrics"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
@@ -16,10 +17,11 @@ import (
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 //go:generate mockgen -source device_definitions_service.go -destination mocks/device_definitions_service_mock.go
-
 const vehicleInfoJSONNode = "vehicle_info"
 
 type IDeviceDefinitionService interface {
@@ -28,18 +30,41 @@ type IDeviceDefinitionService interface {
 	UpdateDeviceDefinitionFromNHTSA(ctx context.Context, deviceDefinitionID string, vin string) error
 	PullDrivlyData(ctx context.Context, userDeviceID, deviceDefinitionID string, vin string) error
 	GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*models.DeviceMake, error)
+	GetDeviceDefinitionsByIDs(ctx context.Context, ids []string) (*ddgrpc.GetDeviceDefinitionResponse, error)
 }
 
 type DeviceDefinitionService struct {
-	DBS        func() *database.DBReaderWriter
-	EdmundsSvc EdmundsService
-	DrivlySvc  DrivlyAPIService
-	log        *zerolog.Logger
-	nhtsaSvc   INHTSAService
+	DBS                 func() *database.DBReaderWriter
+	EdmundsSvc          EdmundsService
+	DrivlySvc           DrivlyAPIService
+	log                 *zerolog.Logger
+	nhtsaSvc            INHTSAService
+	definitionsGRPCAddr string
 }
 
 func NewDeviceDefinitionService(DBS func() *database.DBReaderWriter, log *zerolog.Logger, nhtsaService INHTSAService, settings *config.Settings) *DeviceDefinitionService {
-	return &DeviceDefinitionService{DBS: DBS, log: log, EdmundsSvc: NewEdmundsService(settings.TorProxyURL, log), nhtsaSvc: nhtsaService, DrivlySvc: NewDrivlyAPIService(settings, DBS)}
+	return &DeviceDefinitionService{DBS: DBS, log: log, EdmundsSvc: NewEdmundsService(settings.TorProxyURL, log),
+		nhtsaSvc: nhtsaService, DrivlySvc: NewDrivlyAPIService(settings, DBS), definitionsGRPCAddr: settings.DefinitionsGRPCAddr}
+}
+
+// GetDeviceDefinitionsByIDs calls device definitions api via GRPC to get the definition
+func (d *DeviceDefinitionService) GetDeviceDefinitionsByIDs(ctx context.Context, ids []string) (*ddgrpc.GetDeviceDefinitionResponse, error) {
+	// to test this we could use http://www.inanzzz.com/index.php/post/w9qr/unit-testing-golang-grpc-client-and-server-application-with-bufconn-package
+	conn, err := grpc.Dial(d.definitionsGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	definitionsClient := ddgrpc.NewDeviceDefinitionServiceClient(conn)
+
+	definitions, err := definitionsClient.GetDeviceDefinitionByID(ctx, &ddgrpc.GetDeviceDefinitionRequest{
+		Ids: ids,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return definitions, nil
 }
 
 // FindDeviceDefinitionByMMY builds and execs query to find device definition for MMY, returns db object and db error if occurs. if db tx is nil, just uses one from service, useful for tx
@@ -110,7 +135,7 @@ func (d *DeviceDefinitionService) CheckAndSetImage(dd *models.DeviceDefinition, 
 	return nil
 }
 
-// UpdateDeviceDefinitionFromNHTSA pulls vin info from nhtsa, and updates the device definition metadata if the MMY from nhtsa matches ours, and the Source is not NHTSA verified
+// UpdateDeviceDefinitionFromNHTSA (deprecated) pulls vin info from nhtsa, and updates the device definition metadata if the MMY from nhtsa matches ours, and the Source is not NHTSA verified
 func (d *DeviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Context, deviceDefinitionID string, vin string) error {
 	dbDeviceDef, err := models.DeviceDefinitions(
 		models.DeviceDefinitionWhere.ID.EQ(deviceDefinitionID),
@@ -146,7 +171,7 @@ func (d *DeviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Co
 	return nil
 }
 
-// UpdateDeviceDefinitionFromNHTSA pulls vin info from nhtsa, and updates the device definition metadata if the MMY from nhtsa matches ours, and the Source is not NHTSA verified
+// PullDrivlyData pulls vin info from drivly, and updates the device definition metadata
 func (d *DeviceDefinitionService) PullDrivlyData(ctx context.Context, userDeviceID string, deviceDefinitionID string, vin string) error {
 	dbDeviceDef, err := models.DeviceDefinitions(
 		models.DeviceDefinitionWhere.ID.EQ(deviceDefinitionID),
@@ -169,7 +194,6 @@ func (d *DeviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 		return err
 	}
 
-	// does martiallying nil object cause crash?
 	_ = drivlyData.VinMetadata.Marshal(summary.VIN)
 	_ = drivlyData.BuildMetadata.Marshal(summary.Build)
 	_ = drivlyData.AutocheckMetadata.Marshal(summary.AutoCheck)

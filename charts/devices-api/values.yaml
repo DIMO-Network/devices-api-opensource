@@ -63,6 +63,7 @@ env:
   IPFS_NODE_ENDPOINT: http://cluster-ipfs-cluster.web3.svc.cluster.local:9094
   DRIVLY_VIN_API_URL: https://vin-git-fc.dev.driv.ly
   DRIVLY_OFFER_API_URL: https://offers.dev.driv.ly
+  DEFINITIONS_GRPC_ADDR: device-definitions-api-dev:8086
 service:
   type: ClusterIP
   ports:

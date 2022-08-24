@@ -64,6 +64,7 @@ type Settings struct {
 	DrivlyAPIKey                 string `yaml:"DRIVLY_API_KEY"`
 	DrivlyVINAPIURL              string `yaml:"DRIVLY_VIN_API_URL"`
 	DrivlyOfferAPIURL            string `yaml:"DRIVLY_OFFER_API_URL"`
+	DefinitionsGRPCAddr          string `yaml:"DEFINITIONS_GRPC_ADDR"`
 }
 
 // GetWriterDSN builds the connection string to the db writer - for now same as reader

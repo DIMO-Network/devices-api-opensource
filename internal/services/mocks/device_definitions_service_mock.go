@@ -8,6 +8,7 @@ import (
 	context "context"
 	reflect "reflect"
 
+	grpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	models "github.com/DIMO-Network/devices-api/models"
 	gomock "github.com/golang/mock/gomock"
 	boil "github.com/volatiletech/sqlboiler/v4/boil"
@@ -63,6 +64,21 @@ func (m *MockIDeviceDefinitionService) FindDeviceDefinitionByMMY(ctx context.Con
 func (mr *MockIDeviceDefinitionServiceMockRecorder) FindDeviceDefinitionByMMY(ctx, db, mk, model, year, loadIntegrations interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindDeviceDefinitionByMMY", reflect.TypeOf((*MockIDeviceDefinitionService)(nil).FindDeviceDefinitionByMMY), ctx, db, mk, model, year, loadIntegrations)
+}
+
+// GetDeviceDefinitionsByIDs mocks base method.
+func (m *MockIDeviceDefinitionService) GetDeviceDefinitionsByIDs(ctx context.Context, ids []string) (*grpc.GetDeviceDefinitionResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDeviceDefinitionsByIDs", ctx, ids)
+	ret0, _ := ret[0].(*grpc.GetDeviceDefinitionResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDeviceDefinitionsByIDs indicates an expected call of GetDeviceDefinitionsByIDs.
+func (mr *MockIDeviceDefinitionServiceMockRecorder) GetDeviceDefinitionsByIDs(ctx, ids interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDeviceDefinitionsByIDs", reflect.TypeOf((*MockIDeviceDefinitionService)(nil).GetDeviceDefinitionsByIDs), ctx, ids)
 }
 
 // GetOrCreateMake mocks base method.

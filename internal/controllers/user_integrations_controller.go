@@ -75,6 +75,7 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 	}
 	defer tx.Rollback() //nolint
 
+	// todo grpc get from device-definitions over grpc
 	device, err := models.UserDevices(
 		models.UserDeviceWhere.UserID.EQ(userID),
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
@@ -173,6 +174,7 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 // @Security    BearerAuth
 // @Router      /integrations [get]
 func (udc *UserDevicesController) GetIntegrations(c *fiber.Ctx) error {
+	// todo get integration from device-definitions over grpc
 	all, err := models.Integrations(qm.Limit(100)).All(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		return errors.Wrap(err, "failed to get integrations")
@@ -730,7 +732,7 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("failed to create transaction: %s", err))
 	}
 	defer tx.Rollback() //nolint
-
+	// todo grpc pull from device-definitions over grpc
 	ud, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
 		models.UserDeviceWhere.UserID.EQ(userID),
@@ -752,7 +754,7 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 	if countryRecord == nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("can't find compatibility region for country %s", ud.CountryCode.String))
 	}
-
+	// todo grpc get device integrations from device-definitions by dd ID
 	deviceInteg, err := models.DeviceIntegrations(
 		models.DeviceIntegrationWhere.DeviceDefinitionID.EQ(ud.DeviceDefinitionID),
 		models.DeviceIntegrationWhere.IntegrationID.EQ(integrationID),
@@ -1091,6 +1093,7 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 
 	// Have to save this because it's not easy to re-load the relation if we do correct the device
 	// definition.
+	// todo grpc get the make by calling over grpc
 	deviceMake := ud.R.DeviceDefinition.R.DeviceMake.Name
 	year, err := udc.smartcarClient.GetYear(c.Context(), token.Access, externalID)
 	if err != nil {
@@ -1300,7 +1303,7 @@ func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zero
 	if err != nil {
 		return err
 	}
-
+	// todo grpc get device devinition and integration info from device-definitions over grpc
 	err = udc.eventService.Emit(&services.Event{
 		Type:    "com.dimo.zone.device.integration.create",
 		Source:  "devices-api",
@@ -1353,7 +1356,7 @@ func fixTeslaDeviceDefinition(ctx context.Context, logger *zerolog.Logger, exec 
 	vinMake := "Tesla"
 	vinModel := shared.VIN(vin).TeslaModel()
 	vinYear := shared.VIN(vin).Year()
-
+	// todo grpc get devicedefinition from device-definitions over grpc
 	dd := ud.R.DeviceDefinition
 
 	if dd.R.DeviceMake.Name != "Tesla" || dd.Model != vinModel || int(dd.Year) != vinYear {
@@ -1412,7 +1415,7 @@ func (udc *UserDevicesController) fixSmartcarDeviceYear(ctx context.Context, log
 		if countryRecord := services.FindCountry(ud.CountryCode.String); countryRecord != nil {
 			region = countryRecord.Region
 		}
-
+		// todo gprc pull by MMY from from device-defintions
 		newDD, err := models.DeviceDefinitions(
 			models.DeviceDefinitionWhere.DeviceMakeID.EQ(dd.DeviceMakeID),
 			models.DeviceDefinitionWhere.Model.EQ(dd.Model),
@@ -1445,6 +1448,7 @@ func (udc *UserDevicesController) fixSmartcarDeviceYear(ctx context.Context, log
 // createDeviceIntegrationIfAutoPi will create a device_integration on the fly if the integrationID belongs to AutoPi.
 // returns deviceIntegration including integration relationship
 func createDeviceIntegrationIfAutoPi(ctx context.Context, integrationID, deviceDefinitionID, region string, exec boil.ContextExecutor) (*models.DeviceIntegration, error) {
+	// todo grpc create against device-definitions
 	autoPiInteg, err := services.GetOrCreateAutoPiIntegration(ctx, exec)
 	if err != nil {
 		return nil, err

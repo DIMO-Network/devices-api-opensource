@@ -110,6 +110,8 @@ func NewUserDevicesController(
 // @Security    BearerAuth
 // @Router      /user/devices/me [get]
 func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
+	// todo grpc call out to grpc service endpoint in the deviceDefinitionsService udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{ "todo"} )
+
 	userID := getUserID(c)
 	devices, err := models.UserDevices(qm.Where("user_id = ?", userID),
 		qm.Load(models.UserDeviceRels.DeviceDefinition),
@@ -248,6 +250,7 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	var dd *models.DeviceDefinition
 	// attach device def to user
 	if reg.DeviceDefinitionID != nil {
+		// todo grpc pull device-definition via grpc
 		dd, err = models.DeviceDefinitions(qm.Load(models.DeviceDefinitionRels.DeviceMake),
 			models.DeviceDefinitionWhere.ID.EQ(*reg.DeviceDefinitionID)).One(c.Context(), tx)
 		if err != nil {
@@ -258,8 +261,10 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		}
 	} else {
 		// check for existing MMY
+		// todo grpc pull from device-definitions over grpc
 		dd, err = udc.DeviceDefSvc.FindDeviceDefinitionByMMY(c.Context(), tx, *reg.Make, *reg.Model, *reg.Year, false)
 		if dd == nil {
+			// todo grpc create device definition via grpc to device-definitions
 			dm, err := udc.DeviceDefSvc.GetOrCreateMake(c.Context(), tx, *reg.Make)
 			if err != nil {
 				return err
@@ -301,6 +306,7 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		region = countryRecord.Region
 	}
 	// get device integrations to return in payload - helps frontend
+	// todo grpc get these from device-definitions via grpc - may be able to pull from object above that already might have the deviceIntegrations
 	deviceInts, err := models.DeviceIntegrations(
 		qm.Load(models.DeviceIntegrationRels.Integration),
 		models.DeviceIntegrationWhere.DeviceDefinitionID.EQ(dd.ID),
@@ -321,6 +327,7 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 
 	// don't block, as image fetch could take a while
 	go func() {
+		// todo grpc update this service to call device-defintions over grpc to update the image
 		err := udc.DeviceDefSvc.CheckAndSetImage(dd, false)
 		if err != nil {
 			udc.log.Error().Err(err).Msg("error getting device image upon user_device registration")
@@ -434,6 +441,7 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 }
 
 func (udc *UserDevicesController) updateUSAPowertrain(ctx context.Context, userDevice *models.UserDevice) error {
+	// todo grpc pull vin decoder via grpc from device definitions
 	resp, err := udc.nhtsaService.DecodeVIN(userDevice.VinIdentifier.String)
 	if err != nil {
 		return err
@@ -588,6 +596,7 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 		return err
 	}
 	defer tx.Rollback() //nolint
+	// todo grpc pull device-definitions via grpc
 	userDevice, err := models.UserDevices(
 		qm.Where("id = ?", udi),
 		qm.And("user_id = ?", userID),
@@ -699,7 +708,7 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 	userDeviceID := c.Params("userDeviceID")
 	userID := getUserID(c)
-
+	// todo pull device-definitions via grpc
 	userDevice, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
 		models.UserDeviceWhere.UserID.EQ(userID),
