@@ -141,23 +141,9 @@ func (s *UserDevicesControllerTestSuite) TestPostWithExistingDefinitionID() {
 	assert.Equal(s.T(), integration.ID, regUserResp.DeviceDefinition.CompatibleIntegrations[0].ID)
 }
 
-func (s *UserDevicesControllerTestSuite) TestPostWithMMYOnTheFlyCreateDD() {
-	mk := "Tesla"
-	model := "Model Z"
-	year := 2021
-	s.deviceDefSvc.EXPECT().FindDeviceDefinitionByMMY(gomock.Any(), gomock.Any(), mk, model, year, false).
-		Return(nil, nil)
-	// create an existing make and then mock return the make we just created. Another option would be to have mock call real, but I feel this isolates a bit more.
-	dm := test.SetupCreateMake(s.T(), mk, s.pdb)
-	s.deviceDefSvc.EXPECT().GetOrCreateMake(gomock.Any(), gomock.Any(), mk).Times(1).Return(&models.DeviceMake{
-		ID:   dm.ID,
-		Name: dm.Name,
-	}, nil)
-
+func (s *UserDevicesControllerTestSuite) TestPostWithoutDefinitionID_BadRequest() {
+	// act request
 	reg := RegisterUserDevice{
-		Make:        &mk,
-		Model:       &model,
-		Year:        &year,
 		CountryCode: "USA",
 	}
 	j, _ := json.Marshal(reg)
@@ -165,83 +151,12 @@ func (s *UserDevicesControllerTestSuite) TestPostWithMMYOnTheFlyCreateDD() {
 	response, _ := s.app.Test(request)
 	body, _ := io.ReadAll(response.Body)
 	// assert
-	if assert.Equal(s.T(), fiber.StatusCreated, response.StatusCode) == false {
-		fmt.Println("message: " + string(body))
+	require.Equal(s.T(), fiber.StatusBadRequest, response.StatusCode)
+
+	errorMessage := gjson.Get(string(body), "errorMessage")
+	if assert.Equal(s.T(), "deviceDefinitionId: cannot be blank.", errorMessage.String()) == false {
+		fmt.Println(string(body))
 	}
-	regUserResp := UserDeviceFull{}
-	jsonUD := gjson.Get(string(body), "userDevice")
-	_ = json.Unmarshal([]byte(jsonUD.String()), &regUserResp)
-
-	assert.Len(s.T(), regUserResp.ID, 27)
-	assert.Len(s.T(), regUserResp.DeviceDefinition.DeviceDefinitionID, 27)
-}
-
-func (s *UserDevicesControllerTestSuite) TestPostWithMMYExistingDD() {
-	mk := "Tesla"
-	model := "Model Z"
-	year := 2021
-	s.deviceDefSvc.EXPECT().FindDeviceDefinitionByMMY(gomock.Any(), gomock.Any(), mk, model, year, false).
-		Return(nil, nil)
-	// create an existing make and then mock return the make we just created. Another option would be to have mock call real, but I feel this isolates a bit more.
-	dm := test.SetupCreateMake(s.T(), mk, s.pdb)
-	s.deviceDefSvc.EXPECT().GetOrCreateMake(gomock.Any(), gomock.Any(), mk).Times(1).Return(&models.DeviceMake{
-		ID:   dm.ID,
-		Name: dm.Name,
-	}, nil)
-
-	reg := RegisterUserDevice{
-		Make:        &mk,
-		Model:       &model,
-		Year:        &year,
-		CountryCode: "USA",
-	}
-	j, _ := json.Marshal(reg)
-	request := test.BuildRequest("POST", "/user/devices", string(j))
-	response, _ := s.app.Test(request)
-	body, _ := io.ReadAll(response.Body)
-	// assert
-	if assert.Equal(s.T(), fiber.StatusCreated, response.StatusCode) == false {
-		fmt.Println("message: " + string(body))
-	}
-	regUserResp := UserDeviceFull{}
-	jsonUD := gjson.Get(string(body), "userDevice")
-	_ = json.Unmarshal([]byte(jsonUD.String()), &regUserResp)
-
-	assert.Len(s.T(), regUserResp.ID, 27)
-	assert.Len(s.T(), regUserResp.DeviceDefinition.DeviceDefinitionID, 27)
-}
-
-func (s *UserDevicesControllerTestSuite) TestPostWithMMYDoesNotDuplicateDD() {
-	mk := "Ford"
-	model := "Mach E"
-	year := 2021
-	dm := test.SetupCreateMake(s.T(), mk, s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, model, year, s.pdb)
-
-	dd.R = dd.R.NewStruct()
-	dd.R.DeviceMake = &dm
-	s.deviceDefSvc.EXPECT().FindDeviceDefinitionByMMY(gomock.Any(), gomock.Any(), mk, model, year, false).
-		Return(dd, nil)
-	reg := RegisterUserDevice{
-		Make:        &mk,
-		Model:       &model,
-		Year:        &year,
-		CountryCode: "USA",
-	}
-	j, _ := json.Marshal(reg)
-	request := test.BuildRequest("POST", "/user/devices/second", string(j))
-	response, _ := s.app.Test(request)
-	body, _ := io.ReadAll(response.Body)
-	// assert
-	if assert.Equal(s.T(), fiber.StatusCreated, response.StatusCode) == false {
-		fmt.Println("message: " + string(body))
-	}
-	regUserResp := UserDeviceFull{}
-	jsonUD := gjson.Get(string(body), "userDevice")
-	_ = json.Unmarshal([]byte(jsonUD.String()), &regUserResp)
-
-	assert.Len(s.T(), regUserResp.ID, 27)
-	assert.Equal(s.T(), dd.ID, regUserResp.DeviceDefinition.DeviceDefinitionID)
 }
 
 func (s *UserDevicesControllerTestSuite) TestPostBadPayload() {

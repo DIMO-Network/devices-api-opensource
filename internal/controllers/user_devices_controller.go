@@ -249,46 +249,17 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	}
 	var dd *models.DeviceDefinition
 	// attach device def to user
-	if reg.DeviceDefinitionID != nil {
-		// todo grpc pull device-definition via grpc
-		dd, err = models.DeviceDefinitions(qm.Load(models.DeviceDefinitionRels.DeviceMake),
-			models.DeviceDefinitionWhere.ID.EQ(*reg.DeviceDefinitionID)).One(c.Context(), tx)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return errorResponseHandler(c, errors.Wrapf(err, "could not find device definition id: %s", *reg.DeviceDefinitionID), fiber.StatusBadRequest)
-			}
-			return errorResponseHandler(c, errors.Wrapf(err, "error querying for device definition id: %s", *reg.DeviceDefinitionID), fiber.StatusInternalServerError)
+
+	// todo grpc pull device-definition via grpc
+	dd, err = models.DeviceDefinitions(qm.Load(models.DeviceDefinitionRels.DeviceMake),
+		models.DeviceDefinitionWhere.ID.EQ(*reg.DeviceDefinitionID)).One(c.Context(), tx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errorResponseHandler(c, errors.Wrapf(err, "could not find device definition id: %s", *reg.DeviceDefinitionID), fiber.StatusBadRequest)
 		}
-	} else {
-		// check for existing MMY
-		// todo grpc pull from device-definitions over grpc
-		dd, err = udc.DeviceDefSvc.FindDeviceDefinitionByMMY(c.Context(), tx, *reg.Make, *reg.Model, *reg.Year, false)
-		if dd == nil {
-			// todo grpc create device definition via grpc to device-definitions
-			dm, err := udc.DeviceDefSvc.GetOrCreateMake(c.Context(), tx, *reg.Make)
-			if err != nil {
-				return err
-			}
-			// since Definition does not exist, create one on the fly with userID as source and not verified
-			dd = &models.DeviceDefinition{
-				ID:           ksuid.New().String(),
-				DeviceMakeID: dm.ID,
-				Model:        *reg.Model,
-				Year:         int16(*reg.Year),
-				Source:       null.StringFrom("userID:" + userID),
-				Verified:     false,
-			}
-			err = dd.Insert(c.Context(), tx, boil.Infer())
-			if err != nil {
-				return err
-			}
-			dd.R = dd.R.NewStruct()
-			dd.R.DeviceMake = dm
-		}
-		if err != nil {
-			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
-		}
+		return errorResponseHandler(c, errors.Wrapf(err, "error querying for device definition id: %s", *reg.DeviceDefinitionID), fiber.StatusInternalServerError)
 	}
+
 	userDeviceID := ksuid.New().String()
 	// register device for the user
 	ud := models.UserDevice{
@@ -1103,9 +1074,6 @@ type MintRequest struct {
 }
 
 type RegisterUserDevice struct {
-	Make               *string `json:"make"`
-	Model              *string `json:"model"`
-	Year               *int    `json:"year"`
 	DeviceDefinitionID *string `json:"deviceDefinitionId"`
 	CountryCode        string  `json:"countryCode"`
 }
@@ -1144,10 +1112,7 @@ type UpdateImageURLReq struct {
 
 func (reg *RegisterUserDevice) Validate() error {
 	return validation.ValidateStruct(reg,
-		validation.Field(&reg.Make, validation.When(reg.DeviceDefinitionID == nil, validation.Required)),
-		validation.Field(&reg.Model, validation.When(reg.DeviceDefinitionID == nil, validation.Required)),
-		validation.Field(&reg.Year, validation.When(reg.DeviceDefinitionID == nil, validation.Required)),
-		validation.Field(&reg.DeviceDefinitionID, validation.When(reg.Make == nil && reg.Model == nil && reg.Year == nil, validation.Required)),
+		validation.Field(&reg.DeviceDefinitionID, validation.Required),
 		validation.Field(&reg.CountryCode, validation.Required, validation.Length(3, 3)),
 	)
 }
