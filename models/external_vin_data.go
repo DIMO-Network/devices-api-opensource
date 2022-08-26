@@ -22,8 +22,8 @@ import (
 	"github.com/volatiletech/strmangle"
 )
 
-// DrivlyDatum is an object representing the database table.
-type DrivlyDatum struct {
+// ExternalVinDatum is an object representing the database table.
+type ExternalVinDatum struct {
 	ID                 string      `boil:"id" json:"id" toml:"id" yaml:"id"`
 	DeviceDefinitionID null.String `boil:"device_definition_id" json:"device_definition_id,omitempty" toml:"device_definition_id" yaml:"device_definition_id,omitempty"`
 	Vin                string      `boil:"vin" json:"vin" toml:"vin" yaml:"vin"`
@@ -42,12 +42,13 @@ type DrivlyDatum struct {
 	VroomMetadata      null.JSON   `boil:"vroom_metadata" json:"vroom_metadata,omitempty" toml:"vroom_metadata" yaml:"vroom_metadata,omitempty"`
 	CreatedAt          time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt          time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	PricingMetadata    null.JSON   `boil:"pricing_metadata" json:"pricing_metadata,omitempty" toml:"pricing_metadata" yaml:"pricing_metadata,omitempty"`
 
-	R *drivlyDatumR `boil:"-" json:"-" toml:"-" yaml:"-"`
-	L drivlyDatumL  `boil:"-" json:"-" toml:"-" yaml:"-"`
+	R *externalVinDatumR `boil:"-" json:"-" toml:"-" yaml:"-"`
+	L externalVinDatumL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
-var DrivlyDatumColumns = struct {
+var ExternalVinDatumColumns = struct {
 	ID                 string
 	DeviceDefinitionID string
 	Vin                string
@@ -66,6 +67,7 @@ var DrivlyDatumColumns = struct {
 	VroomMetadata      string
 	CreatedAt          string
 	UpdatedAt          string
+	PricingMetadata    string
 }{
 	ID:                 "id",
 	DeviceDefinitionID: "device_definition_id",
@@ -85,9 +87,10 @@ var DrivlyDatumColumns = struct {
 	VroomMetadata:      "vroom_metadata",
 	CreatedAt:          "created_at",
 	UpdatedAt:          "updated_at",
+	PricingMetadata:    "pricing_metadata",
 }
 
-var DrivlyDatumTableColumns = struct {
+var ExternalVinDatumTableColumns = struct {
 	ID                 string
 	DeviceDefinitionID string
 	Vin                string
@@ -106,30 +109,32 @@ var DrivlyDatumTableColumns = struct {
 	VroomMetadata      string
 	CreatedAt          string
 	UpdatedAt          string
+	PricingMetadata    string
 }{
-	ID:                 "drivly_data.id",
-	DeviceDefinitionID: "drivly_data.device_definition_id",
-	Vin:                "drivly_data.vin",
-	UserDeviceID:       "drivly_data.user_device_id",
-	VinMetadata:        "drivly_data.vin_metadata",
-	OfferMetadata:      "drivly_data.offer_metadata",
-	AutocheckMetadata:  "drivly_data.autocheck_metadata",
-	BuildMetadata:      "drivly_data.build_metadata",
-	CargurusMetadata:   "drivly_data.cargurus_metadata",
-	CarvanaMetadata:    "drivly_data.carvana_metadata",
-	CarmaxMetadata:     "drivly_data.carmax_metadata",
-	CarstoryMetadata:   "drivly_data.carstory_metadata",
-	EdmundsMetadata:    "drivly_data.edmunds_metadata",
-	TMVMetadata:        "drivly_data.tmv_metadata",
-	KBBMetadata:        "drivly_data.kbb_metadata",
-	VroomMetadata:      "drivly_data.vroom_metadata",
-	CreatedAt:          "drivly_data.created_at",
-	UpdatedAt:          "drivly_data.updated_at",
+	ID:                 "external_vin_data.id",
+	DeviceDefinitionID: "external_vin_data.device_definition_id",
+	Vin:                "external_vin_data.vin",
+	UserDeviceID:       "external_vin_data.user_device_id",
+	VinMetadata:        "external_vin_data.vin_metadata",
+	OfferMetadata:      "external_vin_data.offer_metadata",
+	AutocheckMetadata:  "external_vin_data.autocheck_metadata",
+	BuildMetadata:      "external_vin_data.build_metadata",
+	CargurusMetadata:   "external_vin_data.cargurus_metadata",
+	CarvanaMetadata:    "external_vin_data.carvana_metadata",
+	CarmaxMetadata:     "external_vin_data.carmax_metadata",
+	CarstoryMetadata:   "external_vin_data.carstory_metadata",
+	EdmundsMetadata:    "external_vin_data.edmunds_metadata",
+	TMVMetadata:        "external_vin_data.tmv_metadata",
+	KBBMetadata:        "external_vin_data.kbb_metadata",
+	VroomMetadata:      "external_vin_data.vroom_metadata",
+	CreatedAt:          "external_vin_data.created_at",
+	UpdatedAt:          "external_vin_data.updated_at",
+	PricingMetadata:    "external_vin_data.pricing_metadata",
 }
 
 // Generated where
 
-var DrivlyDatumWhere = struct {
+var ExternalVinDatumWhere = struct {
 	ID                 whereHelperstring
 	DeviceDefinitionID whereHelpernull_String
 	Vin                whereHelperstring
@@ -148,29 +153,31 @@ var DrivlyDatumWhere = struct {
 	VroomMetadata      whereHelpernull_JSON
 	CreatedAt          whereHelpertime_Time
 	UpdatedAt          whereHelpertime_Time
+	PricingMetadata    whereHelpernull_JSON
 }{
-	ID:                 whereHelperstring{field: "\"devices_api\".\"drivly_data\".\"id\""},
-	DeviceDefinitionID: whereHelpernull_String{field: "\"devices_api\".\"drivly_data\".\"device_definition_id\""},
-	Vin:                whereHelperstring{field: "\"devices_api\".\"drivly_data\".\"vin\""},
-	UserDeviceID:       whereHelpernull_String{field: "\"devices_api\".\"drivly_data\".\"user_device_id\""},
-	VinMetadata:        whereHelpernull_JSON{field: "\"devices_api\".\"drivly_data\".\"vin_metadata\""},
-	OfferMetadata:      whereHelpernull_JSON{field: "\"devices_api\".\"drivly_data\".\"offer_metadata\""},
-	AutocheckMetadata:  whereHelpernull_JSON{field: "\"devices_api\".\"drivly_data\".\"autocheck_metadata\""},
-	BuildMetadata:      whereHelpernull_JSON{field: "\"devices_api\".\"drivly_data\".\"build_metadata\""},
-	CargurusMetadata:   whereHelpernull_JSON{field: "\"devices_api\".\"drivly_data\".\"cargurus_metadata\""},
-	CarvanaMetadata:    whereHelpernull_JSON{field: "\"devices_api\".\"drivly_data\".\"carvana_metadata\""},
-	CarmaxMetadata:     whereHelpernull_JSON{field: "\"devices_api\".\"drivly_data\".\"carmax_metadata\""},
-	CarstoryMetadata:   whereHelpernull_JSON{field: "\"devices_api\".\"drivly_data\".\"carstory_metadata\""},
-	EdmundsMetadata:    whereHelpernull_JSON{field: "\"devices_api\".\"drivly_data\".\"edmunds_metadata\""},
-	TMVMetadata:        whereHelpernull_JSON{field: "\"devices_api\".\"drivly_data\".\"tmv_metadata\""},
-	KBBMetadata:        whereHelpernull_JSON{field: "\"devices_api\".\"drivly_data\".\"kbb_metadata\""},
-	VroomMetadata:      whereHelpernull_JSON{field: "\"devices_api\".\"drivly_data\".\"vroom_metadata\""},
-	CreatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"drivly_data\".\"created_at\""},
-	UpdatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"drivly_data\".\"updated_at\""},
+	ID:                 whereHelperstring{field: "\"devices_api\".\"external_vin_data\".\"id\""},
+	DeviceDefinitionID: whereHelpernull_String{field: "\"devices_api\".\"external_vin_data\".\"device_definition_id\""},
+	Vin:                whereHelperstring{field: "\"devices_api\".\"external_vin_data\".\"vin\""},
+	UserDeviceID:       whereHelpernull_String{field: "\"devices_api\".\"external_vin_data\".\"user_device_id\""},
+	VinMetadata:        whereHelpernull_JSON{field: "\"devices_api\".\"external_vin_data\".\"vin_metadata\""},
+	OfferMetadata:      whereHelpernull_JSON{field: "\"devices_api\".\"external_vin_data\".\"offer_metadata\""},
+	AutocheckMetadata:  whereHelpernull_JSON{field: "\"devices_api\".\"external_vin_data\".\"autocheck_metadata\""},
+	BuildMetadata:      whereHelpernull_JSON{field: "\"devices_api\".\"external_vin_data\".\"build_metadata\""},
+	CargurusMetadata:   whereHelpernull_JSON{field: "\"devices_api\".\"external_vin_data\".\"cargurus_metadata\""},
+	CarvanaMetadata:    whereHelpernull_JSON{field: "\"devices_api\".\"external_vin_data\".\"carvana_metadata\""},
+	CarmaxMetadata:     whereHelpernull_JSON{field: "\"devices_api\".\"external_vin_data\".\"carmax_metadata\""},
+	CarstoryMetadata:   whereHelpernull_JSON{field: "\"devices_api\".\"external_vin_data\".\"carstory_metadata\""},
+	EdmundsMetadata:    whereHelpernull_JSON{field: "\"devices_api\".\"external_vin_data\".\"edmunds_metadata\""},
+	TMVMetadata:        whereHelpernull_JSON{field: "\"devices_api\".\"external_vin_data\".\"tmv_metadata\""},
+	KBBMetadata:        whereHelpernull_JSON{field: "\"devices_api\".\"external_vin_data\".\"kbb_metadata\""},
+	VroomMetadata:      whereHelpernull_JSON{field: "\"devices_api\".\"external_vin_data\".\"vroom_metadata\""},
+	CreatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"external_vin_data\".\"created_at\""},
+	UpdatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"external_vin_data\".\"updated_at\""},
+	PricingMetadata:    whereHelpernull_JSON{field: "\"devices_api\".\"external_vin_data\".\"pricing_metadata\""},
 }
 
-// DrivlyDatumRels is where relationship names are stored.
-var DrivlyDatumRels = struct {
+// ExternalVinDatumRels is where relationship names are stored.
+var ExternalVinDatumRels = struct {
 	DeviceDefinition string
 	UserDevice       string
 }{
@@ -178,65 +185,65 @@ var DrivlyDatumRels = struct {
 	UserDevice:       "UserDevice",
 }
 
-// drivlyDatumR is where relationships are stored.
-type drivlyDatumR struct {
+// externalVinDatumR is where relationships are stored.
+type externalVinDatumR struct {
 	DeviceDefinition *DeviceDefinition `boil:"DeviceDefinition" json:"DeviceDefinition" toml:"DeviceDefinition" yaml:"DeviceDefinition"`
 	UserDevice       *UserDevice       `boil:"UserDevice" json:"UserDevice" toml:"UserDevice" yaml:"UserDevice"`
 }
 
 // NewStruct creates a new relationship struct
-func (*drivlyDatumR) NewStruct() *drivlyDatumR {
-	return &drivlyDatumR{}
+func (*externalVinDatumR) NewStruct() *externalVinDatumR {
+	return &externalVinDatumR{}
 }
 
-func (r *drivlyDatumR) GetDeviceDefinition() *DeviceDefinition {
+func (r *externalVinDatumR) GetDeviceDefinition() *DeviceDefinition {
 	if r == nil {
 		return nil
 	}
 	return r.DeviceDefinition
 }
 
-func (r *drivlyDatumR) GetUserDevice() *UserDevice {
+func (r *externalVinDatumR) GetUserDevice() *UserDevice {
 	if r == nil {
 		return nil
 	}
 	return r.UserDevice
 }
 
-// drivlyDatumL is where Load methods for each relationship are stored.
-type drivlyDatumL struct{}
+// externalVinDatumL is where Load methods for each relationship are stored.
+type externalVinDatumL struct{}
 
 var (
-	drivlyDatumAllColumns            = []string{"id", "device_definition_id", "vin", "user_device_id", "vin_metadata", "offer_metadata", "autocheck_metadata", "build_metadata", "cargurus_metadata", "carvana_metadata", "carmax_metadata", "carstory_metadata", "edmunds_metadata", "tmv_metadata", "kbb_metadata", "vroom_metadata", "created_at", "updated_at"}
-	drivlyDatumColumnsWithoutDefault = []string{"id", "vin"}
-	drivlyDatumColumnsWithDefault    = []string{"device_definition_id", "user_device_id", "vin_metadata", "offer_metadata", "autocheck_metadata", "build_metadata", "cargurus_metadata", "carvana_metadata", "carmax_metadata", "carstory_metadata", "edmunds_metadata", "tmv_metadata", "kbb_metadata", "vroom_metadata", "created_at", "updated_at"}
-	drivlyDatumPrimaryKeyColumns     = []string{"id"}
-	drivlyDatumGeneratedColumns      = []string{}
+	externalVinDatumAllColumns            = []string{"id", "device_definition_id", "vin", "user_device_id", "vin_metadata", "offer_metadata", "autocheck_metadata", "build_metadata", "cargurus_metadata", "carvana_metadata", "carmax_metadata", "carstory_metadata", "edmunds_metadata", "tmv_metadata", "kbb_metadata", "vroom_metadata", "created_at", "updated_at", "pricing_metadata"}
+	externalVinDatumColumnsWithoutDefault = []string{"id", "vin"}
+	externalVinDatumColumnsWithDefault    = []string{"device_definition_id", "user_device_id", "vin_metadata", "offer_metadata", "autocheck_metadata", "build_metadata", "cargurus_metadata", "carvana_metadata", "carmax_metadata", "carstory_metadata", "edmunds_metadata", "tmv_metadata", "kbb_metadata", "vroom_metadata", "created_at", "updated_at", "pricing_metadata"}
+	externalVinDatumPrimaryKeyColumns     = []string{"id"}
+	externalVinDatumGeneratedColumns      = []string{}
 )
 
 type (
-	// DrivlyDatumSlice is an alias for a slice of pointers to DrivlyDatum.
-	// This should almost always be used instead of []DrivlyDatum.
-	DrivlyDatumSlice []*DrivlyDatum
-	// DrivlyDatumHook is the signature for custom DrivlyDatum hook methods
-	DrivlyDatumHook func(context.Context, boil.ContextExecutor, *DrivlyDatum) error
+	// ExternalVinDatumSlice is an alias for a slice of pointers to ExternalVinDatum.
+	// This should almost always be used instead of []ExternalVinDatum.
+	ExternalVinDatumSlice []*ExternalVinDatum
+	// ExternalVinDatumHook is the signature for custom ExternalVinDatum hook methods
+	ExternalVinDatumHook func(context.Context, boil.ContextExecutor, *ExternalVinDatum) error
 
-	drivlyDatumQuery struct {
+	externalVinDatumQuery struct {
 		*queries.Query
 	}
 )
 
 // Cache for insert, update and upsert
 var (
-	drivlyDatumType                 = reflect.TypeOf(&DrivlyDatum{})
-	drivlyDatumMapping              = queries.MakeStructMapping(drivlyDatumType)
-	drivlyDatumPrimaryKeyMapping, _ = queries.BindMapping(drivlyDatumType, drivlyDatumMapping, drivlyDatumPrimaryKeyColumns)
-	drivlyDatumInsertCacheMut       sync.RWMutex
-	drivlyDatumInsertCache          = make(map[string]insertCache)
-	drivlyDatumUpdateCacheMut       sync.RWMutex
-	drivlyDatumUpdateCache          = make(map[string]updateCache)
-	drivlyDatumUpsertCacheMut       sync.RWMutex
-	drivlyDatumUpsertCache          = make(map[string]insertCache)
+	externalVinDatumType                 = reflect.TypeOf(&ExternalVinDatum{})
+	externalVinDatumMapping              = queries.MakeStructMapping(externalVinDatumType)
+	externalVinDatumPrimaryKeyMapping, _ = queries.BindMapping(externalVinDatumType, externalVinDatumMapping, externalVinDatumPrimaryKeyColumns)
+	externalVinDatumInsertCacheMut       sync.RWMutex
+	externalVinDatumInsertCache          = make(map[string]insertCache)
+	externalVinDatumUpdateCacheMut       sync.RWMutex
+	externalVinDatumUpdateCache          = make(map[string]updateCache)
+	externalVinDatumUpsertCacheMut       sync.RWMutex
+	externalVinDatumUpsertCache          = make(map[string]insertCache)
 )
 
 var (
@@ -247,27 +254,27 @@ var (
 	_ = qmhelper.Where
 )
 
-var drivlyDatumAfterSelectHooks []DrivlyDatumHook
+var externalVinDatumAfterSelectHooks []ExternalVinDatumHook
 
-var drivlyDatumBeforeInsertHooks []DrivlyDatumHook
-var drivlyDatumAfterInsertHooks []DrivlyDatumHook
+var externalVinDatumBeforeInsertHooks []ExternalVinDatumHook
+var externalVinDatumAfterInsertHooks []ExternalVinDatumHook
 
-var drivlyDatumBeforeUpdateHooks []DrivlyDatumHook
-var drivlyDatumAfterUpdateHooks []DrivlyDatumHook
+var externalVinDatumBeforeUpdateHooks []ExternalVinDatumHook
+var externalVinDatumAfterUpdateHooks []ExternalVinDatumHook
 
-var drivlyDatumBeforeDeleteHooks []DrivlyDatumHook
-var drivlyDatumAfterDeleteHooks []DrivlyDatumHook
+var externalVinDatumBeforeDeleteHooks []ExternalVinDatumHook
+var externalVinDatumAfterDeleteHooks []ExternalVinDatumHook
 
-var drivlyDatumBeforeUpsertHooks []DrivlyDatumHook
-var drivlyDatumAfterUpsertHooks []DrivlyDatumHook
+var externalVinDatumBeforeUpsertHooks []ExternalVinDatumHook
+var externalVinDatumAfterUpsertHooks []ExternalVinDatumHook
 
 // doAfterSelectHooks executes all "after Select" hooks.
-func (o *DrivlyDatum) doAfterSelectHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+func (o *ExternalVinDatum) doAfterSelectHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
 	if boil.HooksAreSkipped(ctx) {
 		return nil
 	}
 
-	for _, hook := range drivlyDatumAfterSelectHooks {
+	for _, hook := range externalVinDatumAfterSelectHooks {
 		if err := hook(ctx, exec, o); err != nil {
 			return err
 		}
@@ -277,12 +284,12 @@ func (o *DrivlyDatum) doAfterSelectHooks(ctx context.Context, exec boil.ContextE
 }
 
 // doBeforeInsertHooks executes all "before insert" hooks.
-func (o *DrivlyDatum) doBeforeInsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+func (o *ExternalVinDatum) doBeforeInsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
 	if boil.HooksAreSkipped(ctx) {
 		return nil
 	}
 
-	for _, hook := range drivlyDatumBeforeInsertHooks {
+	for _, hook := range externalVinDatumBeforeInsertHooks {
 		if err := hook(ctx, exec, o); err != nil {
 			return err
 		}
@@ -292,12 +299,12 @@ func (o *DrivlyDatum) doBeforeInsertHooks(ctx context.Context, exec boil.Context
 }
 
 // doAfterInsertHooks executes all "after Insert" hooks.
-func (o *DrivlyDatum) doAfterInsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+func (o *ExternalVinDatum) doAfterInsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
 	if boil.HooksAreSkipped(ctx) {
 		return nil
 	}
 
-	for _, hook := range drivlyDatumAfterInsertHooks {
+	for _, hook := range externalVinDatumAfterInsertHooks {
 		if err := hook(ctx, exec, o); err != nil {
 			return err
 		}
@@ -307,12 +314,12 @@ func (o *DrivlyDatum) doAfterInsertHooks(ctx context.Context, exec boil.ContextE
 }
 
 // doBeforeUpdateHooks executes all "before Update" hooks.
-func (o *DrivlyDatum) doBeforeUpdateHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+func (o *ExternalVinDatum) doBeforeUpdateHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
 	if boil.HooksAreSkipped(ctx) {
 		return nil
 	}
 
-	for _, hook := range drivlyDatumBeforeUpdateHooks {
+	for _, hook := range externalVinDatumBeforeUpdateHooks {
 		if err := hook(ctx, exec, o); err != nil {
 			return err
 		}
@@ -322,12 +329,12 @@ func (o *DrivlyDatum) doBeforeUpdateHooks(ctx context.Context, exec boil.Context
 }
 
 // doAfterUpdateHooks executes all "after Update" hooks.
-func (o *DrivlyDatum) doAfterUpdateHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+func (o *ExternalVinDatum) doAfterUpdateHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
 	if boil.HooksAreSkipped(ctx) {
 		return nil
 	}
 
-	for _, hook := range drivlyDatumAfterUpdateHooks {
+	for _, hook := range externalVinDatumAfterUpdateHooks {
 		if err := hook(ctx, exec, o); err != nil {
 			return err
 		}
@@ -337,12 +344,12 @@ func (o *DrivlyDatum) doAfterUpdateHooks(ctx context.Context, exec boil.ContextE
 }
 
 // doBeforeDeleteHooks executes all "before Delete" hooks.
-func (o *DrivlyDatum) doBeforeDeleteHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+func (o *ExternalVinDatum) doBeforeDeleteHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
 	if boil.HooksAreSkipped(ctx) {
 		return nil
 	}
 
-	for _, hook := range drivlyDatumBeforeDeleteHooks {
+	for _, hook := range externalVinDatumBeforeDeleteHooks {
 		if err := hook(ctx, exec, o); err != nil {
 			return err
 		}
@@ -352,12 +359,12 @@ func (o *DrivlyDatum) doBeforeDeleteHooks(ctx context.Context, exec boil.Context
 }
 
 // doAfterDeleteHooks executes all "after Delete" hooks.
-func (o *DrivlyDatum) doAfterDeleteHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+func (o *ExternalVinDatum) doAfterDeleteHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
 	if boil.HooksAreSkipped(ctx) {
 		return nil
 	}
 
-	for _, hook := range drivlyDatumAfterDeleteHooks {
+	for _, hook := range externalVinDatumAfterDeleteHooks {
 		if err := hook(ctx, exec, o); err != nil {
 			return err
 		}
@@ -367,12 +374,12 @@ func (o *DrivlyDatum) doAfterDeleteHooks(ctx context.Context, exec boil.ContextE
 }
 
 // doBeforeUpsertHooks executes all "before Upsert" hooks.
-func (o *DrivlyDatum) doBeforeUpsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+func (o *ExternalVinDatum) doBeforeUpsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
 	if boil.HooksAreSkipped(ctx) {
 		return nil
 	}
 
-	for _, hook := range drivlyDatumBeforeUpsertHooks {
+	for _, hook := range externalVinDatumBeforeUpsertHooks {
 		if err := hook(ctx, exec, o); err != nil {
 			return err
 		}
@@ -382,12 +389,12 @@ func (o *DrivlyDatum) doBeforeUpsertHooks(ctx context.Context, exec boil.Context
 }
 
 // doAfterUpsertHooks executes all "after Upsert" hooks.
-func (o *DrivlyDatum) doAfterUpsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+func (o *ExternalVinDatum) doAfterUpsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
 	if boil.HooksAreSkipped(ctx) {
 		return nil
 	}
 
-	for _, hook := range drivlyDatumAfterUpsertHooks {
+	for _, hook := range externalVinDatumAfterUpsertHooks {
 		if err := hook(ctx, exec, o); err != nil {
 			return err
 		}
@@ -396,33 +403,33 @@ func (o *DrivlyDatum) doAfterUpsertHooks(ctx context.Context, exec boil.ContextE
 	return nil
 }
 
-// AddDrivlyDatumHook registers your hook function for all future operations.
-func AddDrivlyDatumHook(hookPoint boil.HookPoint, drivlyDatumHook DrivlyDatumHook) {
+// AddExternalVinDatumHook registers your hook function for all future operations.
+func AddExternalVinDatumHook(hookPoint boil.HookPoint, externalVinDatumHook ExternalVinDatumHook) {
 	switch hookPoint {
 	case boil.AfterSelectHook:
-		drivlyDatumAfterSelectHooks = append(drivlyDatumAfterSelectHooks, drivlyDatumHook)
+		externalVinDatumAfterSelectHooks = append(externalVinDatumAfterSelectHooks, externalVinDatumHook)
 	case boil.BeforeInsertHook:
-		drivlyDatumBeforeInsertHooks = append(drivlyDatumBeforeInsertHooks, drivlyDatumHook)
+		externalVinDatumBeforeInsertHooks = append(externalVinDatumBeforeInsertHooks, externalVinDatumHook)
 	case boil.AfterInsertHook:
-		drivlyDatumAfterInsertHooks = append(drivlyDatumAfterInsertHooks, drivlyDatumHook)
+		externalVinDatumAfterInsertHooks = append(externalVinDatumAfterInsertHooks, externalVinDatumHook)
 	case boil.BeforeUpdateHook:
-		drivlyDatumBeforeUpdateHooks = append(drivlyDatumBeforeUpdateHooks, drivlyDatumHook)
+		externalVinDatumBeforeUpdateHooks = append(externalVinDatumBeforeUpdateHooks, externalVinDatumHook)
 	case boil.AfterUpdateHook:
-		drivlyDatumAfterUpdateHooks = append(drivlyDatumAfterUpdateHooks, drivlyDatumHook)
+		externalVinDatumAfterUpdateHooks = append(externalVinDatumAfterUpdateHooks, externalVinDatumHook)
 	case boil.BeforeDeleteHook:
-		drivlyDatumBeforeDeleteHooks = append(drivlyDatumBeforeDeleteHooks, drivlyDatumHook)
+		externalVinDatumBeforeDeleteHooks = append(externalVinDatumBeforeDeleteHooks, externalVinDatumHook)
 	case boil.AfterDeleteHook:
-		drivlyDatumAfterDeleteHooks = append(drivlyDatumAfterDeleteHooks, drivlyDatumHook)
+		externalVinDatumAfterDeleteHooks = append(externalVinDatumAfterDeleteHooks, externalVinDatumHook)
 	case boil.BeforeUpsertHook:
-		drivlyDatumBeforeUpsertHooks = append(drivlyDatumBeforeUpsertHooks, drivlyDatumHook)
+		externalVinDatumBeforeUpsertHooks = append(externalVinDatumBeforeUpsertHooks, externalVinDatumHook)
 	case boil.AfterUpsertHook:
-		drivlyDatumAfterUpsertHooks = append(drivlyDatumAfterUpsertHooks, drivlyDatumHook)
+		externalVinDatumAfterUpsertHooks = append(externalVinDatumAfterUpsertHooks, externalVinDatumHook)
 	}
 }
 
-// One returns a single drivlyDatum record from the query.
-func (q drivlyDatumQuery) One(ctx context.Context, exec boil.ContextExecutor) (*DrivlyDatum, error) {
-	o := &DrivlyDatum{}
+// One returns a single externalVinDatum record from the query.
+func (q externalVinDatumQuery) One(ctx context.Context, exec boil.ContextExecutor) (*ExternalVinDatum, error) {
+	o := &ExternalVinDatum{}
 
 	queries.SetLimit(q.Query, 1)
 
@@ -431,7 +438,7 @@ func (q drivlyDatumQuery) One(ctx context.Context, exec boil.ContextExecutor) (*
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, sql.ErrNoRows
 		}
-		return nil, errors.Wrap(err, "models: failed to execute a one query for drivly_data")
+		return nil, errors.Wrap(err, "models: failed to execute a one query for external_vin_data")
 	}
 
 	if err := o.doAfterSelectHooks(ctx, exec); err != nil {
@@ -441,16 +448,16 @@ func (q drivlyDatumQuery) One(ctx context.Context, exec boil.ContextExecutor) (*
 	return o, nil
 }
 
-// All returns all DrivlyDatum records from the query.
-func (q drivlyDatumQuery) All(ctx context.Context, exec boil.ContextExecutor) (DrivlyDatumSlice, error) {
-	var o []*DrivlyDatum
+// All returns all ExternalVinDatum records from the query.
+func (q externalVinDatumQuery) All(ctx context.Context, exec boil.ContextExecutor) (ExternalVinDatumSlice, error) {
+	var o []*ExternalVinDatum
 
 	err := q.Bind(ctx, exec, &o)
 	if err != nil {
-		return nil, errors.Wrap(err, "models: failed to assign all query results to DrivlyDatum slice")
+		return nil, errors.Wrap(err, "models: failed to assign all query results to ExternalVinDatum slice")
 	}
 
-	if len(drivlyDatumAfterSelectHooks) != 0 {
+	if len(externalVinDatumAfterSelectHooks) != 0 {
 		for _, obj := range o {
 			if err := obj.doAfterSelectHooks(ctx, exec); err != nil {
 				return o, err
@@ -461,8 +468,8 @@ func (q drivlyDatumQuery) All(ctx context.Context, exec boil.ContextExecutor) (D
 	return o, nil
 }
 
-// Count returns the count of all DrivlyDatum records in the query.
-func (q drivlyDatumQuery) Count(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+// Count returns the count of all ExternalVinDatum records in the query.
+func (q externalVinDatumQuery) Count(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
 	var count int64
 
 	queries.SetSelect(q.Query, nil)
@@ -470,14 +477,14 @@ func (q drivlyDatumQuery) Count(ctx context.Context, exec boil.ContextExecutor) 
 
 	err := q.Query.QueryRowContext(ctx, exec).Scan(&count)
 	if err != nil {
-		return 0, errors.Wrap(err, "models: failed to count drivly_data rows")
+		return 0, errors.Wrap(err, "models: failed to count external_vin_data rows")
 	}
 
 	return count, nil
 }
 
 // Exists checks if the row exists in the table.
-func (q drivlyDatumQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (bool, error) {
+func (q externalVinDatumQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (bool, error) {
 	var count int64
 
 	queries.SetSelect(q.Query, nil)
@@ -486,14 +493,14 @@ func (q drivlyDatumQuery) Exists(ctx context.Context, exec boil.ContextExecutor)
 
 	err := q.Query.QueryRowContext(ctx, exec).Scan(&count)
 	if err != nil {
-		return false, errors.Wrap(err, "models: failed to check if drivly_data exists")
+		return false, errors.Wrap(err, "models: failed to check if external_vin_data exists")
 	}
 
 	return count > 0, nil
 }
 
 // DeviceDefinition pointed to by the foreign key.
-func (o *DrivlyDatum) DeviceDefinition(mods ...qm.QueryMod) deviceDefinitionQuery {
+func (o *ExternalVinDatum) DeviceDefinition(mods ...qm.QueryMod) deviceDefinitionQuery {
 	queryMods := []qm.QueryMod{
 		qm.Where("\"id\" = ?", o.DeviceDefinitionID),
 	}
@@ -504,7 +511,7 @@ func (o *DrivlyDatum) DeviceDefinition(mods ...qm.QueryMod) deviceDefinitionQuer
 }
 
 // UserDevice pointed to by the foreign key.
-func (o *DrivlyDatum) UserDevice(mods ...qm.QueryMod) userDeviceQuery {
+func (o *ExternalVinDatum) UserDevice(mods ...qm.QueryMod) userDeviceQuery {
 	queryMods := []qm.QueryMod{
 		qm.Where("\"id\" = ?", o.UserDeviceID),
 	}
@@ -516,28 +523,28 @@ func (o *DrivlyDatum) UserDevice(mods ...qm.QueryMod) userDeviceQuery {
 
 // LoadDeviceDefinition allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for an N-1 relationship.
-func (drivlyDatumL) LoadDeviceDefinition(ctx context.Context, e boil.ContextExecutor, singular bool, maybeDrivlyDatum interface{}, mods queries.Applicator) error {
-	var slice []*DrivlyDatum
-	var object *DrivlyDatum
+func (externalVinDatumL) LoadDeviceDefinition(ctx context.Context, e boil.ContextExecutor, singular bool, maybeExternalVinDatum interface{}, mods queries.Applicator) error {
+	var slice []*ExternalVinDatum
+	var object *ExternalVinDatum
 
 	if singular {
 		var ok bool
-		object, ok = maybeDrivlyDatum.(*DrivlyDatum)
+		object, ok = maybeExternalVinDatum.(*ExternalVinDatum)
 		if !ok {
-			object = new(DrivlyDatum)
-			ok = queries.SetFromEmbeddedStruct(&object, &maybeDrivlyDatum)
+			object = new(ExternalVinDatum)
+			ok = queries.SetFromEmbeddedStruct(&object, &maybeExternalVinDatum)
 			if !ok {
-				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", object, maybeDrivlyDatum))
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", object, maybeExternalVinDatum))
 			}
 		}
 	} else {
-		s, ok := maybeDrivlyDatum.(*[]*DrivlyDatum)
+		s, ok := maybeExternalVinDatum.(*[]*ExternalVinDatum)
 		if ok {
 			slice = *s
 		} else {
-			ok = queries.SetFromEmbeddedStruct(&slice, maybeDrivlyDatum)
+			ok = queries.SetFromEmbeddedStruct(&slice, maybeExternalVinDatum)
 			if !ok {
-				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", slice, maybeDrivlyDatum))
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", slice, maybeExternalVinDatum))
 			}
 		}
 	}
@@ -545,7 +552,7 @@ func (drivlyDatumL) LoadDeviceDefinition(ctx context.Context, e boil.ContextExec
 	args := make([]interface{}, 0, 1)
 	if singular {
 		if object.R == nil {
-			object.R = &drivlyDatumR{}
+			object.R = &externalVinDatumR{}
 		}
 		if !queries.IsNil(object.DeviceDefinitionID) {
 			args = append(args, object.DeviceDefinitionID)
@@ -555,7 +562,7 @@ func (drivlyDatumL) LoadDeviceDefinition(ctx context.Context, e boil.ContextExec
 	Outer:
 		for _, obj := range slice {
 			if obj.R == nil {
-				obj.R = &drivlyDatumR{}
+				obj.R = &externalVinDatumR{}
 			}
 
 			for _, a := range args {
@@ -600,7 +607,7 @@ func (drivlyDatumL) LoadDeviceDefinition(ctx context.Context, e boil.ContextExec
 		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for device_definitions")
 	}
 
-	if len(drivlyDatumAfterSelectHooks) != 0 {
+	if len(externalVinDatumAfterSelectHooks) != 0 {
 		for _, obj := range resultSlice {
 			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
 				return err
@@ -618,7 +625,7 @@ func (drivlyDatumL) LoadDeviceDefinition(ctx context.Context, e boil.ContextExec
 		if foreign.R == nil {
 			foreign.R = &deviceDefinitionR{}
 		}
-		foreign.R.DrivlyData = append(foreign.R.DrivlyData, object)
+		foreign.R.ExternalVinData = append(foreign.R.ExternalVinData, object)
 		return nil
 	}
 
@@ -629,7 +636,7 @@ func (drivlyDatumL) LoadDeviceDefinition(ctx context.Context, e boil.ContextExec
 				if foreign.R == nil {
 					foreign.R = &deviceDefinitionR{}
 				}
-				foreign.R.DrivlyData = append(foreign.R.DrivlyData, local)
+				foreign.R.ExternalVinData = append(foreign.R.ExternalVinData, local)
 				break
 			}
 		}
@@ -640,28 +647,28 @@ func (drivlyDatumL) LoadDeviceDefinition(ctx context.Context, e boil.ContextExec
 
 // LoadUserDevice allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for an N-1 relationship.
-func (drivlyDatumL) LoadUserDevice(ctx context.Context, e boil.ContextExecutor, singular bool, maybeDrivlyDatum interface{}, mods queries.Applicator) error {
-	var slice []*DrivlyDatum
-	var object *DrivlyDatum
+func (externalVinDatumL) LoadUserDevice(ctx context.Context, e boil.ContextExecutor, singular bool, maybeExternalVinDatum interface{}, mods queries.Applicator) error {
+	var slice []*ExternalVinDatum
+	var object *ExternalVinDatum
 
 	if singular {
 		var ok bool
-		object, ok = maybeDrivlyDatum.(*DrivlyDatum)
+		object, ok = maybeExternalVinDatum.(*ExternalVinDatum)
 		if !ok {
-			object = new(DrivlyDatum)
-			ok = queries.SetFromEmbeddedStruct(&object, &maybeDrivlyDatum)
+			object = new(ExternalVinDatum)
+			ok = queries.SetFromEmbeddedStruct(&object, &maybeExternalVinDatum)
 			if !ok {
-				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", object, maybeDrivlyDatum))
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", object, maybeExternalVinDatum))
 			}
 		}
 	} else {
-		s, ok := maybeDrivlyDatum.(*[]*DrivlyDatum)
+		s, ok := maybeExternalVinDatum.(*[]*ExternalVinDatum)
 		if ok {
 			slice = *s
 		} else {
-			ok = queries.SetFromEmbeddedStruct(&slice, maybeDrivlyDatum)
+			ok = queries.SetFromEmbeddedStruct(&slice, maybeExternalVinDatum)
 			if !ok {
-				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", slice, maybeDrivlyDatum))
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", slice, maybeExternalVinDatum))
 			}
 		}
 	}
@@ -669,7 +676,7 @@ func (drivlyDatumL) LoadUserDevice(ctx context.Context, e boil.ContextExecutor, 
 	args := make([]interface{}, 0, 1)
 	if singular {
 		if object.R == nil {
-			object.R = &drivlyDatumR{}
+			object.R = &externalVinDatumR{}
 		}
 		if !queries.IsNil(object.UserDeviceID) {
 			args = append(args, object.UserDeviceID)
@@ -679,7 +686,7 @@ func (drivlyDatumL) LoadUserDevice(ctx context.Context, e boil.ContextExecutor, 
 	Outer:
 		for _, obj := range slice {
 			if obj.R == nil {
-				obj.R = &drivlyDatumR{}
+				obj.R = &externalVinDatumR{}
 			}
 
 			for _, a := range args {
@@ -724,7 +731,7 @@ func (drivlyDatumL) LoadUserDevice(ctx context.Context, e boil.ContextExecutor, 
 		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for user_devices")
 	}
 
-	if len(drivlyDatumAfterSelectHooks) != 0 {
+	if len(externalVinDatumAfterSelectHooks) != 0 {
 		for _, obj := range resultSlice {
 			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
 				return err
@@ -742,7 +749,7 @@ func (drivlyDatumL) LoadUserDevice(ctx context.Context, e boil.ContextExecutor, 
 		if foreign.R == nil {
 			foreign.R = &userDeviceR{}
 		}
-		foreign.R.DrivlyData = append(foreign.R.DrivlyData, object)
+		foreign.R.ExternalVinData = append(foreign.R.ExternalVinData, object)
 		return nil
 	}
 
@@ -753,7 +760,7 @@ func (drivlyDatumL) LoadUserDevice(ctx context.Context, e boil.ContextExecutor, 
 				if foreign.R == nil {
 					foreign.R = &userDeviceR{}
 				}
-				foreign.R.DrivlyData = append(foreign.R.DrivlyData, local)
+				foreign.R.ExternalVinData = append(foreign.R.ExternalVinData, local)
 				break
 			}
 		}
@@ -762,10 +769,10 @@ func (drivlyDatumL) LoadUserDevice(ctx context.Context, e boil.ContextExecutor, 
 	return nil
 }
 
-// SetDeviceDefinition of the drivlyDatum to the related item.
+// SetDeviceDefinition of the externalVinDatum to the related item.
 // Sets o.R.DeviceDefinition to related.
-// Adds o to related.R.DrivlyData.
-func (o *DrivlyDatum) SetDeviceDefinition(ctx context.Context, exec boil.ContextExecutor, insert bool, related *DeviceDefinition) error {
+// Adds o to related.R.ExternalVinData.
+func (o *ExternalVinDatum) SetDeviceDefinition(ctx context.Context, exec boil.ContextExecutor, insert bool, related *DeviceDefinition) error {
 	var err error
 	if insert {
 		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
@@ -774,9 +781,9 @@ func (o *DrivlyDatum) SetDeviceDefinition(ctx context.Context, exec boil.Context
 	}
 
 	updateQuery := fmt.Sprintf(
-		"UPDATE \"devices_api\".\"drivly_data\" SET %s WHERE %s",
+		"UPDATE \"devices_api\".\"external_vin_data\" SET %s WHERE %s",
 		strmangle.SetParamNames("\"", "\"", 1, []string{"device_definition_id"}),
-		strmangle.WhereClause("\"", "\"", 2, drivlyDatumPrimaryKeyColumns),
+		strmangle.WhereClause("\"", "\"", 2, externalVinDatumPrimaryKeyColumns),
 	)
 	values := []interface{}{related.ID, o.ID}
 
@@ -791,7 +798,7 @@ func (o *DrivlyDatum) SetDeviceDefinition(ctx context.Context, exec boil.Context
 
 	queries.Assign(&o.DeviceDefinitionID, related.ID)
 	if o.R == nil {
-		o.R = &drivlyDatumR{
+		o.R = &externalVinDatumR{
 			DeviceDefinition: related,
 		}
 	} else {
@@ -800,10 +807,10 @@ func (o *DrivlyDatum) SetDeviceDefinition(ctx context.Context, exec boil.Context
 
 	if related.R == nil {
 		related.R = &deviceDefinitionR{
-			DrivlyData: DrivlyDatumSlice{o},
+			ExternalVinData: ExternalVinDatumSlice{o},
 		}
 	} else {
-		related.R.DrivlyData = append(related.R.DrivlyData, o)
+		related.R.ExternalVinData = append(related.R.ExternalVinData, o)
 	}
 
 	return nil
@@ -812,7 +819,7 @@ func (o *DrivlyDatum) SetDeviceDefinition(ctx context.Context, exec boil.Context
 // RemoveDeviceDefinition relationship.
 // Sets o.R.DeviceDefinition to nil.
 // Removes o from all passed in related items' relationships struct.
-func (o *DrivlyDatum) RemoveDeviceDefinition(ctx context.Context, exec boil.ContextExecutor, related *DeviceDefinition) error {
+func (o *ExternalVinDatum) RemoveDeviceDefinition(ctx context.Context, exec boil.ContextExecutor, related *DeviceDefinition) error {
 	var err error
 
 	queries.SetScanner(&o.DeviceDefinitionID, nil)
@@ -827,25 +834,25 @@ func (o *DrivlyDatum) RemoveDeviceDefinition(ctx context.Context, exec boil.Cont
 		return nil
 	}
 
-	for i, ri := range related.R.DrivlyData {
+	for i, ri := range related.R.ExternalVinData {
 		if queries.Equal(o.DeviceDefinitionID, ri.DeviceDefinitionID) {
 			continue
 		}
 
-		ln := len(related.R.DrivlyData)
+		ln := len(related.R.ExternalVinData)
 		if ln > 1 && i < ln-1 {
-			related.R.DrivlyData[i] = related.R.DrivlyData[ln-1]
+			related.R.ExternalVinData[i] = related.R.ExternalVinData[ln-1]
 		}
-		related.R.DrivlyData = related.R.DrivlyData[:ln-1]
+		related.R.ExternalVinData = related.R.ExternalVinData[:ln-1]
 		break
 	}
 	return nil
 }
 
-// SetUserDevice of the drivlyDatum to the related item.
+// SetUserDevice of the externalVinDatum to the related item.
 // Sets o.R.UserDevice to related.
-// Adds o to related.R.DrivlyData.
-func (o *DrivlyDatum) SetUserDevice(ctx context.Context, exec boil.ContextExecutor, insert bool, related *UserDevice) error {
+// Adds o to related.R.ExternalVinData.
+func (o *ExternalVinDatum) SetUserDevice(ctx context.Context, exec boil.ContextExecutor, insert bool, related *UserDevice) error {
 	var err error
 	if insert {
 		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
@@ -854,9 +861,9 @@ func (o *DrivlyDatum) SetUserDevice(ctx context.Context, exec boil.ContextExecut
 	}
 
 	updateQuery := fmt.Sprintf(
-		"UPDATE \"devices_api\".\"drivly_data\" SET %s WHERE %s",
+		"UPDATE \"devices_api\".\"external_vin_data\" SET %s WHERE %s",
 		strmangle.SetParamNames("\"", "\"", 1, []string{"user_device_id"}),
-		strmangle.WhereClause("\"", "\"", 2, drivlyDatumPrimaryKeyColumns),
+		strmangle.WhereClause("\"", "\"", 2, externalVinDatumPrimaryKeyColumns),
 	)
 	values := []interface{}{related.ID, o.ID}
 
@@ -871,7 +878,7 @@ func (o *DrivlyDatum) SetUserDevice(ctx context.Context, exec boil.ContextExecut
 
 	queries.Assign(&o.UserDeviceID, related.ID)
 	if o.R == nil {
-		o.R = &drivlyDatumR{
+		o.R = &externalVinDatumR{
 			UserDevice: related,
 		}
 	} else {
@@ -880,10 +887,10 @@ func (o *DrivlyDatum) SetUserDevice(ctx context.Context, exec boil.ContextExecut
 
 	if related.R == nil {
 		related.R = &userDeviceR{
-			DrivlyData: DrivlyDatumSlice{o},
+			ExternalVinData: ExternalVinDatumSlice{o},
 		}
 	} else {
-		related.R.DrivlyData = append(related.R.DrivlyData, o)
+		related.R.ExternalVinData = append(related.R.ExternalVinData, o)
 	}
 
 	return nil
@@ -892,7 +899,7 @@ func (o *DrivlyDatum) SetUserDevice(ctx context.Context, exec boil.ContextExecut
 // RemoveUserDevice relationship.
 // Sets o.R.UserDevice to nil.
 // Removes o from all passed in related items' relationships struct.
-func (o *DrivlyDatum) RemoveUserDevice(ctx context.Context, exec boil.ContextExecutor, related *UserDevice) error {
+func (o *ExternalVinDatum) RemoveUserDevice(ctx context.Context, exec boil.ContextExecutor, related *UserDevice) error {
 	var err error
 
 	queries.SetScanner(&o.UserDeviceID, nil)
@@ -907,67 +914,67 @@ func (o *DrivlyDatum) RemoveUserDevice(ctx context.Context, exec boil.ContextExe
 		return nil
 	}
 
-	for i, ri := range related.R.DrivlyData {
+	for i, ri := range related.R.ExternalVinData {
 		if queries.Equal(o.UserDeviceID, ri.UserDeviceID) {
 			continue
 		}
 
-		ln := len(related.R.DrivlyData)
+		ln := len(related.R.ExternalVinData)
 		if ln > 1 && i < ln-1 {
-			related.R.DrivlyData[i] = related.R.DrivlyData[ln-1]
+			related.R.ExternalVinData[i] = related.R.ExternalVinData[ln-1]
 		}
-		related.R.DrivlyData = related.R.DrivlyData[:ln-1]
+		related.R.ExternalVinData = related.R.ExternalVinData[:ln-1]
 		break
 	}
 	return nil
 }
 
-// DrivlyData retrieves all the records using an executor.
-func DrivlyData(mods ...qm.QueryMod) drivlyDatumQuery {
-	mods = append(mods, qm.From("\"devices_api\".\"drivly_data\""))
+// ExternalVinData retrieves all the records using an executor.
+func ExternalVinData(mods ...qm.QueryMod) externalVinDatumQuery {
+	mods = append(mods, qm.From("\"devices_api\".\"external_vin_data\""))
 	q := NewQuery(mods...)
 	if len(queries.GetSelect(q)) == 0 {
-		queries.SetSelect(q, []string{"\"devices_api\".\"drivly_data\".*"})
+		queries.SetSelect(q, []string{"\"devices_api\".\"external_vin_data\".*"})
 	}
 
-	return drivlyDatumQuery{q}
+	return externalVinDatumQuery{q}
 }
 
-// FindDrivlyDatum retrieves a single record by ID with an executor.
+// FindExternalVinDatum retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindDrivlyDatum(ctx context.Context, exec boil.ContextExecutor, iD string, selectCols ...string) (*DrivlyDatum, error) {
-	drivlyDatumObj := &DrivlyDatum{}
+func FindExternalVinDatum(ctx context.Context, exec boil.ContextExecutor, iD string, selectCols ...string) (*ExternalVinDatum, error) {
+	externalVinDatumObj := &ExternalVinDatum{}
 
 	sel := "*"
 	if len(selectCols) > 0 {
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from \"devices_api\".\"drivly_data\" where \"id\"=$1", sel,
+		"select %s from \"devices_api\".\"external_vin_data\" where \"id\"=$1", sel,
 	)
 
 	q := queries.Raw(query, iD)
 
-	err := q.Bind(ctx, exec, drivlyDatumObj)
+	err := q.Bind(ctx, exec, externalVinDatumObj)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, sql.ErrNoRows
 		}
-		return nil, errors.Wrap(err, "models: unable to select from drivly_data")
+		return nil, errors.Wrap(err, "models: unable to select from external_vin_data")
 	}
 
-	if err = drivlyDatumObj.doAfterSelectHooks(ctx, exec); err != nil {
-		return drivlyDatumObj, err
+	if err = externalVinDatumObj.doAfterSelectHooks(ctx, exec); err != nil {
+		return externalVinDatumObj, err
 	}
 
-	return drivlyDatumObj, nil
+	return externalVinDatumObj, nil
 }
 
 // Insert a single record using an executor.
 // See boil.Columns.InsertColumnSet documentation to understand column list inference for inserts.
-func (o *DrivlyDatum) Insert(ctx context.Context, exec boil.ContextExecutor, columns boil.Columns) error {
+func (o *ExternalVinDatum) Insert(ctx context.Context, exec boil.ContextExecutor, columns boil.Columns) error {
 	if o == nil {
-		return errors.New("models: no drivly_data provided for insertion")
+		return errors.New("models: no external_vin_data provided for insertion")
 	}
 
 	var err error
@@ -986,33 +993,33 @@ func (o *DrivlyDatum) Insert(ctx context.Context, exec boil.ContextExecutor, col
 		return err
 	}
 
-	nzDefaults := queries.NonZeroDefaultSet(drivlyDatumColumnsWithDefault, o)
+	nzDefaults := queries.NonZeroDefaultSet(externalVinDatumColumnsWithDefault, o)
 
 	key := makeCacheKey(columns, nzDefaults)
-	drivlyDatumInsertCacheMut.RLock()
-	cache, cached := drivlyDatumInsertCache[key]
-	drivlyDatumInsertCacheMut.RUnlock()
+	externalVinDatumInsertCacheMut.RLock()
+	cache, cached := externalVinDatumInsertCache[key]
+	externalVinDatumInsertCacheMut.RUnlock()
 
 	if !cached {
 		wl, returnColumns := columns.InsertColumnSet(
-			drivlyDatumAllColumns,
-			drivlyDatumColumnsWithDefault,
-			drivlyDatumColumnsWithoutDefault,
+			externalVinDatumAllColumns,
+			externalVinDatumColumnsWithDefault,
+			externalVinDatumColumnsWithoutDefault,
 			nzDefaults,
 		)
 
-		cache.valueMapping, err = queries.BindMapping(drivlyDatumType, drivlyDatumMapping, wl)
+		cache.valueMapping, err = queries.BindMapping(externalVinDatumType, externalVinDatumMapping, wl)
 		if err != nil {
 			return err
 		}
-		cache.retMapping, err = queries.BindMapping(drivlyDatumType, drivlyDatumMapping, returnColumns)
+		cache.retMapping, err = queries.BindMapping(externalVinDatumType, externalVinDatumMapping, returnColumns)
 		if err != nil {
 			return err
 		}
 		if len(wl) != 0 {
-			cache.query = fmt.Sprintf("INSERT INTO \"devices_api\".\"drivly_data\" (\"%s\") %%sVALUES (%s)%%s", strings.Join(wl, "\",\""), strmangle.Placeholders(dialect.UseIndexPlaceholders, len(wl), 1, 1))
+			cache.query = fmt.Sprintf("INSERT INTO \"devices_api\".\"external_vin_data\" (\"%s\") %%sVALUES (%s)%%s", strings.Join(wl, "\",\""), strmangle.Placeholders(dialect.UseIndexPlaceholders, len(wl), 1, 1))
 		} else {
-			cache.query = "INSERT INTO \"devices_api\".\"drivly_data\" %sDEFAULT VALUES%s"
+			cache.query = "INSERT INTO \"devices_api\".\"external_vin_data\" %sDEFAULT VALUES%s"
 		}
 
 		var queryOutput, queryReturning string
@@ -1040,22 +1047,22 @@ func (o *DrivlyDatum) Insert(ctx context.Context, exec boil.ContextExecutor, col
 	}
 
 	if err != nil {
-		return errors.Wrap(err, "models: unable to insert into drivly_data")
+		return errors.Wrap(err, "models: unable to insert into external_vin_data")
 	}
 
 	if !cached {
-		drivlyDatumInsertCacheMut.Lock()
-		drivlyDatumInsertCache[key] = cache
-		drivlyDatumInsertCacheMut.Unlock()
+		externalVinDatumInsertCacheMut.Lock()
+		externalVinDatumInsertCache[key] = cache
+		externalVinDatumInsertCacheMut.Unlock()
 	}
 
 	return o.doAfterInsertHooks(ctx, exec)
 }
 
-// Update uses an executor to update the DrivlyDatum.
+// Update uses an executor to update the ExternalVinDatum.
 // See boil.Columns.UpdateColumnSet documentation to understand column list inference for updates.
 // Update does not automatically update the record in case of default values. Use .Reload() to refresh the records.
-func (o *DrivlyDatum) Update(ctx context.Context, exec boil.ContextExecutor, columns boil.Columns) (int64, error) {
+func (o *ExternalVinDatum) Update(ctx context.Context, exec boil.ContextExecutor, columns boil.Columns) (int64, error) {
 	if !boil.TimestampsAreSkipped(ctx) {
 		currTime := time.Now().In(boil.GetLocation())
 
@@ -1067,28 +1074,28 @@ func (o *DrivlyDatum) Update(ctx context.Context, exec boil.ContextExecutor, col
 		return 0, err
 	}
 	key := makeCacheKey(columns, nil)
-	drivlyDatumUpdateCacheMut.RLock()
-	cache, cached := drivlyDatumUpdateCache[key]
-	drivlyDatumUpdateCacheMut.RUnlock()
+	externalVinDatumUpdateCacheMut.RLock()
+	cache, cached := externalVinDatumUpdateCache[key]
+	externalVinDatumUpdateCacheMut.RUnlock()
 
 	if !cached {
 		wl := columns.UpdateColumnSet(
-			drivlyDatumAllColumns,
-			drivlyDatumPrimaryKeyColumns,
+			externalVinDatumAllColumns,
+			externalVinDatumPrimaryKeyColumns,
 		)
 
 		if !columns.IsWhitelist() {
 			wl = strmangle.SetComplement(wl, []string{"created_at"})
 		}
 		if len(wl) == 0 {
-			return 0, errors.New("models: unable to update drivly_data, could not build whitelist")
+			return 0, errors.New("models: unable to update external_vin_data, could not build whitelist")
 		}
 
-		cache.query = fmt.Sprintf("UPDATE \"devices_api\".\"drivly_data\" SET %s WHERE %s",
+		cache.query = fmt.Sprintf("UPDATE \"devices_api\".\"external_vin_data\" SET %s WHERE %s",
 			strmangle.SetParamNames("\"", "\"", 1, wl),
-			strmangle.WhereClause("\"", "\"", len(wl)+1, drivlyDatumPrimaryKeyColumns),
+			strmangle.WhereClause("\"", "\"", len(wl)+1, externalVinDatumPrimaryKeyColumns),
 		)
-		cache.valueMapping, err = queries.BindMapping(drivlyDatumType, drivlyDatumMapping, append(wl, drivlyDatumPrimaryKeyColumns...))
+		cache.valueMapping, err = queries.BindMapping(externalVinDatumType, externalVinDatumMapping, append(wl, externalVinDatumPrimaryKeyColumns...))
 		if err != nil {
 			return 0, err
 		}
@@ -1104,42 +1111,42 @@ func (o *DrivlyDatum) Update(ctx context.Context, exec boil.ContextExecutor, col
 	var result sql.Result
 	result, err = exec.ExecContext(ctx, cache.query, values...)
 	if err != nil {
-		return 0, errors.Wrap(err, "models: unable to update drivly_data row")
+		return 0, errors.Wrap(err, "models: unable to update external_vin_data row")
 	}
 
 	rowsAff, err := result.RowsAffected()
 	if err != nil {
-		return 0, errors.Wrap(err, "models: failed to get rows affected by update for drivly_data")
+		return 0, errors.Wrap(err, "models: failed to get rows affected by update for external_vin_data")
 	}
 
 	if !cached {
-		drivlyDatumUpdateCacheMut.Lock()
-		drivlyDatumUpdateCache[key] = cache
-		drivlyDatumUpdateCacheMut.Unlock()
+		externalVinDatumUpdateCacheMut.Lock()
+		externalVinDatumUpdateCache[key] = cache
+		externalVinDatumUpdateCacheMut.Unlock()
 	}
 
 	return rowsAff, o.doAfterUpdateHooks(ctx, exec)
 }
 
 // UpdateAll updates all rows with the specified column values.
-func (q drivlyDatumQuery) UpdateAll(ctx context.Context, exec boil.ContextExecutor, cols M) (int64, error) {
+func (q externalVinDatumQuery) UpdateAll(ctx context.Context, exec boil.ContextExecutor, cols M) (int64, error) {
 	queries.SetUpdate(q.Query, cols)
 
 	result, err := q.Query.ExecContext(ctx, exec)
 	if err != nil {
-		return 0, errors.Wrap(err, "models: unable to update all for drivly_data")
+		return 0, errors.Wrap(err, "models: unable to update all for external_vin_data")
 	}
 
 	rowsAff, err := result.RowsAffected()
 	if err != nil {
-		return 0, errors.Wrap(err, "models: unable to retrieve rows affected for drivly_data")
+		return 0, errors.Wrap(err, "models: unable to retrieve rows affected for external_vin_data")
 	}
 
 	return rowsAff, nil
 }
 
 // UpdateAll updates all rows with the specified column values, using an executor.
-func (o DrivlyDatumSlice) UpdateAll(ctx context.Context, exec boil.ContextExecutor, cols M) (int64, error) {
+func (o ExternalVinDatumSlice) UpdateAll(ctx context.Context, exec boil.ContextExecutor, cols M) (int64, error) {
 	ln := int64(len(o))
 	if ln == 0 {
 		return 0, nil
@@ -1161,13 +1168,13 @@ func (o DrivlyDatumSlice) UpdateAll(ctx context.Context, exec boil.ContextExecut
 
 	// Append all of the primary key values for each column
 	for _, obj := range o {
-		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), drivlyDatumPrimaryKeyMapping)
+		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), externalVinDatumPrimaryKeyMapping)
 		args = append(args, pkeyArgs...)
 	}
 
-	sql := fmt.Sprintf("UPDATE \"devices_api\".\"drivly_data\" SET %s WHERE %s",
+	sql := fmt.Sprintf("UPDATE \"devices_api\".\"external_vin_data\" SET %s WHERE %s",
 		strmangle.SetParamNames("\"", "\"", 1, colNames),
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), len(colNames)+1, drivlyDatumPrimaryKeyColumns, len(o)))
+		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), len(colNames)+1, externalVinDatumPrimaryKeyColumns, len(o)))
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1176,21 +1183,21 @@ func (o DrivlyDatumSlice) UpdateAll(ctx context.Context, exec boil.ContextExecut
 	}
 	result, err := exec.ExecContext(ctx, sql, args...)
 	if err != nil {
-		return 0, errors.Wrap(err, "models: unable to update all in drivlyDatum slice")
+		return 0, errors.Wrap(err, "models: unable to update all in externalVinDatum slice")
 	}
 
 	rowsAff, err := result.RowsAffected()
 	if err != nil {
-		return 0, errors.Wrap(err, "models: unable to retrieve rows affected all in update all drivlyDatum")
+		return 0, errors.Wrap(err, "models: unable to retrieve rows affected all in update all externalVinDatum")
 	}
 	return rowsAff, nil
 }
 
 // Upsert attempts an insert using an executor, and does an update or ignore on conflict.
 // See boil.Columns documentation for how to properly use updateColumns and insertColumns.
-func (o *DrivlyDatum) Upsert(ctx context.Context, exec boil.ContextExecutor, updateOnConflict bool, conflictColumns []string, updateColumns, insertColumns boil.Columns) error {
+func (o *ExternalVinDatum) Upsert(ctx context.Context, exec boil.ContextExecutor, updateOnConflict bool, conflictColumns []string, updateColumns, insertColumns boil.Columns) error {
 	if o == nil {
-		return errors.New("models: no drivly_data provided for upsert")
+		return errors.New("models: no external_vin_data provided for upsert")
 	}
 	if !boil.TimestampsAreSkipped(ctx) {
 		currTime := time.Now().In(boil.GetLocation())
@@ -1205,7 +1212,7 @@ func (o *DrivlyDatum) Upsert(ctx context.Context, exec boil.ContextExecutor, upd
 		return err
 	}
 
-	nzDefaults := queries.NonZeroDefaultSet(drivlyDatumColumnsWithDefault, o)
+	nzDefaults := queries.NonZeroDefaultSet(externalVinDatumColumnsWithDefault, o)
 
 	// Build cache key in-line uglily - mysql vs psql problems
 	buf := strmangle.GetBuffer()
@@ -1235,42 +1242,42 @@ func (o *DrivlyDatum) Upsert(ctx context.Context, exec boil.ContextExecutor, upd
 	key := buf.String()
 	strmangle.PutBuffer(buf)
 
-	drivlyDatumUpsertCacheMut.RLock()
-	cache, cached := drivlyDatumUpsertCache[key]
-	drivlyDatumUpsertCacheMut.RUnlock()
+	externalVinDatumUpsertCacheMut.RLock()
+	cache, cached := externalVinDatumUpsertCache[key]
+	externalVinDatumUpsertCacheMut.RUnlock()
 
 	var err error
 
 	if !cached {
 		insert, ret := insertColumns.InsertColumnSet(
-			drivlyDatumAllColumns,
-			drivlyDatumColumnsWithDefault,
-			drivlyDatumColumnsWithoutDefault,
+			externalVinDatumAllColumns,
+			externalVinDatumColumnsWithDefault,
+			externalVinDatumColumnsWithoutDefault,
 			nzDefaults,
 		)
 
 		update := updateColumns.UpdateColumnSet(
-			drivlyDatumAllColumns,
-			drivlyDatumPrimaryKeyColumns,
+			externalVinDatumAllColumns,
+			externalVinDatumPrimaryKeyColumns,
 		)
 
 		if updateOnConflict && len(update) == 0 {
-			return errors.New("models: unable to upsert drivly_data, could not build update column list")
+			return errors.New("models: unable to upsert external_vin_data, could not build update column list")
 		}
 
 		conflict := conflictColumns
 		if len(conflict) == 0 {
-			conflict = make([]string, len(drivlyDatumPrimaryKeyColumns))
-			copy(conflict, drivlyDatumPrimaryKeyColumns)
+			conflict = make([]string, len(externalVinDatumPrimaryKeyColumns))
+			copy(conflict, externalVinDatumPrimaryKeyColumns)
 		}
-		cache.query = buildUpsertQueryPostgres(dialect, "\"devices_api\".\"drivly_data\"", updateOnConflict, ret, update, conflict, insert)
+		cache.query = buildUpsertQueryPostgres(dialect, "\"devices_api\".\"external_vin_data\"", updateOnConflict, ret, update, conflict, insert)
 
-		cache.valueMapping, err = queries.BindMapping(drivlyDatumType, drivlyDatumMapping, insert)
+		cache.valueMapping, err = queries.BindMapping(externalVinDatumType, externalVinDatumMapping, insert)
 		if err != nil {
 			return err
 		}
 		if len(ret) != 0 {
-			cache.retMapping, err = queries.BindMapping(drivlyDatumType, drivlyDatumMapping, ret)
+			cache.retMapping, err = queries.BindMapping(externalVinDatumType, externalVinDatumMapping, ret)
 			if err != nil {
 				return err
 			}
@@ -1298,31 +1305,31 @@ func (o *DrivlyDatum) Upsert(ctx context.Context, exec boil.ContextExecutor, upd
 		_, err = exec.ExecContext(ctx, cache.query, vals...)
 	}
 	if err != nil {
-		return errors.Wrap(err, "models: unable to upsert drivly_data")
+		return errors.Wrap(err, "models: unable to upsert external_vin_data")
 	}
 
 	if !cached {
-		drivlyDatumUpsertCacheMut.Lock()
-		drivlyDatumUpsertCache[key] = cache
-		drivlyDatumUpsertCacheMut.Unlock()
+		externalVinDatumUpsertCacheMut.Lock()
+		externalVinDatumUpsertCache[key] = cache
+		externalVinDatumUpsertCacheMut.Unlock()
 	}
 
 	return o.doAfterUpsertHooks(ctx, exec)
 }
 
-// Delete deletes a single DrivlyDatum record with an executor.
+// Delete deletes a single ExternalVinDatum record with an executor.
 // Delete will match against the primary key column to find the record to delete.
-func (o *DrivlyDatum) Delete(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (o *ExternalVinDatum) Delete(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
 	if o == nil {
-		return 0, errors.New("models: no DrivlyDatum provided for delete")
+		return 0, errors.New("models: no ExternalVinDatum provided for delete")
 	}
 
 	if err := o.doBeforeDeleteHooks(ctx, exec); err != nil {
 		return 0, err
 	}
 
-	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), drivlyDatumPrimaryKeyMapping)
-	sql := "DELETE FROM \"devices_api\".\"drivly_data\" WHERE \"id\"=$1"
+	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), externalVinDatumPrimaryKeyMapping)
+	sql := "DELETE FROM \"devices_api\".\"external_vin_data\" WHERE \"id\"=$1"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1331,12 +1338,12 @@ func (o *DrivlyDatum) Delete(ctx context.Context, exec boil.ContextExecutor) (in
 	}
 	result, err := exec.ExecContext(ctx, sql, args...)
 	if err != nil {
-		return 0, errors.Wrap(err, "models: unable to delete from drivly_data")
+		return 0, errors.Wrap(err, "models: unable to delete from external_vin_data")
 	}
 
 	rowsAff, err := result.RowsAffected()
 	if err != nil {
-		return 0, errors.Wrap(err, "models: failed to get rows affected by delete for drivly_data")
+		return 0, errors.Wrap(err, "models: failed to get rows affected by delete for external_vin_data")
 	}
 
 	if err := o.doAfterDeleteHooks(ctx, exec); err != nil {
@@ -1347,33 +1354,33 @@ func (o *DrivlyDatum) Delete(ctx context.Context, exec boil.ContextExecutor) (in
 }
 
 // DeleteAll deletes all matching rows.
-func (q drivlyDatumQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (q externalVinDatumQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
 	if q.Query == nil {
-		return 0, errors.New("models: no drivlyDatumQuery provided for delete all")
+		return 0, errors.New("models: no externalVinDatumQuery provided for delete all")
 	}
 
 	queries.SetDelete(q.Query)
 
 	result, err := q.Query.ExecContext(ctx, exec)
 	if err != nil {
-		return 0, errors.Wrap(err, "models: unable to delete all from drivly_data")
+		return 0, errors.Wrap(err, "models: unable to delete all from external_vin_data")
 	}
 
 	rowsAff, err := result.RowsAffected()
 	if err != nil {
-		return 0, errors.Wrap(err, "models: failed to get rows affected by deleteall for drivly_data")
+		return 0, errors.Wrap(err, "models: failed to get rows affected by deleteall for external_vin_data")
 	}
 
 	return rowsAff, nil
 }
 
 // DeleteAll deletes all rows in the slice, using an executor.
-func (o DrivlyDatumSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (o ExternalVinDatumSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
 	if len(o) == 0 {
 		return 0, nil
 	}
 
-	if len(drivlyDatumBeforeDeleteHooks) != 0 {
+	if len(externalVinDatumBeforeDeleteHooks) != 0 {
 		for _, obj := range o {
 			if err := obj.doBeforeDeleteHooks(ctx, exec); err != nil {
 				return 0, err
@@ -1383,12 +1390,12 @@ func (o DrivlyDatumSlice) DeleteAll(ctx context.Context, exec boil.ContextExecut
 
 	var args []interface{}
 	for _, obj := range o {
-		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), drivlyDatumPrimaryKeyMapping)
+		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), externalVinDatumPrimaryKeyMapping)
 		args = append(args, pkeyArgs...)
 	}
 
-	sql := "DELETE FROM \"devices_api\".\"drivly_data\" WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, drivlyDatumPrimaryKeyColumns, len(o))
+	sql := "DELETE FROM \"devices_api\".\"external_vin_data\" WHERE " +
+		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, externalVinDatumPrimaryKeyColumns, len(o))
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1397,15 +1404,15 @@ func (o DrivlyDatumSlice) DeleteAll(ctx context.Context, exec boil.ContextExecut
 	}
 	result, err := exec.ExecContext(ctx, sql, args...)
 	if err != nil {
-		return 0, errors.Wrap(err, "models: unable to delete all from drivlyDatum slice")
+		return 0, errors.Wrap(err, "models: unable to delete all from externalVinDatum slice")
 	}
 
 	rowsAff, err := result.RowsAffected()
 	if err != nil {
-		return 0, errors.Wrap(err, "models: failed to get rows affected by deleteall for drivly_data")
+		return 0, errors.Wrap(err, "models: failed to get rows affected by deleteall for external_vin_data")
 	}
 
-	if len(drivlyDatumAfterDeleteHooks) != 0 {
+	if len(externalVinDatumAfterDeleteHooks) != 0 {
 		for _, obj := range o {
 			if err := obj.doAfterDeleteHooks(ctx, exec); err != nil {
 				return 0, err
@@ -1418,8 +1425,8 @@ func (o DrivlyDatumSlice) DeleteAll(ctx context.Context, exec boil.ContextExecut
 
 // Reload refetches the object from the database
 // using the primary keys with an executor.
-func (o *DrivlyDatum) Reload(ctx context.Context, exec boil.ContextExecutor) error {
-	ret, err := FindDrivlyDatum(ctx, exec, o.ID)
+func (o *ExternalVinDatum) Reload(ctx context.Context, exec boil.ContextExecutor) error {
+	ret, err := FindExternalVinDatum(ctx, exec, o.ID)
 	if err != nil {
 		return err
 	}
@@ -1430,26 +1437,26 @@ func (o *DrivlyDatum) Reload(ctx context.Context, exec boil.ContextExecutor) err
 
 // ReloadAll refetches every row with matching primary key column values
 // and overwrites the original object slice with the newly updated slice.
-func (o *DrivlyDatumSlice) ReloadAll(ctx context.Context, exec boil.ContextExecutor) error {
+func (o *ExternalVinDatumSlice) ReloadAll(ctx context.Context, exec boil.ContextExecutor) error {
 	if o == nil || len(*o) == 0 {
 		return nil
 	}
 
-	slice := DrivlyDatumSlice{}
+	slice := ExternalVinDatumSlice{}
 	var args []interface{}
 	for _, obj := range *o {
-		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), drivlyDatumPrimaryKeyMapping)
+		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), externalVinDatumPrimaryKeyMapping)
 		args = append(args, pkeyArgs...)
 	}
 
-	sql := "SELECT \"devices_api\".\"drivly_data\".* FROM \"devices_api\".\"drivly_data\" WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, drivlyDatumPrimaryKeyColumns, len(*o))
+	sql := "SELECT \"devices_api\".\"external_vin_data\".* FROM \"devices_api\".\"external_vin_data\" WHERE " +
+		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, externalVinDatumPrimaryKeyColumns, len(*o))
 
 	q := queries.Raw(sql, args...)
 
 	err := q.Bind(ctx, exec, &slice)
 	if err != nil {
-		return errors.Wrap(err, "models: unable to reload all in DrivlyDatumSlice")
+		return errors.Wrap(err, "models: unable to reload all in ExternalVinDatumSlice")
 	}
 
 	*o = slice
@@ -1457,10 +1464,10 @@ func (o *DrivlyDatumSlice) ReloadAll(ctx context.Context, exec boil.ContextExecu
 	return nil
 }
 
-// DrivlyDatumExists checks if the DrivlyDatum row exists.
-func DrivlyDatumExists(ctx context.Context, exec boil.ContextExecutor, iD string) (bool, error) {
+// ExternalVinDatumExists checks if the ExternalVinDatum row exists.
+func ExternalVinDatumExists(ctx context.Context, exec boil.ContextExecutor, iD string) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from \"devices_api\".\"drivly_data\" where \"id\"=$1 limit 1)"
+	sql := "select exists(select 1 from \"devices_api\".\"external_vin_data\" where \"id\"=$1 limit 1)"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1471,7 +1478,7 @@ func DrivlyDatumExists(ctx context.Context, exec boil.ContextExecutor, iD string
 
 	err := row.Scan(&exists)
 	if err != nil {
-		return false, errors.Wrap(err, "models: unable to check if drivly_data exists")
+		return false, errors.Wrap(err, "models: unable to check if external_vin_data exists")
 	}
 
 	return exists, nil

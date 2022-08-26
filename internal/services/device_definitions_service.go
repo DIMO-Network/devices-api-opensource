@@ -3,8 +3,12 @@ package services
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"fmt"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/appmetrics"
@@ -14,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
+	"github.com/tidwall/gjson"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -34,17 +39,17 @@ type IDeviceDefinitionService interface {
 }
 
 type DeviceDefinitionService struct {
-	DBS                 func() *database.DBReaderWriter
-	EdmundsSvc          EdmundsService
-	DrivlySvc           DrivlyAPIService
+	dbs                 func() *database.DBReaderWriter
+	edmundsSvc          EdmundsService
+	drivlySvc           DrivlyAPIService
 	log                 *zerolog.Logger
 	nhtsaSvc            INHTSAService
 	definitionsGRPCAddr string
 }
 
 func NewDeviceDefinitionService(DBS func() *database.DBReaderWriter, log *zerolog.Logger, nhtsaService INHTSAService, settings *config.Settings) *DeviceDefinitionService {
-	return &DeviceDefinitionService{DBS: DBS, log: log, EdmundsSvc: NewEdmundsService(settings.TorProxyURL, log),
-		nhtsaSvc: nhtsaService, DrivlySvc: NewDrivlyAPIService(settings, DBS), definitionsGRPCAddr: settings.DefinitionsGRPCAddr}
+	return &DeviceDefinitionService{dbs: DBS, log: log, edmundsSvc: NewEdmundsService(settings.TorProxyURL, log),
+		nhtsaSvc: nhtsaService, drivlySvc: NewDrivlyAPIService(settings, DBS), definitionsGRPCAddr: settings.DefinitionsGRPCAddr}
 }
 
 // GetDeviceDefinitionsByIDs calls device definitions api via GRPC to get the definition
@@ -84,7 +89,7 @@ func (d *DeviceDefinitionService) FindDeviceDefinitionByMMY(ctx context.Context,
 
 	query := models.DeviceDefinitions(qms...)
 	if tx == nil {
-		tx = d.DBS().Reader
+		tx = d.dbs().Reader
 	}
 	dd, err := query.One(ctx, tx)
 	if err != nil {
@@ -96,7 +101,7 @@ func (d *DeviceDefinitionService) FindDeviceDefinitionByMMY(ctx context.Context,
 // GetOrCreateMake gets the make from the db or creates it if not found. optional tx - if not passed in uses db writer
 func (d *DeviceDefinitionService) GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*models.DeviceMake, error) {
 	if tx == nil {
-		tx = d.DBS().Writer
+		tx = d.dbs().Writer
 	}
 	m, err := models.DeviceMakes(models.DeviceMakeWhere.Name.EQ(strings.TrimSpace(makeName))).One(ctx, tx)
 	if err != nil {
@@ -125,7 +130,7 @@ func (d *DeviceDefinitionService) CheckAndSetImage(dd *models.DeviceDefinition, 
 	if dd.R.DeviceMake == nil {
 		return errors.New("device make relation is required in dd.R.DeviceMake")
 	}
-	img, err := d.EdmundsSvc.GetDefaultImageForMMY(dd.R.DeviceMake.Name, dd.Model, int(dd.Year))
+	img, err := d.edmundsSvc.GetDefaultImageForMMY(dd.R.DeviceMake.Name, dd.Model, int(dd.Year))
 	if err != nil {
 		return err
 	}
@@ -140,7 +145,7 @@ func (d *DeviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Co
 	dbDeviceDef, err := models.DeviceDefinitions(
 		models.DeviceDefinitionWhere.ID.EQ(deviceDefinitionID),
 		qm.Load(models.DeviceDefinitionRels.DeviceMake),
-	).One(ctx, d.DBS().Reader)
+	).One(ctx, d.dbs().Reader)
 	if err != nil {
 		return err
 	}
@@ -158,7 +163,7 @@ func (d *DeviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Co
 			}
 			dbDeviceDef.Verified = true
 			dbDeviceDef.Source = null.StringFrom("NHTSA")
-			_, err = dbDeviceDef.Update(ctx, d.DBS().Writer, boil.Infer())
+			_, err = dbDeviceDef.Update(ctx, d.dbs().Writer, boil.Infer())
 			if err != nil {
 				return err
 			}
@@ -171,31 +176,93 @@ func (d *DeviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Co
 	return nil
 }
 
-// PullDrivlyData pulls vin info from drivly, and updates the device definition metadata
+// PullDrivlyData pulls vin info from drivly, and inserts a record with the data.
+// Will only pull if haven't in last 2 weeks. Does not re-pull VIN info, updates DD metadata, sets the device_style_id using the edmunds data pulled.
 func (d *DeviceDefinitionService) PullDrivlyData(ctx context.Context, userDeviceID string, deviceDefinitionID string, vin string) error {
-	dbDeviceDef, err := models.DeviceDefinitions(
-		models.DeviceDefinitionWhere.ID.EQ(deviceDefinitionID),
-		qm.Load(models.DeviceDefinitionRels.DeviceMake),
-	).One(ctx, d.DBS().Reader)
+	const repullWindow = time.Hour * 24 * 14
+	if len(vin) != 17 {
+		return errors.Errorf("invalid VIN %s", vin)
+	}
+
+	dbDeviceDef, err := models.FindDeviceDefinition(ctx, d.dbs().Reader, deviceDefinitionID)
+	if err != nil {
+		return err
+	}
+	neverPulled := false
+	existingData, err := models.ExternalVinData(
+		models.ExternalVinDatumWhere.Vin.EQ(vin),
+		qm.OrderBy("updated_at desc"), qm.Limit(1)).
+		One(context.Background(), d.dbs().Writer)
+	if errors.Is(err, sql.ErrNoRows) {
+		neverPulled = true
+	} else if err != nil {
+		return err
+	}
+	// just return if already pulled recently for this VIN
+	if existingData != nil && existingData.UpdatedAt.Add(repullWindow).After(time.Now()) {
+		return nil
+	}
+	ud, err := models.FindUserDevice(ctx, d.dbs().Reader, userDeviceID)
 	if err != nil {
 		return err
 	}
 
-	// insert drivly raw json data
-	drivlyData := &models.DrivlyDatum{
+	// by this point we know we need to insert drivly raw json data
+	drivlyData := &models.ExternalVinDatum{
 		ID:                 ksuid.New().String(),
 		DeviceDefinitionID: null.StringFrom(dbDeviceDef.ID),
 		Vin:                vin,
 		UserDeviceID:       null.StringFrom(userDeviceID),
 	}
+	if neverPulled {
+		vinInfo, err := d.drivlySvc.GetVINInfo(vin)
+		if err != nil {
+			return errors.Wrapf(err, "error getting VIN %s. skipping", vin)
+		}
+		err = drivlyData.VinMetadata.Marshal(vinInfo)
+		if err != nil {
+			return err
+		}
+		// todo grpc - update the device definition over grpc with this metadata
+		metaData := new(DeviceVehicleInfo) // make as pointer
+		if err := dbDeviceDef.Metadata.Unmarshal(metaData); err == nil {
+			if vinInfo["mpgCity"] != nil && metaData.MPGCity == "" {
+				metaData.MPGCity = fmt.Sprintf("%f", vinInfo["mpgCity"])
+			}
+			if vinInfo["mpgHighway"] != nil && metaData.MPGHighway == "" {
+				metaData.MPGHighway = fmt.Sprintf("%f", vinInfo["mpgHighway"])
+			}
+			if vinInfo["mpg"] != nil && metaData.MPG == "" {
+				metaData.MPG = fmt.Sprintf("%f", vinInfo["mpg"])
+			}
+			if vinInfo["msrpBase"] != nil && metaData.BaseMSRP == 0 {
+				metaData.BaseMSRP, _ = strconv.Atoi(fmt.Sprintf("%s", vinInfo["msrpBase"]))
+			}
+			if vinInfo["fuelTankCapacityGal"] != nil && metaData.FuelTankCapacityGal == "" {
+				metaData.FuelTankCapacityGal = fmt.Sprintf("%f", vinInfo["fuelTankCapacityGal"])
+			}
+		}
+		err = dbDeviceDef.Metadata.Marshal(metaData)
+		if err != nil {
+			return err
+		}
 
-	summary, err := d.DrivlySvc.GetSummaryByVIN(vin)
+		_, err = dbDeviceDef.Update(ctx, d.dbs().Writer, boil.Infer())
+		if err != nil {
+			return err
+		}
+		// future: we could pull some specific data from this and persist in the user_device.metadata
+		// future: did MMY from vininfo match the device definition? if not fixup year, or model? but need external_id etc
+	}
+	// As we understand what data changes and what doesn't, as well as what raw sources here are unnecessary to pull, we can clean this up.
+	summary, err := d.drivlySvc.GetExtendedOffersByVIN(vin)
 	if err != nil {
 		return err
 	}
 
-	_ = drivlyData.VinMetadata.Marshal(summary.VIN)
+	_ = drivlyData.PricingMetadata.Marshal(summary.Pricing)
 	_ = drivlyData.BuildMetadata.Marshal(summary.Build)
+	_ = drivlyData.OfferMetadata.Marshal(summary.Offers)
 	_ = drivlyData.AutocheckMetadata.Marshal(summary.AutoCheck)
 	_ = drivlyData.CargurusMetadata.Marshal(summary.Cargurus)
 	_ = drivlyData.CarmaxMetadata.Marshal(summary.Carmax)
@@ -203,14 +270,36 @@ func (d *DeviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 	_ = drivlyData.CarstoryMetadata.Marshal(summary.Carstory)
 	_ = drivlyData.CarvanaMetadata.Marshal(summary.Carvana)
 	_ = drivlyData.EdmundsMetadata.Marshal(summary.Edmunds)
-	_ = drivlyData.OfferMetadata.Marshal(summary.Offers)
 	_ = drivlyData.TMVMetadata.Marshal(summary.TMV)
 	_ = drivlyData.VroomMetadata.Marshal(summary.VRoom)
 
-	err = drivlyData.Insert(ctx, d.DBS().Writer, boil.Infer())
-
+	err = drivlyData.Insert(ctx, d.dbs().Writer, boil.Infer())
 	if err != nil {
 		return err
+	}
+
+	// fill in edmunds style_id in our user_device if it exists and not already set. None of these seen as bad errors so just logs & returns nil
+	if summary.Edmunds != nil && ud.DeviceStyleID.IsZero() {
+		edmundsJSON, err := json.Marshal(summary.Edmunds)
+		if err != nil {
+			d.log.Err(err).Msg("could not marshal edmunds response to json")
+			return nil
+		}
+		styleIDResult := gjson.GetBytes(edmundsJSON, "edmundsStyle.data.style.id")
+		styleID := styleIDResult.String()
+		if styleIDResult.Exists() && len(styleID) > 0 {
+			deviceStyle, err := models.DeviceStyles(models.DeviceStyleWhere.ExternalStyleID.EQ(styleID)).One(ctx, d.dbs().Reader)
+			if err != nil {
+				d.log.Err(err).Msgf("unable to find device_style for edmunds style_id %s", styleID)
+				return nil
+			}
+			ud.DeviceStyleID = null.StringFrom(deviceStyle.ID) // set foreign key
+			_, err = ud.Update(ctx, d.dbs().Writer, boil.Infer())
+			if err != nil {
+				d.log.Err(err).Msgf("unable to update user_device_id %s with styleID %s", ud.ID, deviceStyle.ID)
+				return nil
+			}
+		}
 	}
 
 	defer appmetrics.DrivlyIngestTotalOps.Inc()

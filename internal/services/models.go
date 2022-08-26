@@ -63,6 +63,7 @@ type DeviceVehicleInfo struct {
 	MPGHighway          string `json:"mpg_highway,omitempty"`
 	MPGCity             string `json:"mpg_city,omitempty"`
 	FuelTankCapacityGal string `json:"fuel_tank_capacity_gal,omitempty"`
+	MPG                 string `json:"mpg,omitempty"`
 }
 
 // Converters

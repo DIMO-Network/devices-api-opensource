@@ -29,7 +29,7 @@ type DrivlyAPIService interface {
 	GetKBBByVIN(vin string) (map[string]interface{}, error)
 	GetVRoomByVIN(vin string) (map[string]interface{}, error)
 
-	GetSummaryByVIN(vin string) (*DrivlyVINSummary, error)
+	GetExtendedOffersByVIN(vin string) (*DrivlyVINSummary, error)
 }
 
 type drivlyAPIService struct {
@@ -55,6 +55,7 @@ func NewDrivlyAPIService(settings *config.Settings, dbs func() *database.DBReade
 	}
 }
 
+// GetVINInfo is the basic enriched VIN call, that is pretty standard now. Looks in multiple sources in their backend.
 func (ds *drivlyAPIService) GetVINInfo(vin string) (map[string]interface{}, error) {
 	res, err := executeAPI(ds.httpClientVIN, fmt.Sprintf("/api/%s/", vin))
 
@@ -145,6 +146,7 @@ func (ds *drivlyAPIService) GetCarvanaByVIN(vin string) (map[string]interface{},
 	return res, nil
 }
 
+// GetEdmundsByVIN one of their raw data sources, the style_id they return may or not may be perfect.
 func (ds *drivlyAPIService) GetEdmundsByVIN(vin string) (map[string]interface{}, error) {
 	res, err := executeAPI(ds.httpClientOffer, fmt.Sprintf("/api/vin/%s/edmunds", vin))
 
@@ -185,13 +187,9 @@ func (ds *drivlyAPIService) GetVRoomByVIN(vin string) (map[string]interface{}, e
 	return res, nil
 }
 
-func (ds *drivlyAPIService) GetSummaryByVIN(vin string) (*DrivlyVINSummary, error) {
+// GetExtendedOffersByVIN calls all apis for offers and build info excep the VIN info endpoint
+func (ds *drivlyAPIService) GetExtendedOffersByVIN(vin string) (*DrivlyVINSummary, error) {
 	result := new(DrivlyVINSummary)
-
-	vinRes, err := ds.GetVINInfo(vin)
-	if err != nil {
-		return nil, err
-	}
 
 	pricingRes, err := ds.GetVINPricing(vin)
 	if err != nil {
@@ -253,7 +251,6 @@ func (ds *drivlyAPIService) GetSummaryByVIN(vin string) (*DrivlyVINSummary, erro
 		return nil, err
 	}
 
-	result.VIN = vinRes
 	result.Pricing = pricingRes
 	result.Offers = offerRes
 	result.AutoCheck = autoCheckRes
@@ -271,7 +268,6 @@ func (ds *drivlyAPIService) GetSummaryByVIN(vin string) (*DrivlyVINSummary, erro
 }
 
 type DrivlyVINSummary struct {
-	VIN       map[string]interface{}
 	Pricing   map[string]interface{}
 	Offers    map[string]interface{}
 	AutoCheck map[string]interface{}

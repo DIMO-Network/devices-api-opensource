@@ -170,9 +170,9 @@ func (mr *MockDrivlyAPIServiceMockRecorder) GetOffersByVIN(vin interface{}) *gom
 }
 
 // GetSummaryByVIN mocks base method.
-func (m *MockDrivlyAPIService) GetSummaryByVIN(vin string) (*services.DrivlyVINSummary, error) {
+func (m *MockDrivlyAPIService) GetExtendedOffersByVIN(vin string) (*services.DrivlyVINSummary, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSummaryByVIN", vin)
+	ret := m.ctrl.Call(m, "GetExtendedOffersByVIN", vin)
 	ret0, _ := ret[0].(*services.DrivlyVINSummary)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -181,7 +181,7 @@ func (m *MockDrivlyAPIService) GetSummaryByVIN(vin string) (*services.DrivlyVINS
 // GetSummaryByVIN indicates an expected call of GetSummaryByVIN.
 func (mr *MockDrivlyAPIServiceMockRecorder) GetSummaryByVIN(vin interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSummaryByVIN", reflect.TypeOf((*MockDrivlyAPIService)(nil).GetSummaryByVIN), vin)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetExtendedOffersByVIN", reflect.TypeOf((*MockDrivlyAPIService)(nil).GetExtendedOffersByVIN), vin)
 }
 
 // GetTMVByVIN mocks base method.
