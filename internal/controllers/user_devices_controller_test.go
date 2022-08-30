@@ -301,9 +301,10 @@ func (s *UserDevicesControllerTestSuite) TestNameValidate() {
 		{name: `Sally "Speed Demon" Sedan`, want: true, reason: "valid name"},
 		{name: "Valid Car Name", want: true, reason: "valid name"},
 		{name: " Invalid Name", want: false, reason: "starts with space"},
-		{name: "My Car!!!", want: false, reason: "invalid characters"},
+		{name: "My Car!!!", want: true, reason: "valid name with !"},
 		{name: "", want: false, reason: "empty name"},
 		{name: "ThisNameIsTooLong--CanOnlyBe25CharactersInLength", want: false, reason: "too long"},
+		{name: "no\nNewLine", want: false, reason: "no new lines allowed"},
 	}
 
 	for _, tc := range tests {
@@ -321,14 +322,21 @@ func (s *UserDevicesControllerTestSuite) TestPatchName() {
 	dm := test.SetupCreateMake(s.T(), "Ford", s.pdb)
 	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Mach E", 2022, s.pdb)
 	ud := test.SetupCreateUserDevice(s.T(), s.testUserID, dd, nil, s.pdb)
-
-	payload := `{ "name": "Queens Charriot" }`
+	// nil check test
+	payload := `{}`
 	request := test.BuildRequest("PATCH", "/user/devices/"+ud.ID+"/name", payload)
 	response, _ := s.app.Test(request)
+	assert.Equal(s.T(), fiber.StatusBadRequest, response.StatusCode)
+	// name with spaces happy path test
+	payload = `{ "name": " Queens Charriot,.@!$’ " }`
+	request = test.BuildRequest("PATCH", "/user/devices/"+ud.ID+"/name", payload)
+	response, _ = s.app.Test(request)
 	if assert.Equal(s.T(), fiber.StatusNoContent, response.StatusCode) == false {
 		body, _ := io.ReadAll(response.Body)
 		fmt.Println("message: " + string(body))
 	}
+	require.NoError(s.T(), ud.Reload(s.ctx, s.pdb.DBS().Reader))
+	assert.Equal(s.T(), "Queens Charriot,.@!$’", ud.Name.String)
 }
 
 func (s *UserDevicesControllerTestSuite) TestPatchImageURL() {

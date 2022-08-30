@@ -456,15 +456,19 @@ func (udc *UserDevicesController) UpdateName(c *fiber.Ctx) error {
 	userDevice, err := models.UserDevices(models.UserDeviceWhere.ID.EQ(udi), models.UserDeviceWhere.UserID.EQ(userID)).One(c.Context(), udc.DBS().Writer)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return errorResponseHandler(c, err, fiber.StatusNotFound)
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
 		}
 		return err
 	}
 	name := &UpdateNameReq{}
 	if err := c.BodyParser(name); err != nil {
 		// Return status 400 and error message.
-		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
+	if name.Name == nil {
+		return fiber.NewError(fiber.StatusBadRequest, "name cannot be empty")
+	}
+	*name.Name = strings.TrimSpace(*name.Name)
 
 	if err := name.validate(); err != nil {
 		if name.Name != nil {
@@ -476,7 +480,7 @@ func (udc *UserDevicesController) UpdateName(c *fiber.Ctx) error {
 	userDevice.Name = null.StringFromPtr(name.Name)
 	_, err = userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer())
 	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
@@ -1167,7 +1171,7 @@ func (u *UpdateNameReq) validate() error {
 	return validation.ValidateStruct(u,
 		// name must be between 1 and 16 alphanumeric characters in length (spaces are not allowed)
 		// NOTE: this captures characters in the latin/ chinese/ cyrillic alphabet but doesn't work as well for thai or arabic
-		validation.Field(&u.Name, validation.Required, validation.Match(regexp.MustCompile(`^[\s\p{L}\p{N}\p{M}#'":_-]{1,25}$`))),
+		validation.Field(&u.Name, validation.Required, validation.Match(regexp.MustCompile(`^[\p{L}\p{N}\p{M}# ,’.@!$'":_-]{1,25}$`))),
 		// cannot start with space
 		validation.Field(&u.Name, validation.Required, validation.Match(regexp.MustCompile(`^[^\s]`))),
 		// cannot end with space
