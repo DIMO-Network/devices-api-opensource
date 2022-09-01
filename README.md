@@ -127,7 +127,10 @@ To generate the models:
 ```bash
 sqlboiler psql --no-tests --wipe
 ```
-*Make sure you're running the docker image (ie. docker compose up)
+*Make sure you're running the docker image (ie. docker compose up)*
+
+If you get a command not found error with sqlboiler, make sure your go install is correct. 
+[Instructions here](https://jimkang.medium.com/install-go-on-mac-with-homebrew-5fa421fc55f5)
 
 ## Migrations
 
