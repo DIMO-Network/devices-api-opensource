@@ -80,21 +80,6 @@ func (mr *MockTeslaTaskServiceMockRecorder) OpenTrunk(udai interface{}) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OpenTrunk", reflect.TypeOf((*MockTeslaTaskService)(nil).OpenTrunk), udai)
 }
 
-// SetChargeLimit mocks base method.
-func (m *MockTeslaTaskService) SetChargeLimit(udai *models.UserDeviceAPIIntegration, limit float64) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetChargeLimit", udai, limit)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// SetChargeLimit indicates an expected call of SetChargeLimit.
-func (mr *MockTeslaTaskServiceMockRecorder) SetChargeLimit(udai, limit interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetChargeLimit", reflect.TypeOf((*MockTeslaTaskService)(nil).SetChargeLimit), udai, limit)
-}
-
 // StartPoll mocks base method.
 func (m *MockTeslaTaskService) StartPoll(vehicle *services.TeslaVehicle, udai *models.UserDeviceAPIIntegration) error {
 	m.ctrl.T.Helper()

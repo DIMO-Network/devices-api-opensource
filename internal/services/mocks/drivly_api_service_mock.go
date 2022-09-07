@@ -139,6 +139,21 @@ func (mr *MockDrivlyAPIServiceMockRecorder) GetEdmundsByVIN(vin interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEdmundsByVIN", reflect.TypeOf((*MockDrivlyAPIService)(nil).GetEdmundsByVIN), vin)
 }
 
+// GetExtendedOffersByVIN mocks base method.
+func (m *MockDrivlyAPIService) GetExtendedOffersByVIN(vin string) (*services.DrivlyVINSummary, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetExtendedOffersByVIN", vin)
+	ret0, _ := ret[0].(*services.DrivlyVINSummary)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetExtendedOffersByVIN indicates an expected call of GetExtendedOffersByVIN.
+func (mr *MockDrivlyAPIServiceMockRecorder) GetExtendedOffersByVIN(vin interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetExtendedOffersByVIN", reflect.TypeOf((*MockDrivlyAPIService)(nil).GetExtendedOffersByVIN), vin)
+}
+
 // GetKBBByVIN mocks base method.
 func (m *MockDrivlyAPIService) GetKBBByVIN(vin string) (map[string]interface{}, error) {
 	m.ctrl.T.Helper()
@@ -167,21 +182,6 @@ func (m *MockDrivlyAPIService) GetOffersByVIN(vin string) (map[string]interface{
 func (mr *MockDrivlyAPIServiceMockRecorder) GetOffersByVIN(vin interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOffersByVIN", reflect.TypeOf((*MockDrivlyAPIService)(nil).GetOffersByVIN), vin)
-}
-
-// GetSummaryByVIN mocks base method.
-func (m *MockDrivlyAPIService) GetExtendedOffersByVIN(vin string) (*services.DrivlyVINSummary, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetExtendedOffersByVIN", vin)
-	ret0, _ := ret[0].(*services.DrivlyVINSummary)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetSummaryByVIN indicates an expected call of GetSummaryByVIN.
-func (mr *MockDrivlyAPIServiceMockRecorder) GetSummaryByVIN(vin interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetExtendedOffersByVIN", reflect.TypeOf((*MockDrivlyAPIService)(nil).GetExtendedOffersByVIN), vin)
 }
 
 // GetTMVByVIN mocks base method.
