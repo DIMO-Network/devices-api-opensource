@@ -168,6 +168,10 @@ func (a *autoPiAPIService) CommandSyncDevice(ctx context.Context, unitID, device
 // CommandRaw sends raw command to autopi and saves in autopi_jobs. If device is offline command will eventually timeout.
 func (a *autoPiAPIService) CommandRaw(ctx context.Context, unitID, deviceID, command, userDeviceID string) (*AutoPiCommandResponse, error) {
 	// todo: whitelist command
+	v, unitID := ValidateAndCleanUUID(unitID)
+	if !v {
+		return nil, errors.New("send command failed, invalid unitId: " + unitID)
+	}
 	webhookURL := fmt.Sprintf("%s/v1%s", a.Settings.DeploymentBaseURL, AutoPiWebhookPath)
 	syncCommand := autoPiCommandRequest{
 		Command:     command,

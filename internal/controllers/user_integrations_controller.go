@@ -209,7 +209,7 @@ func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
 		Str("userId", userID).
 		Str("userDeviceId", userDeviceID).
 		Str("handler", "SendAutoPiCommand").
-		Str("autopi cmd", req.Command).
+		Str("autopiCmd", req.Command).
 		Logger()
 	logger.Info().Msg("Attempting to send autopi raw command")
 
@@ -494,7 +494,8 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 	const minimumAutoPiRelease = "v1.21.9" // correct semver has leading v
 
 	unitID := c.Params("unitID")
-	if len(unitID) == 0 {
+	v, unitID := services.ValidateAndCleanUUID(unitID)
+	if !v {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 	userID := getUserID(c)
@@ -542,7 +543,8 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 // @Router      /autopi/unit/:unitID/is-online [get]
 func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 	unitID := c.Params("unitID")
-	if len(unitID) == 0 {
+	v, unitID := services.ValidateAndCleanUUID(unitID)
+	if !v {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 	userID := getUserID(c)
@@ -627,7 +629,8 @@ func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 // @Router      /autopi/unit/:unitID/update [post]
 func (udc *UserDevicesController) StartAutoPiUpdateTask(c *fiber.Ctx) error {
 	unitID := c.Params("unitID") // save in task
-	if len(unitID) == 0 {
+	v, unitID := services.ValidateAndCleanUUID(unitID)
+	if !v {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 	userID := getUserID(c)
@@ -811,11 +814,15 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "unable to parse body json")
 	}
-	reqBody.ExternalID = strings.ToLower(strings.TrimSpace(reqBody.ExternalID))
-	subLogger := logger.With().Str("autopi_unit_id", reqBody.ExternalID).Logger()
+
+	v, unitID := services.ValidateAndCleanUUID(reqBody.ExternalID)
+	if !v {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid autoPiUnitId: "+reqBody.ExternalID)
+	}
+	subLogger := logger.With().Str("autoPiUnitId", unitID).Logger()
 
 	// check if unitId claimed by different user
-	existingUnit, err := models.AutopiUnits(models.AutopiUnitWhere.AutopiUnitID.EQ(reqBody.ExternalID)).One(c.Context(), tx)
+	existingUnit, err := models.AutopiUnits(models.AutopiUnitWhere.AutopiUnitID.EQ(unitID)).One(c.Context(), tx)
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
 			return err
@@ -823,11 +830,11 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	}
 	if existingUnit != nil && existingUnit.UserID != ud.UserID {
 		subLogger.Warn().Msgf("user tried pairing an autopi unit already claimed by user with id: %s", existingUnit.UserID)
-		return fiber.NewError(fiber.StatusBadRequest, "autopi unitID already claimed")
+		return fiber.NewError(fiber.StatusBadRequest, "autoPiUnitId already claimed"+unitID)
 	}
 
 	// check if an existing Active integration exists for the unitID
-	integrationExists, err := models.UserDeviceAPIIntegrations(qm.Where("metadata ->> 'autoPiUnitId' = $1", reqBody.ExternalID),
+	integrationExists, err := models.UserDeviceAPIIntegrations(qm.Where("metadata ->> 'autoPiUnitId' = $1", unitID),
 		qm.And("status IN ('Pending', 'PendingFirstData', 'Active')")). // could not get sqlboiler typed qm.AndIn to work
 		Exists(c.Context(), udc.DBS().Reader)
 	if err != nil {
@@ -838,18 +845,18 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		return fiber.NewError(fiber.StatusBadRequest, "autopi unitID already paired")
 	}
 
-	autoPiDevice, err := udc.autoPiSvc.GetDeviceByUnitID(reqBody.ExternalID)
+	autoPiDevice, err := udc.autoPiSvc.GetDeviceByUnitID(unitID)
 	if err != nil {
-		subLogger.Err(err).Msgf("failed to call autopi api to get autoPiDevice by unit id %s", reqBody.ExternalID)
+		subLogger.Err(err).Msgf("failed to call autopi api to get autoPiDevice by unit id %s", unitID)
 		return err
 	}
 	subLogger = subLogger.With().
-		Str("autopi_deviceId", autoPiDevice.ID).
-		Str("original_templateId", strconv.Itoa(autoPiDevice.Template)).Logger()
+		Str("autoPiDeviceId", autoPiDevice.ID).
+		Str("originalTemplateId", strconv.Itoa(autoPiDevice.Template)).Logger()
 	// claim autopi unit for this user
 	if existingUnit == nil {
 		existingUnit = &models.AutopiUnit{
-			AutopiUnitID:   reqBody.ExternalID,
+			AutopiUnitID:   unitID,
 			AutopiDeviceID: null.StringFrom(autoPiDevice.ID),
 			UserID:         ud.UserID,
 		}
@@ -889,7 +896,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 			}
 		}
 	}
-	subLogger = subLogger.With().Str("template_id_to_apply", strconv.Itoa(templateID)).Logger()
+	subLogger = subLogger.With().Str("templateIdToApply", strconv.Itoa(templateID)).Logger()
 	// creat the api int record, start filling it in
 	udMetadata := services.UserDeviceAPIIntegrationsMetadata{
 		AutoPiUnitID:          &autoPiDevice.UnitID,
