@@ -39,16 +39,17 @@ func (f *fakeEventService) Emit(event *services.Event) error {
 
 type UserDevicesControllerTestSuite struct {
 	suite.Suite
-	pdb           database.DbStore
-	container     testcontainers.Container
-	ctx           context.Context
-	mockCtrl      *gomock.Controller
-	app           *fiber.App
-	deviceDefSvc  *mock_services.MockIDeviceDefinitionService
-	testUserID    string
-	scTaskSvc     *mock_services.MockSmartcarTaskService
-	nhtsaService  *mock_services.MockINHTSAService
-	drivlyTaskSvc *mock_services.MockDrivlyTaskService
+	pdb              database.DbStore
+	container        testcontainers.Container
+	ctx              context.Context
+	mockCtrl         *gomock.Controller
+	app              *fiber.App
+	deviceDefSvc     *mock_services.MockIDeviceDefinitionService
+	testUserID       string
+	scTaskSvc        *mock_services.MockSmartcarTaskService
+	nhtsaService     *mock_services.MockINHTSAService
+	drivlyTaskSvc    *mock_services.MockDrivlyTaskService
+	blackbookTaskSvc *mock_services.MockBlackbookTaskService
 }
 
 // SetupSuite starts container db
@@ -72,7 +73,7 @@ func (s *UserDevicesControllerTestSuite) SetupSuite() {
 	testUserID2 := "3232451"
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, logger, s.deviceDefSvc,
 		&fakeEventService{}, scClient, s.scTaskSvc, teslaSvc, teslaTaskService, nil, nil,
-		s.nhtsaService, autoPiIngest, autoPiTaskSvc, nil, nil, s.drivlyTaskSvc)
+		s.nhtsaService, autoPiIngest, autoPiTaskSvc, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := fiber.New()
 	app.Post("/user/devices", test.AuthInjectorTestHandler(s.testUserID), c.RegisterDeviceForUser)
 	app.Post("/user/devices/second", test.AuthInjectorTestHandler(testUserID2), c.RegisterDeviceForUser) // for different test user

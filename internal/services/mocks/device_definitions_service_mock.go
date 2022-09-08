@@ -96,6 +96,20 @@ func (mr *MockIDeviceDefinitionServiceMockRecorder) GetOrCreateMake(ctx, tx, mak
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrCreateMake", reflect.TypeOf((*MockIDeviceDefinitionService)(nil).GetOrCreateMake), ctx, tx, makeName)
 }
 
+// PullBlackbookData mocks base method.
+func (m *MockIDeviceDefinitionService) PullBlackbookData(ctx context.Context, userDeviceID, deviceDefinitionID, vin string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PullBlackbookData", ctx, userDeviceID, deviceDefinitionID, vin)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PullBlackbookData indicates an expected call of PullBlackbookData.
+func (mr *MockIDeviceDefinitionServiceMockRecorder) PullBlackbookData(ctx, userDeviceID, deviceDefinitionID, vin interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PullBlackbookData", reflect.TypeOf((*MockIDeviceDefinitionService)(nil).PullBlackbookData), ctx, userDeviceID, deviceDefinitionID, vin)
+}
+
 // PullDrivlyData mocks base method.
 func (m *MockIDeviceDefinitionService) PullDrivlyData(ctx context.Context, userDeviceID, deviceDefinitionID, vin string) error {
 	m.ctrl.T.Helper()

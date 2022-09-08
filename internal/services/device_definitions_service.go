@@ -34,6 +34,7 @@ type IDeviceDefinitionService interface {
 	CheckAndSetImage(dd *models.DeviceDefinition, overwrite bool) error
 	UpdateDeviceDefinitionFromNHTSA(ctx context.Context, deviceDefinitionID string, vin string) error
 	PullDrivlyData(ctx context.Context, userDeviceID, deviceDefinitionID string, vin string) error
+	PullBlackbookData(ctx context.Context, userDeviceID, deviceDefinitionID string, vin string) error
 	GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*models.DeviceMake, error)
 	GetDeviceDefinitionsByIDs(ctx context.Context, ids []string) (*ddgrpc.GetDeviceDefinitionResponse, error)
 }
@@ -42,6 +43,7 @@ type DeviceDefinitionService struct {
 	dbs                 func() *database.DBReaderWriter
 	edmundsSvc          EdmundsService
 	drivlySvc           DrivlyAPIService
+	blackbookSvc        BlackbookAPIService
 	log                 *zerolog.Logger
 	nhtsaSvc            INHTSAService
 	definitionsGRPCAddr string
@@ -49,7 +51,7 @@ type DeviceDefinitionService struct {
 
 func NewDeviceDefinitionService(DBS func() *database.DBReaderWriter, log *zerolog.Logger, nhtsaService INHTSAService, settings *config.Settings) *DeviceDefinitionService {
 	return &DeviceDefinitionService{dbs: DBS, log: log, edmundsSvc: NewEdmundsService(settings.TorProxyURL, log),
-		nhtsaSvc: nhtsaService, drivlySvc: NewDrivlyAPIService(settings, DBS), definitionsGRPCAddr: settings.DefinitionsGRPCAddr}
+		nhtsaSvc: nhtsaService, drivlySvc: NewDrivlyAPIService(settings, DBS), blackbookSvc: NewBlackbookAPIService(settings, DBS), definitionsGRPCAddr: settings.DefinitionsGRPCAddr}
 }
 
 // GetDeviceDefinitionsByIDs calls device definitions api via GRPC to get the definition
@@ -303,6 +305,61 @@ func (d *DeviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 	}
 
 	defer appmetrics.DrivlyIngestTotalOps.Inc()
+
+	return nil
+}
+
+// PullBlackbookData pulls vin info from Blackbook, and inserts a record with the data.
+// Will only pull if haven't in last 2 weeks.
+func (d *DeviceDefinitionService) PullBlackbookData(ctx context.Context, userDeviceID string, deviceDefinitionID string, vin string) error {
+	const repullWindow = time.Hour * 24 * 14
+	if len(vin) != 17 {
+		return errors.Errorf("invalid VIN %s", vin)
+	}
+
+	dbDeviceDef, err := models.FindDeviceDefinition(ctx, d.dbs().Reader, deviceDefinitionID)
+	if err != nil {
+		return err
+	}
+	neverPulled := false
+	existingData, err := models.ExternalVinData(
+		models.ExternalVinDatumWhere.Vin.EQ(vin),
+		qm.OrderBy("updated_at desc"), qm.Limit(1)).
+		One(context.Background(), d.dbs().Writer)
+	if errors.Is(err, sql.ErrNoRows) {
+		neverPulled = true
+	} else if err != nil {
+		return err
+	}
+	// just return if already pulled recently for this VIN
+	if existingData != nil && existingData.UpdatedAt.Add(repullWindow).After(time.Now()) {
+		return nil
+	}
+
+	// by this point we know we need to insert blackbook raw json data
+	blackbookData := &models.ExternalVinDatum{
+		ID:                 ksuid.New().String(),
+		DeviceDefinitionID: null.StringFrom(dbDeviceDef.ID),
+		Vin:                vin,
+		UserDeviceID:       null.StringFrom(userDeviceID),
+	}
+	if neverPulled {
+		vinInfo, err := d.blackbookSvc.GetVINInfo(vin, "")
+		if err != nil {
+			return errors.Wrapf(err, "error getting VIN %s. skipping", vin)
+		}
+		err = blackbookData.BlackbookMetadata.UnmarshalJSON(vinInfo)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = blackbookData.Insert(ctx, d.dbs().Writer, boil.Infer())
+	if err != nil {
+		return err
+	}
+
+	defer appmetrics.BlackbookRequestTotalOps.Inc()
 
 	return nil
 }

@@ -197,6 +197,12 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("error trying to sync driv.ly")
 		}
+	case "blackbook-sync-data":
+		logger.Info().Msgf("Sync blackbook")
+		err = loadUserDeviceBlackbook(ctx, &logger, &settings, pdb)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("error trying to sync blackbook")
+		}
 	default:
 		startMonitoringServer(logger)
 		eventService := services.NewEventService(&logger, &settings, deps.getKafkaProducer())

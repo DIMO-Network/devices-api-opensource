@@ -1221,6 +1221,14 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 
 	logger.Info().Msgf("drivly update task ID = %s", taskID)
 
+	// fire off task to get blackbook data
+	taskID, err = udc.blackbookTaskService.StartBlackbookUpdate(ud.DeviceDefinitionID, ud.ID, vin)
+	if err != nil {
+		logger.Err(err).Msg("Failed to emit task blackbook event task.")
+	}
+
+	logger.Info().Msgf("blackbook update task ID = %s", taskID)
+
 	return c.SendStatus(fiber.StatusNoContent)
 }
 

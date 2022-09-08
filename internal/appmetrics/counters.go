@@ -27,4 +27,8 @@ var (
 		Name: "devices_api_drivly_ingest_success_ops_total",
 		Help: "Total successful Drivly used",
 	})
+	BlackbookRequestTotalOps = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "devices_api_blackbook_request_success_ops_total",
+		Help: "Total successful Blackbook used",
+	})
 )

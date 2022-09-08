@@ -57,6 +57,7 @@ type UserDevicesController struct {
 	autoPiIngestRegistrar services.IngestRegistrar
 	autoPiTaskService     services.AutoPiTaskService
 	drivlyTaskService     services.DrivlyTaskService
+	blackbookTaskService  services.BlackbookTaskService
 	s3                    *s3.Client
 	producer              sarama.SyncProducer
 }
@@ -80,6 +81,7 @@ func NewUserDevicesController(
 	producer sarama.SyncProducer,
 	s3NFTClient *s3.Client,
 	drivlyTaskService services.DrivlyTaskService,
+	blackbookTaskService services.BlackbookTaskService,
 ) UserDevicesController {
 	return UserDevicesController{
 		Settings:              settings,
@@ -99,6 +101,7 @@ func NewUserDevicesController(
 		s3:                    s3NFTClient,
 		producer:              producer,
 		drivlyTaskService:     drivlyTaskService,
+		blackbookTaskService:  blackbookTaskService,
 	}
 }
 
