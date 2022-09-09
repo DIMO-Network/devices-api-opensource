@@ -193,6 +193,7 @@ func (d *DeviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 	neverPulled := false
 	existingData, err := models.ExternalVinData(
 		models.ExternalVinDatumWhere.Vin.EQ(vin),
+		models.ExternalVinDatumWhere.PricingMetadata.IsNotNull(),
 		qm.OrderBy("updated_at desc"), qm.Limit(1)).
 		One(context.Background(), d.dbs().Writer)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -321,14 +322,12 @@ func (d *DeviceDefinitionService) PullBlackbookData(ctx context.Context, userDev
 	if err != nil {
 		return err
 	}
-	neverPulled := false
 	existingData, err := models.ExternalVinData(
 		models.ExternalVinDatumWhere.Vin.EQ(vin),
+		models.ExternalVinDatumWhere.BlackbookMetadata.IsNotNull(),
 		qm.OrderBy("updated_at desc"), qm.Limit(1)).
 		One(context.Background(), d.dbs().Writer)
-	if errors.Is(err, sql.ErrNoRows) {
-		neverPulled = true
-	} else if err != nil {
+	if err != nil {
 		return err
 	}
 	// just return if already pulled recently for this VIN
@@ -343,15 +342,14 @@ func (d *DeviceDefinitionService) PullBlackbookData(ctx context.Context, userDev
 		Vin:                vin,
 		UserDeviceID:       null.StringFrom(userDeviceID),
 	}
-	if neverPulled {
-		vinInfo, err := d.blackbookSvc.GetVINInfo(vin, "")
-		if err != nil {
-			return errors.Wrapf(err, "error getting VIN %s. skipping", vin)
-		}
-		err = blackbookData.BlackbookMetadata.UnmarshalJSON(vinInfo)
-		if err != nil {
-			return err
-		}
+
+	vinInfo, err := d.blackbookSvc.GetVINInfo(vin, "")
+	if err != nil {
+		return errors.Wrapf(err, "error getting VIN %s. skipping", vin)
+	}
+	err = blackbookData.BlackbookMetadata.UnmarshalJSON(vinInfo)
+	if err != nil {
+		return err
 	}
 
 	err = blackbookData.Insert(ctx, d.dbs().Writer, boil.Infer())
