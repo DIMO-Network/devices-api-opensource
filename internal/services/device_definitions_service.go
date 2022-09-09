@@ -226,6 +226,16 @@ func (d *DeviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 		if err != nil {
 			return err
 		}
+		// extra optional data that only needs to be pulled once.
+		edmunds, err := d.drivlySvc.GetEdmundsByVIN(vin)
+		if err == nil {
+			_ = drivlyData.EdmundsMetadata.Marshal(edmunds)
+		}
+		build, err := d.drivlySvc.GetBuildByVIN(vin)
+		if err == nil {
+			_ = drivlyData.BuildMetadata.Marshal(build)
+		}
+
 		// todo grpc - update the device definition over grpc with this metadata
 		metaData := new(DeviceVehicleInfo) // make as pointer
 		if err := dbDeviceDef.Metadata.Unmarshal(metaData); err == nil {
@@ -254,60 +264,58 @@ func (d *DeviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 		if err != nil {
 			return err
 		}
+
+		// fill in edmunds style_id in our user_device if it exists and not already set. None of these seen as bad errors so just logs
+		if edmunds != nil && ud.DeviceStyleID.IsZero() {
+			d.setUserDeviceStyleFromEdmunds(ctx, edmunds, ud)
+		}
+
 		// future: we could pull some specific data from this and persist in the user_device.metadata
 		// future: did MMY from vininfo match the device definition? if not fixup year, or model? but need external_id etc
 	}
-	// As we understand what data changes and what doesn't, as well as what raw sources here are unnecessary to pull, we can clean this up.
-	summary, err := d.drivlySvc.GetExtendedOffersByVIN(vin)
-	if err != nil {
-		return err
+	// only pull offers and pricing on every pull.
+	offer, err := d.drivlySvc.GetOffersByVIN(vin)
+	if err == nil {
+		_ = drivlyData.OfferMetadata.Marshal(offer)
 	}
-
-	_ = drivlyData.PricingMetadata.Marshal(summary.Pricing)
-	_ = drivlyData.BuildMetadata.Marshal(summary.Build)
-	_ = drivlyData.OfferMetadata.Marshal(summary.Offers)
-	_ = drivlyData.AutocheckMetadata.Marshal(summary.AutoCheck)
-	_ = drivlyData.CargurusMetadata.Marshal(summary.Cargurus)
-	_ = drivlyData.CarmaxMetadata.Marshal(summary.Carmax)
-	_ = drivlyData.KBBMetadata.Marshal(summary.KBB)
-	_ = drivlyData.CarstoryMetadata.Marshal(summary.Carstory)
-	_ = drivlyData.CarvanaMetadata.Marshal(summary.Carvana)
-	_ = drivlyData.EdmundsMetadata.Marshal(summary.Edmunds)
-	_ = drivlyData.TMVMetadata.Marshal(summary.TMV)
-	_ = drivlyData.VroomMetadata.Marshal(summary.VRoom)
+	pricing, err := d.drivlySvc.GetVINPricing(vin)
+	if err == nil {
+		_ = drivlyData.PricingMetadata.Marshal(pricing)
+	}
 
 	err = drivlyData.Insert(ctx, d.dbs().Writer, boil.Infer())
 	if err != nil {
 		return err
 	}
 
-	// fill in edmunds style_id in our user_device if it exists and not already set. None of these seen as bad errors so just logs & returns nil
-	if summary.Edmunds != nil && ud.DeviceStyleID.IsZero() {
-		edmundsJSON, err := json.Marshal(summary.Edmunds)
-		if err != nil {
-			d.log.Err(err).Msg("could not marshal edmunds response to json")
-			return nil
-		}
-		styleIDResult := gjson.GetBytes(edmundsJSON, "edmundsStyle.data.style.id")
-		styleID := styleIDResult.String()
-		if styleIDResult.Exists() && len(styleID) > 0 {
-			deviceStyle, err := models.DeviceStyles(models.DeviceStyleWhere.ExternalStyleID.EQ(styleID)).One(ctx, d.dbs().Reader)
-			if err != nil {
-				d.log.Err(err).Msgf("unable to find device_style for edmunds style_id %s", styleID)
-				return nil
-			}
-			ud.DeviceStyleID = null.StringFrom(deviceStyle.ID) // set foreign key
-			_, err = ud.Update(ctx, d.dbs().Writer, boil.Infer())
-			if err != nil {
-				d.log.Err(err).Msgf("unable to update user_device_id %s with styleID %s", ud.ID, deviceStyle.ID)
-				return nil
-			}
-		}
-	}
-
 	defer appmetrics.DrivlyIngestTotalOps.Inc()
 
 	return nil
+}
+
+// setUserDeviceStyleFromEdmunds given edmunds json, sets the device style_id in the user_device per what edmunds says.
+// If errors just logs and continues, since non critical
+func (d *DeviceDefinitionService) setUserDeviceStyleFromEdmunds(ctx context.Context, edmunds map[string]interface{}, ud *models.UserDevice) {
+	edmundsJSON, err := json.Marshal(edmunds)
+	if err != nil {
+		d.log.Err(err).Msg("could not marshal edmunds response to json")
+		return
+	}
+	styleIDResult := gjson.GetBytes(edmundsJSON, "edmundsStyle.data.style.id")
+	styleID := styleIDResult.String()
+	if styleIDResult.Exists() && len(styleID) > 0 {
+		deviceStyle, err := models.DeviceStyles(models.DeviceStyleWhere.ExternalStyleID.EQ(styleID)).One(ctx, d.dbs().Reader)
+		if err != nil {
+			d.log.Err(err).Msgf("unable to find device_style for edmunds style_id %s", styleID)
+			return
+		}
+		ud.DeviceStyleID = null.StringFrom(deviceStyle.ID) // set foreign key
+		_, err = ud.Update(ctx, d.dbs().Writer, boil.Infer())
+		if err != nil {
+			d.log.Err(err).Msgf("unable to update user_device_id %s with styleID %s", ud.ID, deviceStyle.ID)
+			return
+		}
+	}
 }
 
 // PullBlackbookData pulls vin info from Blackbook, and inserts a record with the data.

@@ -187,7 +187,7 @@ func (ds *drivlyAPIService) GetVRoomByVIN(vin string) (map[string]interface{}, e
 	return res, nil
 }
 
-// GetExtendedOffersByVIN calls all apis for offers and build info excep the VIN info endpoint
+// GetExtendedOffersByVIN calls all apis for offers and build info except the VIN info endpoint
 func (ds *drivlyAPIService) GetExtendedOffersByVIN(vin string) (*DrivlyVINSummary, error) {
 	result := new(DrivlyVINSummary)
 
