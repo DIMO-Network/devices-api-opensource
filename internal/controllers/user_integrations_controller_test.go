@@ -44,6 +44,7 @@ type UserIntegrationsControllerTestSuite struct {
 	autoPiIngest     *mock_services.MockIngestRegistrar
 	drivlyTaskSvc    *mock_services.MockDrivlyTaskService
 	blackbookTaskSvc *mock_services.MockBlackbookTaskService
+	eventSvc         *mock_services.MockEventService
 }
 
 const testUserID = "123123"
@@ -65,10 +66,11 @@ func (s *UserIntegrationsControllerTestSuite) SetupSuite() {
 	s.autoPiIngest = mock_services.NewMockIngestRegistrar(s.mockCtrl)
 	s.drivlyTaskSvc = mock_services.NewMockDrivlyTaskService(s.mockCtrl)
 	s.blackbookTaskSvc = mock_services.NewMockBlackbookTaskService(s.mockCtrl)
+	s.eventSvc = mock_services.NewMockEventService(s.mockCtrl)
 	autoPiTaskSvc := mock_services.NewMockAutoPiTaskService(s.mockCtrl)
 
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), deviceDefSvc,
-		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), s.autopiAPISvc,
+		s.eventSvc, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), s.autopiAPISvc,
 		nil, s.autoPiIngest, autoPiTaskSvc, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := fiber.New()
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
@@ -154,6 +156,25 @@ func (s *UserIntegrationsControllerTestSuite) TestPostSmartCar() {
 		RefreshExpiry: expiry.Add(24 * time.Hour),
 	}, nil)
 
+	s.eventSvc.EXPECT().Emit(gomock.Any()).Return(nil).Do(
+		func(event *services.Event) error {
+			assert.Equal(s.T(), ud.ID, event.Subject)
+			assert.Equal(s.T(), "com.dimo.zone.device.integration.create", event.Type)
+
+			data := event.Data.(services.UserDeviceIntegrationEvent)
+
+			assert.Equal(s.T(), "Ford", data.Device.Make)
+			assert.Equal(s.T(), "Mach E", data.Device.Model)
+			assert.Equal(s.T(), 2022, data.Device.Year)
+			assert.Equal(s.T(), "CARVIN", data.Device.VIN)
+			assert.Equal(s.T(), ud.ID, data.Device.ID)
+
+			assert.Equal(s.T(), "SmartCar", data.Integration.Vendor)
+			assert.Equal(s.T(), integration.ID, data.Integration.ID)
+			return nil
+		},
+	)
+
 	s.scClient.EXPECT().GetUserID(gomock.Any(), "myAccess").Return(smartCarUserID, nil)
 	s.scClient.EXPECT().GetExternalID(gomock.Any(), "myAccess").Return("smartcar-idx", nil)
 	s.scClient.EXPECT().GetVIN(gomock.Any(), "myAccess", "smartcar-idx").Return("CARVIN", nil)
@@ -225,6 +246,25 @@ func (s *UserIntegrationsControllerTestSuite) TestPostTesla() {
 
 	oV := &services.TeslaVehicle{}
 	oUdai := &models.UserDeviceAPIIntegration{}
+
+	s.eventSvc.EXPECT().Emit(gomock.Any()).Return(nil).Do(
+		func(event *services.Event) error {
+			assert.Equal(s.T(), ud.ID, event.Subject)
+			assert.Equal(s.T(), "com.dimo.zone.device.integration.create", event.Type)
+
+			data := event.Data.(services.UserDeviceIntegrationEvent)
+
+			assert.Equal(s.T(), "Tesla", data.Device.Make)
+			assert.Equal(s.T(), "Model Y", data.Device.Model)
+			assert.Equal(s.T(), 2022, data.Device.Year)
+			assert.Equal(s.T(), "5YJYGDEF9NF010423", data.Device.VIN)
+			assert.Equal(s.T(), ud.ID, data.Device.ID)
+
+			assert.Equal(s.T(), "Tesla", data.Integration.Vendor)
+			assert.Equal(s.T(), teslaInt.ID, data.Integration.ID)
+			return nil
+		},
+	)
 
 	s.teslaTaskService.EXPECT().StartPoll(gomock.AssignableToTypeOf(oV), gomock.AssignableToTypeOf(oUdai)).DoAndReturn(
 		func(v *services.TeslaVehicle, udai *models.UserDeviceAPIIntegration) error {
@@ -310,7 +350,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi_HappyPath() {
 	// specific dependency and controller
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
-		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
+		s.eventSvc, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
 		nil, s.autoPiIngest, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := fiber.New()
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
@@ -328,6 +368,9 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi_HappyPath() {
 		imei      = "IMEI321"
 		nftAddr   = "0x323b5d4c32345ced77393b3530b1eed0f346429d"
 	)
+
+	ud.VinIdentifier = null.StringFrom("CARVANA")
+	_, _ = ud.Update(context.Background(), s.pdb.DBS().Writer, boil.Infer())
 
 	req := fmt.Sprintf(`{
 			"externalId": "%s"
@@ -350,6 +393,25 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi_HappyPath() {
 		Jid: jobID,
 	}, nil)
 	s.autoPiIngest.EXPECT().Register(unitID, ud.ID, integration.ID).Return(nil)
+
+	s.eventSvc.EXPECT().Emit(gomock.Any()).Return(nil).Do(
+		func(event *services.Event) error {
+			assert.Equal(s.T(), ud.ID, event.Subject)
+			assert.Equal(s.T(), "com.dimo.zone.device.integration.create", event.Type)
+
+			data := event.Data.(services.UserDeviceIntegrationEvent)
+
+			assert.Equal(s.T(), "Testla", data.Device.Make)
+			assert.Equal(s.T(), "Model 4", data.Device.Model)
+			assert.Equal(s.T(), 2022, data.Device.Year)
+			assert.Equal(s.T(), "CARVANA", data.Device.VIN)
+			assert.Equal(s.T(), ud.ID, data.Device.ID)
+
+			assert.Equal(s.T(), "AutoPi", data.Integration.Vendor)
+			assert.Equal(s.T(), integration.ID, data.Integration.ID)
+			return nil
+		},
+	)
 
 	request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.ID, req)
 	response, err := app.Test(request, 2000)

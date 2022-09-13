@@ -789,23 +789,78 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("device %s already has a registration with integration %s, please delete that first", userDeviceID, integrationID))
 	}
 
-	// In anticipation of a bunch more of these. Maybe move to a real internal integration registry.
+	var regErr error
 	// The per-integration handler is responsible for handling the fiber context and committing the
 	// transaction.
-	switch deviceInteg.R.Integration.Vendor {
+	switch vendor := deviceInteg.R.Integration.Vendor; vendor {
 	case services.SmartCarVendor:
-		return udc.registerSmartcarIntegration(c, &logger, tx, deviceInteg.R.Integration, ud)
+		regErr = udc.registerSmartcarIntegration(c, &logger, tx, deviceInteg.R.Integration, ud)
 	case "Tesla":
-		return udc.registerDeviceTesla(c, &logger, tx, userDeviceID, deviceInteg.R.Integration, ud)
+		regErr = udc.registerDeviceTesla(c, &logger, tx, userDeviceID, deviceInteg.R.Integration, ud)
 	case services.AutoPiVendor:
-		return udc.registerAutoPiUnit(c, &logger, tx, ud, deviceInteg.R.Integration)
+		regErr = udc.registerAutoPiUnit(c, &logger, tx, ud, deviceInteg.R.Integration)
 	default:
-		logger.Error().Msg("Attempted to register an unsupported integration")
+		logger.Error().Str("vendor", vendor).Msg("Attempted to register an unsupported integration")
 		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("unsupported integration %s", integrationID))
 	}
+
+	if regErr != nil {
+		return regErr
+	}
+
+	err = udc.runPostRegistration(c.Context(), userDeviceID, integrationID)
+	if err != nil {
+		logger.Err(err).Msg("Error executing post-registration tasks.")
+	}
+
+	return nil
 }
 
 /** Refactored / helper methods **/
+
+// runPostRegistration runs tasks that should be run after a successful integration. For now, this
+// just means emitting an event to topic.event for the activity log.
+func (udc *UserDevicesController) runPostRegistration(ctx context.Context, userDeviceID, integrationID string) error {
+	// Just reload the entire tree of attributes. Too many things modify this during the registration flow.
+	udai, err := models.UserDeviceAPIIntegrations(
+		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(userDeviceID),
+		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID),
+		qm.Load(qm.Rels(models.UserDeviceAPIIntegrationRels.UserDevice, models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
+		qm.Load(qm.Rels(models.UserDeviceAPIIntegrationRels.Integration)),
+	).One(ctx, udc.DBS().Reader)
+	if err != nil {
+		return fmt.Errorf("database: %w", err)
+	}
+
+	ud := udai.R.UserDevice
+	integ := udai.R.Integration
+
+	// todo grpc get device devinition and integration info from device-definitions over grpc
+	return udc.eventService.Emit(
+		&services.Event{
+			Type:    "com.dimo.zone.device.integration.create",
+			Source:  "devices-api",
+			Subject: userDeviceID,
+			Data: services.UserDeviceIntegrationEvent{
+				Timestamp: time.Now(),
+				UserID:    ud.UserID,
+				Device: services.UserDeviceEventDevice{
+					ID:    userDeviceID,
+					Make:  ud.R.DeviceDefinition.R.DeviceMake.Name,
+					Model: ud.R.DeviceDefinition.Model,
+					Year:  int(ud.R.DeviceDefinition.Year),
+					VIN:   ud.VinIdentifier.String,
+				},
+				Integration: services.UserDeviceEventIntegration{
+					ID:     integ.ID,
+					Type:   integ.Type,
+					Style:  integ.Style,
+					Vendor: integ.Vendor,
+				},
+			},
+		})
+
+}
 
 // registerAutoPiUnit adds record to user api integrations table and calls various autoPi API endpoints to set our TemplateID
 func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, ud *models.UserDevice, integration *models.Integration) error {
@@ -1015,32 +1070,6 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	}
 	subLogger.Info().Msg("succesfully registered autoPi integration. Now waiting on webhook for successful command.")
 
-	err = udc.eventService.Emit(&services.Event{
-		Type:    "com.dimo.zone.device.integration.create",
-		Source:  "devices-api",
-		Subject: ud.ID,
-		Data: services.UserDeviceIntegrationEvent{
-			Timestamp: time.Now(),
-			UserID:    ud.UserID,
-			Device: services.UserDeviceEventDevice{
-				ID:    ud.ID,
-				Make:  ud.R.DeviceDefinition.R.DeviceMake.Name,
-				Model: ud.R.DeviceDefinition.Model,
-				Year:  int(ud.R.DeviceDefinition.Year),
-				VIN:   ud.VinIdentifier.String,
-			},
-			Integration: services.UserDeviceEventIntegration{
-				ID:     integration.ID,
-				Type:   integration.Type,
-				Style:  integration.Style,
-				Vendor: integration.Vendor,
-			},
-		},
-	})
-	if err != nil {
-		logger.Err(err).Msg("Failed to emit integration registration event.")
-	}
-
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
@@ -1098,10 +1127,6 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 		}
 	}
 
-	// Have to save this because it's not easy to re-load the relation if we do correct the device
-	// definition.
-	// todo grpc get the make by calling over grpc
-	deviceMake := ud.R.DeviceDefinition.R.DeviceMake.Name
 	year, err := udc.smartcarClient.GetYear(c.Context(), token.Access, externalID)
 	if err != nil {
 		return smartcarCallErr
@@ -1178,32 +1203,6 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 	if err := udc.smartcarTaskSvc.StartPoll(integration); err != nil {
 		logger.Err(err).Msg("Couldn't start Smartcar polling.")
 		return opaqueInternalError
-	}
-
-	err = udc.eventService.Emit(&services.Event{
-		Type:    "com.dimo.zone.device.integration.create",
-		Source:  "devices-api",
-		Subject: ud.ID,
-		Data: services.UserDeviceIntegrationEvent{
-			Timestamp: time.Now(),
-			UserID:    ud.UserID,
-			Device: services.UserDeviceEventDevice{
-				ID:    ud.ID,
-				Make:  deviceMake,
-				Model: ud.R.DeviceDefinition.Model,
-				Year:  int(ud.R.DeviceDefinition.Year),
-				VIN:   vin,
-			},
-			Integration: services.UserDeviceEventIntegration{
-				ID:     integ.ID,
-				Type:   integ.Type,
-				Style:  integ.Style,
-				Vendor: integ.Vendor,
-			},
-		},
-	})
-	if err != nil {
-		logger.Err(err).Msg("Failed to emit integration registration event.")
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -1317,32 +1316,6 @@ func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zero
 	_, err = ud.Update(c.Context(), tx, boil.Infer())
 	if err != nil {
 		return err
-	}
-	// todo grpc get device devinition and integration info from device-definitions over grpc
-	err = udc.eventService.Emit(&services.Event{
-		Type:    "com.dimo.zone.device.integration.create",
-		Source:  "devices-api",
-		Subject: userDeviceID,
-		Data: services.UserDeviceIntegrationEvent{
-			Timestamp: time.Now(),
-			UserID:    ud.UserID,
-			Device: services.UserDeviceEventDevice{
-				ID:    userDeviceID,
-				Make:  "Tesla", // this method is specific to Tesla so ok to hardcode
-				Model: ud.R.DeviceDefinition.Model,
-				Year:  int(ud.R.DeviceDefinition.Year),
-				VIN:   v.VIN,
-			},
-			Integration: services.UserDeviceEventIntegration{
-				ID:     integ.ID,
-				Type:   integ.Type,
-				Style:  integ.Style,
-				Vendor: integ.Vendor,
-			},
-		},
-	})
-	if err != nil {
-		logger.Err(err).Msg("Failed sending device integration creation event")
 	}
 
 	if err := udc.teslaService.WakeUpVehicle(reqBody.AccessToken, teslaID); err != nil {
