@@ -21,15 +21,8 @@ func remakeDeviceDefinitionTopics(ctx context.Context, settings *config.Settings
 	reg := services.NewDeviceDefinitionRegistrar(producer, settings)
 	db := pdb.DBS().Reader
 
-	integ, err := models.Integrations(models.IntegrationWhere.Vendor.EQ(services.AutoPiVendor)).One(ctx, db)
-	if err != nil {
-		return fmt.Errorf("failed to find AutoPi integration in database: %w", err)
-	}
-	autoPiID := integ.ID
-
 	// Find all integrations instances.
 	apiInts, err := models.UserDeviceAPIIntegrations(
-		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(autoPiID),
 		qm.Load(
 			qm.Rels(
 				models.UserDeviceAPIIntegrationRels.UserDevice,
@@ -53,7 +46,7 @@ func remakeDeviceDefinitionTopics(ctx context.Context, settings *config.Settings
 		ddReg := services.DeviceDefinitionDTO{
 			UserDeviceID:       userDeviceID,
 			DeviceDefinitionID: dd.ID,
-			IntegrationID:      autoPiID,
+			IntegrationID:      apiInt.IntegrationID,
 			Make:               ddMake,
 			Model:              dd.Model,
 			Year:               int(dd.Year),
