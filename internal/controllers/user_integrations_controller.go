@@ -808,10 +808,7 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 		return regErr
 	}
 
-	err = udc.runPostRegistration(c.Context(), userDeviceID, integrationID)
-	if err != nil {
-		logger.Err(err).Msg("Error executing post-registration tasks.")
-	}
+	udc.runPostRegistration(c.Context(), &logger, userDeviceID, integrationID)
 
 	return nil
 }
@@ -820,7 +817,7 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 
 // runPostRegistration runs tasks that should be run after a successful integration. For now, this
 // just means emitting an event to topic.event for the activity log.
-func (udc *UserDevicesController) runPostRegistration(ctx context.Context, userDeviceID, integrationID string) error {
+func (udc *UserDevicesController) runPostRegistration(ctx context.Context, logger *zerolog.Logger, userDeviceID, integrationID string) {
 	// Just reload the entire tree of attributes. Too many things modify this during the registration flow.
 	udai, err := models.UserDeviceAPIIntegrations(
 		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(userDeviceID),
@@ -829,14 +826,15 @@ func (udc *UserDevicesController) runPostRegistration(ctx context.Context, userD
 		qm.Load(qm.Rels(models.UserDeviceAPIIntegrationRels.Integration)),
 	).One(ctx, udc.DBS().Reader)
 	if err != nil {
-		return fmt.Errorf("database: %w", err)
+		logger.Err(err).Msg("Couldn't retrieve UDAI for post-registration tasks.")
+		return
 	}
 
 	ud := udai.R.UserDevice
 	integ := udai.R.Integration
 
 	// todo grpc get device devinition and integration info from device-definitions over grpc
-	return udc.eventService.Emit(
+	err = udc.eventService.Emit(
 		&services.Event{
 			Type:    "com.dimo.zone.device.integration.create",
 			Source:  "devices-api",
@@ -858,8 +856,25 @@ func (udc *UserDevicesController) runPostRegistration(ctx context.Context, userD
 					Vendor: integ.Vendor,
 				},
 			},
-		})
+		},
+	)
+	if err != nil {
+		logger.Err(err).Msg("Failed to emit integration event.")
+	}
 
+	if udc.Settings.Environment != "prod" {
+		err = udc.deviceDefinitionRegistrar.Register(services.DeviceDefinitionDTO{
+			IntegrationID:      integ.ID,
+			UserDeviceID:       ud.ID,
+			DeviceDefinitionID: ud.DeviceDefinitionID,
+			Make:               ud.R.DeviceDefinition.R.DeviceMake.Name,
+			Model:              ud.R.DeviceDefinition.Model,
+			Year:               int(ud.R.DeviceDefinition.Year),
+		})
+		if err != nil {
+			logger.Err(err).Msg("Failed to set values in device definition tables.")
+		}
+	}
 }
 
 // registerAutoPiUnit adds record to user api integrations table and calls various autoPi API endpoints to set our TemplateID

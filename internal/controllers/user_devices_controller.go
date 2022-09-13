@@ -42,24 +42,25 @@ import (
 )
 
 type UserDevicesController struct {
-	Settings              *config.Settings
-	DBS                   func() *database.DBReaderWriter
-	DeviceDefSvc          services.IDeviceDefinitionService
-	log                   *zerolog.Logger
-	eventService          services.EventService
-	smartcarClient        services.SmartcarClient
-	smartcarTaskSvc       services.SmartcarTaskService
-	teslaService          services.TeslaService
-	teslaTaskService      services.TeslaTaskService
-	cipher                shared.Cipher
-	autoPiSvc             services.AutoPiAPIService
-	nhtsaService          services.INHTSAService
-	autoPiIngestRegistrar services.IngestRegistrar
-	autoPiTaskService     services.AutoPiTaskService
-	drivlyTaskService     services.DrivlyTaskService
-	blackbookTaskService  services.BlackbookTaskService
-	s3                    *s3.Client
-	producer              sarama.SyncProducer
+	Settings                  *config.Settings
+	DBS                       func() *database.DBReaderWriter
+	DeviceDefSvc              services.IDeviceDefinitionService
+	log                       *zerolog.Logger
+	eventService              services.EventService
+	smartcarClient            services.SmartcarClient
+	smartcarTaskSvc           services.SmartcarTaskService
+	teslaService              services.TeslaService
+	teslaTaskService          services.TeslaTaskService
+	cipher                    shared.Cipher
+	autoPiSvc                 services.AutoPiAPIService
+	nhtsaService              services.INHTSAService
+	autoPiIngestRegistrar     services.IngestRegistrar
+	autoPiTaskService         services.AutoPiTaskService
+	drivlyTaskService         services.DrivlyTaskService
+	blackbookTaskService      services.BlackbookTaskService
+	s3                        *s3.Client
+	producer                  sarama.SyncProducer
+	deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
 }
 
 // NewUserDevicesController constructor
@@ -77,6 +78,7 @@ func NewUserDevicesController(
 	autoPiSvc services.AutoPiAPIService,
 	nhtsaService services.INHTSAService,
 	autoPiIngestRegistrar services.IngestRegistrar,
+	deviceDefinitionRegistrar services.DeviceDefinitionRegistrar,
 	autoPiTaskService services.AutoPiTaskService,
 	producer sarama.SyncProducer,
 	s3NFTClient *s3.Client,
@@ -84,24 +86,25 @@ func NewUserDevicesController(
 	blackbookTaskService services.BlackbookTaskService,
 ) UserDevicesController {
 	return UserDevicesController{
-		Settings:              settings,
-		DBS:                   dbs,
-		log:                   logger,
-		DeviceDefSvc:          ddSvc,
-		eventService:          eventService,
-		smartcarClient:        smartcarClient,
-		smartcarTaskSvc:       smartcarTaskSvc,
-		teslaService:          teslaService,
-		teslaTaskService:      teslaTaskService,
-		cipher:                cipher,
-		autoPiSvc:             autoPiSvc,
-		nhtsaService:          nhtsaService,
-		autoPiIngestRegistrar: autoPiIngestRegistrar,
-		autoPiTaskService:     autoPiTaskService,
-		s3:                    s3NFTClient,
-		producer:              producer,
-		drivlyTaskService:     drivlyTaskService,
-		blackbookTaskService:  blackbookTaskService,
+		Settings:                  settings,
+		DBS:                       dbs,
+		log:                       logger,
+		DeviceDefSvc:              ddSvc,
+		eventService:              eventService,
+		smartcarClient:            smartcarClient,
+		smartcarTaskSvc:           smartcarTaskSvc,
+		teslaService:              teslaService,
+		teslaTaskService:          teslaTaskService,
+		cipher:                    cipher,
+		autoPiSvc:                 autoPiSvc,
+		nhtsaService:              nhtsaService,
+		autoPiIngestRegistrar:     autoPiIngestRegistrar,
+		autoPiTaskService:         autoPiTaskService,
+		s3:                        s3NFTClient,
+		producer:                  producer,
+		drivlyTaskService:         drivlyTaskService,
+		blackbookTaskService:      blackbookTaskService,
+		deviceDefinitionRegistrar: deviceDefinitionRegistrar,
 	}
 }
 

@@ -48,12 +48,13 @@ func TestUserDevicesController_GetUserDeviceStatus(t *testing.T) {
 	teslaTaskService := mock_services.NewMockTeslaTaskService(mockCtrl)
 	nhtsaService := mock_services.NewMockINHTSAService(mockCtrl)
 	autoPiIngest := mock_services.NewMockIngestRegistrar(mockCtrl)
+	deviceDefinitionIngest := mock_services.NewMockDeviceDefinitionRegistrar(mockCtrl)
 	autoPiTaskSvc := mock_services.NewMockAutoPiTaskService(mockCtrl)
 	drivlyTaskSvc := mock_services.NewMockDrivlyTaskService(mockCtrl)
 	blackbookTaskSvc := mock_services.NewMockBlackbookTaskService(mockCtrl)
 
 	testUserID := "123123"
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, &fakeEventService{}, scClient, scTaskSvc, teslaSvc, teslaTaskService, nil, nil, nhtsaService, autoPiIngest, autoPiTaskSvc, nil, nil, drivlyTaskSvc, blackbookTaskSvc)
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, pdb.DBS, &logger, deviceDefSvc, &fakeEventService{}, scClient, scTaskSvc, teslaSvc, teslaTaskService, nil, nil, nhtsaService, autoPiIngest, deviceDefinitionIngest, autoPiTaskSvc, nil, nil, drivlyTaskSvc, blackbookTaskSvc)
 	app := fiber.New()
 	app.Get("/user/devices/:userDeviceID/status", test.AuthInjectorTestHandler(testUserID), c.GetUserDeviceStatus)
 

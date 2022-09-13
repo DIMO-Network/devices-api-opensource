@@ -58,13 +58,14 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	teslaSvc := services.NewTeslaService(settings)
 	autoPiSvc := services.NewAutoPiAPIService(settings, pdb.DBS)
 	autoPiIngest := services.NewIngestRegistrar(services.AutoPi, producer)
+	deviceDefinitionRegistrar := services.NewDeviceDefinitionRegistrar(producer, settings)
 	autoPiTaskService := services.NewAutoPiTaskService(settings, autoPiSvc, logger)
 	drivlyTaskService := services.NewDrivlyTaskService(settings, ddSvc, logger)
 	blackbookTaskService := services.NewBlackbookTaskService(settings, ddSvc, logger)
 
 	// controllers
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc)
-	userDeviceController := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, eventService, smartcarClient, scTaskSvc, teslaSvc, teslaTaskService, cipher, autoPiSvc, services.NewNHTSAService(), autoPiIngest, autoPiTaskService, producer, s3NFTServiceClient, drivlyTaskService, blackbookTaskService)
+	userDeviceController := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, eventService, smartcarClient, scTaskSvc, teslaSvc, teslaTaskService, cipher, autoPiSvc, services.NewNHTSAService(), autoPiIngest, deviceDefinitionRegistrar, autoPiTaskService, producer, s3NFTServiceClient, drivlyTaskService, blackbookTaskService)
 	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer)
 	webhooksController := controllers.NewWebhooksController(settings, pdb.DBS, &logger, autoPiSvc)
 	documentsController := controllers.NewDocumentsController(settings, s3ServiceClient, pdb.DBS)
@@ -128,6 +129,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		KeyRefreshUnknownKID: &keyRefreshUnknownKID,
 	})
 	v1Auth := app.Group("/v1", jwtAuth)
+
 	// user's devices
 	v1Auth.Get("/user/devices/me", userDeviceController.GetUserDevices)
 	v1Auth.Post("/user/devices", userDeviceController.RegisterDeviceForUser)

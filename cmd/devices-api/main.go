@@ -143,6 +143,11 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error running Smartcar Kafka re-registration")
 		}
+	case "remake-dd-topics":
+		err = remakeDeviceDefinitionTopics(ctx, &settings, pdb, deps.getKafkaProducer(), &logger)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error recreating device definition KTables.")
+		}
 	case "search-sync-dds":
 		logger.Info().Msg("loading device definitions from our DB to elastic cluster")
 		err := loadElasticDevices(ctx, &logger, &settings, pdb)

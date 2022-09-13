@@ -64,6 +64,8 @@ env:
   DRIVLY_VIN_API_URL: https://vin-git-fc.dev.driv.ly
   DRIVLY_OFFER_API_URL: https://offers.dev.driv.ly
   DEFINITIONS_GRPC_ADDR: device-definitions-api-dev:8086
+  DEVICE_DEFINITION_TOPIC: table.device.definition
+  DEVICE_DEFINITION_METADATA_TOPIC: table.device.definition.metadata
   BLACKBOOK_API_URL: https://service.blackbookcloud.com/UsedCarWS/UsedCarWS
 service:
   type: ClusterIP

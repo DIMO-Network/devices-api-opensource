@@ -31,20 +31,21 @@ import (
 
 type UserIntegrationsControllerTestSuite struct {
 	suite.Suite
-	pdb              database.DbStore
-	container        testcontainers.Container
-	ctx              context.Context
-	mockCtrl         *gomock.Controller
-	app              *fiber.App
-	scClient         *mock_services.MockSmartcarClient
-	scTaskSvc        *mock_services.MockSmartcarTaskService
-	teslaSvc         *mock_services.MockTeslaService
-	teslaTaskService *mock_services.MockTeslaTaskService
-	autopiAPISvc     *mock_services.MockAutoPiAPIService
-	autoPiIngest     *mock_services.MockIngestRegistrar
-	drivlyTaskSvc    *mock_services.MockDrivlyTaskService
-	blackbookTaskSvc *mock_services.MockBlackbookTaskService
-	eventSvc         *mock_services.MockEventService
+	pdb                       database.DbStore
+	container                 testcontainers.Container
+	ctx                       context.Context
+	mockCtrl                  *gomock.Controller
+	app                       *fiber.App
+	scClient                  *mock_services.MockSmartcarClient
+	scTaskSvc                 *mock_services.MockSmartcarTaskService
+	teslaSvc                  *mock_services.MockTeslaService
+	teslaTaskService          *mock_services.MockTeslaTaskService
+	autopiAPISvc              *mock_services.MockAutoPiAPIService
+	autoPiIngest              *mock_services.MockIngestRegistrar
+	drivlyTaskSvc             *mock_services.MockDrivlyTaskService
+	blackbookTaskSvc          *mock_services.MockBlackbookTaskService
+	eventSvc                  *mock_services.MockEventService
+	deviceDefinitionRegistrar *mock_services.MockDeviceDefinitionRegistrar
 }
 
 const testUserID = "123123"
@@ -64,6 +65,7 @@ func (s *UserIntegrationsControllerTestSuite) SetupSuite() {
 	s.teslaTaskService = mock_services.NewMockTeslaTaskService(s.mockCtrl)
 	s.autopiAPISvc = mock_services.NewMockAutoPiAPIService(s.mockCtrl)
 	s.autoPiIngest = mock_services.NewMockIngestRegistrar(s.mockCtrl)
+	s.deviceDefinitionRegistrar = mock_services.NewMockDeviceDefinitionRegistrar(s.mockCtrl)
 	s.drivlyTaskSvc = mock_services.NewMockDrivlyTaskService(s.mockCtrl)
 	s.blackbookTaskSvc = mock_services.NewMockBlackbookTaskService(s.mockCtrl)
 	s.eventSvc = mock_services.NewMockEventService(s.mockCtrl)
@@ -71,7 +73,7 @@ func (s *UserIntegrationsControllerTestSuite) SetupSuite() {
 
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), deviceDefSvc,
 		s.eventSvc, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), s.autopiAPISvc,
-		nil, s.autoPiIngest, autoPiTaskSvc, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
+		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, autoPiTaskSvc, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := fiber.New()
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
 	app.Post("/user2/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUser2), c.RegisterDeviceIntegration)
@@ -175,6 +177,15 @@ func (s *UserIntegrationsControllerTestSuite) TestPostSmartCar() {
 		},
 	)
 
+	s.deviceDefinitionRegistrar.EXPECT().Register(services.DeviceDefinitionDTO{
+		IntegrationID:      integration.ID,
+		UserDeviceID:       ud.ID,
+		DeviceDefinitionID: ud.DeviceDefinitionID,
+		Make:               dm.Name,
+		Model:              dd.Model,
+		Year:               int(dd.Year),
+	}).Return(nil)
+
 	s.scClient.EXPECT().GetUserID(gomock.Any(), "myAccess").Return(smartCarUserID, nil)
 	s.scClient.EXPECT().GetExternalID(gomock.Any(), "myAccess").Return("smartcar-idx", nil)
 	s.scClient.EXPECT().GetVIN(gomock.Any(), "myAccess", "smartcar-idx").Return("CARVIN", nil)
@@ -266,6 +277,15 @@ func (s *UserIntegrationsControllerTestSuite) TestPostTesla() {
 		},
 	)
 
+	s.deviceDefinitionRegistrar.EXPECT().Register(services.DeviceDefinitionDTO{
+		IntegrationID:      teslaInt.ID,
+		UserDeviceID:       ud.ID,
+		DeviceDefinitionID: ud.DeviceDefinitionID,
+		Make:               dm.Name,
+		Model:              dd.Model,
+		Year:               int(dd.Year),
+	}).Return(nil)
+
 	s.teslaTaskService.EXPECT().StartPoll(gomock.AssignableToTypeOf(oV), gomock.AssignableToTypeOf(oUdai)).DoAndReturn(
 		func(v *services.TeslaVehicle, udai *models.UserDeviceAPIIntegration) error {
 			oV = v
@@ -281,7 +301,8 @@ func (s *UserIntegrationsControllerTestSuite) TestPostTesla() {
 	}, nil)
 	s.teslaSvc.EXPECT().WakeUpVehicle("abc", 1145).Return(nil)
 	expectedExpiry := time.Now().Add(10 * time.Minute)
-	response, _ := s.app.Test(request)
+	response, err := s.app.Test(request)
+	require.NoError(s.T(), err)
 	assert.Equal(s.T(), fiber.StatusNoContent, response.StatusCode, "should return success")
 
 	assert.Equal(s.T(), 1145, oV.ID)
@@ -351,7 +372,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi_HappyPath() {
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
 		s.eventSvc, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
-		nil, s.autoPiIngest, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
+		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := fiber.New()
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
 	// arrange
@@ -393,6 +414,14 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi_HappyPath() {
 		Jid: jobID,
 	}, nil)
 	s.autoPiIngest.EXPECT().Register(unitID, ud.ID, integration.ID).Return(nil)
+	s.deviceDefinitionRegistrar.EXPECT().Register(services.DeviceDefinitionDTO{
+		IntegrationID:      integration.ID,
+		UserDeviceID:       ud.ID,
+		DeviceDefinitionID: ud.DeviceDefinitionID,
+		Make:               dm.Name,
+		Model:              dd.Model,
+		Year:               int(dd.Year),
+	}).Return(nil)
 
 	s.eventSvc.EXPECT().Emit(gomock.Any()).Return(nil).Do(
 		func(event *services.Event) error {
@@ -450,7 +479,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCustomPowerTrain() {
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
-		nil, s.autoPiIngest, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
+		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := fiber.New()
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
 	// arrange
@@ -488,6 +517,15 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCustomPowerTrain() {
 	}, nil)
 	s.autoPiIngest.EXPECT().Register(unitID, ud.ID, integration.ID).Return(nil)
 
+	s.deviceDefinitionRegistrar.EXPECT().Register(services.DeviceDefinitionDTO{
+		IntegrationID:      integration.ID,
+		UserDeviceID:       ud.ID,
+		DeviceDefinitionID: ud.DeviceDefinitionID,
+		Make:               dm.Name,
+		Model:              dd.Model,
+		Year:               int(dd.Year),
+	}).Return(nil)
+
 	request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.ID, req)
 	response, _ := app.Test(request)
 	if assert.Equal(s.T(), fiber.StatusNoContent, response.StatusCode, "should return success") == false {
@@ -513,7 +551,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateD
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
-		nil, s.autoPiIngest, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
+		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := fiber.New()
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
 	// arrange
@@ -544,7 +582,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateD
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
-		nil, s.autoPiIngest, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
+		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := fiber.New()
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUser2), c.RegisterDeviceIntegration)
 	// arrange
@@ -577,7 +615,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCommand() {
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
-		nil, s.autoPiIngest, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
+		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := fiber.New()
 	app.Post("/user/devices/:userDeviceID/autopi/command", test.AuthInjectorTestHandler(testUserID), c.SendAutoPiCommand)
 	// arrange
@@ -641,7 +679,7 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiCommand() {
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
-		nil, s.autoPiIngest, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
+		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := fiber.New()
 	app.Get("/user/devices/:userDeviceID/autopi/command/:jobID", test.AuthInjectorTestHandler(testUserID), c.GetAutoPiCommandStatus)
 	//arrange
@@ -713,7 +751,7 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI_ShouldUpda
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
 	c := NewUserDevicesController(&config.Settings{Port: "3000", Environment: environment}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
-		nil, s.autoPiIngest, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
+		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := fiber.New()
 	app.Get("/autopi/unit/:unitID", test.AuthInjectorTestHandler(testUserID), c.GetAutoPiUnitInfo)
 	// arrange
@@ -751,7 +789,7 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI_UpToDate()
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
 	c := NewUserDevicesController(&config.Settings{Port: "3000", Environment: environment}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
-		nil, s.autoPiIngest, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
+		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := fiber.New()
 	app.Get("/autopi/unit/:unitID", test.AuthInjectorTestHandler(testUserID), c.GetAutoPiUnitInfo)
 	// arrange
@@ -786,7 +824,7 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoUDAI_FutureUpda
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
 	c := NewUserDevicesController(&config.Settings{Port: "3000", Environment: environment}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
-		nil, s.autoPiIngest, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
+		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := fiber.New()
 	app.Get("/autopi/unit/:unitID", test.AuthInjectorTestHandler(testUserID), c.GetAutoPiUnitInfo)
 	// arrange
@@ -820,7 +858,7 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoMatchUDAI() {
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), nil,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
-		nil, s.autoPiIngest, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
+		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := fiber.New()
 	app.Get("/autopi/unit/:unitID", test.AuthInjectorTestHandler(testUserID), c.GetAutoPiUnitInfo)
 	// arrange
