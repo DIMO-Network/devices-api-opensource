@@ -10,6 +10,7 @@ import (
 	_ "github.com/DIMO-Network/devices-api/docs"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
+	es "github.com/DIMO-Network/devices-api/internal/elasticsearch"
 	"github.com/DIMO-Network/devices-api/internal/kafka"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/shared"
@@ -69,6 +70,10 @@ func main() {
 		totalTime++
 	}
 
+	esInstance, err := es.NewElasticSearch(settings, &logger)
+	if err != nil {
+		logger.Fatal().Err(err).Msgf("Couldn't instantiate Elasticsearch client.")
+	}
 	// todo: use flag or other package to handle args
 	arg := ""
 	if len(os.Args) > 1 {
@@ -147,6 +152,11 @@ func main() {
 		err = remakeDeviceDefinitionTopics(ctx, &settings, pdb, deps.getKafkaProducer(), &logger)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error recreating device definition KTables.")
+		}
+	case "populate-es-dd-data":
+		err = populateESDDData(ctx, &settings, esInstance, pdb, &logger)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error running elastic search dd update")
 		}
 	case "search-sync-dds":
 		logger.Info().Msg("loading device definitions from our DB to elastic cluster")

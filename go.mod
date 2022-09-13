@@ -53,6 +53,8 @@ require (
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
 	github.com/crackcomm/go-gitignore v0.0.0-20170627025303-887ab5e44cc3 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
+	github.com/elastic/elastic-transport-go/v8 v8.1.0 // indirect
+	github.com/elastic/go-elasticsearch/v8 v8.4.0 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gofiber/utils v0.1.2 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect

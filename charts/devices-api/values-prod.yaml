@@ -34,6 +34,7 @@ env:
   NFT_CONTRACT_ADDR: '0xD7519fFbFb1f15Ef320F5bf7A325Aa1020e31988'
   NFT_S3_BUCKET: dimo-network-nfts-prod
   DEFINITIONS_GRPC_ADDR: device-definitions-api-prod:8086
+  ELASTIC_DEVICE_STATUS_INDEX: device-status-prod-*
 ingress:
   enabled: true
   className: nginx

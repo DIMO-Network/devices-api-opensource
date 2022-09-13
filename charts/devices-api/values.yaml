@@ -67,6 +67,7 @@ env:
   DEVICE_DEFINITION_TOPIC: table.device.definition
   DEVICE_DEFINITION_METADATA_TOPIC: table.device.definition.metadata
   BLACKBOOK_API_URL: https://service.blackbookcloud.com/UsedCarWS/UsedCarWS
+  ELASTIC_DEVICE_STATUS_INDEX: device-status-dev-*
 service:
   type: ClusterIP
   ports:
