@@ -73,6 +73,70 @@
                 }
             }
         },
+        "/autopi/unit/:unitID/commands/claim": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Return the EIP-712 payload to be signed for AutoPi device claiming.",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "AutoPi unit id",
+                        "name": "unitID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/apitypes.TypedData"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Return the EIP-712 payload to be signed for AutoPi device claiming.",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "AutoPi unit id",
+                        "name": "unitID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Signatures from the user and AutoPi",
+                        "name": "claimRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.AutoPiClaimRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
         "/autopi/unit/:unitID/is-online": {
             "get": {
                 "security": [
@@ -98,7 +162,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "OK"
                     }
                 }
             }
@@ -405,7 +469,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             }
@@ -437,7 +501,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "OK"
                     }
                 }
             }
@@ -515,11 +579,11 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp"
                         }
                     },
                     "404": {
-                        "description": ""
+                        "description": "Not Found"
                     }
                 }
             }
@@ -592,7 +656,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "OK"
                     }
                 }
             }
@@ -657,7 +721,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             }
@@ -711,7 +775,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             }
@@ -775,7 +839,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "OK"
                     }
                 }
             }
@@ -802,7 +866,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     },
                     "429": {
                         "description": "rate limit hit for integration"
@@ -840,7 +904,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             }
@@ -875,7 +939,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             }
@@ -912,7 +976,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             }
@@ -1156,7 +1220,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             }
@@ -1188,7 +1252,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot"
+                            "$ref": "#/definitions/internal_controllers.DeviceSnapshot"
                         }
                     }
                 }
@@ -1201,7 +1265,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "gets valuations for each user device",
+                "description": "gets valuations for a particular user device",
                 "produces": [
                     "application/json"
                 ],
@@ -1255,7 +1319,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             }
@@ -1283,7 +1347,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence"
+                                "$ref": "#/definitions/internal_controllers.GetGeofence"
                             }
                         }
                     }
@@ -1315,7 +1379,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence"
+                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
                         }
                     }
                 ],
@@ -1323,7 +1387,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateResponse"
+                            "$ref": "#/definitions/internal_controllers.CreateResponse"
                         }
                     }
                 }
@@ -1363,13 +1427,13 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence"
+                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
                         }
                     }
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             },
@@ -1397,7 +1461,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             }
@@ -1462,6 +1526,19 @@
                 "type": "array",
                 "items": {
                     "$ref": "#/definitions/apitypes.Type"
+                }
+            }
+        },
+        "github.com_DIMO-Network_devices-api_internal_controllers.AutoPiClaimRequest": {
+            "type": "object",
+            "properties": {
+                "aftermarketDeviceSignature": {
+                    "description": "AftermarketDeviceSignature is the signature from the aftermarket device.",
+                    "type": "string"
+                },
+                "userSignature": {
+                    "description": "UserSignature is the signature from the user, using their private key.",
+                    "type": "string"
                 }
             }
         },
@@ -2034,6 +2111,19 @@
                     "type": "string"
                 },
                 "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_controllers.AutoPiClaimRequest": {
+            "type": "object",
+            "properties": {
+                "aftermarketDeviceSignature": {
+                    "description": "AftermarketDeviceSignature is the signature from the aftermarket device.",
+                    "type": "string"
+                },
+                "userSignature": {
+                    "description": "UserSignature is the signature from the user, using their private key.",
                     "type": "string"
                 }
             }
@@ -2857,6 +2947,9 @@
         "services.UserDeviceMetadata": {
             "type": "object",
             "properties": {
+                "elasticDefinitionSynced": {
+                    "type": "boolean"
+                },
                 "powertrainType": {
                     "type": "string"
                 }

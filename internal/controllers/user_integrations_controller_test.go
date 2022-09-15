@@ -15,6 +15,7 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
@@ -465,9 +466,9 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi_HappyPath() {
 	assert.Equal(s.T(), deviceID, apiInt.ExternalID.String)
 	assert.Equal(s.T(), unitID, apiInt.AutopiUnitID.String)
 	assert.Equal(s.T(), unitID, autoPiUnit.AutopiUnitID)
-	assert.Equal(s.T(), ud.UserID, autoPiUnit.UserID)
+	assert.Equal(s.T(), ud.UserID, autoPiUnit.UserID.String)
 	assert.Equal(s.T(), deviceID, autoPiUnit.AutopiDeviceID.String)
-	assert.Equal(s.T(), nftAddr, autoPiUnit.NFTAddress.String)
+	assert.Equal(s.T(), nftAddr, "0x"+common.Bytes2Hex(autoPiUnit.EthereumAddress.Bytes))
 	assert.Equal(s.T(), "Pending", apiInt.Status)
 	assert.Equal(s.T(), templateID, *metadata.AutoPiTemplateApplied)
 	assert.Equal(s.T(), unitID, *metadata.AutoPiUnitID)

@@ -19,70 +19,128 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"github.com/volatiletech/sqlboiler/v4/queries/qmhelper"
+	"github.com/volatiletech/sqlboiler/v4/types"
 	"github.com/volatiletech/strmangle"
 )
 
 // AutopiUnit is an object representing the database table.
 type AutopiUnit struct {
-	AutopiUnitID   string      `boil:"autopi_unit_id" json:"autopi_unit_id" toml:"autopi_unit_id" yaml:"autopi_unit_id"`
-	AutopiDeviceID null.String `boil:"autopi_device_id" json:"autopi_device_id,omitempty" toml:"autopi_device_id" yaml:"autopi_device_id,omitempty"`
-	UserID         string      `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
-	NFTAddress     null.String `boil:"nft_address" json:"nft_address,omitempty" toml:"nft_address" yaml:"nft_address,omitempty"`
-	CreatedAt      time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt      time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	AutopiUnitID    string            `boil:"autopi_unit_id" json:"autopi_unit_id" toml:"autopi_unit_id" yaml:"autopi_unit_id"`
+	AutopiDeviceID  null.String       `boil:"autopi_device_id" json:"autopi_device_id,omitempty" toml:"autopi_device_id" yaml:"autopi_device_id,omitempty"`
+	UserID          null.String       `boil:"user_id" json:"user_id,omitempty" toml:"user_id" yaml:"user_id,omitempty"`
+	EthereumAddress null.Bytes        `boil:"ethereum_address" json:"ethereum_address,omitempty" toml:"ethereum_address" yaml:"ethereum_address,omitempty"`
+	CreatedAt       time.Time         `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt       time.Time         `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	TokenID         types.NullDecimal `boil:"token_id" json:"token_id,omitempty" toml:"token_id" yaml:"token_id,omitempty"`
 
 	R *autopiUnitR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L autopiUnitL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var AutopiUnitColumns = struct {
-	AutopiUnitID   string
-	AutopiDeviceID string
-	UserID         string
-	NFTAddress     string
-	CreatedAt      string
-	UpdatedAt      string
+	AutopiUnitID    string
+	AutopiDeviceID  string
+	UserID          string
+	EthereumAddress string
+	CreatedAt       string
+	UpdatedAt       string
+	TokenID         string
 }{
-	AutopiUnitID:   "autopi_unit_id",
-	AutopiDeviceID: "autopi_device_id",
-	UserID:         "user_id",
-	NFTAddress:     "nft_address",
-	CreatedAt:      "created_at",
-	UpdatedAt:      "updated_at",
+	AutopiUnitID:    "autopi_unit_id",
+	AutopiDeviceID:  "autopi_device_id",
+	UserID:          "user_id",
+	EthereumAddress: "ethereum_address",
+	CreatedAt:       "created_at",
+	UpdatedAt:       "updated_at",
+	TokenID:         "token_id",
 }
 
 var AutopiUnitTableColumns = struct {
-	AutopiUnitID   string
-	AutopiDeviceID string
-	UserID         string
-	NFTAddress     string
-	CreatedAt      string
-	UpdatedAt      string
+	AutopiUnitID    string
+	AutopiDeviceID  string
+	UserID          string
+	EthereumAddress string
+	CreatedAt       string
+	UpdatedAt       string
+	TokenID         string
 }{
-	AutopiUnitID:   "autopi_units.autopi_unit_id",
-	AutopiDeviceID: "autopi_units.autopi_device_id",
-	UserID:         "autopi_units.user_id",
-	NFTAddress:     "autopi_units.nft_address",
-	CreatedAt:      "autopi_units.created_at",
-	UpdatedAt:      "autopi_units.updated_at",
+	AutopiUnitID:    "autopi_units.autopi_unit_id",
+	AutopiDeviceID:  "autopi_units.autopi_device_id",
+	UserID:          "autopi_units.user_id",
+	EthereumAddress: "autopi_units.ethereum_address",
+	CreatedAt:       "autopi_units.created_at",
+	UpdatedAt:       "autopi_units.updated_at",
+	TokenID:         "autopi_units.token_id",
 }
 
 // Generated where
 
+type whereHelpernull_Bytes struct{ field string }
+
+func (w whereHelpernull_Bytes) EQ(x null.Bytes) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpernull_Bytes) NEQ(x null.Bytes) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpernull_Bytes) LT(x null.Bytes) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpernull_Bytes) LTE(x null.Bytes) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpernull_Bytes) GT(x null.Bytes) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpernull_Bytes) GTE(x null.Bytes) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+
+func (w whereHelpernull_Bytes) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpernull_Bytes) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+
+type whereHelpertypes_NullDecimal struct{ field string }
+
+func (w whereHelpertypes_NullDecimal) EQ(x types.NullDecimal) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpertypes_NullDecimal) NEQ(x types.NullDecimal) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpertypes_NullDecimal) LT(x types.NullDecimal) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpertypes_NullDecimal) LTE(x types.NullDecimal) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpertypes_NullDecimal) GT(x types.NullDecimal) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpertypes_NullDecimal) GTE(x types.NullDecimal) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+
+func (w whereHelpertypes_NullDecimal) IsNull() qm.QueryMod { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpertypes_NullDecimal) IsNotNull() qm.QueryMod {
+	return qmhelper.WhereIsNotNull(w.field)
+}
+
 var AutopiUnitWhere = struct {
-	AutopiUnitID   whereHelperstring
-	AutopiDeviceID whereHelpernull_String
-	UserID         whereHelperstring
-	NFTAddress     whereHelpernull_String
-	CreatedAt      whereHelpertime_Time
-	UpdatedAt      whereHelpertime_Time
+	AutopiUnitID    whereHelperstring
+	AutopiDeviceID  whereHelpernull_String
+	UserID          whereHelpernull_String
+	EthereumAddress whereHelpernull_Bytes
+	CreatedAt       whereHelpertime_Time
+	UpdatedAt       whereHelpertime_Time
+	TokenID         whereHelpertypes_NullDecimal
 }{
-	AutopiUnitID:   whereHelperstring{field: "\"devices_api\".\"autopi_units\".\"autopi_unit_id\""},
-	AutopiDeviceID: whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"autopi_device_id\""},
-	UserID:         whereHelperstring{field: "\"devices_api\".\"autopi_units\".\"user_id\""},
-	NFTAddress:     whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"nft_address\""},
-	CreatedAt:      whereHelpertime_Time{field: "\"devices_api\".\"autopi_units\".\"created_at\""},
-	UpdatedAt:      whereHelpertime_Time{field: "\"devices_api\".\"autopi_units\".\"updated_at\""},
+	AutopiUnitID:    whereHelperstring{field: "\"devices_api\".\"autopi_units\".\"autopi_unit_id\""},
+	AutopiDeviceID:  whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"autopi_device_id\""},
+	UserID:          whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"user_id\""},
+	EthereumAddress: whereHelpernull_Bytes{field: "\"devices_api\".\"autopi_units\".\"ethereum_address\""},
+	CreatedAt:       whereHelpertime_Time{field: "\"devices_api\".\"autopi_units\".\"created_at\""},
+	UpdatedAt:       whereHelpertime_Time{field: "\"devices_api\".\"autopi_units\".\"updated_at\""},
+	TokenID:         whereHelpertypes_NullDecimal{field: "\"devices_api\".\"autopi_units\".\"token_id\""},
 }
 
 // AutopiUnitRels is where relationship names are stored.
@@ -123,9 +181,9 @@ func (r *autopiUnitR) GetUserDeviceAPIIntegrations() UserDeviceAPIIntegrationSli
 type autopiUnitL struct{}
 
 var (
-	autopiUnitAllColumns            = []string{"autopi_unit_id", "autopi_device_id", "user_id", "nft_address", "created_at", "updated_at"}
-	autopiUnitColumnsWithoutDefault = []string{"autopi_unit_id", "user_id"}
-	autopiUnitColumnsWithDefault    = []string{"autopi_device_id", "nft_address", "created_at", "updated_at"}
+	autopiUnitAllColumns            = []string{"autopi_unit_id", "autopi_device_id", "user_id", "ethereum_address", "created_at", "updated_at", "token_id"}
+	autopiUnitColumnsWithoutDefault = []string{"autopi_unit_id"}
+	autopiUnitColumnsWithDefault    = []string{"autopi_device_id", "user_id", "ethereum_address", "created_at", "updated_at", "token_id"}
 	autopiUnitPrimaryKeyColumns     = []string{"autopi_unit_id"}
 	autopiUnitGeneratedColumns      = []string{}
 )

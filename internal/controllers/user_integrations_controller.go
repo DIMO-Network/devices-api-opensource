@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -13,6 +12,10 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
+	pb "github.com/DIMO-Network/shared/api/users"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
+	signer "github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -22,6 +25,8 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"golang.org/x/exp/slices"
 	"golang.org/x/mod/semver"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // GetUserDeviceIntegration godoc
@@ -218,7 +223,7 @@ func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
 		logger.Err(err).Msg("error finding user device autopi integration")
 		return err
 	}
-	apUnit, err := models.AutopiUnits(models.AutopiUnitWhere.AutopiDeviceID.EQ(udai.ExternalID), models.AutopiUnitWhere.UserID.EQ(userID)).
+	apUnit, err := models.AutopiUnits(models.AutopiUnitWhere.AutopiDeviceID.EQ(udai.ExternalID), models.AutopiUnitWhere.UserID.EQ(null.StringFrom(userID))).
 		One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		return err
@@ -553,7 +558,7 @@ func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 	// check if unitId has already been assigned to a different user - don't allow querying in this case
 	autopiUnit, _ := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, unitID)
 	if autopiUnit != nil {
-		if autopiUnit.UserID != userID {
+		if autopiUnit.UserID != null.StringFrom(userID) {
 			return c.SendStatus(fiber.StatusForbidden)
 		}
 		deviceID = autopiUnit.AutopiDeviceID.String
@@ -575,7 +580,7 @@ func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 		autopiUnit = &models.AutopiUnit{
 			AutopiUnitID:   unitID,
 			AutopiDeviceID: null.StringFrom(deviceID),
-			UserID:         userID,
+			UserID:         null.StringFrom(userID),
 		}
 		err := autopiUnit.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
 		if err != nil {
@@ -639,7 +644,7 @@ func (udc *UserDevicesController) StartAutoPiUpdateTask(c *fiber.Ctx) error {
 	// check if unitId has already been assigned to a different user - don't allow querying in this case
 	autopiUnit, _ := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, unitID)
 	if autopiUnit != nil {
-		if autopiUnit.UserID != userID {
+		if autopiUnit.UserID != null.StringFrom(userID) {
 			return c.SendStatus(fiber.StatusForbidden)
 		}
 		deviceID = autopiUnit.AutopiDeviceID.String
@@ -665,7 +670,7 @@ func (udc *UserDevicesController) StartAutoPiUpdateTask(c *fiber.Ctx) error {
 		autopiUnit = &models.AutopiUnit{
 			AutopiUnitID:   unitID,
 			AutopiDeviceID: null.StringFrom(deviceID),
-			UserID:         userID,
+			UserID:         null.StringFrom(userID),
 		}
 		err = autopiUnit.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
 		if err != nil {
@@ -707,6 +712,210 @@ func (udc *UserDevicesController) GetAutoPiTask(c *fiber.Ctx) error {
 
 	// todo somewhere need to check this userID has access to that taskID
 	return c.JSON(task)
+}
+
+// GetAutoPiClaimMessage godoc
+// @Description Return the EIP-712 payload to be signed for AutoPi device claiming.
+// @Produce json
+// @Param unitID path string true "AutoPi unit id"
+// @Success 200 {object} signer.TypedData
+// @Security BearerAuth
+// @Router /autopi/unit/:unitID/commands/claim [get]
+func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
+	userID := getUserID(c)
+	unitID := c.Params("unitID") // save in task
+
+	unit, err := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, unitID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, "AutoPi not minted, or unit ID invalid.")
+		}
+		return fiber.NewError(fiber.StatusInternalServerError, "Internal error.")
+	}
+
+	if unit.UserID.Valid && unit.UserID.String != userID {
+		return fiber.NewError(fiber.StatusForbidden, "AutoPi paired to another user.")
+	}
+
+	if unit.TokenID.IsZero() {
+		return fiber.NewError(fiber.StatusNotFound, "AutoPi not minted.")
+	}
+
+	apToken := unit.TokenID.Int(nil)
+
+	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		udc.log.Err(err).Msg("Failed to create users API client.")
+		return opaqueInternalError
+	}
+	defer conn.Close()
+
+	usersClient := pb.NewUserServiceClient(conn)
+
+	user, err := usersClient.GetUser(c.Context(), &pb.GetUserRequest{Id: userID})
+	if err != nil {
+		udc.log.Err(err).Msg("Couldn't retrieve user record.")
+		return opaqueInternalError
+	}
+
+	if user.EthereumAddress == nil {
+		return fiber.NewError(fiber.StatusBadRequest, "User does not have an Ethereum address.")
+	}
+
+	typedData := map[string]any{
+		"types": signer.Types{
+			"EIP712Domain": []signer.Type{
+				{Name: "name", Type: "string"},
+				{Name: "version", Type: "string"},
+				{Name: "chainId", Type: "uint256"},
+				{Name: "verifyingContract", Type: "address"},
+			},
+			"ClaimAftermarketDeviceSign": {
+				{Name: "aftermarketDeviceNode", Type: "uint256"},
+				{Name: "owner", Type: "address"},
+			},
+		},
+		"primaryType": "ClaimAftermarketDeviceSign",
+		"domain": signer.TypedDataMessage{
+			"name":              udc.Settings.NFTContractName,
+			"version":           udc.Settings.NFTContractVersion,
+			"chainId":           udc.Settings.NFTChainID,
+			"verifyingContract": udc.Settings.NFTContractAddr,
+		},
+		"message": signer.TypedDataMessage{
+			"aftermarketDeviceNode": apToken,
+			"owner":                 *user.EthereumAddress,
+		},
+	}
+
+	return c.JSON(typedData)
+}
+
+type AutoPiClaimRequest struct {
+	// UserSignature is the signature from the user, using their private key.
+	UserSignature string `json:"userSignature"`
+	// AftermarketDeviceSignature is the signature from the aftermarket device.
+	AftermarketDeviceSignature string `json:"aftermarketDeviceSignature"`
+}
+
+// ClaimAutoPi godoc
+// @Description Return the EIP-712 payload to be signed for AutoPi device claiming.
+// @Produce json
+// @Param unitID path string true "AutoPi unit id"
+// @Param claimRequest body controllers.AutoPiClaimRequest true "Signatures from the user and AutoPi"
+// @Success 204
+// @Security BearerAuth
+// @Router /autopi/unit/:unitID/commands/claim [post]
+func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
+	userID := getUserID(c)
+	unitID := c.Params("unitID") // save in task
+
+	reqBody := AutoPiClaimRequest{}
+	err := c.BodyParser(&reqBody)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Couldn't parse request body.")
+	}
+
+	unit, err := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, unitID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, "AutoPi not minted, or unit ID invalid.")
+		}
+		return fiber.NewError(fiber.StatusInternalServerError, "Internal error.")
+	}
+
+	if unit.UserID.Valid && unit.UserID.String != userID {
+		return fiber.NewError(fiber.StatusForbidden, "AutoPi paired to another user.")
+	}
+
+	if unit.TokenID.IsZero() || !unit.EthereumAddress.Valid {
+		return fiber.NewError(fiber.StatusNotFound, "AutoPi not minted.")
+	}
+
+	apToken := unit.TokenID.Int(nil)
+
+	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		udc.log.Err(err).Msg("Failed to create users API client.")
+		return opaqueInternalError
+	}
+	defer conn.Close()
+
+	usersClient := pb.NewUserServiceClient(conn)
+
+	user, err := usersClient.GetUser(c.Context(), &pb.GetUserRequest{Id: userID})
+	if err != nil {
+		udc.log.Err(err).Msg("Couldn't retrieve user record.")
+		return opaqueInternalError
+	}
+
+	if user.EthereumAddress == nil {
+		return fiber.NewError(fiber.StatusBadRequest, "User does not have an Ethereum address.")
+	}
+
+	mkTok := (*math.HexOrDecimal256)(apToken)
+
+	typedData := &signer.TypedData{
+		Types: signer.Types{
+			"EIP712Domain": []signer.Type{
+				{Name: "name", Type: "string"},
+				{Name: "version", Type: "string"},
+				{Name: "chainId", Type: "uint256"},
+				{Name: "verifyingContract", Type: "address"},
+			},
+			"ClaimAftermarketDeviceSign": {
+				{Name: "aftermarketDeviceNode", Type: "uint256"},
+				{Name: "owner", Type: "address"},
+			},
+		},
+		PrimaryType: "ClaimAftermarketDeviceSign",
+		Domain: signer.TypedDataDomain{
+			Name:              udc.Settings.NFTContractName,
+			Version:           udc.Settings.NFTContractVersion,
+			ChainId:           math.NewHexOrDecimal256(int64(udc.Settings.NFTChainID)),
+			VerifyingContract: udc.Settings.NFTContractAddr,
+		},
+		Message: signer.TypedDataMessage{
+			"aftermarketDeviceNode": mkTok,
+			"owner":                 *user.EthereumAddress,
+		},
+	}
+
+	userSigBytes := common.FromHex(reqBody.UserSignature)
+	if len(userSigBytes) != 65 {
+		return fiber.NewError(fiber.StatusBadRequest, "User signature has incorrect length, should be 65.")
+	}
+
+	userRecAddr, err := recoverAddress(typedData, userSigBytes)
+	if err != nil {
+		udc.log.Err(err).Msg("Failed recovering address.")
+		return fiber.NewError(fiber.StatusBadRequest, "Signature incorrect.")
+	}
+
+	userRealAddr := common.HexToAddress(*user.EthereumAddress)
+
+	if userRecAddr != userRealAddr {
+		udc.log.Err(err).Str("recAddr", userRecAddr.String()).Msg("Recovered address, but incorrect.")
+		return fiber.NewError(fiber.StatusBadRequest, "Signature incorrect.")
+	}
+
+	amSigBytes := common.FromHex(reqBody.AftermarketDeviceSignature)
+	if len(amSigBytes) != 65 {
+		return fiber.NewError(fiber.StatusBadRequest, "Aftermarket device signature has incorrect length, should be 65.")
+	}
+
+	amRecAddr, err := recoverAddress(typedData, amSigBytes)
+	if err != nil {
+		udc.log.Err(err).Msg("Failed recovering address.")
+		return fiber.NewError(fiber.StatusBadRequest, "Signature incorrect.")
+	}
+
+	if amRecAddr != userRealAddr {
+		udc.log.Err(err).Str("recAddr", userRecAddr.String()).Msg("Recovered address, but incorrect.")
+		return fiber.NewError(fiber.StatusBadRequest, "Signature incorrect.")
+	}
+
+	return c.JSON(typedData)
 }
 
 // RegisterDeviceIntegration godoc
@@ -896,8 +1105,8 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 			return err
 		}
 	}
-	if existingUnit != nil && existingUnit.UserID != ud.UserID {
-		subLogger.Warn().Msgf("user tried pairing an autopi unit already claimed by user with id: %s", existingUnit.UserID)
+	if existingUnit != nil && existingUnit.UserID != null.StringFrom(ud.UserID) {
+		subLogger.Warn().Msgf("user tried pairing an autopi unit already claimed by user with id: %s", existingUnit.UserID.String)
 		return fiber.NewError(fiber.StatusBadRequest, "autoPiUnitId already claimed"+unitID)
 	}
 
@@ -926,10 +1135,10 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		existingUnit = &models.AutopiUnit{
 			AutopiUnitID:   unitID,
 			AutopiDeviceID: null.StringFrom(autoPiDevice.ID),
-			UserID:         ud.UserID,
+			UserID:         null.StringFrom(ud.UserID),
 		}
-		if len(autoPiDevice.EthereumAddress) > 0 && isValidAddress(autoPiDevice.EthereumAddress) {
-			existingUnit.NFTAddress = null.StringFrom(autoPiDevice.EthereumAddress)
+		if common.IsHexAddress(autoPiDevice.EthereumAddress) {
+			existingUnit.EthereumAddress = null.BytesFrom(common.FromHex(autoPiDevice.EthereumAddress))
 		}
 		err = existingUnit.Insert(c.Context(), tx, boil.Infer())
 		if err != nil {
@@ -1470,11 +1679,6 @@ func createDeviceIntegrationIfAutoPi(ctx context.Context, integrationID, deviceD
 		return &di, nil
 	}
 	return nil, nil
-}
-
-func isValidAddress(v string) bool {
-	re := regexp.MustCompile("^0x[0-9a-fA-F]{40}$")
-	return re.MatchString(v)
 }
 
 /** Structs for request / response **/

@@ -40,6 +40,17 @@ definitions:
         $ref: '#/definitions/apitypes.Type'
       type: array
     type: object
+  github.com_DIMO-Network_devices-api_internal_controllers.AutoPiClaimRequest:
+    properties:
+      aftermarketDeviceSignature:
+        description: AftermarketDeviceSignature is the signature from the aftermarket
+          device.
+        type: string
+      userSignature:
+        description: UserSignature is the signature from the user, using their private
+          key.
+        type: string
+    type: object
   github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest:
     properties:
       command:
@@ -430,6 +441,17 @@ definitions:
       status:
         type: string
       updatedAt:
+        type: string
+    type: object
+  internal_controllers.AutoPiClaimRequest:
+    properties:
+      aftermarketDeviceSignature:
+        description: AftermarketDeviceSignature is the signature from the aftermarket
+          device.
+        type: string
+      userSignature:
+        description: UserSignature is the signature from the user, using their private
+          key.
         type: string
     type: object
   internal_controllers.AutoPiCommandRequest:
@@ -988,6 +1010,8 @@ definitions:
     type: object
   services.UserDeviceMetadata:
     properties:
+      elasticDefinitionSynced:
+        type: boolean
       powertrainType:
         type: string
     type: object
@@ -1057,6 +1081,45 @@ paths:
       - BearerAuth: []
       tags:
       - integrations
+  /autopi/unit/:unitID/commands/claim:
+    get:
+      description: Return the EIP-712 payload to be signed for AutoPi device claiming.
+      parameters:
+      - description: AutoPi unit id
+        in: path
+        name: unitID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apitypes.TypedData'
+      security:
+      - BearerAuth: []
+    post:
+      description: Return the EIP-712 payload to be signed for AutoPi device claiming.
+      parameters:
+      - description: AutoPi unit id
+        in: path
+        name: unitID
+        required: true
+        type: string
+      - description: Signatures from the user and AutoPi
+        in: body
+        name: claimRequest
+        required: true
+        schema:
+          $ref: '#/definitions/internal_controllers.AutoPiClaimRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
   /autopi/unit/:unitID/is-online:
     get:
       description: 'gets whether the autopi is online right now, if already paired
@@ -1071,7 +1134,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: ""
+          description: OK
       security:
       - BearerAuth: []
       tags:
@@ -1248,7 +1311,7 @@ paths:
       - application/json
       responses:
         "204":
-          description: ""
+          description: No Content
       security:
       - BearerAuth: []
       tags:
@@ -1289,7 +1352,7 @@ paths:
       - image/jpeg
       responses:
         "200":
-          description: ""
+          description: OK
       security:
       - BearerAuth: []
       tags:
@@ -1341,9 +1404,9 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.NFTMetadataResp'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp'
         "404":
-          description: ""
+          description: Not Found
       tags:
       - nfts
   /user/devices:
@@ -1386,7 +1449,7 @@ paths:
           $ref: '#/definitions/internal_controllers.AutoPiCommandRequest'
       responses:
         "200":
-          description: ""
+          description: OK
       security:
       - BearerAuth: []
       tags:
@@ -1425,7 +1488,7 @@ paths:
           $ref: '#/definitions/internal_controllers.RegisterDeviceIntegrationRequest'
       responses:
         "204":
-          description: ""
+          description: No Content
       security:
       - BearerAuth: []
       tags:
@@ -1441,7 +1504,7 @@ paths:
         type: string
       responses:
         "204":
-          description: ""
+          description: No Content
       security:
       - BearerAuth: []
       tags:
@@ -1480,7 +1543,7 @@ paths:
           $ref: '#/definitions/internal_controllers.MintRequest'
       responses:
         "200":
-          description: ""
+          description: OK
       security:
       - BearerAuth: []
       tags:
@@ -1496,7 +1559,7 @@ paths:
         type: string
       responses:
         "204":
-          description: ""
+          description: No Content
         "429":
           description: rate limit hit for integration
       security:
@@ -1519,7 +1582,7 @@ paths:
       - application/json
       responses:
         "204":
-          description: ""
+          description: No Content
       security:
       - BearerAuth: []
       tags:
@@ -1540,7 +1603,7 @@ paths:
       - application/json
       responses:
         "204":
-          description: ""
+          description: No Content
       security:
       - BearerAuth: []
       tags:
@@ -1550,7 +1613,7 @@ paths:
       description: Remove an user device's integration
       responses:
         "204":
-          description: ""
+          description: No Content
       security:
       - BearerAuth: []
       tags:
@@ -1729,7 +1792,7 @@ paths:
       - application/json
       responses:
         "204":
-          description: ""
+          description: No Content
       security:
       - BearerAuth: []
       tags:
@@ -1751,14 +1814,14 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot'
+            $ref: '#/definitions/internal_controllers.DeviceSnapshot'
       security:
       - BearerAuth: []
       tags:
       - user-devices
   /user/devices/{userDeviceID}/valuations:
     get:
-      description: gets valuations for each user device
+      description: gets valuations for a particular user device
       produces:
       - application/json
       responses:
@@ -1791,7 +1854,7 @@ paths:
       - application/json
       responses:
         "204":
-          description: ""
+          description: No Content
       security:
       - BearerAuth: []
       tags:
@@ -1822,7 +1885,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence'
+              $ref: '#/definitions/internal_controllers.GetGeofence'
             type: array
       security:
       - ApiKeyAuth: []
@@ -1840,14 +1903,14 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence'
+          $ref: '#/definitions/internal_controllers.CreateGeofence'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateResponse'
+            $ref: '#/definitions/internal_controllers.CreateResponse'
       security:
       - ApiKeyAuth: []
       - BearerAuth: []
@@ -1864,7 +1927,7 @@ paths:
         type: string
       responses:
         "204":
-          description: ""
+          description: No Content
       security:
       - ApiKeyAuth: []
       - BearerAuth: []
@@ -1885,12 +1948,12 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence'
+          $ref: '#/definitions/internal_controllers.CreateGeofence'
       produces:
       - application/json
       responses:
         "204":
-          description: ""
+          description: No Content
       security:
       - ApiKeyAuth: []
       - BearerAuth: []

@@ -195,7 +195,7 @@ func SetupCreateUserDevice(t *testing.T, testUserID string, dd *models.DeviceDef
 func SetupCreateAutoPiUnit(t *testing.T, userID, unitID string, deviceID *string, pdb database.DbStore) *models.AutopiUnit {
 	au := models.AutopiUnit{
 		AutopiUnitID:   unitID,
-		UserID:         userID,
+		UserID:         null.StringFrom(userID),
 		AutopiDeviceID: null.StringFromPtr(deviceID),
 	}
 	err := au.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
