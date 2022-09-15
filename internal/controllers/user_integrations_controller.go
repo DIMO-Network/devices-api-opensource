@@ -862,18 +862,16 @@ func (udc *UserDevicesController) runPostRegistration(ctx context.Context, logge
 		logger.Err(err).Msg("Failed to emit integration event.")
 	}
 
-	if udc.Settings.Environment != "prod" {
-		err = udc.deviceDefinitionRegistrar.Register(services.DeviceDefinitionDTO{
-			IntegrationID:      integ.ID,
-			UserDeviceID:       ud.ID,
-			DeviceDefinitionID: ud.DeviceDefinitionID,
-			Make:               ud.R.DeviceDefinition.R.DeviceMake.Name,
-			Model:              ud.R.DeviceDefinition.Model,
-			Year:               int(ud.R.DeviceDefinition.Year),
-		})
-		if err != nil {
-			logger.Err(err).Msg("Failed to set values in device definition tables.")
-		}
+	err = udc.deviceDefinitionRegistrar.Register(services.DeviceDefinitionDTO{
+		IntegrationID:      integ.ID,
+		UserDeviceID:       ud.ID,
+		DeviceDefinitionID: ud.DeviceDefinitionID,
+		Make:               ud.R.DeviceDefinition.R.DeviceMake.Name,
+		Model:              ud.R.DeviceDefinition.Model,
+		Year:               int(ud.R.DeviceDefinition.Year),
+	})
+	if err != nil {
+		logger.Err(err).Msg("Failed to set values in device definition tables.")
 	}
 }
 
