@@ -170,18 +170,18 @@ func (mr *MockDrivlyAPIServiceMockRecorder) GetKBBByVIN(vin interface{}) *gomock
 }
 
 // GetOffersByVIN mocks base method.
-func (m *MockDrivlyAPIService) GetOffersByVIN(vin string) (map[string]interface{}, error) {
+func (m *MockDrivlyAPIService) GetOffersByVIN(vin string, mileage float64, zipcode string) (map[string]interface{}, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOffersByVIN", vin)
+	ret := m.ctrl.Call(m, "GetOffersByVIN", vin, mileage, zipcode)
 	ret0, _ := ret[0].(map[string]interface{})
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetOffersByVIN indicates an expected call of GetOffersByVIN.
-func (mr *MockDrivlyAPIServiceMockRecorder) GetOffersByVIN(vin interface{}) *gomock.Call {
+func (mr *MockDrivlyAPIServiceMockRecorder) GetOffersByVIN(vin, mileage, zipcode interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOffersByVIN", reflect.TypeOf((*MockDrivlyAPIService)(nil).GetOffersByVIN), vin)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOffersByVIN", reflect.TypeOf((*MockDrivlyAPIService)(nil).GetOffersByVIN), vin, mileage, zipcode)
 }
 
 // GetTMVByVIN mocks base method.
@@ -215,18 +215,18 @@ func (mr *MockDrivlyAPIServiceMockRecorder) GetVINInfo(vin interface{}) *gomock.
 }
 
 // GetVINPricing mocks base method.
-func (m *MockDrivlyAPIService) GetVINPricing(vin string) (map[string]interface{}, error) {
+func (m *MockDrivlyAPIService) GetVINPricing(vin string, mileage float64, zipcode string) (map[string]any, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetVINPricing", vin)
-	ret0, _ := ret[0].(map[string]interface{})
+	ret := m.ctrl.Call(m, "GetVINPricing", vin, mileage, zipcode)
+	ret0, _ := ret[0].(map[string]any)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetVINPricing indicates an expected call of GetVINPricing.
-func (mr *MockDrivlyAPIServiceMockRecorder) GetVINPricing(vin interface{}) *gomock.Call {
+func (mr *MockDrivlyAPIServiceMockRecorder) GetVINPricing(vin, mileage, zipcode interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVINPricing", reflect.TypeOf((*MockDrivlyAPIService)(nil).GetVINPricing), vin)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVINPricing", reflect.TypeOf((*MockDrivlyAPIService)(nil).GetVINPricing), vin, mileage, zipcode)
 }
 
 // GetVRoomByVIN mocks base method.

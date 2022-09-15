@@ -44,6 +44,7 @@ type ExternalVinDatum struct {
 	UpdatedAt          time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 	PricingMetadata    null.JSON   `boil:"pricing_metadata" json:"pricing_metadata,omitempty" toml:"pricing_metadata" yaml:"pricing_metadata,omitempty"`
 	BlackbookMetadata  null.JSON   `boil:"blackbook_metadata" json:"blackbook_metadata,omitempty" toml:"blackbook_metadata" yaml:"blackbook_metadata,omitempty"`
+	RequestMetadata    null.JSON   `boil:"request_metadata" json:"request_metadata,omitempty" toml:"request_metadata" yaml:"request_metadata,omitempty"`
 
 	R *externalVinDatumR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L externalVinDatumL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -70,6 +71,7 @@ var ExternalVinDatumColumns = struct {
 	UpdatedAt          string
 	PricingMetadata    string
 	BlackbookMetadata  string
+	RequestMetadata    string
 }{
 	ID:                 "id",
 	DeviceDefinitionID: "device_definition_id",
@@ -91,6 +93,7 @@ var ExternalVinDatumColumns = struct {
 	UpdatedAt:          "updated_at",
 	PricingMetadata:    "pricing_metadata",
 	BlackbookMetadata:  "blackbook_metadata",
+	RequestMetadata:    "request_metadata",
 }
 
 var ExternalVinDatumTableColumns = struct {
@@ -114,6 +117,7 @@ var ExternalVinDatumTableColumns = struct {
 	UpdatedAt          string
 	PricingMetadata    string
 	BlackbookMetadata  string
+	RequestMetadata    string
 }{
 	ID:                 "external_vin_data.id",
 	DeviceDefinitionID: "external_vin_data.device_definition_id",
@@ -135,6 +139,7 @@ var ExternalVinDatumTableColumns = struct {
 	UpdatedAt:          "external_vin_data.updated_at",
 	PricingMetadata:    "external_vin_data.pricing_metadata",
 	BlackbookMetadata:  "external_vin_data.blackbook_metadata",
+	RequestMetadata:    "external_vin_data.request_metadata",
 }
 
 // Generated where
@@ -160,6 +165,7 @@ var ExternalVinDatumWhere = struct {
 	UpdatedAt          whereHelpertime_Time
 	PricingMetadata    whereHelpernull_JSON
 	BlackbookMetadata  whereHelpernull_JSON
+	RequestMetadata    whereHelpernull_JSON
 }{
 	ID:                 whereHelperstring{field: "\"devices_api\".\"external_vin_data\".\"id\""},
 	DeviceDefinitionID: whereHelpernull_String{field: "\"devices_api\".\"external_vin_data\".\"device_definition_id\""},
@@ -181,6 +187,7 @@ var ExternalVinDatumWhere = struct {
 	UpdatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"external_vin_data\".\"updated_at\""},
 	PricingMetadata:    whereHelpernull_JSON{field: "\"devices_api\".\"external_vin_data\".\"pricing_metadata\""},
 	BlackbookMetadata:  whereHelpernull_JSON{field: "\"devices_api\".\"external_vin_data\".\"blackbook_metadata\""},
+	RequestMetadata:    whereHelpernull_JSON{field: "\"devices_api\".\"external_vin_data\".\"request_metadata\""},
 }
 
 // ExternalVinDatumRels is where relationship names are stored.
@@ -221,9 +228,9 @@ func (r *externalVinDatumR) GetUserDevice() *UserDevice {
 type externalVinDatumL struct{}
 
 var (
-	externalVinDatumAllColumns            = []string{"id", "device_definition_id", "vin", "user_device_id", "vin_metadata", "offer_metadata", "autocheck_metadata", "build_metadata", "cargurus_metadata", "carvana_metadata", "carmax_metadata", "carstory_metadata", "edmunds_metadata", "tmv_metadata", "kbb_metadata", "vroom_metadata", "created_at", "updated_at", "pricing_metadata", "blackbook_metadata"}
+	externalVinDatumAllColumns            = []string{"id", "device_definition_id", "vin", "user_device_id", "vin_metadata", "offer_metadata", "autocheck_metadata", "build_metadata", "cargurus_metadata", "carvana_metadata", "carmax_metadata", "carstory_metadata", "edmunds_metadata", "tmv_metadata", "kbb_metadata", "vroom_metadata", "created_at", "updated_at", "pricing_metadata", "blackbook_metadata", "request_metadata"}
 	externalVinDatumColumnsWithoutDefault = []string{"id", "vin"}
-	externalVinDatumColumnsWithDefault    = []string{"device_definition_id", "user_device_id", "vin_metadata", "offer_metadata", "autocheck_metadata", "build_metadata", "cargurus_metadata", "carvana_metadata", "carmax_metadata", "carstory_metadata", "edmunds_metadata", "tmv_metadata", "kbb_metadata", "vroom_metadata", "created_at", "updated_at", "pricing_metadata", "blackbook_metadata"}
+	externalVinDatumColumnsWithDefault    = []string{"device_definition_id", "user_device_id", "vin_metadata", "offer_metadata", "autocheck_metadata", "build_metadata", "cargurus_metadata", "carvana_metadata", "carmax_metadata", "carstory_metadata", "edmunds_metadata", "tmv_metadata", "kbb_metadata", "vroom_metadata", "created_at", "updated_at", "pricing_metadata", "blackbook_metadata", "request_metadata"}
 	externalVinDatumPrimaryKeyColumns     = []string{"id"}
 	externalVinDatumGeneratedColumns      = []string{}
 )

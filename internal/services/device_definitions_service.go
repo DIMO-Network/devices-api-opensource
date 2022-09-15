@@ -178,6 +178,13 @@ func (d *DeviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Co
 	return nil
 }
 
+const KmToMilesFactor = 1.609344
+
+type ValuationRequestData struct {
+	Mileage float64 `json:"mileage,omitempty"`
+	ZipCode string  `json:"zipCode,omitempty"`
+}
+
 // PullDrivlyData pulls vin info from drivly, and inserts a record with the data.
 // Will only pull if haven't in last 2 weeks. Does not re-pull VIN info, updates DD metadata, sets the device_style_id using the edmunds data pulled.
 func (d *DeviceDefinitionService) PullDrivlyData(ctx context.Context, userDeviceID string, deviceDefinitionID string, vin string) error {
@@ -273,12 +280,36 @@ func (d *DeviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 		// future: we could pull some specific data from this and persist in the user_device.metadata
 		// future: did MMY from vininfo match the device definition? if not fixup year, or model? but need external_id etc
 	}
+
+	// get mileage and zip code for our requests
+	var deviceMileage float64
+	deviceData, err := models.UserDeviceData(
+		models.UserDeviceDatumWhere.UserDeviceID.EQ(userDeviceID),
+		models.UserDeviceDatumWhere.Data.IsNotNull(),
+		qm.OrderBy("updated_at desc"),
+		qm.Limit(1)).One(context.Background(), d.dbs().Writer)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+	} else {
+		deviceOdometer := gjson.GetBytes(deviceData.Data.JSON, "odometer")
+		if deviceOdometer.Exists() {
+			deviceMileage = deviceOdometer.Float() / KmToMilesFactor
+		}
+	}
+	reqData := ValuationRequestData{
+		Mileage: deviceMileage,
+		ZipCode: "", // TODO(zavaboy): add vehicle location to zipcode magic to set this zipcode
+	}
+	_ = drivlyData.RequestMetadata.Marshal(reqData)
+
 	// only pull offers and pricing on every pull.
-	offer, err := d.drivlySvc.GetOffersByVIN(vin)
+	offer, err := d.drivlySvc.GetOffersByVIN(vin, reqData.Mileage, reqData.ZipCode)
 	if err == nil {
 		_ = drivlyData.OfferMetadata.Marshal(offer)
 	}
-	pricing, err := d.drivlySvc.GetVINPricing(vin)
+	pricing, err := d.drivlySvc.GetVINPricing(vin, reqData.Mileage, reqData.ZipCode)
 	if err == nil {
 		_ = drivlyData.PricingMetadata.Marshal(pricing)
 	}

@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
+	"github.com/tidwall/gjson"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -559,6 +560,190 @@ func (udc *UserDevicesController) UpdateImage(c *fiber.Ctx) error {
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+type DeviceValuation struct {
+	Blackbook *ConditionValuation `json:"blackbook"`
+	Drivly    *ConditionValuation `json:"drivly"`
+}
+
+type ConditionValuation struct {
+	Updated       string `json:"updated,omitempty"`
+	Mileage       int    `json:"mileage,omitempty"`
+	ZipCode       string `json:"zipCode,omitempty"`
+	TradeInSource string `json:"tradeInSource,omitempty"`
+	// TradeIn uses TradeInAverage when available
+	TradeIn        int    `json:"tradeIn,omitempty"`
+	TradeInClean   int    `json:"tradeInClean,omitempty"`
+	TradeInAverage int    `json:"tradeInAverage,omitempty"`
+	TradeInRough   int    `json:"tradeInRough,omitempty"`
+	RetailSource   string `json:"retailSource,omitempty"`
+	// Retail uses RetailAverage when available
+	Retail        int `json:"retail,omitempty"`
+	RetailClean   int `json:"retailClean,omitempty"`
+	RetailAverage int `json:"retailAverage,omitempty"`
+	RetailRough   int `json:"retailRough,omitempty"`
+}
+
+// GetValuiations godoc
+// @Description gets valuations for a particular user device
+// @Tags        user-devices
+// @Produce     json
+// @Success     200 {object} controllers.DeviceValuation
+// @Security    BearerAuth
+// @Router      /user/devices/{userDeviceID}/valuations [get]
+func (udc *UserDevicesController) GetValuations(c *fiber.Ctx) error {
+	udi := c.Params("userDeviceID")
+	userID := getUserID(c)
+
+	logger := udc.log.With().Str("route", c.Route().Path).Str("userId", userID).Str("userDeviceId", udi).Logger()
+
+	dVal := DeviceValuation{}
+
+	// Drivly data
+	drivlyVinData, err := models.ExternalVinData(
+		models.ExternalVinDatumWhere.DeviceDefinitionID.EQ(null.StringFrom(udi)),
+		models.ExternalVinDatumWhere.PricingMetadata.IsNotNull(),
+		qm.OrderBy("updated_at desc"),
+		qm.Limit(1)).One(c.Context(), udc.DBS().Reader)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	if drivlyVinData != nil {
+		drivlyJSON := drivlyVinData.PricingMetadata.JSON
+		requestJSON := drivlyVinData.RequestMetadata.JSON
+		requestMileage := gjson.GetBytes(requestJSON, "mileage")
+		dVal.Drivly = &ConditionValuation{
+			Updated: drivlyVinData.UpdatedAt.Format(time.RFC3339),
+		}
+		if requestMileage.Exists() {
+			dVal.Drivly.Mileage = int(requestMileage.Int())
+		}
+		// Drivly Trade-In
+		switch {
+		case gjson.GetBytes(drivlyJSON, "trade.blackBook.totalAvg").Exists():
+			dVal.Drivly.TradeInSource = "drivly:blackbook"
+			values := gjson.GetManyBytes(drivlyJSON, "trade.blackBook.totalRough", "trade.blackBook.totalAvg", "trade.blackBook.totalClean")
+			dVal.Drivly.TradeInRough = int(values[0].Int())
+			dVal.Drivly.TradeInAverage = int(values[1].Int())
+			dVal.Drivly.TradeInClean = int(values[2].Int())
+			dVal.Drivly.TradeIn = dVal.Drivly.TradeInAverage
+		case gjson.GetBytes(drivlyJSON, "trade.kelley.book").Exists():
+			dVal.Drivly.TradeInSource = "drivly:kelley"
+			dVal.Drivly.TradeIn = int(gjson.GetBytes(drivlyJSON, "trade.kelley.book").Int())
+		case gjson.GetBytes(drivlyJSON, "trade.edmunds.average").Exists():
+			dVal.Drivly.TradeInSource = "drivly:edmunds"
+			values := gjson.GetManyBytes(drivlyJSON, "trade.edmunds.rough", "trade.edmunds.average", "trade.edmunds.clean")
+			dVal.Drivly.TradeInRough = int(values[0].Int())
+			dVal.Drivly.TradeInAverage = int(values[1].Int())
+			dVal.Drivly.TradeInClean = int(values[2].Int())
+			dVal.Drivly.TradeIn = dVal.Drivly.TradeInAverage
+		case gjson.GetBytes(drivlyJSON, "trade").Exists() && !gjson.GetBytes(drivlyJSON, "trade").IsObject():
+			dVal.Drivly.TradeInSource = "drivly"
+			dVal.Drivly.TradeIn = int(gjson.GetBytes(drivlyJSON, "trade").Int())
+		default:
+			logger.Error().Msg("Unexpected structure for driv.ly pricing data trade values")
+		}
+		// Drivly Retail
+		switch {
+		case gjson.GetBytes(drivlyJSON, "retail.blackBook.totalAvg").Exists():
+			dVal.Drivly.RetailSource = "drivly:blackbook"
+			values := gjson.GetManyBytes(drivlyJSON, "retail.blackBook.totalRough", "retail.blackBook.totalAvg", "retail.blackBook.totalClean")
+			dVal.Drivly.RetailRough = int(values[0].Int())
+			dVal.Drivly.RetailAverage = int(values[1].Int())
+			dVal.Drivly.RetailClean = int(values[2].Int())
+			dVal.Drivly.Retail = dVal.Drivly.RetailAverage
+		case gjson.GetBytes(drivlyJSON, "retail.kelley.book").Exists():
+			dVal.Drivly.RetailSource = "drivly:kelley"
+			dVal.Drivly.Retail = int(gjson.GetBytes(drivlyJSON, "retail.kelley.book").Int())
+		case gjson.GetBytes(drivlyJSON, "retail.edmunds.average").Exists():
+			dVal.Drivly.RetailSource = "drivly:edmunds"
+			values := gjson.GetManyBytes(drivlyJSON, "retail.edmunds.rough", "retail.edmunds.average", "retail.edmunds.clean")
+			dVal.Drivly.RetailRough = int(values[0].Int())
+			dVal.Drivly.RetailAverage = int(values[1].Int())
+			dVal.Drivly.RetailClean = int(values[2].Int())
+			dVal.Drivly.Retail = dVal.Drivly.RetailAverage
+		case gjson.GetBytes(drivlyJSON, "retail").Exists() && !gjson.GetBytes(drivlyJSON, "retail").IsObject():
+			dVal.Drivly.RetailSource = "drivly"
+			dVal.Drivly.Retail = int(gjson.GetBytes(drivlyJSON, "retail").Int())
+		default:
+			logger.Error().Msg("Unexpected structure for driv.ly pricing data retail values")
+		}
+	}
+
+	// Blackbook latest data
+	var deviceMileage int
+	deviceData, err := models.UserDeviceData(
+		models.UserDeviceDatumWhere.UserDeviceID.EQ(udi),
+		models.UserDeviceDatumWhere.Data.IsNotNull(),
+		qm.OrderBy("updated_at desc"),
+		qm.Limit(1)).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+	} else {
+		deviceOdometer := gjson.GetBytes(deviceData.Data.JSON, "odometer")
+		deviceMileage = int(deviceOdometer.Float() / services.KmToMilesFactor)
+	}
+	blackbookVinData, err := models.ExternalVinData(
+		models.ExternalVinDatumWhere.DeviceDefinitionID.EQ(null.StringFrom(udi)),
+		models.ExternalVinDatumWhere.BlackbookMetadata.IsNotNull(),
+		qm.OrderBy("updated_at desc"),
+		qm.Limit(1)).One(c.Context(), udc.DBS().Reader)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	if blackbookVinData != nil {
+		type BlackbookValuation struct {
+			UsedVehicles struct {
+				UsedVehiclesList []struct {
+					BaseTradeinClean int `json:"base_tradein_clean"`
+					BaseTradeinAvg   int `json:"base_tradein_avg"`
+					BaseTradeinRough int `json:"base_tradein_rough"`
+					MileageList      []struct {
+						RangeBegin int `json:"range_begin"`
+						RangeEnd   int `json:"range_end"`
+						Clean      int `json:"clean"`
+						Avg        int `json:"avg"`
+						Rough      int `json:"rough"`
+					} `json:"mileage_list"`
+				} `json:"used_vehicle_list"`
+			} `json:"used_vehicles"`
+		}
+		bbvv := &BlackbookValuation{}
+		err = json.Unmarshal(blackbookVinData.BlackbookMetadata.JSON, bbvv)
+		if err != nil {
+			return err
+		}
+		bbval := bbvv.UsedVehicles.UsedVehiclesList[0]
+
+		if deviceMileage > 0 {
+			for _, v := range bbval.MileageList {
+				if v.RangeBegin <= deviceMileage && v.RangeEnd >= deviceMileage || v == bbval.MileageList[len(bbval.MileageList)-1] {
+					dVal.Blackbook = &ConditionValuation{
+						Updated:        deviceData.LastOdometerEventAt.Time.Format(time.RFC3339),
+						Mileage:        deviceMileage,
+						TradeInClean:   bbval.BaseTradeinClean + v.Clean,
+						TradeInAverage: bbval.BaseTradeinAvg + v.Avg,
+						TradeInRough:   bbval.BaseTradeinRough + v.Rough,
+					}
+					break
+				}
+			}
+		} else {
+			dVal.Blackbook = &ConditionValuation{
+				Updated:        deviceData.LastOdometerEventAt.Time.Format(time.RFC3339),
+				Mileage:        deviceMileage,
+				TradeInClean:   bbval.BaseTradeinClean,
+				TradeInAverage: bbval.BaseTradeinAvg,
+				TradeInRough:   bbval.BaseTradeinRough,
+			}
+		}
+	}
+
+	return c.JSON(dVal)
+
 }
 
 // DeleteUserDevice godoc
