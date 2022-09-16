@@ -168,11 +168,9 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Post("/autopi/unit/:unitID/update", userDeviceController.StartAutoPiUpdateTask)
 	v1Auth.Get("/autopi/task/:taskID", userDeviceController.GetAutoPiTask)
 
-	if settings.Environment != "prod" {
-		// AutoPi pairing.
-		v1Auth.Get("/autopi/unit/:unitID/commands/claim", userDeviceController.GetAutoPiClaimMessage)
-		v1Auth.Post("/autopi/unit/:unitID/commands/claim", userDeviceController.ClaimAutoPi)
-	}
+	// AutoPi pairing.
+	v1Auth.Get("/autopi/unit/:unitID/commands/claim", userDeviceController.GetAutoPiClaimMessage)
+	v1Auth.Post("/autopi/unit/:unitID/commands/claim", userDeviceController.ClaimAutoPi)
 
 	// geofence
 	v1Auth.Post("/user/geofences", geofenceController.Create)

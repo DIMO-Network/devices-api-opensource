@@ -733,7 +733,13 @@ func (udc *UserDevicesController) GetAutoPiTask(c *fiber.Ctx) error {
 // @Router /autopi/unit/:unitID/commands/claim [get]
 func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
 	userID := getUserID(c)
-	unitID := c.Params("unitID") // save in task
+
+	// dimoappletest
+	if udc.Settings.Environment == "prod" && userID != "ChUxMDAzMTk4MDI4OTEzMzE5ODk1MzISBmdvb2dsZQ" {
+		return fiber.NewError(fiber.StatusForbidden, "Unauthorized.")
+	}
+
+	unitID := c.Params("unitID")
 
 	unit, err := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, unitID)
 	if err != nil {
@@ -818,7 +824,13 @@ type AutoPiClaimRequest struct {
 // @Router /autopi/unit/:unitID/commands/claim [post]
 func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 	userID := getUserID(c)
-	unitID := c.Params("unitID") // save in task
+
+	// dimoappletest
+	if udc.Settings.Environment == "prod" && userID != "ChUxMDAzMTk4MDI4OTEzMzE5ODk1MzISBmdvb2dsZQ" {
+		return fiber.NewError(fiber.StatusForbidden, "Unauthorized.")
+	}
+
+	unitID := c.Params("unitID")
 
 	reqBody := AutoPiClaimRequest{}
 	err := c.BodyParser(&reqBody)
