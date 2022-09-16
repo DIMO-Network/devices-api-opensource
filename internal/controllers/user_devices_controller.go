@@ -406,6 +406,9 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "Could not parse request body.")
 	}
 	if err := vinReq.validate(); err != nil {
+		if vinReq.VIN != nil {
+			logger.Err(err).Str("vin", *vinReq.VIN).Msg("VIN failed validation.")
+		}
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid VIN.")
 	}
 
