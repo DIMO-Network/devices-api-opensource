@@ -734,8 +734,7 @@ func (udc *UserDevicesController) GetAutoPiTask(c *fiber.Ctx) error {
 func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
 	userID := getUserID(c)
 
-	// dimoappletest
-	if udc.Settings.Environment == "prod" && userID != "ChUxMDAzMTk4MDI4OTEzMzE5ODk1MzISBmdvb2dsZQ" {
+	if udc.Settings.Environment != "prod" {
 		return fiber.NewError(fiber.StatusForbidden, "Unauthorized.")
 	}
 
@@ -825,8 +824,7 @@ type AutoPiClaimRequest struct {
 func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 	userID := getUserID(c)
 
-	// dimoappletest
-	if udc.Settings.Environment == "prod" && userID != "ChUxMDAzMTk4MDI4OTEzMzE5ODk1MzISBmdvb2dsZQ" {
+	if udc.Settings.Environment == "prod" {
 		return fiber.NewError(fiber.StatusForbidden, "Unauthorized.")
 	}
 
