@@ -310,6 +310,10 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	//if countryRecord := services.FindCountry(reg.CountryCode); countryRecord != nil {
 	//	region = countryRecord.Region
 	//}
+	err = tx.Commit() // commmit the transaction
+	if err != nil {
+		return errors.Wrapf(err, "error commiting transaction to create geofence")
+	}
 
 	// don't block, as image fetch could take a while
 	go func() {
