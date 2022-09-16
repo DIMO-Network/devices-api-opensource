@@ -145,6 +145,11 @@ func (s *UserDevicesControllerTestSuite) TestPostWithExistingDefinitionID() {
 	assert.Equal(s.T(), integration.Vendor, regUserResp.DeviceDefinition.CompatibleIntegrations[0].Vendor)
 	assert.Equal(s.T(), integration.Type, regUserResp.DeviceDefinition.CompatibleIntegrations[0].Type)
 	assert.Equal(s.T(), integration.ID, regUserResp.DeviceDefinition.CompatibleIntegrations[0].ID)
+
+	userDevice, err := models.UserDevices().One(s.ctx, s.pdb.DBS().Reader)
+	require.NoError(s.T(), err)
+	assert.NotNilf(s.T(), userDevice, "expected a user device in the database to exist")
+	assert.Equal(s.T(), s.testUserID, userDevice.UserID)
 }
 
 func (s *UserDevicesControllerTestSuite) TestPostWithoutDefinitionID_BadRequest() {
