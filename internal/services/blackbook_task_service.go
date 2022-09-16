@@ -27,7 +27,7 @@ const (
 	updateBlackbookTask = "updateBlackbookTask"
 )
 
-func NewBlackbookTaskService(settings *config.Settings, deviceDefinitionSvc *DeviceDefinitionService, logger zerolog.Logger) BlackbookTaskService {
+func NewBlackbookTaskService(settings *config.Settings, deviceDefinitionSvc DeviceDefinitionService, logger zerolog.Logger) BlackbookTaskService {
 	// setup redis connection
 	var tlsConfig *tls.Config
 	if settings.RedisTLS {
@@ -83,7 +83,7 @@ type blackbookTaskService struct {
 	mainQueue           taskq.Queue
 	updateBlackbookTask *taskq.Task
 	redis               StandardRedis
-	deviceDefinitionSvc *DeviceDefinitionService
+	deviceDefinitionSvc DeviceDefinitionService
 	log                 zerolog.Logger
 }
 

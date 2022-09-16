@@ -28,7 +28,7 @@ type SmartCarService struct {
 	baseURL      string
 	DBS          func() *database.DBReaderWriter
 	log          zerolog.Logger // can't remember if best practice with this logger is to use *
-	deviceDefSvc *DeviceDefinitionService
+	deviceDefSvc DeviceDefinitionService
 }
 
 func NewSmartCarService(dbs func() *database.DBReaderWriter, logger zerolog.Logger, settings *config.Settings) SmartCarService {

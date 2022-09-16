@@ -4,12 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
 	"net/http"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
+	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
@@ -317,4 +319,83 @@ func SetupCreateGeofence(t *testing.T, userID, name string, ud *models.UserDevic
 	}
 
 	return &gf
+}
+
+func BuildDeviceDefinitionGRPC(deviceDefinitionID string, make string, model string, modelType string) []*ddgrpc.GetDeviceDefinitionItemResponse {
+	rp := &ddgrpc.GetDeviceDefinitionItemResponse{
+		DeviceDefinitionId:     deviceDefinitionID,
+		Name:                   "Name",
+		CompatibleIntegrations: []*ddgrpc.GetDeviceDefinitionItemResponse_CompatibleIntegrations{},
+		Make: &ddgrpc.GetDeviceDefinitionItemResponse_Make{
+			Id:   ksuid.New().String(),
+			Name: make,
+		},
+		Type: &ddgrpc.GetDeviceDefinitionItemResponse_Type{
+			Type:  modelType,
+			Make:  make,
+			Model: model,
+			Year:  2020,
+		},
+		VehicleData: &ddgrpc.VehicleInfo{
+			MPG:                 1,
+			MPGHighway:          1,
+			MPGCity:             1,
+			FuelTankCapacityGal: 1,
+			FuelType:            "gas",
+			Base_MSRP:           1,
+			DrivenWheels:        "1",
+			NumberOfDoors:       1,
+			EPAClass:            "class",
+			VehicleType:         "Vehicle",
+		},
+		//Metadata: dd.Metadata,
+		Verified: true,
+	}
+
+	result := []*ddgrpc.GetDeviceDefinitionItemResponse{rp}
+
+	return result
+}
+
+func BuildDeviceDefinitionWithIntegrationGRPC(deviceDefinitionID string, make string, model string, modelType string, integrationID string) []*ddgrpc.GetDeviceDefinitionItemResponse {
+	rp := &ddgrpc.GetDeviceDefinitionItemResponse{
+		DeviceDefinitionId:     deviceDefinitionID,
+		Name:                   "Name",
+		CompatibleIntegrations: []*ddgrpc.GetDeviceDefinitionItemResponse_CompatibleIntegrations{},
+		Make: &ddgrpc.GetDeviceDefinitionItemResponse_Make{
+			Id:   ksuid.New().String(),
+			Name: make,
+		},
+		Type: &ddgrpc.GetDeviceDefinitionItemResponse_Type{
+			Type:  modelType,
+			Make:  make,
+			Model: model,
+			Year:  2020,
+		},
+		VehicleData: &ddgrpc.VehicleInfo{
+			MPG:                 1,
+			MPGHighway:          1,
+			MPGCity:             1,
+			FuelTankCapacityGal: 1,
+			FuelType:            "gas",
+			Base_MSRP:           1,
+			DrivenWheels:        "1",
+			NumberOfDoors:       1,
+			EPAClass:            "class",
+			VehicleType:         "Vehicle",
+		},
+		//Metadata: dd.Metadata,
+		Verified: true,
+	}
+
+	rp.CompatibleIntegrations = append(rp.CompatibleIntegrations, &ddgrpc.GetDeviceDefinitionItemResponse_CompatibleIntegrations{
+		Id:     integrationID,
+		Type:   models.IntegrationTypeAPI,
+		Style:  models.IntegrationStyleWebhook,
+		Vendor: "SmartCar",
+	})
+
+	result := []*ddgrpc.GetDeviceDefinitionItemResponse{rp}
+
+	return result
 }

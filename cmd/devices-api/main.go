@@ -98,41 +98,6 @@ func main() {
 			logger.Fatal().Err(err).Msg("Failed during command compatibility fill.")
 		}
 		logger.Info().Msg("Finished setting command compatibility.")
-	case "smartcar-sync":
-		syncSmartCarCompatibility(ctx, logger, pdb, &settings)
-	case "create-tesla-integrations":
-		if err := createTeslaIntegrations(ctx, pdb, &logger, &settings); err != nil {
-			logger.Fatal().Err(err).Msg("Failed to create Tesla integrations")
-		}
-	case "edmunds-vehicles-sync":
-		logger.Info().Msgf("Loading edmunds vehicles for device definitions and merging MMYs")
-		err = loadEdmundsDeviceDefinitions(ctx, &logger, &settings, pdb)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("error trying to sync edmunds")
-		}
-	case "parkers-vehicles-sync":
-		err = loadParkersDeviceDefinitions(ctx, &logger, pdb)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Error syncing with Parkers")
-		}
-	case "adac-vehicles-sync":
-		err = loadADACDeviceDefinitions(ctx, &logger, pdb)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Error syncing with ADAC")
-		}
-	case "smartcar-compatibility":
-		logger.Info().Msg("starting smartcar compatibility equalizer check to set smartcar compat forwards")
-		err = smartCarForwardCompatibility(ctx, logger, pdb, &settings)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("error trying to run smartcar forwards compatibility")
-		}
-	case "edmunds-images":
-		overwrite := false
-		if len(os.Args) > 2 {
-			overwrite = os.Args[2] == "--overwrite"
-		}
-		logger.Info().Msgf("Loading edmunds images for device definitions with overwrite: %v", overwrite)
-		loadEdmundsImages(ctx, logger, &settings, pdb, overwrite)
 	case "remake-smartcar-topic":
 		err = remakeSmartcarTopic(ctx, pdb, deps.getKafkaProducer())
 		if err != nil {
@@ -157,12 +122,6 @@ func main() {
 		err = populateESDDData(ctx, &settings, esInstance, pdb, &logger)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error running elastic search dd update")
-		}
-	case "search-sync-dds":
-		logger.Info().Msg("loading device definitions from our DB to elastic cluster")
-		err := loadElasticDevices(ctx, &logger, &settings, pdb)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("error syncing with elastic")
 		}
 	case "populate-usa-powertrain":
 		logger.Info().Msg("Populating USA powertrain data from VINs")
@@ -200,12 +159,6 @@ func main() {
 			logger.Fatal().Err(err).Msg("Error starting Smartcar task.")
 		}
 		logger.Info().Msgf("Successfully started Smartcar task for %s.", userDeviceID)
-	case "ipfs-sync-data":
-		logger.Info().Msgf("Sync IPFS")
-		err = loadSyncIPFSDeviceDefinition(ctx, &logger, &settings, pdb)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("error trying to sync IPFS")
-		}
 	case "drivly-sync-data":
 		logger.Info().Msgf("Sync driv.ly")
 		err = loadUserDeviceDrively(ctx, &logger, &settings, pdb)

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
@@ -23,14 +24,14 @@ type DevicesController struct {
 	DBS          func() *database.DBReaderWriter
 	NHTSASvc     services.INHTSAService
 	EdmundsSvc   services.EdmundsService
-	DeviceDefSvc services.IDeviceDefinitionService
+	DeviceDefSvc services.DeviceDefinitionService
 	log          *zerolog.Logger
 }
 
 const autoPiYearCutoff = 2000
 
 // NewDevicesController constructor
-func NewDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, nhtsaSvc services.INHTSAService, ddSvc services.IDeviceDefinitionService) DevicesController {
+func NewDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, nhtsaSvc services.INHTSAService, ddSvc services.DeviceDefinitionService) DevicesController {
 	edmundsSvc := services.NewEdmundsService(settings.TorProxyURL, logger)
 
 	return DevicesController{
@@ -111,25 +112,22 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 			"errorMessage": "invalid device_definition_id",
 		})
 	}
-	dd, err := models.DeviceDefinitions(
-		qm.Where("id = ?", id),
-		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
-		qm.Load(models.DeviceDefinitionRels.DeviceMake),
-		qm.Load(qm.Rels(models.DeviceDefinitionRels.DeviceIntegrations, models.DeviceIntegrationRels.Integration))).
-		One(c.Context(), d.DBS().Reader)
+	deviceDefinitionResponse, err := d.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{id})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusNotFound, fmt.Sprintf("device definition with id %s not found", id))
-		}
 		return err
 	}
 
-	rp, err := NewDeviceDefinitionFromDatabase(dd)
+	if len(deviceDefinitionResponse) == 0 {
+		return fiber.NewError(fiber.StatusNotFound, fmt.Sprintf("device definition with id %s not found", id))
+	}
+
+	dd := deviceDefinitionResponse[0]
+	rp, err := NewDeviceDefinitionFromGRPC(dd)
 	if err != nil {
 		return err
 	}
-	if dd.Year >= autoPiYearCutoff && !strings.EqualFold(dd.R.DeviceMake.Name, "Tesla") {
-		rp.CompatibleIntegrations, err = services.AppendAutoPiCompatibility(c.Context(), rp.CompatibleIntegrations, dd.ID, d.DBS().Writer)
+	if dd.Type.Year >= autoPiYearCutoff && !strings.EqualFold(dd.Make.Name, "Tesla") {
+		rp.CompatibleIntegrations, err = services.AppendAutoPiCompatibility(c.Context(), rp.CompatibleIntegrations, dd.DeviceDefinitionId, d.DBS().Writer)
 		if err != nil {
 			return err
 		}
@@ -210,7 +208,7 @@ func (d *DevicesController) GetDeviceDefinitionByMMY(c *fiber.Ctx) error {
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
-	dd, err := d.DeviceDefSvc.FindDeviceDefinitionByMMY(c.Context(), nil, mk, model, yrInt, true)
+	dd, err := d.DeviceDefSvc.FindDeviceDefinitionByMMY(c.Context(), mk, model, yrInt)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -219,7 +217,7 @@ func (d *DevicesController) GetDeviceDefinitionByMMY(c *fiber.Ctx) error {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
-	rp, err := NewDeviceDefinitionFromDatabase(dd)
+	rp, err := NewDeviceDefinitionFromGRPC(dd)
 	if err != nil {
 		return err
 	}
@@ -245,44 +243,50 @@ func indexOfModel(models []DeviceModels, model string) int {
 	return -1
 }
 
-const vehicleInfoJSONNode = "vehicle_info"
-
-func NewDeviceDefinitionFromDatabase(dd *models.DeviceDefinition) (services.DeviceDefinition, error) {
-	if dd.R == nil || dd.R.DeviceMake == nil {
+func NewDeviceDefinitionFromGRPC(dd *grpc.GetDeviceDefinitionItemResponse) (services.DeviceDefinition, error) {
+	if dd.Make == nil {
 		return services.DeviceDefinition{}, errors.New("required DeviceMake relation is not set")
 	}
 	rp := services.DeviceDefinition{
-		DeviceDefinitionID:     dd.ID,
-		Name:                   fmt.Sprintf("%d %s %s", dd.Year, dd.R.DeviceMake.Name, dd.Model),
-		ImageURL:               dd.ImageURL.Ptr(),
+		DeviceDefinitionID:     dd.DeviceDefinitionId,
+		Name:                   dd.Name,
+		ImageURL:               &dd.ImageUrl,
 		CompatibleIntegrations: []services.DeviceCompatibility{},
 		DeviceMake: services.DeviceMake{
-			ID:              dd.R.DeviceMake.ID,
-			Name:            dd.R.DeviceMake.Name,
-			LogoURL:         dd.R.DeviceMake.LogoURL,
-			OemPlatformName: dd.R.DeviceMake.OemPlatformName,
+			ID:              dd.Make.Id,
+			Name:            dd.Make.Name,
+			LogoURL:         null.StringFrom(dd.Make.LogoUrl),
+			OemPlatformName: null.StringFrom(dd.Make.OemPlatformName),
+		},
+		VehicleInfo: services.DeviceVehicleInfo{
+			MPG:                 fmt.Sprintf("%f", dd.VehicleData.MPG),
+			MPGHighway:          fmt.Sprintf("%f", dd.VehicleData.MPGHighway),
+			MPGCity:             fmt.Sprintf("%f", dd.VehicleData.MPGCity),
+			FuelTankCapacityGal: fmt.Sprintf("%f", dd.VehicleData.FuelTankCapacityGal),
+			FuelType:            dd.VehicleData.FuelType,
+			BaseMSRP:            int(dd.VehicleData.Base_MSRP),
+			DrivenWheels:        dd.VehicleData.DrivenWheels,
+			NumberOfDoors:       fmt.Sprintf("%d", dd.VehicleData.NumberOfDoors),
+			EPAClass:            dd.VehicleData.EPAClass,
+			VehicleType:         dd.VehicleData.VehicleType,
 		},
 		Type: services.DeviceType{
-			Type:  "Vehicle",
-			Make:  dd.R.DeviceMake.Name,
-			Model: dd.Model,
-			Year:  int(dd.Year),
+			Type:  dd.Type.Type,
+			Make:  dd.Type.Make,
+			Model: dd.Type.Model,
+			Year:  int(dd.Type.Year),
 		},
-		Metadata: string(dd.Metadata.JSON),
+		//Metadata: dd.Metadata,
 		Verified: dd.Verified,
 	}
-	// vehicle info
-	var vi map[string]services.DeviceVehicleInfo
-	if err := dd.Metadata.Unmarshal(&vi); err == nil {
-		rp.VehicleInfo = vi[vehicleInfoJSONNode]
-	}
-	// relational properties
-	if dd.R != nil {
-		// compatible integrations
-		rp.CompatibleIntegrations = DeviceCompatibilityFromDB(dd.R.DeviceIntegrations)
-		// sub_models
-		rp.Type.SubModels = services.SubModelsFromStylesDB(dd.R.DeviceStyles)
-	}
+	//// vehicle info
+	//var vi map[string]services.DeviceVehicleInfo
+	//rp.VehicleInfo = vi[vehicleInfoJSONNode]
+
+	// compatible integrations
+	rp.CompatibleIntegrations = DeviceCompatibilityFromDB(dd.CompatibleIntegrations)
+	// sub_models
+	rp.Type.SubModels = dd.Type.SubModels
 
 	return rp, nil
 }
@@ -293,19 +297,19 @@ type DeviceRp struct {
 }
 
 // DeviceCompatibilityFromDB returns list of compatibility representation from device integrations db slice, assumes integration relation loaded
-func DeviceCompatibilityFromDB(dbDIS models.DeviceIntegrationSlice) []services.DeviceCompatibility {
+func DeviceCompatibilityFromDB(dbDIS []*grpc.GetDeviceDefinitionItemResponse_CompatibleIntegrations) []services.DeviceCompatibility {
 	if len(dbDIS) == 0 {
 		return []services.DeviceCompatibility{}
 	}
 	compatibilities := make([]services.DeviceCompatibility, len(dbDIS))
 	for i, di := range dbDIS {
 		compatibilities[i] = services.DeviceCompatibility{
-			ID:           di.IntegrationID,
-			Type:         di.R.Integration.Type,
-			Style:        di.R.Integration.Style,
-			Vendor:       di.R.Integration.Vendor,
-			Region:       di.Region,
-			Capabilities: jsonOrDefault(di.Capabilities),
+			ID:     di.Id,
+			Type:   di.Type,
+			Style:  di.Style,
+			Vendor: di.Vendor,
+			Region: di.Region,
+			//Capabilities: di.Capabilities,
 		}
 	}
 	return compatibilities

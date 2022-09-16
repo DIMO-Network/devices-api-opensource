@@ -4,7 +4,7 @@ image:
   pullPolicy: IfNotPresent
   tag: 0.9.9
 cronJob:
-  enabled: true
+  enabled: false
   schedule: 0 0 * * 0
 env:
   ENVIRONMENT: prod

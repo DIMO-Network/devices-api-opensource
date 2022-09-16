@@ -84,8 +84,6 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 	device, err := models.UserDevices(
 		models.UserDeviceWhere.UserID.EQ(userID),
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
-		qm.Load(models.UserDeviceRels.DeviceDefinition),
-		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
 	).One(c.Context(), tx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -93,6 +91,18 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 		}
 		return err
 	}
+
+	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{device.DeviceDefinitionID})
+
+	if err != nil {
+		return err
+	}
+
+	if len(deviceDefinitionResponse) == 0 {
+		return errorResponseHandler(c, errors.New("no device definition"), fiber.StatusBadRequest)
+	}
+
+	var dd = deviceDefinitionResponse[0]
 
 	// Probably don't need two queries if you're smart
 	apiIntegration, err := models.UserDeviceAPIIntegrations(
@@ -152,9 +162,9 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 			UserID:    userID,
 			Device: services.UserDeviceEventDevice{
 				ID:    userDeviceID,
-				Make:  device.R.DeviceDefinition.R.DeviceMake.Name,
-				Model: device.R.DeviceDefinition.Model,
-				Year:  int(device.R.DeviceDefinition.Year),
+				Make:  dd.Make.Name,
+				Model: dd.Type.Model,
+				Year:  int(dd.Type.Year),
 			},
 			Integration: services.UserDeviceEventIntegration{
 				ID:     apiIntegration.R.Integration.ID,

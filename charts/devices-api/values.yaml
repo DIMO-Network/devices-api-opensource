@@ -21,7 +21,7 @@ securityContext:
     drop:
       - all
 cronJob:
-  enabled: true
+  enabled: false
   schedule: 0 0 * * 0
 env:
   ENVIRONMENT: dev

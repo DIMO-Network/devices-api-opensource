@@ -41,7 +41,7 @@ func TestUserDevicesController_GetUserDeviceStatus(t *testing.T) {
 		}
 	}()
 
-	deviceDefSvc := mock_services.NewMockIDeviceDefinitionService(mockCtrl)
+	deviceDefSvc := mock_services.NewMockDeviceDefinitionService(mockCtrl)
 	scClient := mock_services.NewMockSmartcarClient(mockCtrl)
 	scTaskSvc := mock_services.NewMockSmartcarTaskService(mockCtrl)
 	teslaSvc := mock_services.NewMockTeslaService(mockCtrl)

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
@@ -45,7 +46,7 @@ import (
 type UserDevicesController struct {
 	Settings                  *config.Settings
 	DBS                       func() *database.DBReaderWriter
-	DeviceDefSvc              services.IDeviceDefinitionService
+	DeviceDefSvc              services.DeviceDefinitionService
 	log                       *zerolog.Logger
 	eventService              services.EventService
 	smartcarClient            services.SmartcarClient
@@ -69,7 +70,7 @@ func NewUserDevicesController(
 	settings *config.Settings,
 	dbs func() *database.DBReaderWriter,
 	logger *zerolog.Logger,
-	ddSvc services.IDeviceDefinitionService,
+	ddSvc services.DeviceDefinitionService,
 	eventService services.EventService,
 	smartcarClient services.SmartcarClient,
 	smartcarTaskSvc services.SmartcarTaskService,
@@ -121,10 +122,6 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 
 	userID := getUserID(c)
 	devices, err := models.UserDevices(qm.Where("user_id = ?", userID),
-		qm.Load(models.UserDeviceRels.DeviceDefinition),
-		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
-		qm.Load("DeviceDefinition.DeviceIntegrations"),
-		qm.Load("DeviceDefinition.DeviceIntegrations.Integration"),
 		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
 		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
 		qm.Load(models.UserDeviceRels.MintRequest),
@@ -134,8 +131,36 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 	rp := make([]UserDeviceFull, len(devices))
+	ids := []string{}
+
+	for _, d := range devices {
+		ids = append(ids, d.DeviceDefinitionID)
+	}
+
+	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), ids)
+
+	if err != nil {
+		return err
+	}
+
+	filterDeviceDefinition := func(id string, items []*ddgrpc.GetDeviceDefinitionItemResponse) (*ddgrpc.GetDeviceDefinitionItemResponse, error) {
+		for _, dd := range items {
+			if id == dd.DeviceDefinitionId {
+				return dd, nil
+			}
+		}
+		return nil, errors.New("no device definition")
+	}
+
 	for i, d := range devices {
-		dd, err := NewDeviceDefinitionFromDatabase(d.R.DeviceDefinition)
+
+		deviceDefinition, err := filterDeviceDefinition(d.DeviceDefinitionID, deviceDefinitionResponse)
+
+		if err != nil {
+			return err
+		}
+
+		dd, err := NewDeviceDefinitionFromGRPC(deviceDefinition)
 		if err != nil {
 			return err
 		}
@@ -254,66 +279,45 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	var dd *models.DeviceDefinition
 	// attach device def to user
 
 	// todo grpc pull device-definition via grpc
-	dd, err = models.DeviceDefinitions(qm.Load(models.DeviceDefinitionRels.DeviceMake),
-		models.DeviceDefinitionWhere.ID.EQ(*reg.DeviceDefinitionID)).One(c.Context(), tx)
+	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{*reg.DeviceDefinitionID})
+
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errorResponseHandler(c, errors.Wrapf(err, "could not find device definition id: %s", *reg.DeviceDefinitionID), fiber.StatusBadRequest)
-		}
 		return errorResponseHandler(c, errors.Wrapf(err, "error querying for device definition id: %s", *reg.DeviceDefinitionID), fiber.StatusInternalServerError)
 	}
+
+	if len(deviceDefinitionResponse) == 0 {
+		return errorResponseHandler(c, errors.Wrapf(err, "could not find device definition id: %s", *reg.DeviceDefinitionID), fiber.StatusBadRequest)
+	}
+
+	dd := deviceDefinitionResponse[0]
 
 	userDeviceID := ksuid.New().String()
 	// register device for the user
 	ud := models.UserDevice{
 		ID:                 userDeviceID,
 		UserID:             userID,
-		DeviceDefinitionID: dd.ID,
+		DeviceDefinitionID: dd.DeviceDefinitionId,
 		CountryCode:        null.StringFrom(reg.CountryCode),
 	}
 	err = ud.Insert(c.Context(), tx, boil.Infer())
 	if err != nil {
-		return errorResponseHandler(c, errors.Wrapf(err, "could not create user device for def_id: %s", dd.ID), fiber.StatusInternalServerError)
+		return errorResponseHandler(c, errors.Wrapf(err, "could not create user device for def_id: %s", dd.DeviceDefinitionId), fiber.StatusInternalServerError)
 	}
-	region := ""
-	if countryRecord := services.FindCountry(reg.CountryCode); countryRecord != nil {
-		region = countryRecord.Region
-	}
-	// get device integrations to return in payload - helps frontend
-	// todo grpc get these from device-definitions via grpc - may be able to pull from object above that already might have the deviceIntegrations
-	deviceInts, err := models.DeviceIntegrations(
-		qm.Load(models.DeviceIntegrationRels.Integration),
-		models.DeviceIntegrationWhere.DeviceDefinitionID.EQ(dd.ID),
-		models.DeviceIntegrationWhere.Region.EQ(region),
-	).All(c.Context(), tx)
-	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
-	}
-	err = tx.Commit()
-	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
-	}
-
-	if dd.R == nil {
-		dd.R = dd.R.NewStruct()
-	}
-	dd.R.DeviceIntegrations = deviceInts
+	//region := ""
+	//if countryRecord := services.FindCountry(reg.CountryCode); countryRecord != nil {
+	//	region = countryRecord.Region
+	//}
 
 	// don't block, as image fetch could take a while
 	go func() {
 		// todo grpc update this service to call device-defintions over grpc to update the image
-		err := udc.DeviceDefSvc.CheckAndSetImage(dd, false)
+		err := udc.DeviceDefSvc.CheckAndSetImage(c.Context(), dd, false)
 		if err != nil {
 			udc.log.Error().Err(err).Msg("error getting device image upon user_device registration")
 			return
-		}
-		_, err = dd.Update(context.Background(), udc.DBS().Writer, boil.Whitelist("image_url", "updated_at")) // only update image_url https://github.com/volatiletech/sqlboiler#update
-		if err != nil {
-			udc.log.Error().Err(err).Msg("error updating device image in DB for: " + dd.ID)
 		}
 	}()
 	err = udc.eventService.Emit(&services.Event{
@@ -325,9 +329,9 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 			UserID:    userID,
 			Device: services.UserDeviceEventDevice{
 				ID:    userDeviceID,
-				Make:  dd.R.DeviceMake.Name,
-				Model: dd.Model,
-				Year:  int(dd.Year), // Odd.
+				Make:  dd.Make.Name,
+				Model: dd.Type.Model,
+				Year:  int(dd.Type.Year), // Odd.
 			},
 		},
 	})
@@ -335,7 +339,7 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		udc.log.Err(err).Msg("Failed emitting device creation event")
 	}
 
-	ddNice, err := NewDeviceDefinitionFromDatabase(dd)
+	ddNice, err := NewDeviceDefinitionFromGRPC(dd)
 	if err != nil {
 		return err
 	}
@@ -766,8 +770,6 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	userDevice, err := models.UserDevices(
 		qm.Where("id = ?", udi),
 		qm.And("user_id = ?", userID),
-		qm.Load(models.UserDeviceRels.DeviceDefinition),
-		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
 		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations), // Probably don't need this one.
 		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
 	).One(c.Context(), tx)
@@ -777,6 +779,23 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 		}
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
+
+	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{userDevice.DeviceDefinitionID})
+
+	if err != nil {
+		return err
+	}
+
+	if len(deviceDefinitionResponse) == 0 {
+		udc.log.Err(err).
+			Str("userDeviceID", udi).
+			Str("deviceDefinitionID", userDevice.DeviceDefinitionID).
+			Msg("unexpected error deregistering autopi")
+
+		return errorResponseHandler(c, errors.New("no device definition"), fiber.StatusBadRequest)
+	}
+
+	var dd = deviceDefinitionResponse[0]
 
 	for _, apiInteg := range userDevice.R.UserDeviceAPIIntegrations {
 		if apiInteg.R.Integration.Vendor == services.SmartCarVendor {
@@ -813,9 +832,9 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 				UserID:    userID,
 				Device: services.UserDeviceEventDevice{
 					ID:    udi,
-					Make:  userDevice.R.DeviceDefinition.R.DeviceMake.Name,
-					Model: userDevice.R.DeviceDefinition.Model,
-					Year:  int(userDevice.R.DeviceDefinition.Year),
+					Make:  dd.Make.Name,
+					Model: dd.Type.Model,
+					Year:  int(dd.Type.Year),
 				},
 				Integration: services.UserDeviceEventIntegration{
 					ID:     apiInteg.R.Integration.ID,
@@ -841,7 +860,6 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
-	dd := userDevice.R.DeviceDefinition
 	err = udc.eventService.Emit(&services.Event{
 		Type:    "com.dimo.zone.device.delete",
 		Subject: userID,
@@ -851,9 +869,9 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 			UserID:    userID,
 			Device: services.UserDeviceEventDevice{
 				ID:    udi,
-				Make:  dd.R.DeviceMake.Name,
-				Model: dd.Model,
-				Year:  int(dd.Year), // Odd.
+				Make:  dd.Make.Name,
+				Model: dd.Type.Model,
+				Year:  int(dd.Type.Year), // Odd.
 			},
 		},
 	})

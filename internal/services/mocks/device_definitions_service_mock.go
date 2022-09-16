@@ -14,75 +14,75 @@ import (
 	boil "github.com/volatiletech/sqlboiler/v4/boil"
 )
 
-// MockIDeviceDefinitionService is a mock of IDeviceDefinitionService interface.
-type MockIDeviceDefinitionService struct {
+// MockDeviceDefinitionService is a mock of DeviceDefinitionService interface.
+type MockDeviceDefinitionService struct {
 	ctrl     *gomock.Controller
-	recorder *MockIDeviceDefinitionServiceMockRecorder
+	recorder *MockDeviceDefinitionServiceMockRecorder
 }
 
-// MockIDeviceDefinitionServiceMockRecorder is the mock recorder for MockIDeviceDefinitionService.
-type MockIDeviceDefinitionServiceMockRecorder struct {
-	mock *MockIDeviceDefinitionService
+// MockDeviceDefinitionServiceMockRecorder is the mock recorder for MockDeviceDefinitionService.
+type MockDeviceDefinitionServiceMockRecorder struct {
+	mock *MockDeviceDefinitionService
 }
 
-// NewMockIDeviceDefinitionService creates a new mock instance.
-func NewMockIDeviceDefinitionService(ctrl *gomock.Controller) *MockIDeviceDefinitionService {
-	mock := &MockIDeviceDefinitionService{ctrl: ctrl}
-	mock.recorder = &MockIDeviceDefinitionServiceMockRecorder{mock}
+// NewMockDeviceDefinitionService creates a new mock instance.
+func NewMockDeviceDefinitionService(ctrl *gomock.Controller) *MockDeviceDefinitionService {
+	mock := &MockDeviceDefinitionService{ctrl: ctrl}
+	mock.recorder = &MockDeviceDefinitionServiceMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockIDeviceDefinitionService) EXPECT() *MockIDeviceDefinitionServiceMockRecorder {
+func (m *MockDeviceDefinitionService) EXPECT() *MockDeviceDefinitionServiceMockRecorder {
 	return m.recorder
 }
 
 // CheckAndSetImage mocks base method.
-func (m *MockIDeviceDefinitionService) CheckAndSetImage(dd *models.DeviceDefinition, overwrite bool) error {
+func (m *MockDeviceDefinitionService) CheckAndSetImage(ctx context.Context, dd *grpc.GetDeviceDefinitionItemResponse, overwrite bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CheckAndSetImage", dd, overwrite)
+	ret := m.ctrl.Call(m, "CheckAndSetImage", ctx, dd, overwrite)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // CheckAndSetImage indicates an expected call of CheckAndSetImage.
-func (mr *MockIDeviceDefinitionServiceMockRecorder) CheckAndSetImage(dd, overwrite interface{}) *gomock.Call {
+func (mr *MockDeviceDefinitionServiceMockRecorder) CheckAndSetImage(ctx, dd, overwrite interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckAndSetImage", reflect.TypeOf((*MockIDeviceDefinitionService)(nil).CheckAndSetImage), dd, overwrite)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckAndSetImage", reflect.TypeOf((*MockDeviceDefinitionService)(nil).CheckAndSetImage), ctx, dd, overwrite)
 }
 
 // FindDeviceDefinitionByMMY mocks base method.
-func (m *MockIDeviceDefinitionService) FindDeviceDefinitionByMMY(ctx context.Context, db boil.ContextExecutor, mk, model string, year int, loadIntegrations bool) (*models.DeviceDefinition, error) {
+func (m *MockDeviceDefinitionService) FindDeviceDefinitionByMMY(ctx context.Context, mk, model string, year int) (*grpc.GetDeviceDefinitionItemResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindDeviceDefinitionByMMY", ctx, db, mk, model, year, loadIntegrations)
-	ret0, _ := ret[0].(*models.DeviceDefinition)
+	ret := m.ctrl.Call(m, "FindDeviceDefinitionByMMY", ctx, mk, model, year)
+	ret0, _ := ret[0].(*grpc.GetDeviceDefinitionItemResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // FindDeviceDefinitionByMMY indicates an expected call of FindDeviceDefinitionByMMY.
-func (mr *MockIDeviceDefinitionServiceMockRecorder) FindDeviceDefinitionByMMY(ctx, db, mk, model, year, loadIntegrations interface{}) *gomock.Call {
+func (mr *MockDeviceDefinitionServiceMockRecorder) FindDeviceDefinitionByMMY(ctx, mk, model, year interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindDeviceDefinitionByMMY", reflect.TypeOf((*MockIDeviceDefinitionService)(nil).FindDeviceDefinitionByMMY), ctx, db, mk, model, year, loadIntegrations)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindDeviceDefinitionByMMY", reflect.TypeOf((*MockDeviceDefinitionService)(nil).FindDeviceDefinitionByMMY), ctx, mk, model, year)
 }
 
 // GetDeviceDefinitionsByIDs mocks base method.
-func (m *MockIDeviceDefinitionService) GetDeviceDefinitionsByIDs(ctx context.Context, ids []string) (*grpc.GetDeviceDefinitionResponse, error) {
+func (m *MockDeviceDefinitionService) GetDeviceDefinitionsByIDs(ctx context.Context, ids []string) ([]*grpc.GetDeviceDefinitionItemResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDeviceDefinitionsByIDs", ctx, ids)
-	ret0, _ := ret[0].(*grpc.GetDeviceDefinitionResponse)
+	ret0, _ := ret[0].([]*grpc.GetDeviceDefinitionItemResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetDeviceDefinitionsByIDs indicates an expected call of GetDeviceDefinitionsByIDs.
-func (mr *MockIDeviceDefinitionServiceMockRecorder) GetDeviceDefinitionsByIDs(ctx, ids interface{}) *gomock.Call {
+func (mr *MockDeviceDefinitionServiceMockRecorder) GetDeviceDefinitionsByIDs(ctx, ids interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDeviceDefinitionsByIDs", reflect.TypeOf((*MockIDeviceDefinitionService)(nil).GetDeviceDefinitionsByIDs), ctx, ids)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDeviceDefinitionsByIDs", reflect.TypeOf((*MockDeviceDefinitionService)(nil).GetDeviceDefinitionsByIDs), ctx, ids)
 }
 
 // GetOrCreateMake mocks base method.
-func (m *MockIDeviceDefinitionService) GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*models.DeviceMake, error) {
+func (m *MockDeviceDefinitionService) GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*models.DeviceMake, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOrCreateMake", ctx, tx, makeName)
 	ret0, _ := ret[0].(*models.DeviceMake)
@@ -91,13 +91,13 @@ func (m *MockIDeviceDefinitionService) GetOrCreateMake(ctx context.Context, tx b
 }
 
 // GetOrCreateMake indicates an expected call of GetOrCreateMake.
-func (mr *MockIDeviceDefinitionServiceMockRecorder) GetOrCreateMake(ctx, tx, makeName interface{}) *gomock.Call {
+func (mr *MockDeviceDefinitionServiceMockRecorder) GetOrCreateMake(ctx, tx, makeName interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrCreateMake", reflect.TypeOf((*MockIDeviceDefinitionService)(nil).GetOrCreateMake), ctx, tx, makeName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrCreateMake", reflect.TypeOf((*MockDeviceDefinitionService)(nil).GetOrCreateMake), ctx, tx, makeName)
 }
 
 // PullBlackbookData mocks base method.
-func (m *MockIDeviceDefinitionService) PullBlackbookData(ctx context.Context, userDeviceID, deviceDefinitionID, vin string) error {
+func (m *MockDeviceDefinitionService) PullBlackbookData(ctx context.Context, userDeviceID, deviceDefinitionID, vin string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PullBlackbookData", ctx, userDeviceID, deviceDefinitionID, vin)
 	ret0, _ := ret[0].(error)
@@ -105,13 +105,13 @@ func (m *MockIDeviceDefinitionService) PullBlackbookData(ctx context.Context, us
 }
 
 // PullBlackbookData indicates an expected call of PullBlackbookData.
-func (mr *MockIDeviceDefinitionServiceMockRecorder) PullBlackbookData(ctx, userDeviceID, deviceDefinitionID, vin interface{}) *gomock.Call {
+func (mr *MockDeviceDefinitionServiceMockRecorder) PullBlackbookData(ctx, userDeviceID, deviceDefinitionID, vin interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PullBlackbookData", reflect.TypeOf((*MockIDeviceDefinitionService)(nil).PullBlackbookData), ctx, userDeviceID, deviceDefinitionID, vin)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PullBlackbookData", reflect.TypeOf((*MockDeviceDefinitionService)(nil).PullBlackbookData), ctx, userDeviceID, deviceDefinitionID, vin)
 }
 
 // PullDrivlyData mocks base method.
-func (m *MockIDeviceDefinitionService) PullDrivlyData(ctx context.Context, userDeviceID, deviceDefinitionID, vin string) error {
+func (m *MockDeviceDefinitionService) PullDrivlyData(ctx context.Context, userDeviceID, deviceDefinitionID, vin string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PullDrivlyData", ctx, userDeviceID, deviceDefinitionID, vin)
 	ret0, _ := ret[0].(error)
@@ -119,13 +119,13 @@ func (m *MockIDeviceDefinitionService) PullDrivlyData(ctx context.Context, userD
 }
 
 // PullDrivlyData indicates an expected call of PullDrivlyData.
-func (mr *MockIDeviceDefinitionServiceMockRecorder) PullDrivlyData(ctx, userDeviceID, deviceDefinitionID, vin interface{}) *gomock.Call {
+func (mr *MockDeviceDefinitionServiceMockRecorder) PullDrivlyData(ctx, userDeviceID, deviceDefinitionID, vin interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PullDrivlyData", reflect.TypeOf((*MockIDeviceDefinitionService)(nil).PullDrivlyData), ctx, userDeviceID, deviceDefinitionID, vin)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PullDrivlyData", reflect.TypeOf((*MockDeviceDefinitionService)(nil).PullDrivlyData), ctx, userDeviceID, deviceDefinitionID, vin)
 }
 
 // UpdateDeviceDefinitionFromNHTSA mocks base method.
-func (m *MockIDeviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Context, deviceDefinitionID, vin string) error {
+func (m *MockDeviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Context, deviceDefinitionID, vin string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateDeviceDefinitionFromNHTSA", ctx, deviceDefinitionID, vin)
 	ret0, _ := ret[0].(error)
@@ -133,7 +133,7 @@ func (m *MockIDeviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx conte
 }
 
 // UpdateDeviceDefinitionFromNHTSA indicates an expected call of UpdateDeviceDefinitionFromNHTSA.
-func (mr *MockIDeviceDefinitionServiceMockRecorder) UpdateDeviceDefinitionFromNHTSA(ctx, deviceDefinitionID, vin interface{}) *gomock.Call {
+func (mr *MockDeviceDefinitionServiceMockRecorder) UpdateDeviceDefinitionFromNHTSA(ctx, deviceDefinitionID, vin interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateDeviceDefinitionFromNHTSA", reflect.TypeOf((*MockIDeviceDefinitionService)(nil).UpdateDeviceDefinitionFromNHTSA), ctx, deviceDefinitionID, vin)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateDeviceDefinitionFromNHTSA", reflect.TypeOf((*MockDeviceDefinitionService)(nil).UpdateDeviceDefinitionFromNHTSA), ctx, deviceDefinitionID, vin)
 }

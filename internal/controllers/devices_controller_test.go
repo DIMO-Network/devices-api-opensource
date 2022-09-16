@@ -8,8 +8,8 @@ import (
 	"io"
 	"net/http"
 	"testing"
-	"time"
 
+	"github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
@@ -19,23 +19,23 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/mock/gomock"
 	_ "github.com/lib/pq"
-	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/tidwall/gjson"
-	"github.com/volatiletech/null/v8"
 )
 
 type DevicesControllerTestSuite struct {
 	suite.Suite
-	pdb         database.DbStore
-	container   testcontainers.Container
-	ctx         context.Context
-	deviceDefID string
-	mockCtrl    *gomock.Controller
-	app         *fiber.App
-	dbMake      models.DeviceMake
+	pdb          database.DbStore
+	container    testcontainers.Container
+	ctx          context.Context
+	deviceDefID  string
+	mockCtrl     *gomock.Controller
+	app          *fiber.App
+	dbMake       models.DeviceMake
+	deviceDefSvc *mock_services.MockDeviceDefinitionService
 }
 
 // SetupSuite starts container db
@@ -46,14 +46,15 @@ func (s *DevicesControllerTestSuite) SetupSuite() {
 	logger := test.Logger()
 
 	nhtsaSvc := mock_services.NewMockINHTSAService(s.mockCtrl)
-	deviceDefSvc := mock_services.NewMockIDeviceDefinitionService(s.mockCtrl)
-	c := NewDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, logger, nhtsaSvc, deviceDefSvc)
+	s.deviceDefSvc = mock_services.NewMockDeviceDefinitionService(s.mockCtrl)
+	c := NewDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, logger, nhtsaSvc, s.deviceDefSvc)
 
 	// routes
 	app := fiber.New()
 	app.Get("/device-definitions/all", c.GetAllDeviceMakeModelYears)
 	app.Get("/device-definitions/:id", c.GetDeviceDefinitionByID)
 	app.Get("/device-definitions/:id/integrations", c.GetDeviceIntegrationsByID)
+
 	s.app = app
 
 	// arrange some data
@@ -80,8 +81,15 @@ func TestDevicesControllerTestSuite(t *testing.T) {
 /* Actual tests*/
 
 func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionById() {
+
+	ddGRPC := test.BuildDeviceDefinitionGRPC(s.deviceDefID, "Ford", "Ford", "Vehicle")
+
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{s.deviceDefID}).Times(1).Return(ddGRPC, nil) // todo move to each test where used
+
 	request, _ := http.NewRequest("GET", "/device-definitions/"+s.deviceDefID, nil)
-	response, _ := s.app.Test(request)
+	response, errRes := s.app.Test(request)
+	require.NoError(s.T(), errRes)
+
 	body, _ := io.ReadAll(response.Body)
 	// assert
 	assert.Equal(s.T(), 200, response.StatusCode)
@@ -103,6 +111,8 @@ func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionById() {
 
 func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionDoesNotAddAutoPiForOldCars() {
 	dbDdOldCar := test.SetupCreateDeviceDefinition(s.T(), s.dbMake, "Oldie", 1999, s.pdb)
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dbDdOldCar.ID}).Times(1).Return(test.BuildDeviceDefinitionGRPC(dbDdOldCar.ID, "Tesla", "Tesla", "Vehicle"), nil) // todo move to each test where used
+
 	request, _ := http.NewRequest("GET", "/device-definitions/"+dbDdOldCar.ID, nil)
 	response, _ := s.app.Test(request)
 	body, _ := io.ReadAll(response.Body)
@@ -119,6 +129,8 @@ func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionDoesNotAddAutoPiForO
 func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionDoesNotAddAutoPiForTesla() {
 	tesla := test.SetupCreateMake(s.T(), "Tesla", s.pdb)
 	teslaCar := test.SetupCreateDeviceDefinition(s.T(), tesla, "Cyber Truck never", 2022, s.pdb)
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{teslaCar.ID}).Times(1).Return(test.BuildDeviceDefinitionGRPC(tesla.ID, "Tesla", "Tesla", "Vehicle"), nil) // todo move to each test where used
+
 	request, _ := http.NewRequest("GET", "/device-definitions/"+teslaCar.ID, nil)
 	response, _ := s.app.Test(request)
 	body, _ := io.ReadAll(response.Body)
@@ -181,41 +193,36 @@ func (s *DevicesControllerTestSuite) TestGetAll() {
 	}
 }
 
-func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
-	dbMake := &models.DeviceMake{
-		ID:   ksuid.New().String(),
-		Name: "Mercedes",
+func TestNewDeviceDefinitionFromGrpc(t *testing.T) {
+	subModels := []string{"AMG"}
+	dbDevice := &grpc.GetDeviceDefinitionItemResponse{
+		DeviceDefinitionId: "123",
+		Type: &grpc.GetDeviceDefinitionItemResponse_Type{
+			Type:      "Vehicle",
+			Model:     "R500",
+			Year:      2020,
+			Make:      "Mercedes",
+			SubModels: subModels,
+		},
+		VehicleData: &grpc.VehicleInfo{
+			FuelType:      "gas",
+			DrivenWheels:  "4",
+			NumberOfDoors: 5,
+		},
+		Make: &grpc.GetDeviceDefinitionItemResponse_Make{
+			Id:   "1",
+			Name: "Mercedes",
+		},
+		DeviceIntegrations: append([]*grpc.GetDeviceDefinitionItemResponse_DeviceIntegrations{}, &grpc.GetDeviceDefinitionItemResponse_DeviceIntegrations{
+			Id: "123",
+		}),
+		CompatibleIntegrations: append([]*grpc.GetDeviceDefinitionItemResponse_CompatibleIntegrations{}, &grpc.GetDeviceDefinitionItemResponse_CompatibleIntegrations{
+			Vendor: "Autopi",
+		}),
+		//Metadata:     null.JSONFrom([]byte(`{"vehicle_info": {"fuel_type": "gas", "driven_wheels": "4", "number_of_doors":"5" } }`)),
 	}
-	dbDevice := models.DeviceDefinition{
-		ID:           "123",
-		DeviceMakeID: dbMake.ID,
-		Model:        "R500",
-		Year:         2020,
-		Metadata:     null.JSONFrom([]byte(`{"vehicle_info": {"fuel_type": "gas", "driven_wheels": "4", "number_of_doors":"5" } }`)),
-	}
-	ds := models.DeviceStyle{
-		SubModel:           "AMG",
-		Name:               "C63 AMG",
-		DeviceDefinitionID: dbDevice.ID,
-	}
-	di := models.DeviceIntegration{
-		DeviceDefinitionID: "123",
-		IntegrationID:      "123",
-		CreatedAt:          time.Time{},
-		UpdatedAt:          time.Time{},
-	}
-	di.R = di.R.NewStruct()
-	di.R.Integration = &models.Integration{
-		ID:     "123",
-		Type:   "Hardware",
-		Style:  "Addon",
-		Vendor: "Autopi",
-	}
-	dbDevice.R = dbDevice.R.NewStruct()
-	dbDevice.R.DeviceMake = dbMake
-	dbDevice.R.DeviceIntegrations = append(dbDevice.R.DeviceIntegrations, &di)
-	dbDevice.R.DeviceStyles = append(dbDevice.R.DeviceStyles, &ds)
-	dd, err := NewDeviceDefinitionFromDatabase(&dbDevice)
+
+	dd, err := NewDeviceDefinitionFromGRPC(dbDevice)
 
 	assert.NoError(t, err)
 	assert.Equal(t, "123", dd.DeviceDefinitionID)
@@ -233,17 +240,14 @@ func TestNewDeviceDefinitionFromDatabase(t *testing.T) {
 }
 
 func TestNewDeviceDefinitionFromDatabase_Error(t *testing.T) {
-	dbDevice := models.DeviceDefinition{
-		ID:       "123",
-		Model:    "R500",
-		Year:     2020,
-		Metadata: null.JSONFrom([]byte(`{"vehicle_info": {"fuel_type": "gas", "driven_wheels": "4", "number_of_doors":"5" } }`)),
+	dbDevice := &grpc.GetDeviceDefinitionItemResponse{
+		DeviceDefinitionId: "123",
+		VehicleData: &grpc.VehicleInfo{
+			FuelType:      "gas",
+			DrivenWheels:  "4",
+			NumberOfDoors: 5,
+		},
 	}
-	dbDevice.R = dbDevice.R.NewStruct()
-	_, err := NewDeviceDefinitionFromDatabase(&dbDevice)
-	assert.Error(t, err)
-
-	dbDevice.R = nil
-	_, err = NewDeviceDefinitionFromDatabase(&dbDevice)
+	_, err := NewDeviceDefinitionFromGRPC(dbDevice)
 	assert.Error(t, err)
 }

@@ -27,7 +27,7 @@ const (
 	updateDrivlyTask = "updateDrivlyTask"
 )
 
-func NewDrivlyTaskService(settings *config.Settings, deviceDefinitionSvc *DeviceDefinitionService, logger zerolog.Logger) DrivlyTaskService {
+func NewDrivlyTaskService(settings *config.Settings, deviceDefinitionSvc DeviceDefinitionService, logger zerolog.Logger) DrivlyTaskService {
 	// setup redis connection
 	var tlsConfig *tls.Config
 	if settings.RedisTLS {
@@ -83,7 +83,7 @@ type drivlyTaskService struct {
 	mainQueue           taskq.Queue
 	updateDrivlyTask    *taskq.Task
 	redis               StandardRedis
-	deviceDefinitionSvc *DeviceDefinitionService
+	deviceDefinitionSvc DeviceDefinitionService
 	log                 zerolog.Logger
 }
 

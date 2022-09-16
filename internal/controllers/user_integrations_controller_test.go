@@ -59,7 +59,7 @@ func (s *UserIntegrationsControllerTestSuite) SetupSuite() {
 
 	s.mockCtrl = gomock.NewController(s.T())
 
-	deviceDefSvc := mock_services.NewMockIDeviceDefinitionService(s.mockCtrl)
+	deviceDefSvc := mock_services.NewMockDeviceDefinitionService(s.mockCtrl)
 	s.scClient = mock_services.NewMockSmartcarClient(s.mockCtrl)
 	s.scTaskSvc = mock_services.NewMockSmartcarTaskService(s.mockCtrl)
 	s.teslaSvc = mock_services.NewMockTeslaService(s.mockCtrl)
