@@ -845,6 +845,8 @@ func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "Couldn't parse request body.")
 	}
 
+	udc.log.Info().Interface("payload", reqBody).Msg("Got claim request.")
+
 	unit, err := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, unitID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
