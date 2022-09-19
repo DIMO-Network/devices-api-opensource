@@ -734,7 +734,7 @@ func (udc *UserDevicesController) GetAutoPiTask(c *fiber.Ctx) error {
 func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
 	userID := getUserID(c)
 
-	if udc.Settings.Environment != "prod" {
+	if udc.Settings.Environment == "prod" {
 		return fiber.NewError(fiber.StatusForbidden, "Unauthorized.")
 	}
 
