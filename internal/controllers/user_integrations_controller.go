@@ -940,7 +940,7 @@ func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 	}
 
 	if amRecAddr != common.BytesToAddress(unit.EthereumAddress.Bytes) {
-		udc.log.Err(err).Str("recAddr", userRecAddr.String()).Msg("Recovered address, but incorrect.")
+		udc.log.Err(err).Str("recAddr", amRecAddr.String()).Msg("Recovered address, but incorrect.")
 		return fiber.NewError(fiber.StatusBadRequest, "Signature incorrect.")
 	}
 
