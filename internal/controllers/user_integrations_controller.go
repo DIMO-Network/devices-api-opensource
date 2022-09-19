@@ -746,22 +746,26 @@ func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
 	unit, err := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, unitID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			logger.Info().Msg("Unknown unit id.")
 			return fiber.NewError(fiber.StatusNotFound, "AutoPi not minted, or unit ID invalid.")
 		}
+		logger.Err(err).Msg("Database failure searching for AutoPi.")
 		return fiber.NewError(fiber.StatusInternalServerError, "Internal error.")
 	}
 
 	if unit.UserID.Valid && unit.UserID.String != userID {
-		logger.Warn().Str("existingUserId", unit.UserID.String).Msg("AutoPi already to another user.")
+		logger.Error().Str("existingUserId", unit.UserID.String).Msg("AutoPi already attached to another user.")
 		return fiber.NewError(fiber.StatusForbidden, "AutoPi paired to another user.")
 	}
 
 	if unit.TokenID.IsZero() {
-		return fiber.NewError(fiber.StatusNotFound, "AutoPi not minted.")
+		logger.Error().Msg("AutoPi not minted.")
+		return fiber.NewError(fiber.StatusConflict, "AutoPi not minted.")
 	}
 
 	apToken := unit.TokenID.Int(nil)
 
+	// TODO(elffjs): Really shouldn't be dialing so much.
 	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		udc.log.Err(err).Msg("Failed to create users API client.")
@@ -778,7 +782,8 @@ func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
 	}
 
 	if user.EthereumAddress == nil {
-		return fiber.NewError(fiber.StatusBadRequest, "User does not have an Ethereum address.")
+		udc.log.Error().Msg("No Ethereum address on file for user.")
+		return fiber.NewError(fiber.StatusConflict, "User does not have an Ethereum address.")
 	}
 
 	typedData := map[string]any{
@@ -934,7 +939,7 @@ func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "Signature incorrect.")
 	}
 
-	if amRecAddr != userRealAddr {
+	if amRecAddr != common.BytesToAddress(unit.EthereumAddress.Bytes) {
 		udc.log.Err(err).Str("recAddr", userRecAddr.String()).Msg("Recovered address, but incorrect.")
 		return fiber.NewError(fiber.StatusBadRequest, "Signature incorrect.")
 	}
