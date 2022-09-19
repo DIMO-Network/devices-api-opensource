@@ -740,6 +740,8 @@ func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
 
 	unitID := c.Params("unitID")
 
+	logger := udc.log.With().Str("userId", userID).Str("unitId", unitID).Logger()
+
 	unit, err := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, unitID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -749,6 +751,7 @@ func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
 	}
 
 	if unit.UserID.Valid && unit.UserID.String != userID {
+		logger.Warn().Str("existingUserId", unit.UserID.String).Msg("AutoPi already to another user.")
 		return fiber.NewError(fiber.StatusForbidden, "AutoPi paired to another user.")
 	}
 
