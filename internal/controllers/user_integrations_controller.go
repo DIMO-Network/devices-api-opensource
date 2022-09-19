@@ -920,14 +920,14 @@ func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 	userRecAddr, err := recoverAddress(typedData, userSigBytes)
 	if err != nil {
 		udc.log.Err(err).Msg("Failed recovering address.")
-		return fiber.NewError(fiber.StatusBadRequest, "Signature incorrect.")
+		return fiber.NewError(fiber.StatusBadRequest, "User signature incorrect.")
 	}
 
 	userRealAddr := common.HexToAddress(*user.EthereumAddress)
 
 	if userRecAddr != userRealAddr {
 		udc.log.Err(err).Str("recAddr", userRecAddr.String()).Msg("Recovered address, but incorrect.")
-		return fiber.NewError(fiber.StatusBadRequest, "Signature incorrect.")
+		return fiber.NewError(fiber.StatusBadRequest, "User signature incorrect.")
 	}
 
 	amSigBytes := common.FromHex(reqBody.AftermarketDeviceSignature)
@@ -938,12 +938,12 @@ func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 	amRecAddr, err := recoverAddress(typedData, amSigBytes)
 	if err != nil {
 		udc.log.Err(err).Msg("Failed recovering address.")
-		return fiber.NewError(fiber.StatusBadRequest, "Signature incorrect.")
+		return fiber.NewError(fiber.StatusBadRequest, "Aftermarket device signature incorrect.")
 	}
 
 	if amRecAddr != common.BytesToAddress(unit.EthereumAddress.Bytes) {
 		udc.log.Err(err).Str("recAddr", amRecAddr.String()).Msg("Recovered address, but incorrect.")
-		return fiber.NewError(fiber.StatusBadRequest, "Signature incorrect.")
+		return fiber.NewError(fiber.StatusBadRequest, "Aftermarket device signature incorrect.")
 	}
 
 	return c.JSON(typedData)
