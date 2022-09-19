@@ -741,6 +741,7 @@ func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
 	unitID := c.Params("unitID")
 
 	logger := udc.log.With().Str("userId", userID).Str("unitId", unitID).Logger()
+	logger.Info().Msg("Got AutoPi claim request.")
 
 	unit, err := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, unitID)
 	if err != nil {
