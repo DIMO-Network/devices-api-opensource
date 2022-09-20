@@ -405,6 +405,8 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 	if err := c.BodyParser(vinReq); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Could not parse request body.")
 	}
+	upperVIN := strings.ToUpper(*vinReq.VIN)
+	vinReq.VIN = &upperVIN
 	if err := vinReq.validate(); err != nil {
 		if vinReq.VIN != nil {
 			logger.Err(err).Str("vin", *vinReq.VIN).Msg("VIN failed validation.")
@@ -412,7 +414,7 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid VIN.")
 	}
 
-	userDevice.VinIdentifier = null.StringFrom(strings.ToUpper(*vinReq.VIN))
+	userDevice.VinIdentifier = null.StringFrom(upperVIN)
 	if _, err := userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer()); err != nil {
 		// Okay to dereference here, since we validated the field.
 		logger.Err(err).Msgf("Database error updating VIN to %s.", *vinReq.VIN)
