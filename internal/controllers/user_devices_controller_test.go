@@ -46,6 +46,7 @@ type UserDevicesControllerTestSuite struct {
 	mockCtrl         *gomock.Controller
 	app              *fiber.App
 	deviceDefSvc     *mock_services.MockDeviceDefinitionService
+	deviceDefIntSvc  *mock_services.MockDeviceDefinitionIntegrationService
 	testUserID       string
 	scTaskSvc        *mock_services.MockSmartcarTaskService
 	nhtsaService     *mock_services.MockINHTSAService
@@ -73,7 +74,7 @@ func (s *UserDevicesControllerTestSuite) SetupSuite() {
 
 	s.testUserID = "123123"
 	testUserID2 := "3232451"
-	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, logger, s.deviceDefSvc,
+	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, logger, s.deviceDefSvc, s.deviceDefIntSvc,
 		&fakeEventService{}, scClient, s.scTaskSvc, teslaSvc, teslaTaskService, nil, nil,
 		s.nhtsaService, autoPiIngest, deviceDefinitionIngest, autoPiTaskSvc, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := fiber.New()

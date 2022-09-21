@@ -19,22 +19,24 @@ import (
 )
 
 type WebhooksController struct {
-	dbs       func() *database.DBReaderWriter
-	settings  *config.Settings
-	log       *zerolog.Logger
-	autoPiSvc services.AutoPiAPIService
+	dbs             func() *database.DBReaderWriter
+	settings        *config.Settings
+	log             *zerolog.Logger
+	autoPiSvc       services.AutoPiAPIService
+	deviceDefIntSvc services.DeviceDefinitionIntegrationService
 }
 
-func NewWebhooksController(settings *config.Settings, dbs func() *database.DBReaderWriter, log *zerolog.Logger, autoPiSvc services.AutoPiAPIService) WebhooksController {
+func NewWebhooksController(settings *config.Settings, dbs func() *database.DBReaderWriter, log *zerolog.Logger, autoPiSvc services.AutoPiAPIService, deviceDefIntSvc services.DeviceDefinitionIntegrationService) WebhooksController {
 	return WebhooksController{
-		dbs:       dbs,
-		settings:  settings,
-		log:       log,
-		autoPiSvc: autoPiSvc,
+		dbs:             dbs,
+		settings:        settings,
+		log:             log,
+		autoPiSvc:       autoPiSvc,
+		deviceDefIntSvc: deviceDefIntSvc,
 	}
 }
 
-// ProcessCommand handles the command webhook request
+// ProcessCommand handles the command webhook request. even when there is an error we'll return 204 to avoid autopi retrying against us
 func (wc *WebhooksController) ProcessCommand(c *fiber.Ctx) error {
 	logger := wc.log.With().
 		Str("integration", "autopi").
@@ -66,13 +68,13 @@ func (wc *WebhooksController) ProcessCommand(c *fiber.Ctx) error {
 	}
 	// if we can link the autopi job to a device, it could be a job related to an integration registration sync command
 	if !autopiJob.UserDeviceID.IsZero() && autopiJob.Command == "state.sls pending" && strings.EqualFold(apwState.String(), "COMMAND_EXECUTED") {
-		autoPiInteg, err := services.GetOrCreateAutoPiIntegration(c.Context(), wc.dbs().Reader)
+		autoPiInteg, err := wc.deviceDefIntSvc.GetAutoPiIntegration(c.Context())
 		if err != nil {
 			logger.Err(err).Msg("could not create or get autopi integration record")
 			return c.SendStatus(fiber.StatusNoContent)
 		}
 		// we could have situation where there are multiple results, eg. if the AutoPi was moved from one car to another, so order by updated_at desc and grab first
-		apiIntegration, err := models.UserDeviceAPIIntegrations(models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(autoPiInteg.ID),
+		apiIntegration, err := models.UserDeviceAPIIntegrations(models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(autoPiInteg.Id),
 			models.UserDeviceAPIIntegrationWhere.ExternalID.EQ(null.StringFrom(apwDeviceID.String())),
 			models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(autopiJob.UserDeviceID.String),
 			qm.OrderBy("updated_at desc"), qm.Limit(1)).One(c.Context(), wc.dbs().Reader)

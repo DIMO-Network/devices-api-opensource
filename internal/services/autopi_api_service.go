@@ -12,9 +12,7 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
-	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
-	"github.com/segmentio/ksuid"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -253,128 +251,6 @@ func (a *autoPiAPIService) GetCommandStatus(ctx context.Context, jobID string) (
 		CommandRaw:   autoPiJob.Command,
 		LastUpdated:  autoPiJob.CommandLastUpdated.Ptr(),
 	}, autoPiJob, nil
-}
-
-// GetOrCreateAutoPiIntegration looks or creates in the integrations table
-func GetOrCreateAutoPiIntegration(ctx context.Context, exec boil.ContextExecutor) (*models.Integration, error) {
-	const (
-		autoPiType        = models.IntegrationTypeHardware
-		autoPiStyle       = models.IntegrationStyleAddon
-		defaultTemplateID = 10
-	)
-	integration, err := models.Integrations(models.IntegrationWhere.Vendor.EQ(AutoPiVendor),
-		models.IntegrationWhere.Style.EQ(autoPiStyle), models.IntegrationWhere.Type.EQ(autoPiType)).
-		One(ctx, exec)
-
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// create
-			im := IntegrationsMetadata{AutoPiDefaultTemplateID: defaultTemplateID}
-			integration = &models.Integration{
-				ID:     ksuid.New().String(),
-				Vendor: AutoPiVendor,
-				Type:   autoPiType,
-				Style:  autoPiStyle,
-			}
-			_ = integration.Metadata.Marshal(im)
-			err = integration.Insert(ctx, exec, boil.Infer())
-			if err != nil {
-				return nil, errors.Wrap(err, "error inserting autoPi integration")
-			}
-		} else {
-			return nil, errors.Wrap(err, "error fetching autoPi integration from database")
-		}
-	}
-	return integration, nil
-}
-
-// FindUserDeviceAutoPiIntegration gets the user_device_api_integration record and unmarshalled metadata, returns fiber error where makes sense
-func FindUserDeviceAutoPiIntegration(ctx context.Context, exec boil.ContextExecutor, userDeviceID, userID string) (*models.UserDeviceAPIIntegration, *UserDeviceAPIIntegrationsMetadata, error) {
-	autoPiInteg, err := GetOrCreateAutoPiIntegration(ctx, exec)
-	if err != nil {
-		return nil, nil, err
-	}
-	ud, err := models.UserDevices(
-		models.UserDeviceWhere.ID.EQ(userDeviceID),
-		models.UserDeviceWhere.UserID.EQ(userID),
-		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
-	).One(ctx, exec)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil, fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("could not find device with id %s for user %s", userDeviceID, userID))
-		}
-		return nil, nil, errors.Wrap(err, "Unexpected database error searching for user device")
-	}
-	udai := new(models.UserDeviceAPIIntegration)
-	for _, apiInteg := range ud.R.UserDeviceAPIIntegrations {
-		if apiInteg.IntegrationID == autoPiInteg.ID {
-			udai = apiInteg
-		}
-	}
-	if !(udai != nil && udai.ExternalID.Valid) {
-		return nil, nil, fiber.NewError(fiber.StatusBadRequest, "user does not have an autopi integration registered for userDeviceId: "+userDeviceID)
-	}
-	// get metadata for a little later
-	md := new(UserDeviceAPIIntegrationsMetadata)
-	err = udai.Metadata.Unmarshal(md)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "metadata for user device api integrations in wrong format for unmarshal")
-	}
-	return udai, md, nil
-}
-
-// AppendAutoPiCompatibility adds autopi compatibility for AmericasRegion and EuropeRegion regions
-func AppendAutoPiCompatibility(ctx context.Context, dcs []DeviceCompatibility, deviceDefinitionID string, writer *database.DB) ([]DeviceCompatibility, error) {
-	integration, err := GetOrCreateAutoPiIntegration(ctx, writer)
-	if err != nil {
-		return nil, err
-	}
-	containsAutoPiInt := false
-	for _, dc := range dcs {
-		if dc.ID == integration.ID {
-			containsAutoPiInt = true
-			break
-		}
-	}
-	if !containsAutoPiInt {
-		// insert into db
-		di := models.DeviceIntegration{
-			DeviceDefinitionID: deviceDefinitionID,
-			IntegrationID:      integration.ID,
-			Region:             AmericasRegion.String(),
-		}
-		err = di.Insert(ctx, writer, boil.Infer())
-		if err != nil {
-			return nil, err
-		}
-		di = models.DeviceIntegration{
-			DeviceDefinitionID: deviceDefinitionID,
-			IntegrationID:      integration.ID,
-			Region:             EuropeRegion.String(),
-		}
-		err = di.Insert(ctx, writer, boil.Infer())
-		if err != nil {
-			return nil, err
-		}
-		// prepare return object for api
-		dcs = append(dcs, DeviceCompatibility{
-			ID:           integration.ID,
-			Type:         integration.Type,
-			Style:        integration.Style,
-			Vendor:       integration.Vendor,
-			Region:       AmericasRegion.String(),
-			Capabilities: nil,
-		})
-		dcs = append(dcs, DeviceCompatibility{
-			ID:           integration.ID,
-			Type:         integration.Type,
-			Style:        integration.Style,
-			Vendor:       integration.Vendor,
-			Region:       EuropeRegion.String(),
-			Capabilities: nil,
-		})
-	}
-	return dcs, nil
 }
 
 // AutoPiDongleDevice https://api.dimo.autopi.io/#/dongle/dongle_devices_read

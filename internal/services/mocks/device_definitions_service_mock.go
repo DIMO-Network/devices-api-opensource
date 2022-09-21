@@ -81,6 +81,21 @@ func (mr *MockDeviceDefinitionServiceMockRecorder) GetDeviceDefinitionsByIDs(ctx
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDeviceDefinitionsByIDs", reflect.TypeOf((*MockDeviceDefinitionService)(nil).GetDeviceDefinitionsByIDs), ctx, ids)
 }
 
+// GetIntegrations mocks base method.
+func (m *MockDeviceDefinitionService) GetIntegrations(ctx context.Context) ([]*grpc.GetIntegrationItemResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetIntegrations", ctx)
+	ret0, _ := ret[0].([]*grpc.GetIntegrationItemResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetIntegrations indicates an expected call of GetIntegrations.
+func (mr *MockDeviceDefinitionServiceMockRecorder) GetIntegrations(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIntegrations", reflect.TypeOf((*MockDeviceDefinitionService)(nil).GetIntegrations), ctx)
+}
+
 // GetOrCreateMake mocks base method.
 func (m *MockDeviceDefinitionService) GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*models.DeviceMake, error) {
 	m.ctrl.T.Helper()

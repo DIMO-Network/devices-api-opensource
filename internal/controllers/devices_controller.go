@@ -20,27 +20,29 @@ import (
 )
 
 type DevicesController struct {
-	Settings     *config.Settings
-	DBS          func() *database.DBReaderWriter
-	NHTSASvc     services.INHTSAService
-	EdmundsSvc   services.EdmundsService
-	DeviceDefSvc services.DeviceDefinitionService
-	log          *zerolog.Logger
+	Settings        *config.Settings
+	DBS             func() *database.DBReaderWriter
+	NHTSASvc        services.INHTSAService
+	EdmundsSvc      services.EdmundsService
+	DeviceDefSvc    services.DeviceDefinitionService
+	DeviceDefIntSvc services.DeviceDefinitionIntegrationService
+	log             *zerolog.Logger
 }
 
 const autoPiYearCutoff = 2000
 
 // NewDevicesController constructor
-func NewDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, nhtsaSvc services.INHTSAService, ddSvc services.DeviceDefinitionService) DevicesController {
+func NewDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, nhtsaSvc services.INHTSAService, ddSvc services.DeviceDefinitionService, ddIntSvc services.DeviceDefinitionIntegrationService) DevicesController {
 	edmundsSvc := services.NewEdmundsService(settings.TorProxyURL, logger)
 
 	return DevicesController{
-		Settings:     settings,
-		DBS:          dbs,
-		NHTSASvc:     nhtsaSvc,
-		log:          logger,
-		EdmundsSvc:   edmundsSvc,
-		DeviceDefSvc: ddSvc,
+		Settings:        settings,
+		DBS:             dbs,
+		NHTSASvc:        nhtsaSvc,
+		log:             logger,
+		EdmundsSvc:      edmundsSvc,
+		DeviceDefSvc:    ddSvc,
+		DeviceDefIntSvc: ddIntSvc,
 	}
 }
 
@@ -127,7 +129,7 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 		return err
 	}
 	if dd.Type.Year >= autoPiYearCutoff && !strings.EqualFold(dd.Make.Name, "Tesla") {
-		rp.CompatibleIntegrations, err = services.AppendAutoPiCompatibility(c.Context(), rp.CompatibleIntegrations, dd.DeviceDefinitionId, d.DBS().Writer)
+		rp.CompatibleIntegrations, err = d.DeviceDefIntSvc.AppendAutoPiCompatibility(c.Context(), rp.CompatibleIntegrations, dd.DeviceDefinitionId)
 		if err != nil {
 			return err
 		}
@@ -178,7 +180,7 @@ func (d *DevicesController) GetDeviceIntegrationsByID(c *fiber.Ctx) error {
 		}
 	}
 	if dd.Year >= autoPiYearCutoff && !strings.EqualFold(dd.R.DeviceMake.Name, "Tesla") {
-		integrations, err = services.AppendAutoPiCompatibility(c.Context(), integrations, dd.ID, d.DBS().Writer)
+		integrations, err = d.DeviceDefIntSvc.AppendAutoPiCompatibility(c.Context(), integrations, dd.ID)
 		if err != nil {
 			return err
 		}

@@ -5,6 +5,11 @@ import (
 	"fmt"
 	"testing"
 
+	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
+	mock_services "github.com/DIMO-Network/devices-api/internal/services/mocks"
+	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
@@ -15,18 +20,18 @@ import (
 	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"github.com/testcontainers/testcontainers-go"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
 type WebHooksControllerTestSuite struct {
 	suite.Suite
-	pdb       database.DbStore
-	container testcontainers.Container
-	ctx       context.Context
-	mockCtrl  *gomock.Controller
-	app       *fiber.App
+	pdb         database.DbStore
+	container   testcontainers.Container
+	ctx         context.Context
+	mockCtrl    *gomock.Controller
+	app         *fiber.App
+	ddDefIntSvc *mock_services.MockDeviceDefinitionIntegrationService
 }
 
 // SetupSuite starts container db
@@ -36,8 +41,9 @@ func (s *WebHooksControllerTestSuite) SetupSuite() {
 	s.mockCtrl = gomock.NewController(s.T())
 
 	token := "BobbyHarry"
+	s.ddDefIntSvc = mock_services.NewMockDeviceDefinitionIntegrationService(s.mockCtrl)
 	autopiAPISvc := services.NewAutoPiAPIService(&config.Settings{AutoPiAPIToken: "xxx"}, s.pdb.DBS)
-	c := NewWebhooksController(&config.Settings{AutoPiAPIToken: token}, s.pdb.DBS, test.Logger(), autopiAPISvc)
+	c := NewWebhooksController(&config.Settings{AutoPiAPIToken: token}, s.pdb.DBS, test.Logger(), autopiAPISvc, s.ddDefIntSvc)
 	app := fiber.New()
 	app.Post(services.AutoPiWebhookPath, c.ProcessCommand)
 	s.app = app
@@ -98,6 +104,13 @@ func (s *WebHooksControllerTestSuite) TestPostWebhookSyncCommand() {
 	test.SetupCreateDeviceIntegration(s.T(), dd, integ, s.pdb)
 	// create user device api integration
 	_ = test.SetupCreateAutoPiJob(s.T(), autoPiJobID, autoPiDeviceID, "state.sls pending", ud.ID, s.pdb)
+	integrationItem := &ddgrpc.GetIntegrationItemResponse{
+		Id:     integ.ID,
+		Vendor: integ.Vendor,
+		Style:  integ.Style,
+		Type:   integ.Type,
+	}
+	s.ddDefIntSvc.EXPECT().GetAutoPiIntegration(gomock.Any()).Return(integrationItem, nil)
 
 	udiai := models.UserDeviceAPIIntegration{
 		UserDeviceID:  ud.ID,
@@ -106,7 +119,7 @@ func (s *WebHooksControllerTestSuite) TestPostWebhookSyncCommand() {
 		ExternalID:    null.StringFrom(autoPiDeviceID),
 	}
 	err := udiai.Insert(s.ctx, s.pdb.DBS().Writer, boil.Infer())
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
 	// act
 	webhookJSON := fmt.Sprintf(`{"jid": "%s","state": "COMMAND_EXECUTED","success": true,"device_id": "%s"}`, autoPiJobID, autoPiDeviceID)
@@ -116,19 +129,19 @@ func (s *WebHooksControllerTestSuite) TestPostWebhookSyncCommand() {
 	request.Header.Set("X-Request-Signature", "93c5e5e140fc132f7871f890790d0aa83509a9ba077a4a5fe9f6595f38dd470c")
 	response, _ := s.app.Test(request)
 	// assert
-	assert.Equal(s.T(), 204, response.StatusCode)
+	require.Equal(s.T(), 204, response.StatusCode)
 	// check the database has the expected change in status, and `auto_pi_sync_command_state` in metadata
 	updatedUdiai, err := models.UserDeviceAPIIntegrations(
 		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(ud.ID),
 		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integ.ID)).
 		One(s.ctx, s.pdb.DBS().Writer)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
 	assert.Equal(s.T(), models.UserDeviceAPIIntegrationStatusPendingFirstData, updatedUdiai.Status)
 
 	metadata := new(services.UserDeviceAPIIntegrationsMetadata)
 	err = updatedUdiai.Metadata.Unmarshal(metadata)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 	assert.Equal(s.T(), services.TemplateConfirmed.String(), *metadata.AutoPiSubStatus)
 
 	job, err := models.AutopiJobs(models.AutopiJobWhere.ID.EQ(autoPiJobID)).One(s.ctx, s.pdb.DBS().Reader)

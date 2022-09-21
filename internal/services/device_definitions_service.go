@@ -37,6 +37,7 @@ type DeviceDefinitionService interface {
 	PullBlackbookData(ctx context.Context, userDeviceID, deviceDefinitionID string, vin string) error
 	GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*models.DeviceMake, error)
 	GetDeviceDefinitionsByIDs(ctx context.Context, ids []string) ([]*ddgrpc.GetDeviceDefinitionItemResponse, error)
+	GetIntegrations(ctx context.Context) ([]*ddgrpc.GetIntegrationItemResponse, error)
 }
 
 type deviceDefinitionService struct {
@@ -77,6 +78,22 @@ func (d *deviceDefinitionService) GetDeviceDefinitionsByIDs(ctx context.Context,
 	}
 
 	return definitions.GetDeviceDefinitions(), nil
+}
+
+// GetIntegrations calls device definitions integrations api via GRPC to get the definition. idea for testing: http://www.inanzzz.com/index.php/post/w9qr/unit-testing-golang-grpc-client-and-server-application-with-bufconn-package
+func (d *deviceDefinitionService) GetIntegrations(ctx context.Context) ([]*ddgrpc.GetIntegrationItemResponse, error) {
+	definitionsClient, conn, err := d.getDeviceDefsGrpcClient()
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	definitions, err := definitionsClient.GetIntegrations(ctx, &ddgrpc.EmptyRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	return definitions.GetIntegrations(), nil
 }
 
 // FindDeviceDefinitionByMMY builds and execs query to find device definition for MMY, calling out via gRPC. Includes compatible integrations.
@@ -211,7 +228,7 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 		return err
 	}
 
-	dbDeviceDef := deviceDefinitionResponse[0]
+	deviceDef := deviceDefinitionResponse[0]
 
 	neverPulled := false
 	existingData, err := models.ExternalVinData(
@@ -234,9 +251,9 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 	}
 
 	// by this point we know we need to insert drivly raw json data
-	drivlyData := &models.ExternalVinDatum{
+	externalVinData := &models.ExternalVinDatum{
 		ID:                 ksuid.New().String(),
-		DeviceDefinitionID: null.StringFrom(dbDeviceDef.DeviceDefinitionId),
+		DeviceDefinitionID: null.StringFrom(deviceDef.DeviceDefinitionId),
 		Vin:                vin,
 		UserDeviceID:       null.StringFrom(userDeviceID),
 	}
@@ -245,47 +262,47 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 		if err != nil {
 			return errors.Wrapf(err, "error getting VIN %s. skipping", vin)
 		}
-		err = drivlyData.VinMetadata.Marshal(vinInfo)
+		err = externalVinData.VinMetadata.Marshal(vinInfo)
 		if err != nil {
 			return err
 		}
 		// extra optional data that only needs to be pulled once.
 		edmunds, err := d.drivlySvc.GetEdmundsByVIN(vin)
 		if err == nil {
-			_ = drivlyData.EdmundsMetadata.Marshal(edmunds)
+			_ = externalVinData.EdmundsMetadata.Marshal(edmunds)
 		}
 		build, err := d.drivlySvc.GetBuildByVIN(vin)
 		if err == nil {
-			_ = drivlyData.BuildMetadata.Marshal(build)
+			_ = externalVinData.BuildMetadata.Marshal(build)
 		}
 
-		// todo grpc - update the device definition over grpc with this metadata
+		// pull out vehicleInfo useful data to update our device definition over gRPC. Do NOT update if property already has value.
 		vehicleInfo := &ddgrpc.VehicleInfo{}
-		if vinInfo["mpgCity"] != nil && dbDeviceDef.VehicleData.MPGCity == 0 {
+		if vinInfo["mpgCity"] != nil && deviceDef.VehicleData.MPGCity == 0 {
 			v := fmt.Sprintf("%f", vinInfo["mpgCity"])
 			if s, err := strconv.ParseFloat(v, 32); err == nil {
 				vehicleInfo.MPGCity = float32(s)
 			}
 		}
-		if vinInfo["mpgHighway"] != nil && dbDeviceDef.VehicleData.MPGHighway == 0 {
+		if vinInfo["mpgHighway"] != nil && deviceDef.VehicleData.MPGHighway == 0 {
 			v := fmt.Sprintf("%f", vinInfo["mpgHighway"])
 			if s, err := strconv.ParseFloat(v, 32); err == nil {
 				vehicleInfo.MPGHighway = float32(s)
 			}
 		}
-		if vinInfo["mpg"] != nil && dbDeviceDef.VehicleData.MPG == 0 {
+		if vinInfo["mpg"] != nil && deviceDef.VehicleData.MPG == 0 {
 			v := fmt.Sprintf("%f", vinInfo["mpg"])
 			if s, err := strconv.ParseFloat(v, 32); err == nil {
 				vehicleInfo.MPG = float32(s)
 			}
 		}
-		if vinInfo["msrpBase"] != nil && dbDeviceDef.VehicleData.Base_MSRP == 0 {
+		if vinInfo["msrpBase"] != nil && deviceDef.VehicleData.Base_MSRP == 0 {
 			v := fmt.Sprintf("%s", vinInfo["msrpBase"])
 			if s, err := strconv.Atoi(v); err == nil {
 				vehicleInfo.Base_MSRP = int32(s)
 			}
 		}
-		if vinInfo["fuelTankCapacityGal"] != nil && dbDeviceDef.VehicleData.FuelTankCapacityGal == 0 {
+		if vinInfo["fuelTankCapacityGal"] != nil && deviceDef.VehicleData.FuelTankCapacityGal == 0 {
 			v := fmt.Sprintf("%f", vinInfo["fuelTankCapacityGal"])
 			if s, err := strconv.ParseFloat(v, 32); err == nil {
 				vehicleInfo.FuelTankCapacityGal = float32(s)
@@ -298,17 +315,14 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 		}
 		defer conn.Close()
 
-		updateResponse, err := definitionsClient.UpdateDeviceDefinition(ctx, &ddgrpc.UpdateDeviceDefinitionRequest{
-			DeviceDefinitionId: dbDeviceDef.DeviceDefinitionId,
+		_, err = definitionsClient.UpdateDeviceDefinition(ctx, &ddgrpc.UpdateDeviceDefinitionRequest{
+			DeviceDefinitionId: deviceDef.DeviceDefinitionId,
 			VehicleData:        vehicleInfo,
 		})
-
 		if err != nil {
-			return err
-		}
-
-		if updateResponse == nil {
-			return err
+			// just log if can't update device-definition
+			d.log.Err(err).Str("vin", vin).Str("deviceDefinitionID", deviceDefinitionID).
+				Msg("failed to update device definition over gRPC")
 		}
 
 		// fill in edmunds style_id in our user_device if it exists and not already set. None of these seen as bad errors so just logs
@@ -341,19 +355,19 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 		Mileage: deviceMileage,
 		ZipCode: "", // TODO(zavaboy): add vehicle location to zipcode magic to set this zipcode
 	}
-	_ = drivlyData.RequestMetadata.Marshal(reqData)
+	_ = externalVinData.RequestMetadata.Marshal(reqData)
 
 	// only pull offers and pricing on every pull.
 	offer, err := d.drivlySvc.GetOffersByVIN(vin, reqData.Mileage, reqData.ZipCode)
 	if err == nil {
-		_ = drivlyData.OfferMetadata.Marshal(offer)
+		_ = externalVinData.OfferMetadata.Marshal(offer)
 	}
 	pricing, err := d.drivlySvc.GetVINPricing(vin, reqData.Mileage, reqData.ZipCode)
 	if err == nil {
-		_ = drivlyData.PricingMetadata.Marshal(pricing)
+		_ = externalVinData.PricingMetadata.Marshal(pricing)
 	}
 
-	err = drivlyData.Insert(ctx, d.dbs().Writer, boil.Infer())
+	err = externalVinData.Insert(ctx, d.dbs().Writer, boil.Infer())
 	if err != nil {
 		return err
 	}

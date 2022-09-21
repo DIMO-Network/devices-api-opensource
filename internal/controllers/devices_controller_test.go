@@ -28,14 +28,15 @@ import (
 
 type DevicesControllerTestSuite struct {
 	suite.Suite
-	pdb          database.DbStore
-	container    testcontainers.Container
-	ctx          context.Context
-	deviceDefID  string
-	mockCtrl     *gomock.Controller
-	app          *fiber.App
-	dbMake       models.DeviceMake
-	deviceDefSvc *mock_services.MockDeviceDefinitionService
+	pdb             database.DbStore
+	container       testcontainers.Container
+	ctx             context.Context
+	deviceDefID     string
+	mockCtrl        *gomock.Controller
+	app             *fiber.App
+	dbMake          models.DeviceMake
+	deviceDefSvc    *mock_services.MockDeviceDefinitionService
+	deviceDefIntSvc *mock_services.MockDeviceDefinitionIntegrationService
 }
 
 // SetupSuite starts container db
@@ -47,7 +48,8 @@ func (s *DevicesControllerTestSuite) SetupSuite() {
 
 	nhtsaSvc := mock_services.NewMockINHTSAService(s.mockCtrl)
 	s.deviceDefSvc = mock_services.NewMockDeviceDefinitionService(s.mockCtrl)
-	c := NewDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, logger, nhtsaSvc, s.deviceDefSvc)
+	s.deviceDefIntSvc = mock_services.NewMockDeviceDefinitionIntegrationService(s.mockCtrl)
+	c := NewDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, logger, nhtsaSvc, s.deviceDefSvc, s.deviceDefIntSvc)
 
 	// routes
 	app := fiber.New()
@@ -85,6 +87,20 @@ func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionById() {
 	ddGRPC := test.BuildDeviceDefinitionGRPC(s.deviceDefID, "Ford", "Ford", "Vehicle")
 
 	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{s.deviceDefID}).Times(1).Return(ddGRPC, nil) // todo move to each test where used
+
+	deviceCompatibilities := []services.DeviceCompatibility{}
+	deviceCompatibilities = append(deviceCompatibilities, services.DeviceCompatibility{
+		Vendor:       services.AutoPiVendor,
+		Region:       "Americas",
+		Capabilities: nil,
+	})
+	deviceCompatibilities = append(deviceCompatibilities, services.DeviceCompatibility{
+		Vendor:       services.AutoPiVendor,
+		Region:       "Europe",
+		Capabilities: nil,
+	})
+
+	s.deviceDefIntSvc.EXPECT().AppendAutoPiCompatibility(gomock.Any(), gomock.Any(), s.deviceDefID).Times(1).Return(deviceCompatibilities, nil)
 
 	request, _ := http.NewRequest("GET", "/device-definitions/"+s.deviceDefID, nil)
 	response, errRes := s.app.Test(request)
@@ -144,6 +160,21 @@ func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionDoesNotAddAutoPiForT
 }
 
 func (s *DevicesControllerTestSuite) TestGetDeviceIntegrationsById() {
+
+	deviceCompatibilities := []services.DeviceCompatibility{}
+	deviceCompatibilities = append(deviceCompatibilities, services.DeviceCompatibility{
+		Vendor:       services.AutoPiVendor,
+		Region:       "Americas",
+		Capabilities: nil,
+	})
+	deviceCompatibilities = append(deviceCompatibilities, services.DeviceCompatibility{
+		Vendor:       services.AutoPiVendor,
+		Region:       "Europe",
+		Capabilities: nil,
+	})
+
+	s.deviceDefIntSvc.EXPECT().AppendAutoPiCompatibility(gomock.Any(), gomock.Any(), s.deviceDefID).Times(1).Return(deviceCompatibilities, nil)
+
 	request, _ := http.NewRequest("GET", "/device-definitions/"+s.deviceDefID+"/integrations", nil)
 	response, _ := s.app.Test(request)
 	body, _ := io.ReadAll(response.Body)

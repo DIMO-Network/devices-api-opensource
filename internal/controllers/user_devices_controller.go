@@ -48,6 +48,7 @@ type UserDevicesController struct {
 	Settings                  *config.Settings
 	DBS                       func() *database.DBReaderWriter
 	DeviceDefSvc              services.DeviceDefinitionService
+	DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
 	log                       *zerolog.Logger
 	eventService              services.EventService
 	smartcarClient            services.SmartcarClient
@@ -72,6 +73,7 @@ func NewUserDevicesController(
 	dbs func() *database.DBReaderWriter,
 	logger *zerolog.Logger,
 	ddSvc services.DeviceDefinitionService,
+	ddIntSvc services.DeviceDefinitionIntegrationService,
 	eventService services.EventService,
 	smartcarClient services.SmartcarClient,
 	smartcarTaskSvc services.SmartcarTaskService,
@@ -93,6 +95,7 @@ func NewUserDevicesController(
 		DBS:                       dbs,
 		log:                       logger,
 		DeviceDefSvc:              ddSvc,
+		DeviceDefIntSvc:           ddIntSvc,
 		eventService:              eventService,
 		smartcarClient:            smartcarClient,
 		smartcarTaskSvc:           smartcarTaskSvc,

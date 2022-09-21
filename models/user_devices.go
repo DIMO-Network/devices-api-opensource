@@ -1710,6 +1710,7 @@ func (o *UserDevice) SetDeviceDefinition(ctx context.Context, exec boil.ContextE
 	}
 
 	o.DeviceDefinitionID = related.ID
+
 	if o.R == nil {
 		o.R = &userDeviceR{
 			DeviceDefinition: related,
