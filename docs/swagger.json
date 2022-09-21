@@ -132,7 +132,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": "No Content"
+                        "description": ""
                     }
                 }
             }
@@ -162,7 +162,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK"
+                        "description": ""
                     }
                 }
             }
@@ -346,7 +346,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_controllers.DocumentResponse"
+                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
                             }
                         }
                     }
@@ -401,7 +401,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.DocumentResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
                         }
                     }
                 }
@@ -437,7 +437,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.DocumentResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
                         }
                     }
                 }
@@ -469,7 +469,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": "No Content"
+                        "description": ""
                     }
                 }
             }
@@ -501,7 +501,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK"
+                        "description": ""
                     }
                 }
             }
@@ -583,7 +583,7 @@
                         }
                     },
                     "404": {
-                        "description": "Not Found"
+                        "description": ""
                     }
                 }
             }
@@ -615,7 +615,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.RegisterUserDevice"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDevice"
                         }
                     }
                 ],
@@ -623,7 +623,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.RegisterUserDeviceResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDeviceResponse"
                         }
                     }
                 }
@@ -656,7 +656,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK"
+                        "description": ""
                     }
                 }
             }
@@ -721,7 +721,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": "No Content"
+                        "description": ""
                     }
                 }
             }
@@ -746,7 +746,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_controllers.UserDeviceFull"
+                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceFull"
                             }
                         }
                     }
@@ -775,7 +775,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": "No Content"
+                        "description": ""
                     }
                 }
             }
@@ -833,13 +833,13 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.MintRequest"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.MintRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK"
+                        "description": ""
                     }
                 }
             }
@@ -866,7 +866,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": "No Content"
+                        "description": ""
                     },
                     "429": {
                         "description": "rate limit hit for integration"
@@ -898,13 +898,13 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.UpdateCountryCodeReq"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateCountryCodeReq"
                         }
                     }
                 ],
                 "responses": {
                     "204": {
-                        "description": "No Content"
+                        "description": ""
                     }
                 }
             }
@@ -933,13 +933,13 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.UpdateImageURLReq"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateImageURLReq"
                         }
                     }
                 ],
                 "responses": {
                     "204": {
-                        "description": "No Content"
+                        "description": ""
                     }
                 }
             }
@@ -976,7 +976,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": "No Content"
+                        "description": ""
                     }
                 }
             }
@@ -1207,7 +1207,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.UpdateNameReq"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateNameReq"
                         }
                     },
                     {
@@ -1220,7 +1220,31 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": "No Content"
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/user/devices/{userDeviceID}/offers": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "gets offers for a particular user device",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user-devices"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceOffer"
+                        }
                     }
                 }
             }
@@ -1252,7 +1276,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.DeviceSnapshot"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot"
                         }
                     }
                 }
@@ -1276,7 +1300,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.DeviceValuation"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceValuation"
                         }
                     }
                 }
@@ -1306,7 +1330,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.UpdateVINReq"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateVINReq"
                         }
                     },
                     {
@@ -1319,7 +1343,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": "No Content"
+                        "description": ""
                     }
                 }
             }
@@ -1347,7 +1371,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_controllers.GetGeofence"
+                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence"
                             }
                         }
                     }
@@ -1379,7 +1403,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence"
                         }
                     }
                 ],
@@ -1387,7 +1411,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CreateResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateResponse"
                         }
                     }
                 }
@@ -1427,13 +1451,13 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence"
                         }
                     }
                 ],
                 "responses": {
                     "204": {
-                        "description": "No Content"
+                        "description": ""
                     }
                 }
             },
@@ -1461,7 +1485,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": "No Content"
+                        "description": ""
                     }
                 }
             }
@@ -1623,52 +1647,6 @@
                 }
             }
         },
-        "github.com_DIMO-Network_devices-api_internal_controllers.ConditionValuation": {
-            "type": "object",
-            "properties": {
-                "mileage": {
-                    "type": "integer"
-                },
-                "retail": {
-                    "description": "Retail uses RetailAverage when available",
-                    "type": "integer"
-                },
-                "retailAverage": {
-                    "type": "integer"
-                },
-                "retailClean": {
-                    "type": "integer"
-                },
-                "retailRough": {
-                    "type": "integer"
-                },
-                "retailSource": {
-                    "type": "string"
-                },
-                "tradeIn": {
-                    "description": "TradeIn uses TradeInAverage when available",
-                    "type": "integer"
-                },
-                "tradeInAverage": {
-                    "type": "integer"
-                },
-                "tradeInClean": {
-                    "type": "integer"
-                },
-                "tradeInRough": {
-                    "type": "integer"
-                },
-                "tradeInSource": {
-                    "type": "string"
-                },
-                "updated": {
-                    "type": "string"
-                },
-                "zipCode": {
-                    "type": "string"
-                }
-            }
-        },
         "github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence": {
             "type": "object",
             "properties": {
@@ -1743,6 +1721,18 @@
                 }
             }
         },
+        "github.com_DIMO-Network_devices-api_internal_controllers.DeviceOffer": {
+            "type": "object",
+            "properties": {
+                "offerSets": {
+                    "description": "Contains a list of offer sets, one for each source",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.OfferSet"
+                    }
+                }
+            }
+        },
         "github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot": {
             "type": "object",
             "properties": {
@@ -1791,11 +1781,12 @@
         "github.com_DIMO-Network_devices-api_internal_controllers.DeviceValuation": {
             "type": "object",
             "properties": {
-                "blackbook": {
-                    "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.ConditionValuation"
-                },
-                "drivly": {
-                    "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.ConditionValuation"
+                "valuationSets": {
+                    "description": "Contains a list of valuation sets, one for each vendor",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.ValuationSet"
+                    }
                 }
             }
         },
@@ -1965,6 +1956,63 @@
                 }
             }
         },
+        "github.com_DIMO-Network_devices-api_internal_controllers.Offer": {
+            "type": "object",
+            "properties": {
+                "declineReason": {
+                    "description": "The reason the offer was declined from the vendor",
+                    "type": "string"
+                },
+                "error": {
+                    "description": "An error from the vendor (eg. when the VIN is invalid)",
+                    "type": "string"
+                },
+                "grade": {
+                    "description": "The grade of the offer from the vendor (eg. \"RETAIL\")",
+                    "type": "string"
+                },
+                "price": {
+                    "description": "The offer price from the vendor",
+                    "type": "integer"
+                },
+                "url": {
+                    "description": "The offer URL from the vendor",
+                    "type": "string"
+                },
+                "vendor": {
+                    "description": "The vendor of the offer (eg. \"carmax\", \"carvana\", etc.)",
+                    "type": "string"
+                }
+            }
+        },
+        "github.com_DIMO-Network_devices-api_internal_controllers.OfferSet": {
+            "type": "object",
+            "properties": {
+                "mileage": {
+                    "description": "The mileage used for the offers",
+                    "type": "integer"
+                },
+                "offers": {
+                    "description": "Contains a list of offers from the source",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.Offer"
+                    }
+                },
+                "source": {
+                    "description": "The source of the offers (eg. \"drivly\")",
+                    "type": "string"
+                },
+                "updated": {
+                    "description": "The time the offers were pulled",
+                    "type": "string"
+                },
+                "zipCode": {
+                    "description": "This will be the zip code used (if any) for the offers request regardless if the source uses it",
+                    "type": "string"
+                }
+            }
+        },
         "github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest": {
             "type": "object",
             "properties": {
@@ -2115,6 +2163,63 @@
                 }
             }
         },
+        "github.com_DIMO-Network_devices-api_internal_controllers.ValuationSet": {
+            "type": "object",
+            "properties": {
+                "mileage": {
+                    "description": "The mileage used for the valuation",
+                    "type": "integer"
+                },
+                "retail": {
+                    "description": "retail is equal to retailAverage when available",
+                    "type": "integer"
+                },
+                "retailAverage": {
+                    "type": "integer"
+                },
+                "retailClean": {
+                    "description": "retailClean, retailAverage, and retailRough my not always be available",
+                    "type": "integer"
+                },
+                "retailRough": {
+                    "type": "integer"
+                },
+                "retailSource": {
+                    "description": "Useful when Drivly returns multiple vendors and we've selected one (eg. \"drivly:blackbook\")",
+                    "type": "string"
+                },
+                "tradeIn": {
+                    "description": "tradeIn is equal to tradeInAverage when available",
+                    "type": "integer"
+                },
+                "tradeInAverage": {
+                    "type": "integer"
+                },
+                "tradeInClean": {
+                    "description": "tradeInClean, tradeInAverage, and tradeInRough my not always be available",
+                    "type": "integer"
+                },
+                "tradeInRough": {
+                    "type": "integer"
+                },
+                "tradeInSource": {
+                    "description": "Useful when Drivly returns multiple vendors and we've selected one (eg. \"drivly:blackbook\")",
+                    "type": "string"
+                },
+                "updated": {
+                    "description": "The time the valuation was pulled or in the case of blackbook, this may be the event time of the device odometer which was used for the valuation",
+                    "type": "string"
+                },
+                "vendor": {
+                    "description": "The source of the valuation (eg. \"drivly\" or \"blackbook\")",
+                    "type": "string"
+                },
+                "zipCode": {
+                    "description": "This will be the zip code used (if any) for the valuation request regardless if the vendor uses it",
+                    "type": "string"
+                }
+            }
+        },
         "internal_controllers.AutoPiClaimRequest": {
             "type": "object",
             "properties": {
@@ -2209,52 +2314,6 @@
                 }
             }
         },
-        "internal_controllers.ConditionValuation": {
-            "type": "object",
-            "properties": {
-                "mileage": {
-                    "type": "integer"
-                },
-                "retail": {
-                    "description": "Retail uses RetailAverage when available",
-                    "type": "integer"
-                },
-                "retailAverage": {
-                    "type": "integer"
-                },
-                "retailClean": {
-                    "type": "integer"
-                },
-                "retailRough": {
-                    "type": "integer"
-                },
-                "retailSource": {
-                    "type": "string"
-                },
-                "tradeIn": {
-                    "description": "TradeIn uses TradeInAverage when available",
-                    "type": "integer"
-                },
-                "tradeInAverage": {
-                    "type": "integer"
-                },
-                "tradeInClean": {
-                    "type": "integer"
-                },
-                "tradeInRough": {
-                    "type": "integer"
-                },
-                "tradeInSource": {
-                    "type": "string"
-                },
-                "updated": {
-                    "type": "string"
-                },
-                "zipCode": {
-                    "type": "string"
-                }
-            }
-        },
         "internal_controllers.CreateGeofence": {
             "type": "object",
             "properties": {
@@ -2329,6 +2388,18 @@
                 }
             }
         },
+        "internal_controllers.DeviceOffer": {
+            "type": "object",
+            "properties": {
+                "offerSets": {
+                    "description": "Contains a list of offer sets, one for each source",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_controllers.OfferSet"
+                    }
+                }
+            }
+        },
         "internal_controllers.DeviceSnapshot": {
             "type": "object",
             "properties": {
@@ -2377,11 +2448,12 @@
         "internal_controllers.DeviceValuation": {
             "type": "object",
             "properties": {
-                "blackbook": {
-                    "$ref": "#/definitions/internal_controllers.ConditionValuation"
-                },
-                "drivly": {
-                    "$ref": "#/definitions/internal_controllers.ConditionValuation"
+                "valuationSets": {
+                    "description": "Contains a list of valuation sets, one for each vendor",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_controllers.ValuationSet"
+                    }
                 }
             }
         },
@@ -2551,6 +2623,63 @@
                 }
             }
         },
+        "internal_controllers.Offer": {
+            "type": "object",
+            "properties": {
+                "declineReason": {
+                    "description": "The reason the offer was declined from the vendor",
+                    "type": "string"
+                },
+                "error": {
+                    "description": "An error from the vendor (eg. when the VIN is invalid)",
+                    "type": "string"
+                },
+                "grade": {
+                    "description": "The grade of the offer from the vendor (eg. \"RETAIL\")",
+                    "type": "string"
+                },
+                "price": {
+                    "description": "The offer price from the vendor",
+                    "type": "integer"
+                },
+                "url": {
+                    "description": "The offer URL from the vendor",
+                    "type": "string"
+                },
+                "vendor": {
+                    "description": "The vendor of the offer (eg. \"carmax\", \"carvana\", etc.)",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_controllers.OfferSet": {
+            "type": "object",
+            "properties": {
+                "mileage": {
+                    "description": "The mileage used for the offers",
+                    "type": "integer"
+                },
+                "offers": {
+                    "description": "Contains a list of offers from the source",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_controllers.Offer"
+                    }
+                },
+                "source": {
+                    "description": "The source of the offers (eg. \"drivly\")",
+                    "type": "string"
+                },
+                "updated": {
+                    "description": "The time the offers were pulled",
+                    "type": "string"
+                },
+                "zipCode": {
+                    "description": "This will be the zip code used (if any) for the offers request regardless if the source uses it",
+                    "type": "string"
+                }
+            }
+        },
         "internal_controllers.RegisterDeviceIntegrationRequest": {
             "type": "object",
             "properties": {
@@ -2697,6 +2826,63 @@
                     "type": "string"
                 },
                 "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_controllers.ValuationSet": {
+            "type": "object",
+            "properties": {
+                "mileage": {
+                    "description": "The mileage used for the valuation",
+                    "type": "integer"
+                },
+                "retail": {
+                    "description": "retail is equal to retailAverage when available",
+                    "type": "integer"
+                },
+                "retailAverage": {
+                    "type": "integer"
+                },
+                "retailClean": {
+                    "description": "retailClean, retailAverage, and retailRough my not always be available",
+                    "type": "integer"
+                },
+                "retailRough": {
+                    "type": "integer"
+                },
+                "retailSource": {
+                    "description": "Useful when Drivly returns multiple vendors and we've selected one (eg. \"drivly:blackbook\")",
+                    "type": "string"
+                },
+                "tradeIn": {
+                    "description": "tradeIn is equal to tradeInAverage when available",
+                    "type": "integer"
+                },
+                "tradeInAverage": {
+                    "type": "integer"
+                },
+                "tradeInClean": {
+                    "description": "tradeInClean, tradeInAverage, and tradeInRough my not always be available",
+                    "type": "integer"
+                },
+                "tradeInRough": {
+                    "type": "integer"
+                },
+                "tradeInSource": {
+                    "description": "Useful when Drivly returns multiple vendors and we've selected one (eg. \"drivly:blackbook\")",
+                    "type": "string"
+                },
+                "updated": {
+                    "description": "The time the valuation was pulled or in the case of blackbook, this may be the event time of the device odometer which was used for the valuation",
+                    "type": "string"
+                },
+                "vendor": {
+                    "description": "The source of the valuation (eg. \"drivly\" or \"blackbook\")",
+                    "type": "string"
+                },
+                "zipCode": {
+                    "description": "This will be the zip code used (if any) for the valuation request regardless if the vendor uses it",
                     "type": "string"
                 }
             }

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -82,6 +83,8 @@ func (s *UserDevicesControllerTestSuite) SetupSuite() {
 	app.Patch("/user/devices/:userDeviceID/vin", test.AuthInjectorTestHandler(s.testUserID), c.UpdateVIN)
 	app.Patch("/user/devices/:userDeviceID/name", test.AuthInjectorTestHandler(s.testUserID), c.UpdateName)
 	app.Patch("/user/devices/:userDeviceID/image", test.AuthInjectorTestHandler(s.testUserID), c.UpdateImage)
+	app.Get("/user/devices/:userDeviceID/offers", test.AuthInjectorTestHandler(s.testUserID), c.GetOffers)
+	app.Get("/user/devices/:userDeviceID/valuations", test.AuthInjectorTestHandler(s.testUserID), c.GetValuations)
 	app.Post("/user/devices/:userDeviceID/commands/refresh", test.AuthInjectorTestHandler(s.testUserID), c.RefreshUserDeviceStatus)
 
 	s.deviceDefSvc.EXPECT().CheckAndSetImage(s.ctx, gomock.Any(), false).AnyTimes().Return(nil) // todo move to each test where used
@@ -372,6 +375,69 @@ func (s *UserDevicesControllerTestSuite) TestPatchImageURL() {
 		body, _ := io.ReadAll(response.Body)
 		fmt.Println("message: " + string(body))
 	}
+}
+
+//go:embed test_drivly_pricing_by_vin.json
+var testDrivlyPricingJSON string
+
+//go:embed test_blackbook_by_vin.json
+var testBlackbookJSON string
+
+func (s *UserDevicesControllerTestSuite) TestGetDeviceValuations() {
+	// arrange db, insert some user_devices
+	dm := test.SetupCreateMake(s.T(), "Ford", s.pdb)
+	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Mach E", 2022, s.pdb)
+	ud := test.SetupCreateUserDevice(s.T(), s.testUserID, dd, nil, s.pdb)
+	_ = test.SetupCreateExternalVINData(s.T(), dd, &ud, map[string][]byte{
+		"PricingMetadata":   []byte(testDrivlyPricingJSON),
+		"BlackbookMetadata": []byte(testBlackbookJSON),
+	}, s.pdb)
+
+	request := test.BuildRequest("GET", fmt.Sprintf("/user/devices/%s/valuations", ud.ID), "")
+	response, _ := s.app.Test(request)
+	body, _ := io.ReadAll(response.Body)
+
+	assert.Equal(s.T(), fiber.StatusOK, response.StatusCode)
+
+	assert.Equal(s.T(), 2, int(gjson.GetBytes(body, "valuationSets.#").Int()))
+	assert.Equal(s.T(), 49957, int(gjson.GetBytes(body, "valuationSets.#(vendor=drivly).mileage").Int()))
+	assert.Equal(s.T(), 49040, int(gjson.GetBytes(body, "valuationSets.#(vendor=drivly).tradeIn").Int()))
+	assert.Equal(s.T(), 49040, int(gjson.GetBytes(body, "valuationSets.#(vendor=drivly).tradeInAverage").Int()))
+	assert.Equal(s.T(), 54123, int(gjson.GetBytes(body, "valuationSets.#(vendor=drivly).retail").Int()))
+	assert.Equal(s.T(), 49957, int(gjson.GetBytes(body, "valuationSets.#(vendor=blackbook).mileage").Int()))
+	assert.Equal(s.T(), 42915+1225, int(gjson.GetBytes(body, "valuationSets.#(vendor=blackbook).tradeIn").Int()))
+	assert.Equal(s.T(), 42915+1225, int(gjson.GetBytes(body, "valuationSets.#(vendor=blackbook).tradeInAverage").Int()))
+	assert.False(s.T(), gjson.GetBytes(body, "valuationSets.#(vendor=blackbook).retail").Exists())
+}
+
+//go:embed test_drivly_offers_by_vin.json
+var testDrivlyOffersJSON string
+
+func (s *UserDevicesControllerTestSuite) TestGetDeviceOffers() {
+	// arrange db, insert some user_devices
+	dm := test.SetupCreateMake(s.T(), "Ford", s.pdb)
+	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Mach E", 2022, s.pdb)
+	ud := test.SetupCreateUserDevice(s.T(), s.testUserID, dd, nil, s.pdb)
+	_ = test.SetupCreateExternalVINData(s.T(), dd, &ud, map[string][]byte{
+		"OfferMetadata": []byte(testDrivlyOffersJSON),
+		// "PricingMetadata":   nil,
+		// "BlackbookMetadata": nil,
+	}, s.pdb)
+
+	request := test.BuildRequest("GET", fmt.Sprintf("/user/devices/%s/offers", ud.ID), "")
+	response, _ := s.app.Test(request)
+	body, _ := io.ReadAll(response.Body)
+
+	assert.Equal(s.T(), fiber.StatusOK, response.StatusCode)
+
+	assert.Equal(s.T(), 1, int(gjson.GetBytes(body, "offerSets.#").Int()))
+	assert.Equal(s.T(), "drivly", gjson.GetBytes(body, "offerSets.0.source").String())
+	assert.Equal(s.T(), 3, int(gjson.GetBytes(body, "offerSets.0.offers.#").Int()))
+	assert.Equal(s.T(), "Error in v1/acquisition/appraisal POST",
+		gjson.GetBytes(body, "offerSets.0.offers.#(vendor=vroom).error").String())
+	assert.Equal(s.T(), 10123, int(gjson.GetBytes(body, "offerSets.0.offers.#(vendor=carvana).price").Int()))
+	assert.Equal(s.T(), "Make[Ford],Model[Mustang Mach-E],Year[2022] is not eligible for offer.",
+		gjson.GetBytes(body, "offerSets.0.offers.#(vendor=carmax).declineReason").String())
 }
 
 func (s *UserDevicesControllerTestSuite) TestPostRefreshSmartCar() {

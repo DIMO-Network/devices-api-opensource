@@ -321,6 +321,29 @@ func SetupCreateGeofence(t *testing.T, userID, name string, ud *models.UserDevic
 	return &gf
 }
 
+func SetupCreateExternalVINData(t *testing.T, dd *models.DeviceDefinition, ud *models.UserDevice, md map[string][]byte, pdb database.DbStore) *models.ExternalVinDatum {
+	evd := models.ExternalVinDatum{
+		ID:                 ksuid.New().String(),
+		DeviceDefinitionID: null.StringFrom(dd.ID),
+		Vin:                ud.VinIdentifier.String,
+		UserDeviceID:       null.StringFrom(ud.ID),
+		RequestMetadata:    null.JSONFrom([]byte(`{"mileage":49957,"zipCode":"48216"}`)),
+	}
+	if omd, ok := md["OfferMetadata"]; ok {
+		evd.OfferMetadata = null.JSONFrom(omd)
+	}
+	if pmd, ok := md["PricingMetadata"]; ok {
+		evd.PricingMetadata = null.JSONFrom(pmd)
+	}
+	if bmd, ok := md["BlackbookMetadata"]; ok {
+		evd.BlackbookMetadata = null.JSONFrom(bmd)
+	}
+	err := evd.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
+	assert.NoError(t, err)
+
+	return &evd
+}
+
 func BuildDeviceDefinitionGRPC(deviceDefinitionID string, make string, model string, modelType string) []*ddgrpc.GetDeviceDefinitionItemResponse {
 	rp := &ddgrpc.GetDeviceDefinitionItemResponse{
 		DeviceDefinitionId:     deviceDefinitionID,
