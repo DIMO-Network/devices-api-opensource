@@ -47,13 +47,13 @@ func TestDeviceDefinitionIntegrationTestSuite(t *testing.T) {
 //	dm := test.SetupCreateMake(s.T(), "Ford", s.pdb)
 //	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "MachE", 2020, s.pdb)
 //	var dcs []DeviceCompatibility
-//	compatibility, err := AppendAutoPiCompatibility(s.ctx, dcs, dd.ID, s.pdb.DBS().Writer)
+//	compatibility, err := AppendAutoPiCompatibility(s.ctx, dcs, dd.ID, s.pdb.dbs().Writer)
 //
 //	assert.NoError(s.T(), err)
 //	assert.Len(s.T(), compatibility, 2)
-//	all, err := models.DeviceIntegrations().All(s.ctx, s.pdb.DBS().Reader)
+//	all, err := models.DeviceIntegrations().All(s.ctx, s.pdb.dbs().Reader)
 //	assert.NoError(s.T(), err)
 //	assert.Len(s.T(), all, 2)
 //
-//	test.TruncateTables(s.pdb.DBS().Writer.DB, s.T())
+//	test.TruncateTables(s.pdb.dbs().Writer.DB, s.T())
 //}

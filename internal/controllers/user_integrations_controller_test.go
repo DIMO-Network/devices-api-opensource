@@ -754,7 +754,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateD
 //func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCommand() {
 //	// specific dependency and controller
 //	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
-//	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), s.deviceDefSvc, s.deviceDefIntSvc,
+//	c := NewUserDevicesController(&config.settings{Port: "3000"}, s.pdb.dbs, test.Logger(), s.deviceDefSvc, s.deviceDefIntSvc,
 //		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
 //		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 //	app := fiber.New()
@@ -776,7 +776,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateD
 //		AutoPiUnitID: func(s string) *string { return &s }(unitID),
 //	}
 //	_ = udapiInt.Metadata.Marshal(udMetadata)
-//	_, err := udapiInt.Update(s.ctx, s.pdb.DBS().Writer, boil.Infer())
+//	_, err := udapiInt.Update(s.ctx, s.pdb.dbs().Writer, boil.Infer())
 //	require.NoError(s.T(), err)
 //	autoPiJob := models.AutopiJob{
 //		ID:                 "somepreviousjobId",
@@ -786,10 +786,10 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateD
 //		CommandLastUpdated: null.TimeFrom(time.Now().UTC()),
 //		UserDeviceID:       null.StringFrom(ud.ID),
 //	}
-//	err = autoPiJob.Insert(s.ctx, s.pdb.DBS().Writer, boil.Infer())
+//	err = autoPiJob.Insert(s.ctx, s.pdb.dbs().Writer, boil.Infer())
 //	require.NoError(s.T(), err)
 //	// test job can be retrieved
-//	apSvc := services.NewAutoPiAPIService(&config.Settings{}, s.pdb.DBS)
+//	apSvc := services.NewAutoPiAPIService(&config.settings{}, s.pdb.dbs)
 //	status, _, err := apSvc.GetCommandStatus(s.ctx, "somepreviousjobId")
 //	require.NoError(s.T(), err)
 //	assert.Equal(s.T(), "somepreviousjobId", status.CommandJobID)

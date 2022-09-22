@@ -115,7 +115,7 @@ func handleContainerStartErr(ctx context.Context, err error, container testconta
 	return database.DbStore{}, container
 }
 
-// getTestDbSettings builds test db config.Settings object
+// getTestDbSettings builds test db config.settings object
 func getTestDbSettings() config.Settings {
 	settings := config.Settings{
 		LogLevel:             "info",

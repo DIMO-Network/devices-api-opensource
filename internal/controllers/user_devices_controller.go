@@ -122,7 +122,7 @@ func NewUserDevicesController(
 // @Security    BearerAuth
 // @Router      /user/devices/me [get]
 func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
-	// todo grpc call out to grpc service endpoint in the deviceDefinitionsService udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{ "todo"} )
+	// todo grpc call out to grpc service endpoint in the deviceDefinitionsService udc.deviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{ "todo"} )
 
 	userID := getUserID(c)
 	devices, err := models.UserDevices(qm.Where("user_id = ?", userID),

@@ -20,12 +20,12 @@ import (
 )
 
 type DevicesController struct {
-	Settings        *config.Settings
-	DBS             func() *database.DBReaderWriter
-	NHTSASvc        services.INHTSAService
-	EdmundsSvc      services.EdmundsService
-	DeviceDefSvc    services.DeviceDefinitionService
-	DeviceDefIntSvc services.DeviceDefinitionIntegrationService
+	settings        *config.Settings
+	dbs             func() *database.DBReaderWriter
+	nhtsaSvc        services.INHTSAService
+	edmundsSvc      services.EdmundsService
+	deviceDefSvc    services.DeviceDefinitionService
+	deviceDefIntSvc services.DeviceDefinitionIntegrationService
 	log             *zerolog.Logger
 }
 
@@ -36,13 +36,13 @@ func NewDevicesController(settings *config.Settings, dbs func() *database.DBRead
 	edmundsSvc := services.NewEdmundsService(settings.TorProxyURL, logger)
 
 	return DevicesController{
-		Settings:        settings,
-		DBS:             dbs,
-		NHTSASvc:        nhtsaSvc,
+		settings:        settings,
+		dbs:             dbs,
+		nhtsaSvc:        nhtsaSvc,
 		log:             logger,
-		EdmundsSvc:      edmundsSvc,
-		DeviceDefSvc:    ddSvc,
-		DeviceDefIntSvc: ddIntSvc,
+		edmundsSvc:      edmundsSvc,
+		deviceDefSvc:    ddSvc,
+		deviceDefIntSvc: ddIntSvc,
 	}
 }
 
@@ -53,12 +53,12 @@ func NewDevicesController(settings *config.Settings, dbs func() *database.DBRead
 // @Success     200 {object} []controllers.DeviceMMYRoot
 // @Router      /device-definitions/all [get]
 func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
-	allMakes, err := models.DeviceMakes(qm.OrderBy(models.DeviceMakeColumns.Name)).All(c.Context(), d.DBS().Reader)
+	allMakes, err := models.DeviceMakes(qm.OrderBy(models.DeviceMakeColumns.Name)).All(c.Context(), d.dbs().Reader)
 	if err != nil {
 		return err
 	}
 	all, err := models.DeviceDefinitions(qm.Where("verified = true"),
-		qm.OrderBy("device_make_id, model, year")).All(c.Context(), d.DBS().Reader)
+		qm.OrderBy("device_make_id, model, year")).All(c.Context(), d.dbs().Reader)
 
 	if err != nil {
 		return err
@@ -114,9 +114,9 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 			"errorMessage": "invalid device_definition_id",
 		})
 	}
-	deviceDefinitionResponse, err := d.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{id})
+	deviceDefinitionResponse, err := d.deviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{id})
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "deviceDefSvc error getting definition id: %s", id)
 	}
 
 	if len(deviceDefinitionResponse) == 0 {
@@ -126,12 +126,12 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 	dd := deviceDefinitionResponse[0]
 	rp, err := NewDeviceDefinitionFromGRPC(dd)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "could not convert device def for api response %+v", dd)
 	}
 	if dd.Type.Year >= autoPiYearCutoff && !strings.EqualFold(dd.Make.Name, "Tesla") {
-		rp.CompatibleIntegrations, err = d.DeviceDefIntSvc.AppendAutoPiCompatibility(c.Context(), rp.CompatibleIntegrations, dd.DeviceDefinitionId)
+		rp.CompatibleIntegrations, err = d.deviceDefIntSvc.AppendAutoPiCompatibility(c.Context(), rp.CompatibleIntegrations, dd.DeviceDefinitionId)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "deviceDefIntSvc error when AppendAutoPiCompatibility. dd id: %s", dd.DeviceDefinitionId)
 		}
 	}
 	return c.JSON(fiber.Map{
@@ -158,7 +158,7 @@ func (d *DevicesController) GetDeviceIntegrationsByID(c *fiber.Ctx) error {
 		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
 		qm.Load(models.DeviceDefinitionRels.DeviceMake),
 		qm.Load("DeviceIntegrations.Integration")).
-		One(c.Context(), d.DBS().Reader)
+		One(c.Context(), d.dbs().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fiber.NewError(fiber.StatusNotFound, fmt.Sprintf("no device defintion with id %s found", id))
@@ -180,7 +180,7 @@ func (d *DevicesController) GetDeviceIntegrationsByID(c *fiber.Ctx) error {
 		}
 	}
 	if dd.Year >= autoPiYearCutoff && !strings.EqualFold(dd.R.DeviceMake.Name, "Tesla") {
-		integrations, err = d.DeviceDefIntSvc.AppendAutoPiCompatibility(c.Context(), integrations, dd.ID)
+		integrations, err = d.deviceDefIntSvc.AppendAutoPiCompatibility(c.Context(), integrations, dd.ID)
 		if err != nil {
 			return err
 		}
@@ -210,7 +210,7 @@ func (d *DevicesController) GetDeviceDefinitionByMMY(c *fiber.Ctx) error {
 	if err != nil {
 		return errorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
-	dd, err := d.DeviceDefSvc.FindDeviceDefinitionByMMY(c.Context(), mk, model, yrInt)
+	dd, err := d.deviceDefSvc.FindDeviceDefinitionByMMY(c.Context(), mk, model, yrInt)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
