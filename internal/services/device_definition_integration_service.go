@@ -166,7 +166,7 @@ func (d *deviceDefinitionIntegrationService) CreateDeviceDefinitionIntegration(c
 	}
 	defer conn.Close()
 
-	di, err := definitionsClient.CreateDeviceIntegration(ctx, &ddgrpc.CreateDeviceIntegrationRequest{
+	_, err = definitionsClient.CreateDeviceIntegration(ctx, &ddgrpc.CreateDeviceIntegrationRequest{
 		DeviceDefinitionId: deviceDefinitionID,
 		IntegrationId:      integrationID,
 		Region:             region,
@@ -175,7 +175,7 @@ func (d *deviceDefinitionIntegrationService) CreateDeviceDefinitionIntegration(c
 		return nil, err
 	}
 
-	deviceIntegrations, err := d.GetDeviceDefinitionIntegration(ctx, di.Id)
+	deviceIntegrations, err := d.GetDeviceDefinitionIntegration(ctx, deviceDefinitionID)
 	if err != nil {
 		return nil, err
 	}
