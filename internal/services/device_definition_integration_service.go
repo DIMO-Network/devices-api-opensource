@@ -76,30 +76,21 @@ func (d *deviceDefinitionIntegrationService) AppendAutoPiCompatibility(ctx conte
 	if err != nil {
 		return nil, err
 	}
-
+	// if device already has the autopi integration just return
 	for _, dc := range dcs {
 		if dc.ID == integration.Id {
 			return dcs, nil
 		}
 	}
 
-	// insert into db
-	di, err := d.CreateDeviceDefinitionIntegration(ctx, integration.Id, deviceDefinitionID, AmericasRegion.String())
+	// create autopi device_integration mapping on the fly for both regions
+	_, err = d.CreateDeviceDefinitionIntegration(ctx, integration.Id, deviceDefinitionID, AmericasRegion.String())
 	if err != nil {
 		return nil, err
 	}
-
-	if di == nil {
-		return nil, errors.New("Failed to create device integration")
-	}
-
-	di, err = d.CreateDeviceDefinitionIntegration(ctx, integration.Id, deviceDefinitionID, EuropeRegion.String())
+	_, err = d.CreateDeviceDefinitionIntegration(ctx, integration.Id, deviceDefinitionID, EuropeRegion.String())
 	if err != nil {
 		return nil, err
-	}
-
-	if di == nil {
-		return nil, errors.New("Failed to create device integration")
 	}
 
 	// prepare return object for api
@@ -174,7 +165,7 @@ func (d *deviceDefinitionIntegrationService) CreateDeviceDefinitionIntegration(c
 	if err != nil {
 		return nil, err
 	}
-
+	// todo: check if we really need to do this - callers may not really need it
 	deviceIntegrations, err := d.GetDeviceDefinitionIntegration(ctx, deviceDefinitionID)
 	if err != nil {
 		return nil, err
