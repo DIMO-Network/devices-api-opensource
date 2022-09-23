@@ -827,37 +827,60 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 	logger := udc.log.With().Str("userId", userID).Str("userDeviceId", userDeviceID).Logger()
 	logger.Info().Msg("Got AutoPi pair request.")
 
-	udai, _, err := udc.DeviceDefIntSvc.FindUserDeviceAutoPiIntegration(c.Context(), udc.DBS().Reader, userDeviceID, userID)
+	autoPiInt, err := udc.DeviceDefIntSvc.GetAutoPiIntegration(c.Context())
 	if err != nil {
 		return opaqueInternalError
+	}
+
+	ud, err := models.FindUserDevice(c.Context(), udc.DBS().Reader, userDeviceID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
+		}
+		return opaqueInternalError
+	}
+
+	if ud.UserID != userID {
+		// Err on the side of privacy.
+		return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
+	}
+
+	udai, err := ud.UserDeviceAPIIntegrations(models.IntegrationWhere.ID.EQ(autoPiInt.Id)).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusConflict, "Device does not have an AutoPi associated.")
+		}
+		return opaqueInternalError
+	}
+
+	if udai.Status != models.UserDeviceAPIIntegrationStatusActive {
+		return fiber.NewError(fiber.StatusConflict, "Associated AutoPi is not active.")
 	}
 
 	if !udai.AutopiUnitID.Valid {
-		return fiber.NewError(fiber.StatusNotFound, "Device does not have a paired AutoPi.")
+		// This shouldn't happen.
+		return opaqueInternalError
 	}
 
-	unit, err := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, udai.AutopiUnitID.String)
+	autoPiUnit, err := udai.AutopiUnit().One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		return opaqueInternalError
 	}
 
-	if unit.TokenID.IsZero() {
-		return fiber.NewError(fiber.StatusConflict, "AutoPi not minted.")
+	if autoPiUnit.TokenID.IsZero() {
+		return fiber.NewError(fiber.StatusConflict, "AutoPi not yet minted.")
 	}
 
-	mr, err := models.MintRequests(
-		models.MintRequestWhere.UserDeviceID.EQ(null.StringFrom(userDeviceID)),
-		models.MintRequestWhere.TXState.EQ(models.TxstateConfirmed),
-	).One(c.Context(), udc.DBS().Reader)
+	mr, err := ud.MintRequest().One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusNotFound, "No vehicle NFT found.")
+			return fiber.NewError(fiber.StatusConflict, "Device not yet minted.")
 		}
+		return opaqueInternalError
 	}
 
 	vehicleToken := mr.TokenID.Int(nil)
-
-	apToken := unit.TokenID.Int(nil)
+	apToken := autoPiUnit.TokenID.Int(nil)
 
 	// TODO(elffjs): Really shouldn't be dialing so much.
 	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -871,12 +894,10 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 
 	user, err := usersClient.GetUser(c.Context(), &pb.GetUserRequest{Id: userID})
 	if err != nil {
-		udc.log.Err(err).Msg("Couldn't retrieve user record.")
 		return opaqueInternalError
 	}
 
 	if user.EthereumAddress == nil {
-		udc.log.Error().Msg("No Ethereum address on file for user.")
 		return fiber.NewError(fiber.StatusConflict, "User does not have an Ethereum address.")
 	}
 
