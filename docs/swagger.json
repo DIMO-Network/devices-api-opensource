@@ -67,7 +67,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiDeviceInfo"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo"
                         }
                     }
                 }
@@ -126,13 +126,13 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiClaimRequest"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiClaimRequest"
                         }
                     }
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             }
@@ -162,7 +162,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "OK"
                     }
                 }
             }
@@ -346,7 +346,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
+                                "$ref": "#/definitions/internal_controllers.DocumentResponse"
                             }
                         }
                     }
@@ -401,7 +401,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
+                            "$ref": "#/definitions/internal_controllers.DocumentResponse"
                         }
                     }
                 }
@@ -437,7 +437,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
+                            "$ref": "#/definitions/internal_controllers.DocumentResponse"
                         }
                     }
                 }
@@ -469,7 +469,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             }
@@ -501,7 +501,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "OK"
                     }
                 }
             }
@@ -579,11 +579,11 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp"
+                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
                         }
                     },
                     "404": {
-                        "description": ""
+                        "description": "Not Found"
                     }
                 }
             }
@@ -650,13 +650,13 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiCommandRequest"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "OK"
                     }
                 }
             }
@@ -694,6 +694,36 @@
                 }
             }
         },
+        "/user/devices/:userDeviceID/autopi/commands/pair": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Return the EIP-712 payload to be signed for AutoPi device pairing.",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device id",
+                        "name": "userDeviceID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/apitypes.TypedData"
+                        }
+                    }
+                }
+            }
+        },
         "/user/devices/:userDeviceID/integrations/:integrationID": {
             "post": {
                 "security": [
@@ -715,13 +745,13 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.RegisterDeviceIntegrationRequest"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest"
                         }
                     }
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             }
@@ -775,7 +805,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             }
@@ -839,7 +869,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "OK"
                     }
                 }
             }
@@ -866,7 +896,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     },
                     "429": {
                         "description": "rate limit hit for integration"
@@ -904,7 +934,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             }
@@ -939,7 +969,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             }
@@ -959,7 +989,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.GetUserDeviceIntegrationResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse"
                         }
                     }
                 }
@@ -976,7 +1006,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             }
@@ -1014,7 +1044,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1053,7 +1083,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1092,7 +1122,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1131,7 +1161,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1177,7 +1207,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandRequestStatusResp"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandRequestStatusResp"
                         }
                     }
                 }
@@ -1220,7 +1250,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             }
@@ -1276,7 +1306,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot"
+                            "$ref": "#/definitions/internal_controllers.DeviceSnapshot"
                         }
                     }
                 }
@@ -1343,7 +1373,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             }
@@ -1457,7 +1487,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             },
@@ -1485,7 +1515,7 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "No Content"
                     }
                 }
             }

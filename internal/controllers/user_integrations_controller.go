@@ -735,10 +735,6 @@ func (udc *UserDevicesController) GetAutoPiTask(c *fiber.Ctx) error {
 func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
 	userID := getUserID(c)
 
-	if udc.Settings.Environment == "prod" {
-		return fiber.NewError(fiber.StatusForbidden, "Unauthorized.")
-	}
-
 	unitID := c.Params("unitID")
 
 	logger := udc.log.With().Str("userId", userID).Str("unitId", unitID).Logger()
@@ -816,6 +812,105 @@ func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
 	return c.JSON(typedData)
 }
 
+// GetAutoPiClaimMessage godoc
+// @Description Return the EIP-712 payload to be signed for AutoPi device pairing.
+// @Produce json
+// @Param userDeviceID path string true "Device id"
+// @Success 200 {object} signer.TypedData
+// @Security BearerAuth
+// @Router /user/devices/:userDeviceID/autopi/commands/pair [get]
+func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
+	userID := getUserID(c)
+
+	userDeviceID := c.Params("userDeviceID")
+
+	logger := udc.log.With().Str("userId", userID).Str("userDeviceId", userDeviceID).Logger()
+	logger.Info().Msg("Got AutoPi pair request.")
+
+	udai, _, err := udc.DeviceDefIntSvc.FindUserDeviceAutoPiIntegration(c.Context(), udc.DBS().Reader, userDeviceID, userID)
+	if err != nil {
+		return opaqueInternalError
+	}
+
+	if !udai.AutopiUnitID.Valid {
+		return fiber.NewError(fiber.StatusNotFound, "Device does not have a paired AutoPi.")
+	}
+
+	unit, err := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, udai.AutopiUnitID.String)
+	if err != nil {
+		return opaqueInternalError
+	}
+
+	if unit.TokenID.IsZero() {
+		return fiber.NewError(fiber.StatusConflict, "AutoPi not minted.")
+	}
+
+	mr, err := models.MintRequests(
+		models.MintRequestWhere.UserDeviceID.EQ(null.StringFrom(userDeviceID)),
+		models.MintRequestWhere.TXState.EQ(models.TxstateConfirmed),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, "No vehicle NFT found.")
+		}
+	}
+
+	vehicleToken := mr.TokenID.Int(nil)
+
+	apToken := unit.TokenID.Int(nil)
+
+	// TODO(elffjs): Really shouldn't be dialing so much.
+	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		udc.log.Err(err).Msg("Failed to create users API client.")
+		return opaqueInternalError
+	}
+	defer conn.Close()
+
+	usersClient := pb.NewUserServiceClient(conn)
+
+	user, err := usersClient.GetUser(c.Context(), &pb.GetUserRequest{Id: userID})
+	if err != nil {
+		udc.log.Err(err).Msg("Couldn't retrieve user record.")
+		return opaqueInternalError
+	}
+
+	if user.EthereumAddress == nil {
+		udc.log.Error().Msg("No Ethereum address on file for user.")
+		return fiber.NewError(fiber.StatusConflict, "User does not have an Ethereum address.")
+	}
+
+	typedData := map[string]any{
+		"types": signer.Types{
+			"EIP712Domain": []signer.Type{
+				{Name: "name", Type: "string"},
+				{Name: "version", Type: "string"},
+				{Name: "chainId", Type: "uint256"},
+				{Name: "verifyingContract", Type: "address"},
+			},
+			"PairAftermarketDeviceSign": {
+				{Name: "aftermarketDeviceNode", Type: "uint256"},
+				{Name: "vehicleNode", Type: "uint256"},
+				{Name: "owner", Type: "address"},
+			},
+		},
+		"primaryType": "PairAftermarketDeviceSign",
+		"domain": signer.TypedDataMessage{
+			"name":              udc.Settings.NFTContractName,
+			"version":           udc.Settings.NFTContractVersion,
+			"chainId":           udc.Settings.NFTChainID,
+			"verifyingContract": udc.Settings.NFTContractAddr,
+		},
+		"message": signer.TypedDataMessage{
+			"aftermarketDeviceNode": apToken,
+			"vehicleNode":           vehicleToken,
+			"owner":                 *user.EthereumAddress,
+		},
+	}
+
+	return c.JSON(typedData)
+}
+
 type AutoPiClaimRequest struct {
 	// UserSignature is the signature from the user, using their private key.
 	UserSignature string `json:"userSignature"`
@@ -833,10 +928,6 @@ type AutoPiClaimRequest struct {
 // @Router /autopi/unit/:unitID/commands/claim [post]
 func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 	userID := getUserID(c)
-
-	if udc.Settings.Environment == "prod" {
-		return fiber.NewError(fiber.StatusForbidden, "Unauthorized.")
-	}
 
 	unitID := c.Params("unitID")
 
