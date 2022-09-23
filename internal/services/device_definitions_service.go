@@ -38,6 +38,7 @@ type DeviceDefinitionService interface {
 	GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*models.DeviceMake, error)
 	GetDeviceDefinitionsByIDs(ctx context.Context, ids []string) ([]*ddgrpc.GetDeviceDefinitionItemResponse, error)
 	GetIntegrations(ctx context.Context) ([]*ddgrpc.GetIntegrationItemResponse, error)
+	GetIntegrationByID(ctx context.Context, id string) (*ddgrpc.GetIntegrationItemResponse, error)
 }
 
 type deviceDefinitionService struct {
@@ -94,6 +95,25 @@ func (d *deviceDefinitionService) GetIntegrations(ctx context.Context) ([]*ddgrp
 	}
 
 	return definitions.GetIntegrations(), nil
+}
+
+// GetIntegrationByID get integration from grpc by id
+func (d *deviceDefinitionService) GetIntegrationByID(ctx context.Context, id string) (*ddgrpc.GetIntegrationItemResponse, error) {
+	allIntegrations, err := d.GetIntegrations(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to call grpc to get integrations")
+	}
+	var integration *ddgrpc.GetIntegrationItemResponse
+	for _, in := range allIntegrations {
+		if in.Id == id {
+			integration = in
+		}
+	}
+	if integration == nil {
+		return nil, fmt.Errorf("no integration with id %s found in the %d existing", id, len(allIntegrations))
+	}
+
+	return integration, nil
 }
 
 // FindDeviceDefinitionByMMY builds and execs query to find device definition for MMY, calling out via gRPC. Includes compatible integrations.

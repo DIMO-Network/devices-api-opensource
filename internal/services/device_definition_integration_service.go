@@ -165,7 +165,8 @@ func (d *deviceDefinitionIntegrationService) CreateDeviceDefinitionIntegration(c
 	if err != nil {
 		return nil, err
 	}
-	// todo: check if we really need to do this - callers may not really need it
+	// todo: should this be just calling get all integrations - but we need a new helper
+
 	deviceIntegrations, err := d.GetDeviceDefinitionIntegration(ctx, deviceDefinitionID)
 	if err != nil {
 		return nil, err

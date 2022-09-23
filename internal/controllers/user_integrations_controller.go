@@ -997,9 +997,7 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("can't find compatibility region for country %s", ud.CountryCode.String))
 	}
 
-	// todo grpc get device integrations from device-definitions by dd ID
 	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{ud.DeviceDefinitionID})
-
 	if err != nil {
 		logger.Err(err).Msg("Unexpected grpc error searching for device definition")
 		return err
@@ -1009,45 +1007,39 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 		return fiber.NewError(fiber.StatusNotFound, fmt.Sprintf("device definition with id %s not found", ud.DeviceDefinitionID))
 	}
 
-	dd := deviceDefinitionResponse[0]
-
-	deviceIntegResponse, err := udc.DeviceDefIntSvc.GetDeviceDefinitionIntegration(c.Context(), ud.DeviceDefinitionID)
-
+	autoPiIntegration, err := udc.DeviceDefIntSvc.GetAutoPiIntegration(c.Context())
 	if err != nil {
-		logger.Err(err).Msg("Unexpected grpc error searching for device integration")
-		return err
+		return errors.Wrap(err, "failed to get autopi integration for register process")
 	}
 
-	filterDeviceDefinitionIntegration := func(id string, items []*ddgrpc.GetDeviceDefinitionIntegrationItemResponse) *ddgrpc.GetIntegrationItemResponse {
-		for _, integration := range items {
-			if id == integration.Id {
-				return &ddgrpc.GetIntegrationItemResponse{
-					Id:     integration.Id,
-					Vendor: integration.Vendor,
-					Style:  integration.Style,
-					Type:   integration.Type,
-				}
+	dd := deviceDefinitionResponse[0]
+	logger.Info().Msgf("get device definition id result during registration %+v", dd)
+
+	var deviceInteg *ddgrpc.GetIntegrationItemResponse
+	for _, integration := range dd.CompatibleIntegrations {
+		if integration.Id == integrationID {
+			deviceInteg = &ddgrpc.GetIntegrationItemResponse{
+				Id:     integration.Id,
+				Type:   integration.Type,
+				Style:  integration.Style,
+				Vendor: integration.Vendor,
 			}
+			break
 		}
-		return nil
-	}
-
-	deviceInteg := filterDeviceDefinitionIntegration(integrationID, deviceIntegResponse)
-
-	if deviceInteg != nil {
-		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("device %s already has a registration with integration %s, please delete that first", userDeviceID, integrationID))
 	}
 
 	if deviceInteg == nil {
-		// if request is for an autopi integration, create device_integration on the fly
-		deviceInteg, err = udc.DeviceDefIntSvc.CreateDeviceDefinitionIntegration(c.Context(), integrationID, ud.DeviceDefinitionID, countryRecord.Region)
-		if err != nil {
-			logger.Err(err).Msg("failed to create autopi device_integration on the fly.")
-			return err
-		}
-		if deviceInteg == nil {
-			logger.Warn().Msg("Attempted to register a device integration that didn't exist")
-			return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("could not find device integration for device definition %s, integration %s and country %s", ud.DeviceDefinitionID, integrationID, ud.CountryCode.String))
+		// we should error but let's check if autopi first
+		if integrationID == autoPiIntegration.Id {
+			// we need to create an autopi device_integration first
+			autoPiDeviceInteg, err := udc.DeviceDefIntSvc.CreateDeviceDefinitionIntegration(c.Context(), autoPiIntegration.Id, ud.DeviceDefinitionID, countryRecord.Region)
+			if err != nil {
+				return errors.Wrapf(err, "failed to create device_integration for autopi. userDeviceId: %s", ud.ID)
+			}
+			logger.Info().Str("userDeviceId", ud.ID).Msg("created autopi integration on the fly")
+			deviceInteg = autoPiDeviceInteg
+		} else {
+			return fmt.Errorf("deviceDefinitionId %s does not support integrationId %s", ud.DeviceDefinitionID, integrationID)
 		}
 	}
 
@@ -1055,7 +1047,7 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 		logger.Err(err).Msg("Unexpected database error looking for existing instance of integration")
 		return err
 	} else if exists {
-		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("device %s already has a registration with integration %s, please delete that first", userDeviceID, integrationID))
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("userDeviceId %s already has a user_device_api_integration with integrationId %s, please delete that first", userDeviceID, integrationID))
 	}
 
 	var regErr error
@@ -1067,7 +1059,7 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 	case "Tesla":
 		regErr = udc.registerDeviceTesla(c, &logger, tx, userDeviceID, deviceInteg, ud)
 	case services.AutoPiVendor:
-		regErr = udc.registerAutoPiUnit(c, &logger, tx, ud, deviceInteg, dd)
+		regErr = udc.registerAutoPiUnit(c, &logger, tx, ud, autoPiIntegration.Id, dd)
 	default:
 		logger.Error().Str("vendor", vendor).Msg("Attempted to register an unsupported integration")
 		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("unsupported integration %s", integrationID))
@@ -1144,7 +1136,7 @@ func (udc *UserDevicesController) runPostRegistration(ctx context.Context, logge
 }
 
 // registerAutoPiUnit adds record to user api integrations table and calls various autoPi API endpoints to set our TemplateID
-func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, ud *models.UserDevice, integration *ddgrpc.GetIntegrationItemResponse, dd *ddgrpc.GetDeviceDefinitionItemResponse) error {
+func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, ud *models.UserDevice, integrationID string, dd *ddgrpc.GetDeviceDefinitionItemResponse) error {
 	reqBody := new(RegisterDeviceIntegrationRequest) // we only care about the externalId here
 	err := c.BodyParser(&reqBody)
 	if err != nil {
@@ -1207,6 +1199,12 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 
 	// validate necessary conditions:
 	//- integration metadata contains AutoPiDefaultTemplateID
+
+	integration, err := udc.DeviceDefSvc.GetIntegrationByID(c.Context(), integrationID)
+	if err != nil {
+		return errors.Wrap(err, "failed to get the autopi integration")
+	}
+
 	if integration.AutoPiDefaultTemplateId == 0 {
 		return errors.Wrapf(err, "integration id %s does not have autopi default template id", integration.Id)
 	}
