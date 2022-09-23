@@ -59,11 +59,9 @@ func (d *deviceDefinitionIntegrationService) GetAutoPiIntegration(ctx context.Co
 
 	integrationResponse := definitions.GetIntegrations()
 
-	integration := &ddgrpc.GetIntegrationItemResponse{}
-
 	for _, integrationItem := range integrationResponse {
 		if integrationItem.Vendor == AutoPiVendor && integrationItem.Style == autoPiStyle && integrationItem.Type == autoPiType {
-			return integration, nil
+			return integrationItem, nil
 		}
 	}
 

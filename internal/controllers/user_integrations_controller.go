@@ -1059,7 +1059,7 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 	case "Tesla":
 		regErr = udc.registerDeviceTesla(c, &logger, tx, userDeviceID, deviceInteg, ud)
 	case services.AutoPiVendor:
-		regErr = udc.registerAutoPiUnit(c, &logger, tx, ud, autoPiIntegration.Id, dd)
+		regErr = udc.registerAutoPiUnit(c, &logger, tx, ud, integrationID, dd)
 	default:
 		logger.Error().Str("vendor", vendor).Msg("Attempted to register an unsupported integration")
 		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("unsupported integration %s", integrationID))
@@ -1202,7 +1202,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 
 	integration, err := udc.DeviceDefSvc.GetIntegrationByID(c.Context(), integrationID)
 	if err != nil {
-		return errors.Wrap(err, "failed to get the autopi integration")
+		return errors.Wrapf(err, "failed to get the autopi integrationId %s", integrationID)
 	}
 
 	if integration.AutoPiDefaultTemplateId == 0 {
