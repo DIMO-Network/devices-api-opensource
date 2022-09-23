@@ -141,6 +141,12 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		ids = append(ids, d.DeviceDefinitionID)
 	}
 
+	if len(ids) == 0 {
+		return c.JSON(fiber.Map{
+			"userDevices": rp,
+		})
+	}
+
 	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), ids)
 
 	if err != nil {

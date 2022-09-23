@@ -65,6 +65,11 @@ func NewDeviceDefinitionService(DBS func() *database.DBReaderWriter, log *zerolo
 
 // GetDeviceDefinitionsByIDs calls device definitions api via GRPC to get the definition. idea for testing: http://www.inanzzz.com/index.php/post/w9qr/unit-testing-golang-grpc-client-and-server-application-with-bufconn-package
 func (d *deviceDefinitionService) GetDeviceDefinitionsByIDs(ctx context.Context, ids []string) ([]*ddgrpc.GetDeviceDefinitionItemResponse, error) {
+
+	if len(ids) == 0 {
+		return nil, errors.New("Device Definition Ids is required")
+	}
+
 	definitionsClient, conn, err := d.getDeviceDefsGrpcClient()
 	if err != nil {
 		return nil, err
