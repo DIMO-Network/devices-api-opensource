@@ -847,7 +847,7 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
 	}
 
-	udai, err := ud.UserDeviceAPIIntegrations(models.IntegrationWhere.ID.EQ(autoPiInt.Id)).One(c.Context(), udc.DBS().Reader)
+	udai, err := ud.UserDeviceAPIIntegrations(models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(autoPiInt.Id)).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fiber.NewError(fiber.StatusConflict, "Device does not have an AutoPi associated.")
