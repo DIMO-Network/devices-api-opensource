@@ -829,6 +829,7 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 
 	autoPiInt, err := udc.DeviceDefIntSvc.GetAutoPiIntegration(c.Context())
 	if err != nil {
+		logger.Err(err).Msg("Failed to retrieve AutoPi integration.")
 		return opaqueInternalError
 	}
 
@@ -837,6 +838,7 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
 		}
+		logger.Err(err).Msg("Database failure searching for device.")
 		return opaqueInternalError
 	}
 
@@ -850,6 +852,7 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fiber.NewError(fiber.StatusConflict, "Device does not have an AutoPi associated.")
 		}
+		logger.Err(err).Msg("Database failure searching for device's AutoPi integration.")
 		return opaqueInternalError
 	}
 
@@ -859,11 +862,13 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 
 	if !udai.AutopiUnitID.Valid {
 		// This shouldn't happen.
+		logger.Error().Msg("Active AutoPi integration with no associated unit id.")
 		return opaqueInternalError
 	}
 
 	autoPiUnit, err := udai.AutopiUnit().One(c.Context(), udc.DBS().Reader)
 	if err != nil {
+		logger.Error().Msg("Failed to retrieve AutoPi record.")
 		return opaqueInternalError
 	}
 
@@ -876,6 +881,7 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fiber.NewError(fiber.StatusConflict, "Device not yet minted.")
 		}
+		logger.Error().Msg("Failed to retrieve device NFT record.")
 		return opaqueInternalError
 	}
 
@@ -894,6 +900,7 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 
 	user, err := usersClient.GetUser(c.Context(), &pb.GetUserRequest{Id: userID})
 	if err != nil {
+		udc.log.Err(err).Msg("Failed to retrieve user information.")
 		return opaqueInternalError
 	}
 
@@ -912,7 +919,6 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 			"PairAftermarketDeviceSign": {
 				{Name: "aftermarketDeviceNode", Type: "uint256"},
 				{Name: "vehicleNode", Type: "uint256"},
-				{Name: "owner", Type: "address"},
 			},
 		},
 		"primaryType": "PairAftermarketDeviceSign",
@@ -925,7 +931,6 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 		"message": signer.TypedDataMessage{
 			"aftermarketDeviceNode": apToken,
 			"vehicleNode":           vehicleToken,
-			"owner":                 *user.EthereumAddress,
 		},
 	}
 
