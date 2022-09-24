@@ -377,7 +377,7 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	})
 }
 
-var opaqueInternalError = fiber.NewError(fiber.StatusBadGateway, "Internal error.")
+var opaqueInternalError = fiber.NewError(fiber.StatusInternalServerError, "Internal error.")
 
 // UpdateVIN godoc
 // @Description updates the VIN on the user device record
