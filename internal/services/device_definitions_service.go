@@ -80,7 +80,7 @@ func (d *deviceDefinitionService) GetDeviceDefinitionsByIDs(ctx context.Context,
 		Ids: ids,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to call grpc endpoint GetDeviceDefinitionByID")
 	}
 
 	return definitions.GetDeviceDefinitions(), nil
@@ -96,7 +96,7 @@ func (d *deviceDefinitionService) GetIntegrations(ctx context.Context) ([]*ddgrp
 
 	definitions, err := definitionsClient.GetIntegrations(ctx, &ddgrpc.EmptyRequest{})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to call grpc endpoint GetIntegrations")
 	}
 
 	return definitions.GetIntegrations(), nil
@@ -136,7 +136,7 @@ func (d *deviceDefinitionService) FindDeviceDefinitionByMMY(ctx context.Context,
 		Year:  int32(year),
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to call grpc endpoint GetDeviceDefinitionByMMY")
 	}
 
 	return dd, nil

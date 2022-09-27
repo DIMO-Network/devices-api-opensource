@@ -1663,7 +1663,7 @@ func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zero
 	}
 
 	if err := fixTeslaDeviceDefinition(c.Context(), logger, udc.DeviceDefSvc, tx, integ, ud, v.VIN); err != nil {
-		return errors.Wrap(err, "Failed to fix up device definition")
+		return errors.Wrap(err, "Failed to fix up Tesla device definition")
 	}
 
 	encAccessToken, err := udc.cipher.Encrypt(reqBody.AccessToken)
