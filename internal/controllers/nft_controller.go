@@ -67,6 +67,7 @@ func (udc *NFTController) GetNFTMetadata(c *fiber.Ctx) error {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
 		}
+		udc.log.Err(err).Msg("Database error retrieving NFT metadata.")
 		return opaqueInternalError
 	}
 
