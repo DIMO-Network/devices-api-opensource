@@ -46,60 +46,6 @@ func NewDevicesController(settings *config.Settings, dbs func() *database.DBRead
 	}
 }
 
-// GetAllDeviceMakeModelYears godoc
-// @Description returns a json tree of Makes, models, and years
-// @Tags        device-definitions
-// @Produce     json
-// @Success     200 {object} []controllers.DeviceMMYRoot
-// @Router      /device-definitions/all [get]
-func (d *DevicesController) GetAllDeviceMakeModelYears(c *fiber.Ctx) error {
-	allMakes, err := models.DeviceMakes(qm.OrderBy(models.DeviceMakeColumns.Name)).All(c.Context(), d.dbs().Reader)
-	if err != nil {
-		return err
-	}
-	all, err := models.DeviceDefinitions(qm.Where("verified = true"),
-		qm.OrderBy("device_make_id, model, year")).All(c.Context(), d.dbs().Reader)
-
-	if err != nil {
-		return err
-	}
-	var mmy []DeviceMMYRoot
-	for _, dd := range all {
-		makeName := ""
-		for _, mk := range allMakes {
-			if mk.ID == dd.DeviceMakeID {
-				makeName = mk.Name
-				break
-			}
-		}
-		idx := indexOfMake(mmy, makeName)
-		// append make if not found
-		if idx == -1 {
-			mmy = append(mmy, DeviceMMYRoot{
-				Make:   makeName,
-				Models: []DeviceModels{{Model: dd.Model, Years: []DeviceModelYear{{Year: dd.Year, DeviceDefinitionID: dd.ID}}}},
-			})
-		} else {
-			// attach model or year to existing make, lookup model
-			idx2 := indexOfModel(mmy[idx].Models, dd.Model)
-			if idx2 == -1 {
-				// append model if not found
-				mmy[idx].Models = append(mmy[idx].Models, DeviceModels{
-					Model: dd.Model,
-					Years: []DeviceModelYear{{Year: dd.Year, DeviceDefinitionID: dd.ID}},
-				})
-			} else {
-				// make and model already found, just add year
-				mmy[idx].Models[idx2].Years = append(mmy[idx].Models[idx2].Years, DeviceModelYear{Year: dd.Year, DeviceDefinitionID: dd.ID})
-			}
-		}
-	}
-
-	return c.JSON(fiber.Map{
-		"makes": mmy,
-	})
-}
-
 // GetDeviceDefinitionByID godoc
 // @Description gets a specific device definition by id, adds autopi integration on the fly if does not have it and year > cutoff
 // @Tags        device-definitions
@@ -226,23 +172,6 @@ func (d *DevicesController) GetDeviceDefinitionByMMY(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"deviceDefinition": rp,
 	})
-}
-
-func indexOfMake(makes []DeviceMMYRoot, make string) int {
-	for i, root := range makes {
-		if root.Make == make {
-			return i
-		}
-	}
-	return -1
-}
-func indexOfModel(models []DeviceModels, model string) int {
-	for i, m := range models {
-		if m.Model == model {
-			return i
-		}
-	}
-	return -1
 }
 
 func NewDeviceDefinitionFromGRPC(dd *grpc.GetDeviceDefinitionItemResponse) (services.DeviceDefinition, error) {

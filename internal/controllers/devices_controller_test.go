@@ -53,7 +53,6 @@ func (s *DevicesControllerTestSuite) SetupSuite() {
 
 	// routes
 	app := fiber.New()
-	app.Get("/device-definitions/all", c.GetAllDeviceMakeModelYears)
 	app.Get("/device-definitions/:id", c.GetDeviceDefinitionByID)
 	app.Get("/device-definitions/:id/integrations", c.GetDeviceIntegrationsByID)
 
@@ -204,24 +203,6 @@ func (s *DevicesControllerTestSuite) TestGetDeviceDefIntegrationWithInvalidID() 
 	response, _ := s.app.Test(request)
 	// assert
 	assert.Equal(s.T(), 400, response.StatusCode)
-}
-
-func (s *DevicesControllerTestSuite) TestGetAll() {
-	request, _ := http.NewRequest("GET", "/device-definitions/all", nil)
-	response, _ := s.app.Test(request)
-	body, _ := io.ReadAll(response.Body)
-	// assert
-	assert.Equal(s.T(), 200, response.StatusCode)
-	v := gjson.GetBytes(body, "makes")
-	var mmy []DeviceMMYRoot
-	err := json.Unmarshal([]byte(v.Raw), &mmy)
-	assert.NoError(s.T(), err)
-	if assert.True(s.T(), len(mmy) >= 1, "should be at least one device definition") {
-		assert.Equal(s.T(), "Testla", mmy[0].Make)
-		assert.Equal(s.T(), "MODEL Y", mmy[0].Models[0].Model)
-		assert.Equal(s.T(), int16(2020), mmy[0].Models[0].Years[0].Year)
-		assert.Equal(s.T(), s.deviceDefID, mmy[0].Models[0].Years[0].DeviceDefinitionID)
-	}
 }
 
 func TestNewDeviceDefinitionFromGrpc(t *testing.T) {

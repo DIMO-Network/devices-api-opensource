@@ -94,6 +94,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		Expiration:   1 * time.Minute,
 		CacheControl: true,
 	})
+
 	// application routes
 	app.Get("/", healthCheck)
 
@@ -104,9 +105,8 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	}
 	v1.Get("/swagger/*", swagger.New(sc))
 	// Device Definitions
-	v1.Get("/device-definitions/all", cacheHandler, deviceControllers.GetAllDeviceMakeModelYears)
-	v1.Get("/device-definitions/:id", deviceControllers.GetDeviceDefinitionByID)
-	v1.Get("/device-definitions/:id/integrations", deviceControllers.GetDeviceIntegrationsByID)
+	v1.Get("/device-definitions/:id", cacheHandler, deviceControllers.GetDeviceDefinitionByID)
+	v1.Get("/device-definitions/:id/integrations", cacheHandler, deviceControllers.GetDeviceIntegrationsByID)
 	v1.Get("/device-definitions", deviceControllers.GetDeviceDefinitionByMMY)
 
 	nftController := controllers.NewNFTController(settings, pdb.DBS, &logger, s3NFTServiceClient)
