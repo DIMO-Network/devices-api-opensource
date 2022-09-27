@@ -1696,9 +1696,14 @@ func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 		Str("userDeviceId", userDeviceID).
 		Str("requestId", requestID).
 		Str("handler", "MintDevice").
+		Str("feature", "identity").
 		Logger()
 
-	logger.Info().Msg("Mint request received.")
+	logger.Info().
+		Interface("httpRequestBody", mr).
+		Interface("client", client).
+		Interface("mintVehicleSign", mvs).
+		Msg("Got request.")
 
 	_, err = udc.s3.PutObject(c.Context(), &s3.PutObjectInput{
 		Bucket: &udc.Settings.NFTS3Bucket,
