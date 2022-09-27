@@ -62,7 +62,7 @@ func (m *MintVehicleSign) Type() []signer.Type {
 
 func (m *MintVehicleSign) Message() signer.TypedDataMessage {
 	return signer.TypedDataMessage{
-		"manufacturerNode": m.ManufacturerNode.String(),
+		"manufacturerNode": hexutil.EncodeBig(m.ManufacturerNode),
 		"owner":            m.Owner.Hex(),
 		"attributes":       anySlice(m.Attributes),
 		"infos":            anySlice(m.Infos),
