@@ -871,6 +871,7 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 	}
 
 	apToken := autoPiUnit.TokenID.Int(nil)
+	vehicleToken := ud.TokenID.Int(nil)
 
 	// TODO(elffjs): Really shouldn't be dialing so much.
 	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -903,16 +904,12 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 		},
 	}
 
-	cads := registry.ClaimAftermarketDeviceSign{
+	pads := registry.PairAftermarketDeviceSign{
 		AftermarketDeviceNode: apToken,
-		Owner:                 common.HexToAddress(*user.EthereumAddress),
+		VehicleNode:           vehicleToken,
 	}
 
-	hash, _ := client.Hash(&cads)
-
-	logger.Info().Str("hash", hash.Hex()).Msg("Trying to claim AutoPi")
-
-	return c.JSON(client.GetPayload(&cads))
+	return c.JSON(client.GetPayload(&pads))
 }
 
 type AutoPiClaimRequest struct {

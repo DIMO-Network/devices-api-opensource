@@ -99,6 +99,30 @@ func (m *ClaimAftermarketDeviceSign) Message() signer.TypedDataMessage {
 	}
 }
 
+// PairAftermarketDeviceSign(uint256 aftermarketDeviceNode,uint256 vehicleNode)
+type PairAftermarketDeviceSign struct {
+	AftermarketDeviceNode *big.Int
+	VehicleNode           *big.Int
+}
+
+func (m *PairAftermarketDeviceSign) Name() string {
+	return "PairAftermarketDeviceSign"
+}
+
+func (m *PairAftermarketDeviceSign) Type() []signer.Type {
+	return []signer.Type{
+		{Name: "aftermarketDeviceNode", Type: "uint256"},
+		{Name: "vehicleNode", Type: "uint256"},
+	}
+}
+
+func (m *PairAftermarketDeviceSign) Message() signer.TypedDataMessage {
+	return signer.TypedDataMessage{
+		"aftermarketDeviceNode": hexutil.EncodeBig(m.AftermarketDeviceNode),
+		"vehicleNode":           hexutil.EncodeBig(m.VehicleNode),
+	}
+}
+
 type Message interface {
 	Name() string
 	Type() []signer.Type
@@ -128,6 +152,21 @@ func (c *Client) ClaimAftermarketDeviceSign(requestID string, aftermarketDeviceN
 	}
 
 	data, err := abi.Pack("claimAftermarketDeviceSign", aftermarketDeviceNode, owner, ownerSig, aftermarketDeviceSig)
+	if err != nil {
+		return err
+	}
+
+	return c.sendRequest(requestID, data)
+}
+
+// function pairAftermarketDeviceSign(uint256 aftermarketDeviceNode, uint256 vehicleNode, bytes calldata signature)
+func (c *Client) PairAftermarketDeviceSign(requestID string, aftermarketDeviceNode *big.Int, vehicleNode *big.Int, signature []byte) error {
+	abi, err := AbiMetaData.GetAbi()
+	if err != nil {
+		return err
+	}
+
+	data, err := abi.Pack("pairAftermarketDeviceSign", aftermarketDeviceNode, vehicleNode, signature)
 	if err != nil {
 		return err
 	}
