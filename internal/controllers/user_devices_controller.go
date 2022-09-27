@@ -1703,6 +1703,7 @@ func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 		Interface("httpRequestBody", mr).
 		Interface("client", client).
 		Interface("mintVehicleSign", mvs).
+		Interface("typedData", client.GetPayload()).
 		Msg("Got request.")
 
 	_, err = udc.s3.PutObject(c.Context(), &s3.PutObjectInput{
