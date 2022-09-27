@@ -1326,6 +1326,24 @@ func computeTypedDataHash(td *signer.TypedData) (hash common.Hash, err error) {
 	return
 }
 
+func recoverAddress2(hash []byte, sig []byte) (common.Address, error) {
+	fixedSig := make([]byte, len(sig))
+	copy(fixedSig, sig)
+	fixedSig[64] -= 27
+
+	uncPubKey, err := crypto.Ecrecover(hash, sig)
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	pubKey, err := crypto.UnmarshalPubkey(uncPubKey)
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	return crypto.PubkeyToAddress(*pubKey), nil
+}
+
 func recoverAddress(td *signer.TypedData, signature []byte) (addr common.Address, err error) {
 	hash, err := computeTypedDataHash(td)
 	if err != nil {

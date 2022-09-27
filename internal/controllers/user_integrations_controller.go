@@ -17,8 +17,6 @@ import (
 	"github.com/DIMO-Network/shared"
 	pb "github.com/DIMO-Network/shared/api/users"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
-	signer "github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -785,36 +783,26 @@ func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusConflict, "User does not have an Ethereum address.")
 	}
 
-	typedData := map[string]any{
-		"types": signer.Types{
-			"EIP712Domain": []signer.Type{
-				{Name: "name", Type: "string"},
-				{Name: "version", Type: "string"},
-				{Name: "chainId", Type: "uint256"},
-				{Name: "verifyingContract", Type: "address"},
-			},
-			"ClaimAftermarketDeviceSign": {
-				{Name: "aftermarketDeviceNode", Type: "uint256"},
-				{Name: "owner", Type: "address"},
-			},
-		},
-		"primaryType": "ClaimAftermarketDeviceSign",
-		"domain": signer.TypedDataMessage{
-			"name":              udc.Settings.NFTContractName,
-			"version":           udc.Settings.NFTContractVersion,
-			"chainId":           udc.Settings.NFTChainID,
-			"verifyingContract": udc.Settings.NFTContractAddr,
-		},
-		"message": signer.TypedDataMessage{
-			"aftermarketDeviceNode": apToken,
-			"owner":                 *user.EthereumAddress,
+	client := registry.Client{
+		Producer:     udc.producer,
+		RequestTopic: "topic.transaction.request.send",
+		Contract: registry.Contract{
+			ChainID: big.NewInt(int64(udc.Settings.NFTChainID)),
+			Address: common.HexToAddress("0x72b7268bD15EC670BfdA1445bD380C9400F4b1A6"),
+			Name:    "DIMO",
+			Version: "1",
 		},
 	}
 
-	return c.JSON(typedData)
+	cads := &registry.ClaimAftermarketDeviceSign{
+		AftermarketDeviceNode: apToken,
+		Owner:                 common.HexToAddress(*user.EthereumAddress),
+	}
+
+	return c.JSON(client.GetPayload(cads))
 }
 
-// GetAutoPiClaimMessage godoc
+// GetAutoPiPairMessage godoc
 // @Description Return the EIP-712 payload to be signed for AutoPi device pairing.
 // @Produce json
 // @Param userDeviceID path string true "Device id"
@@ -992,69 +980,54 @@ func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "User does not have an Ethereum address.")
 	}
 
-	mkTok := (*math.HexOrDecimal256)(apToken)
-
-	typedData := &signer.TypedData{
-		Types: signer.Types{
-			"EIP712Domain": []signer.Type{
-				{Name: "name", Type: "string"},
-				{Name: "version", Type: "string"},
-				{Name: "chainId", Type: "uint256"},
-				{Name: "verifyingContract", Type: "address"},
-			},
-			"ClaimAftermarketDeviceSign": {
-				{Name: "aftermarketDeviceNode", Type: "uint256"},
-				{Name: "owner", Type: "address"},
-			},
-		},
-		PrimaryType: "ClaimAftermarketDeviceSign",
-		Domain: signer.TypedDataDomain{
-			Name:              udc.Settings.NFTContractName,
-			Version:           udc.Settings.NFTContractVersion,
-			ChainId:           math.NewHexOrDecimal256(int64(udc.Settings.NFTChainID)),
-			VerifyingContract: udc.Settings.NFTContractAddr,
-		},
-		Message: signer.TypedDataMessage{
-			"aftermarketDeviceNode": mkTok,
-			"owner":                 *user.EthereumAddress,
+	client := registry.Client{
+		Producer:     udc.producer,
+		RequestTopic: "topic.transaction.request.send",
+		Contract: registry.Contract{
+			ChainID: big.NewInt(int64(udc.Settings.NFTChainID)),
+			Address: common.HexToAddress("0x72b7268bD15EC670BfdA1445bD380C9400F4b1A6"),
+			Name:    "DIMO",
+			Version: "1",
 		},
 	}
 
-	userSigBytes := common.FromHex(reqBody.UserSignature)
-	if len(userSigBytes) != 65 {
-		return fiber.NewError(fiber.StatusBadRequest, "User signature has incorrect length, should be 65.")
+	realUserAddr := common.HexToAddress(*user.EthereumAddress)
+
+	cads := &registry.ClaimAftermarketDeviceSign{
+		AftermarketDeviceNode: apToken,
+		Owner:                 realUserAddr,
 	}
 
-	userRecAddr, err := recoverAddress(typedData, userSigBytes)
+	hash, err := client.Hash(cads)
 	if err != nil {
-		udc.log.Err(err).Msg("Failed recovering address.")
-		return fiber.NewError(fiber.StatusBadRequest, "User signature incorrect.")
+		return err
 	}
 
-	userRealAddr := common.HexToAddress(*user.EthereumAddress)
-
-	if userRecAddr != userRealAddr {
-		udc.log.Err(err).Str("recAddr", userRecAddr.String()).Msg("Recovered address, but incorrect.")
-		return fiber.NewError(fiber.StatusBadRequest, "User signature incorrect.")
-	}
-
-	amSigBytes := common.FromHex(reqBody.AftermarketDeviceSignature)
-	if len(amSigBytes) != 65 {
-		return fiber.NewError(fiber.StatusBadRequest, "Aftermarket device signature has incorrect length, should be 65.")
-	}
-
-	amRecAddr, err := recoverAddress(typedData, amSigBytes)
+	userSig := common.FromHex(reqBody.UserSignature)
+	recUserAddr, err := recoverAddress2(hash[:], userSig)
 	if err != nil {
-		udc.log.Err(err).Msg("Failed recovering address.")
-		return fiber.NewError(fiber.StatusBadRequest, "Aftermarket device signature incorrect.")
+		return err
 	}
 
-	if amRecAddr != common.BytesToAddress(unit.EthereumAddress.Bytes) {
-		udc.log.Err(err).Str("recAddr", amRecAddr.String()).Msg("Recovered address, but incorrect.")
-		return fiber.NewError(fiber.StatusBadRequest, "Aftermarket device signature incorrect.")
+	if recUserAddr != realUserAddr {
+		return fiber.NewError(fiber.StatusBadRequest, "User signature invalid.")
 	}
 
-	return c.JSON(typedData)
+	amSig := common.FromHex(reqBody.AftermarketDeviceSignature)
+	recAmAddr, err := recoverAddress2(hash[:], amSig)
+	if err != nil {
+		return err
+	}
+
+	realAmAddr := common.BytesToAddress(unit.EthereumAddress.Bytes)
+
+	if recAmAddr != realAmAddr {
+		return fiber.NewError(fiber.StatusBadRequest, "Aftermarket device signature invalid.")
+	}
+
+	requestID := ksuid.New().String()
+
+	return client.ClaimAftermarketDeviceSign(requestID, apToken, realUserAddr, userSig, amSig)
 }
 
 // RegisterDeviceIntegration godoc
