@@ -1604,6 +1604,139 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 	return c.JSON(map[string]any{"mintRequestId": mintRequestID})
 }
 
+// MintDeviceV2 godoc
+// @Description Sends a mint device request to the blockchain
+// @Tags        user-devices
+// @Param       userDeviceID path string                  true "user device ID"
+// @Param       mintRequest  body controllers.MintRequest true "Signature and NFT data"
+// @Success     200
+// @Security    BearerAuth
+// @Router      /user/devices/{userDeviceID}/commands/mint [post]
+func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
+	userDeviceID := c.Params("userDeviceID")
+	userID := getUserID(c)
+	// todo pull device-definitions via grpc
+	userDevice, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		models.UserDeviceWhere.UserID.EQ(userID),
+		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "No device with that ID found.")
+	}
+
+	mk := userDevice.R.DeviceDefinition.R.DeviceMake
+	if mk.TokenID.IsZero() {
+		return fiber.NewError(fiber.StatusConflict, "Device make not yet minted.")
+	}
+	makeTokenID := mk.TokenID.Int(nil)
+
+	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		udc.log.Err(err).Msg("Failed to create users API client.")
+		return opaqueInternalError
+	}
+	defer conn.Close()
+
+	usersClient := pb.NewUserServiceClient(conn)
+
+	user, err := usersClient.GetUser(c.Context(), &pb.GetUserRequest{Id: userID})
+	if err != nil {
+		udc.log.Err(err).Msg("Couldn't retrieve user record.")
+		return opaqueInternalError
+	}
+
+	if user.EthereumAddress == nil {
+		return fiber.NewError(fiber.StatusBadRequest, "User does not have an Ethereum address on file.")
+	}
+
+	client := registry.Client{
+		Producer:     udc.producer,
+		RequestTopic: "topic.transaction.request.send",
+		Contract: registry.Contract{
+			ChainID: big.NewInt(int64(udc.Settings.NFTChainID)),
+			Address: common.HexToAddress("0x72b7268bD15EC670BfdA1445bD380C9400F4b1A6"),
+			Name:    "DIMO",
+			Version: "1",
+		},
+	}
+
+	deviceMake := userDevice.R.DeviceDefinition.R.DeviceMake.Name
+	deviceModel := userDevice.R.DeviceDefinition.Model
+	deviceYear := strconv.Itoa(int(userDevice.R.DeviceDefinition.Year))
+
+	mvs := registry.MintVehicleSign{
+		ManufacturerNode: makeTokenID,
+		Owner:            common.HexToAddress(*user.EthereumAddress),
+		Attributes:       []string{"Make", "Model", "Year"},
+		Infos:            []string{deviceMake, deviceModel, deviceYear},
+	}
+
+	mr := new(MintRequest)
+	if err := c.BodyParser(mr); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Couldn't parse request body.")
+	}
+
+	// This may not be there, but if it is we should delete it.
+	imageData := strings.TrimPrefix(mr.ImageData, "data:image/png;base64,")
+
+	image, err := base64.StdEncoding.DecodeString(imageData)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Field imageData not properly base64-encoded.")
+	}
+
+	if len(image) == 0 {
+		return fiber.NewError(fiber.StatusBadRequest, "Empty image field.")
+	}
+
+	requestID := ksuid.New().String()
+
+	logger := udc.log.With().
+		Str("userId", userID).
+		Str("userDeviceId", userDeviceID).
+		Str("requestId", requestID).
+		Str("handler", "MintDevice").
+		Logger()
+
+	logger.Info().Msg("Mint request received.")
+
+	_, err = udc.s3.PutObject(c.Context(), &s3.PutObjectInput{
+		Bucket: &udc.Settings.NFTS3Bucket,
+		Key:    aws.String(requestID + ".png"), // This will be the request ID.
+		Body:   bytes.NewReader(image),
+	})
+	if err != nil {
+		logger.Err(err).Msg("Failed to save image to S3.")
+		return opaqueInternalError
+	}
+
+	hash, err := client.Hash(&mvs)
+	if err != nil {
+		return opaqueInternalError
+	}
+
+	sigBytes := common.FromHex(mr.Signature)
+
+	recUncPubKey, err := crypto.Ecrecover(hash[:], sigBytes)
+	if err != nil {
+		return err
+	}
+
+	recPubKey, err := crypto.UnmarshalPubkey(recUncPubKey)
+	if err != nil {
+		return err
+	}
+
+	recAddr := crypto.PubkeyToAddress(*recPubKey)
+	realAddr := common.HexToAddress(*user.EthereumAddress)
+
+	if recAddr != realAddr {
+		return fiber.NewError(fiber.StatusBadRequest, "Signature incorrect.")
+	}
+
+	return client.MintVehicleSign(requestID, makeTokenID, realAddr, mvs.Attributes, mvs.Infos, sigBytes)
+}
+
 type MintEventData struct {
 	RequestID    string   `json:"requestId"`
 	UserDeviceID string   `json:"userDeviceId"`

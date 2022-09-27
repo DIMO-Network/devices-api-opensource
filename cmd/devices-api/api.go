@@ -153,6 +153,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.MintDevice)
 	} else {
 		v1Auth.Get("/user/devices/:userDeviceID/commands/mint", userDeviceController.GetMintDataToSignV2)
+		v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.MintDeviceV2)
 	}
 
 	v1Auth.Get("/integrations", userDeviceController.GetIntegrations)

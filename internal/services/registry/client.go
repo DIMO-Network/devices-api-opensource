@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/crypto"
 	signer "github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/segmentio/ksuid"
 )
@@ -146,4 +147,23 @@ func (c *Client) GetPayload(msg Message) *signer.TypedData {
 		},
 		Message: msg.Message(),
 	}
+}
+
+func (c *Client) Hash(msg Message) (common.Hash, error) {
+	td := c.GetPayload(msg)
+	domHash, err := td.HashStruct("EIP712Domain", td.Domain.Map())
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	msgHash, err := td.HashStruct(td.PrimaryType, td.Message)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	payload := []byte{0x19, 0x01}
+	payload = append(payload, domHash...)
+	payload = append(payload, msgHash...)
+
+	return crypto.Keccak256Hash(payload), nil
 }
