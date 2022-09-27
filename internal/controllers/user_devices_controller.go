@@ -1722,9 +1722,12 @@ func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 	}
 
 	sigBytes := common.FromHex(mr.Signature)
-	sigBytes[64] -= 27
 
-	recUncPubKey, err := crypto.Ecrecover(hash[:], sigBytes)
+	sigBytesYellowPaper := make([]byte, len(sigBytes))
+	copy(sigBytesYellowPaper, sigBytes)
+	sigBytesYellowPaper[64] -= 27
+
+	recUncPubKey, err := crypto.Ecrecover(hash[:], sigBytesYellowPaper)
 	if err != nil {
 		return err
 	}
