@@ -175,7 +175,7 @@ func (c *Client) GetPayload(msg Message) *signer.TypedData {
 				{Name: "chainId", Type: "uint256"},
 				{Name: "verifyingContract", Type: "address"},
 			},
-			"MintVehicleSign": msg.Type(),
+			msg.Name(): msg.Type(),
 		},
 		PrimaryType: msg.Name(),
 		Domain: signer.TypedDataDomain{
