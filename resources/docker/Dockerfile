@@ -11,6 +11,7 @@ ENV GOFLAGS=-mod=vendor
 
 RUN ls
 RUN go mod vendor
+RUN go mod tidy
 RUN make install
 
 FROM busybox AS package

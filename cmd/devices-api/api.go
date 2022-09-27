@@ -25,7 +25,6 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	fiberrecover "github.com/gofiber/fiber/v2/middleware/recover"
 	jwtware "github.com/gofiber/jwt/v3"
-	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
 )
@@ -48,8 +47,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		cipher = new(shared.ROT13Cipher)
 	}
 
-	shell := shell.NewShell(settings.IPFSNodeEndpoint)
-
 	// services
 	nhtsaSvc := services.NewNHTSAService()
 	ddIntSvc := services.NewDeviceDefinitionIntegrationService(pdb.DBS, settings)
@@ -71,7 +68,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer)
 	webhooksController := controllers.NewWebhooksController(settings, pdb.DBS, &logger, autoPiSvc, ddIntSvc)
 	documentsController := controllers.NewDocumentsController(settings, s3ServiceClient, pdb.DBS)
-	ipfsDataController := controllers.NewIPFSDataController(settings, pdb.DBS, shell)
 
 	// commenting this out b/c the library includes the path in the metrics which saturates prometheus queries - need to fork / make our own
 	//prometheus := fiberprometheus.New("devices-api")
@@ -112,12 +108,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	nftController := controllers.NewNFTController(settings, pdb.DBS, &logger, s3NFTServiceClient)
 	v1.Get("/nfts/:tokenID", nftController.GetNFTMetadata)
 	v1.Get("/nfts/:tokenID/image", nftController.GetNFTImage)
-
-	v1.Post("/ipfs/makes", ipfsDataController.PostMakes)
-	v1.Get("/ipfs/makes/:make", ipfsDataController.GetMakeByName)
-	v1.Post("/ipfs/makes/:make/models", ipfsDataController.PostModels)
-	v1.Get("/ipfs/makes/:make/models/:model", ipfsDataController.GetModelByName)
-	v1.Post("/ipfs/makes/:make/models/:model/:year/device-definitions", ipfsDataController.PostDeviceDenifition)
 
 	// webhooks, performs signature validation
 	v1.Post(services.AutoPiWebhookPath, webhooksController.ProcessCommand)
