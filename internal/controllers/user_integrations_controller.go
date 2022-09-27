@@ -5,12 +5,14 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
 
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/services"
+	"github.com/DIMO-Network/devices-api/internal/services/registry"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
 	pb "github.com/DIMO-Network/shared/api/users"
@@ -876,16 +878,10 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusConflict, "AutoPi not yet minted.")
 	}
 
-	mr, err := ud.MintRequest().One(c.Context(), udc.DBS().Reader)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusConflict, "Device not yet minted.")
-		}
-		logger.Error().Msg("Failed to retrieve device NFT record.")
-		return opaqueInternalError
+	if ud.TokenID.IsZero() {
+		return fiber.NewError(fiber.StatusConflict, "Vehicle not yet minted.")
 	}
 
-	vehicleToken := mr.TokenID.Int(nil)
 	apToken := autoPiUnit.TokenID.Int(nil)
 
 	// TODO(elffjs): Really shouldn't be dialing so much.
@@ -908,33 +904,23 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusConflict, "User does not have an Ethereum address.")
 	}
 
-	typedData := map[string]any{
-		"types": signer.Types{
-			"EIP712Domain": []signer.Type{
-				{Name: "name", Type: "string"},
-				{Name: "version", Type: "string"},
-				{Name: "chainId", Type: "uint256"},
-				{Name: "verifyingContract", Type: "address"},
-			},
-			"PairAftermarketDeviceSign": {
-				{Name: "aftermarketDeviceNode", Type: "uint256"},
-				{Name: "vehicleNode", Type: "uint256"},
-			},
-		},
-		"primaryType": "PairAftermarketDeviceSign",
-		"domain": signer.TypedDataMessage{
-			"name":              udc.Settings.NFTContractName,
-			"version":           udc.Settings.NFTContractVersion,
-			"chainId":           udc.Settings.NFTChainID,
-			"verifyingContract": udc.Settings.NFTContractAddr,
-		},
-		"message": signer.TypedDataMessage{
-			"aftermarketDeviceNode": apToken,
-			"vehicleNode":           vehicleToken,
+	client := registry.Client{
+		Producer:     udc.producer,
+		RequestTopic: "topic.transaction.request.send",
+		Contract: registry.Contract{
+			ChainID: big.NewInt(int64(udc.Settings.NFTChainID)),
+			Address: common.HexToAddress("0x72b7268bD15EC670BfdA1445bD380C9400F4b1A6"),
+			Name:    "DIMO",
+			Version: "1",
 		},
 	}
 
-	return c.JSON(typedData)
+	cads := registry.ClaimAftermarketDeviceSign{
+		AftermarketDeviceNode: apToken,
+		Owner:                 common.HexToAddress(*user.EthereumAddress),
+	}
+
+	return c.JSON(client.GetPayload(&cads))
 }
 
 type AutoPiClaimRequest struct {

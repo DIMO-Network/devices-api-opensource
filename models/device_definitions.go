@@ -1151,7 +1151,6 @@ func (deviceDefinitionL) LoadUserDevices(ctx context.Context, e boil.ContextExec
 			if foreign.R == nil {
 				foreign.R = &userDeviceR{}
 			}
-
 			foreign.R.DeviceDefinition = object
 		}
 		return nil

@@ -34,6 +34,7 @@ type requestData struct {
 	Data string `json:"data"`
 }
 
+// MintVehicleSign(uint256 manufacturerNode,address owner,string[] attributes,string[] infos)
 type MintVehicleSign struct {
 	ManufacturerNode *big.Int
 	Owner            common.Address
@@ -74,6 +75,30 @@ func (m *MintVehicleSign) Message() signer.TypedDataMessage {
 	}
 }
 
+// ClaimAftermarketDeviceSign(uint256 aftermarketDeviceNode,address owner)
+type ClaimAftermarketDeviceSign struct {
+	AftermarketDeviceNode *big.Int
+	Owner                 common.Address
+}
+
+func (m *ClaimAftermarketDeviceSign) Name() string {
+	return "ClaimAftermarketDeviceSign"
+}
+
+func (m *ClaimAftermarketDeviceSign) Type() []signer.Type {
+	return []signer.Type{
+		{Name: "aftermarketDeviceNode", Type: "uint256"},
+		{Name: "owner", Type: "address"},
+	}
+}
+
+func (m *ClaimAftermarketDeviceSign) Message() signer.TypedDataMessage {
+	return signer.TypedDataMessage{
+		"aftermarketDeviceNode": hexutil.EncodeBig(m.AftermarketDeviceNode),
+		"owner":                 m.Owner.Hex(),
+	}
+}
+
 type Message interface {
 	Name() string
 	Type() []signer.Type
@@ -81,7 +106,6 @@ type Message interface {
 }
 
 // mintVehicleSign(uint256 manufacturerNode, address owner,	string[] calldata attributes, string[] calldata infos, bytes calldata signature)
-// MintVehicleSign(uint256 manufacturerNode, address owner, string[] attributes, string[] infos)
 func (c *Client) MintVehicleSign(requestID string, manufacturerNode *big.Int, owner common.Address, attributes []string, infos []string, signature []byte) error {
 	abi, err := AbiMetaData.GetAbi()
 	if err != nil {
@@ -89,6 +113,21 @@ func (c *Client) MintVehicleSign(requestID string, manufacturerNode *big.Int, ow
 	}
 
 	data, err := abi.Pack("mintVehicleSign", manufacturerNode, owner, attributes, infos, signature)
+	if err != nil {
+		return err
+	}
+
+	return c.sendRequest(requestID, data)
+}
+
+// claimAftermarketDeviceSign(uint256 aftermarketDeviceNode, address owner,	bytes calldata ownerSig, bytes calldata aftermarketDeviceSig)
+func (c *Client) ClaimAftermarketDeviceSign(requestID string, aftermarketDeviceNode *big.Int, owner common.Address, ownerSig []byte, aftermarketDeviceSig []byte) error {
+	abi, err := AbiMetaData.GetAbi()
+	if err != nil {
+		return err
+	}
+
+	data, err := abi.Pack("claimAftermarketDeviceSign", aftermarketDeviceNode, owner, ownerSig, aftermarketDeviceSig)
 	if err != nil {
 		return err
 	}
