@@ -1331,7 +1331,7 @@ func recoverAddress2(hash []byte, sig []byte) (common.Address, error) {
 	copy(fixedSig, sig)
 	fixedSig[64] -= 27
 
-	uncPubKey, err := crypto.Ecrecover(hash, sig)
+	uncPubKey, err := crypto.Ecrecover(hash, fixedSig)
 	if err != nil {
 		return common.Address{}, err
 	}
