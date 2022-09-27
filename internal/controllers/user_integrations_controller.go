@@ -920,6 +920,10 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 		Owner:                 common.HexToAddress(*user.EthereumAddress),
 	}
 
+	hash, _ := client.Hash(&cads)
+
+	logger.Info().Str("hash", hash.Hex()).Msg("Trying to claim AutoPi")
+
 	return c.JSON(client.GetPayload(&cads))
 }
 
