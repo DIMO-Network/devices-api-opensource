@@ -1716,6 +1716,7 @@ func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 	}
 
 	sigBytes := common.FromHex(mr.Signature)
+	sigBytes[64] -= 27
 
 	recUncPubKey, err := crypto.Ecrecover(hash[:], sigBytes)
 	if err != nil {
