@@ -51,6 +51,10 @@ func anySlice[A any](v []A) []any {
 	return out
 }
 
+func (m *MintVehicleSign) Name() string {
+	return "MintVehicleSign"
+}
+
 func (m *MintVehicleSign) Type() []signer.Type {
 	return []signer.Type{
 		{Name: "manufacturerNode", Type: "uint256"},
@@ -70,6 +74,7 @@ func (m *MintVehicleSign) Message() signer.TypedDataMessage {
 }
 
 type Message interface {
+	Name() string
 	Type() []signer.Type
 	Message() signer.TypedDataMessage
 }
@@ -132,7 +137,7 @@ func (c *Client) GetPayload(msg Message) *signer.TypedData {
 			},
 			"MintVehicleSign": msg.Type(),
 		},
-		PrimaryType: "MintVehicleSign",
+		PrimaryType: msg.Name(),
 		Domain: signer.TypedDataDomain{
 			Name:              c.Contract.Name,
 			Version:           c.Contract.Version,
