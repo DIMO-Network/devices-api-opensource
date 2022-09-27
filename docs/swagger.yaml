@@ -165,6 +165,15 @@ definitions:
           $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.OfferSet'
         type: array
     type: object
+  github.com_DIMO-Network_devices-api_internal_controllers.DeviceRange:
+    properties:
+      rangeSets:
+        description: Contains a list of range sets, one for each range basis (may
+          be empty)
+        items:
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RangeSet'
+        type: array
+    type: object
   github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot:
     properties:
       batteryCapacity:
@@ -361,6 +370,21 @@ definitions:
       zipCode:
         description: This will be the zip code used (if any) for the offers request
           regardless if the source uses it
+        type: string
+    type: object
+  github.com_DIMO-Network_devices-api_internal_controllers.RangeSet:
+    properties:
+      rangeBasis:
+        description: The basis for the range calculation (eg. "MPG" or "MPG Highway")
+        type: string
+      rangeDistance:
+        description: The estimated range distance
+        type: integer
+      rangeUnit:
+        description: The unit used for the rangeDistance (eg. "miles" or "kilometers")
+        type: string
+      updated:
+        description: The time the data was collected
         type: string
     type: object
   github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest:
@@ -636,6 +660,15 @@ definitions:
           $ref: '#/definitions/internal_controllers.OfferSet'
         type: array
     type: object
+  internal_controllers.DeviceRange:
+    properties:
+      rangeSets:
+        description: Contains a list of range sets, one for each range basis (may
+          be empty)
+        items:
+          $ref: '#/definitions/internal_controllers.RangeSet'
+        type: array
+    type: object
   internal_controllers.DeviceSnapshot:
     properties:
       batteryCapacity:
@@ -832,6 +865,21 @@ definitions:
       zipCode:
         description: This will be the zip code used (if any) for the offers request
           regardless if the source uses it
+        type: string
+    type: object
+  internal_controllers.RangeSet:
+    properties:
+      rangeBasis:
+        description: The basis for the range calculation (eg. "MPG" or "MPG Highway")
+        type: string
+      rangeDistance:
+        description: The estimated range distance
+        type: integer
+      rangeUnit:
+        description: The unit used for the rangeDistance (eg. "miles" or "kilometers")
+        type: string
+      updated:
+        description: The time the data was collected
         type: string
     type: object
   internal_controllers.RegisterDeviceIntegrationRequest:
@@ -1212,7 +1260,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo'
+            $ref: '#/definitions/internal_controllers.AutoPiDeviceInfo'
       security:
       - BearerAuth: []
       tags:
@@ -1248,12 +1296,12 @@ paths:
         name: claimRequest
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiClaimRequest'
+          $ref: '#/definitions/internal_controllers.AutoPiClaimRequest'
       produces:
       - application/json
       responses:
         "204":
-          description: No Content
+          description: ""
       security:
       - BearerAuth: []
   /autopi/unit/:unitID/is-online:
@@ -1270,7 +1318,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: ""
       security:
       - BearerAuth: []
       tags:
@@ -1374,7 +1422,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceMMYRoot'
+              $ref: '#/definitions/internal_controllers.DeviceMMYRoot'
             type: array
       tags:
       - device-definitions
@@ -1447,7 +1495,7 @@ paths:
       - application/json
       responses:
         "204":
-          description: No Content
+          description: ""
       security:
       - BearerAuth: []
       tags:
@@ -1488,7 +1536,7 @@ paths:
       - image/jpeg
       responses:
         "200":
-          description: OK
+          description: ""
       security:
       - BearerAuth: []
       tags:
@@ -1542,7 +1590,7 @@ paths:
           schema:
             $ref: '#/definitions/internal_controllers.NFTMetadataResp'
         "404":
-          description: Not Found
+          description: ""
       tags:
       - nfts
   /user/devices:
@@ -1582,10 +1630,10 @@ paths:
         name: AutoPiCommandRequest
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest'
+          $ref: '#/definitions/internal_controllers.AutoPiCommandRequest'
       responses:
         "200":
-          description: OK
+          description: ""
       security:
       - BearerAuth: []
       tags:
@@ -1639,10 +1687,10 @@ paths:
         name: userDeviceIntegrationRegistration
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest'
+          $ref: '#/definitions/internal_controllers.RegisterDeviceIntegrationRequest'
       responses:
         "204":
-          description: No Content
+          description: ""
       security:
       - BearerAuth: []
       tags:
@@ -1658,7 +1706,7 @@ paths:
         type: string
       responses:
         "204":
-          description: No Content
+          description: ""
       security:
       - BearerAuth: []
       tags:
@@ -1697,7 +1745,7 @@ paths:
           $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.MintRequest'
       responses:
         "200":
-          description: OK
+          description: ""
       security:
       - BearerAuth: []
       tags:
@@ -1713,7 +1761,7 @@ paths:
         type: string
       responses:
         "204":
-          description: No Content
+          description: ""
         "429":
           description: rate limit hit for integration
       security:
@@ -1736,7 +1784,7 @@ paths:
       - application/json
       responses:
         "204":
-          description: No Content
+          description: ""
       security:
       - BearerAuth: []
       tags:
@@ -1757,7 +1805,7 @@ paths:
       - application/json
       responses:
         "204":
-          description: No Content
+          description: ""
       security:
       - BearerAuth: []
       tags:
@@ -1767,7 +1815,7 @@ paths:
       description: Remove an user device's integration
       responses:
         "204":
-          description: No Content
+          description: ""
       security:
       - BearerAuth: []
       tags:
@@ -1778,7 +1826,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse'
+            $ref: '#/definitions/internal_controllers.GetUserDeviceIntegrationResponse'
       security:
       - BearerAuth: []
       tags:
@@ -1809,7 +1857,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandRequestStatusResp'
+            $ref: '#/definitions/internal_controllers.CommandRequestStatusResp'
       summary: Get the status of a submitted command.
       tags:
       - device
@@ -1836,7 +1884,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse'
+            $ref: '#/definitions/internal_controllers.CommandResponse'
       summary: Lock the device's doors
       tags:
       - device
@@ -1863,7 +1911,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse'
+            $ref: '#/definitions/internal_controllers.CommandResponse'
       summary: Unlock the device's doors
       tags:
       - device
@@ -1891,7 +1939,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse'
+            $ref: '#/definitions/internal_controllers.CommandResponse'
       summary: Open the device's front trunk
       tags:
       - device
@@ -1919,7 +1967,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse'
+            $ref: '#/definitions/internal_controllers.CommandResponse'
       summary: Open the device's rear trunk
       tags:
       - device
@@ -1946,7 +1994,7 @@ paths:
       - application/json
       responses:
         "204":
-          description: No Content
+          description: ""
       security:
       - BearerAuth: []
       tags:
@@ -1961,6 +2009,20 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceOffer'
+      security:
+      - BearerAuth: []
+      tags:
+      - user-devices
+  /user/devices/{userDeviceID}/range:
+    get:
+      description: gets the estimated range for a particular user device
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceRange'
       security:
       - BearerAuth: []
       tags:
@@ -1982,7 +2044,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.DeviceSnapshot'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot'
       security:
       - BearerAuth: []
       tags:
@@ -2022,7 +2084,7 @@ paths:
       - application/json
       responses:
         "204":
-          description: No Content
+          description: ""
       security:
       - BearerAuth: []
       tags:
@@ -2095,7 +2157,7 @@ paths:
         type: string
       responses:
         "204":
-          description: No Content
+          description: ""
       security:
       - ApiKeyAuth: []
       - BearerAuth: []
@@ -2121,7 +2183,7 @@ paths:
       - application/json
       responses:
         "204":
-          description: No Content
+          description: ""
       security:
       - ApiKeyAuth: []
       - BearerAuth: []

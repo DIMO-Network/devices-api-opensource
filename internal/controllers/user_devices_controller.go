@@ -628,9 +628,23 @@ func (udc *UserDevicesController) GetValuations(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
 
+	// Ensure user is owner of user device
+	userDeviceExists, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(udi),
+		models.UserDeviceWhere.UserID.EQ(userID),
+	).Exists(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		return err
+	}
+	if !userDeviceExists {
+		return c.SendStatus(fiber.StatusForbidden)
+	}
+
 	logger := udc.log.With().Str("route", c.Route().Path).Str("userId", userID).Str("userDeviceId", udi).Logger()
 
-	dVal := DeviceValuation{}
+	dVal := DeviceValuation{
+		ValuationSets: []ValuationSet{},
+	}
 
 	// Drivly data
 	drivlyVinData, err := models.ExternalVinData(
@@ -849,7 +863,7 @@ func (udc *UserDevicesController) GetOffers(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
 	userID := getUserID(c)
 
-	// Ensure user is ownder of user device
+	// Ensure user is owner of user device
 	userDeviceExists, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(udi),
 		models.UserDeviceWhere.UserID.EQ(userID),
@@ -858,13 +872,12 @@ func (udc *UserDevicesController) GetOffers(c *fiber.Ctx) error {
 		return err
 	}
 	if !userDeviceExists {
-		// return c.SendStatus(fiber.StatusForbidden)
-		return fiber.NewError(fiber.StatusForbidden, "UserID "+userID+" is not allowed")
+		return c.SendStatus(fiber.StatusForbidden)
 	}
 
-	// logger := udc.log.With().Str("route", c.Route().Path).Str("userId", userID).Str("userDeviceId", udi).Logger()
-
-	dOffer := DeviceOffer{}
+	dOffer := DeviceOffer{
+		OfferSets: []OfferSet{},
+	}
 
 	// Drivly data
 	drivlyVinData, err := models.ExternalVinData(
@@ -927,6 +940,84 @@ func (udc *UserDevicesController) GetOffers(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(dOffer)
+
+}
+
+type DeviceRange struct {
+	// Contains a list of range sets, one for each range basis (may be empty)
+	RangeSets []RangeSet `json:"rangeSets"`
+}
+
+type RangeSet struct {
+	// The time the data was collected
+	Updated string `json:"updated"`
+	// The basis for the range calculation (eg. "MPG" or "MPG Highway")
+	RangeBasis string `json:"rangeBasis"`
+	// The estimated range distance
+	RangeDistance int `json:"rangeDistance"`
+	// The unit used for the rangeDistance (eg. "miles" or "kilometers")
+	RangeUnit string `json:"rangeUnit"`
+}
+
+// GetRange godoc
+// @Description gets the estimated range for a particular user device
+// @Tags        user-devices
+// @Produce     json
+// @Success     200 {object} controllers.DeviceRange
+// @Security    BearerAuth
+// @Router      /user/devices/{userDeviceID}/range [get]
+func (udc *UserDevicesController) GetRange(c *fiber.Ctx) error {
+	udi := c.Params("userDeviceID")
+	userID := getUserID(c)
+
+	// Ensure user is owner of user device
+	userDevice, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(udi),
+		models.UserDeviceWhere.UserID.EQ(userID),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		return err
+	}
+
+	dds, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{userDevice.DeviceDefinitionID})
+	if err != nil {
+		return err
+	}
+
+	deviceRange := DeviceRange{
+		RangeSets: []RangeSet{},
+	}
+	if len(dds) > 0 && dds[0].VehicleData != nil {
+		vd := dds[0].VehicleData
+		fuelPercentRemaining := gjson.GetBytes(userDevice.Metadata.JSON, "fuelPercentRemaining")
+		if fuelPercentRemaining.Exists() && vd.FuelTankCapacityGal > 0 && vd.MPG > 0 {
+			fuelTankAtGal := vd.FuelTankCapacityGal * float32(fuelPercentRemaining.Float())
+			rangeSet := RangeSet{
+				Updated:       userDevice.UpdatedAt.Format(time.RFC3339),
+				RangeBasis:    "MPG",
+				RangeDistance: int(vd.MPG * fuelTankAtGal),
+				RangeUnit:     "miles",
+			}
+			deviceRange.RangeSets = append(deviceRange.RangeSets, rangeSet)
+			if vd.MPGHighway > 0 {
+				rangeSet.RangeBasis = "MPG Highway"
+				rangeSet.RangeDistance = int(vd.MPGHighway * fuelTankAtGal)
+				deviceRange.RangeSets = append(deviceRange.RangeSets, rangeSet)
+			}
+		}
+		reportedRange := gjson.GetBytes(userDevice.Metadata.JSON, "range")
+		if reportedRange.Exists() {
+			rangeSet := RangeSet{
+				Updated:       userDevice.UpdatedAt.Format(time.RFC3339),
+				RangeBasis:    "Device Data",
+				RangeDistance: int(reportedRange.Int()),
+				RangeUnit:     "miles",
+			}
+			deviceRange.RangeSets = append(deviceRange.RangeSets, rangeSet)
+		}
+	}
+
+	return c.JSON(deviceRange)
 
 }
 

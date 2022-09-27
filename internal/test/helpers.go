@@ -174,7 +174,7 @@ func Logger() *zerolog.Logger {
 	return &l
 }
 
-func SetupCreateUserDevice(t *testing.T, testUserID string, dd *models.DeviceDefinition, powertrain *string, pdb database.DbStore) models.UserDevice {
+func SetupCreateUserDevice(t *testing.T, testUserID string, dd *models.DeviceDefinition, metadata *[]byte, pdb database.DbStore) models.UserDevice {
 	ud := models.UserDevice{
 		ID:                 ksuid.New().String(),
 		UserID:             testUserID,
@@ -182,13 +182,12 @@ func SetupCreateUserDevice(t *testing.T, testUserID string, dd *models.DeviceDef
 		CountryCode:        null.StringFrom("USA"),
 		Name:               null.StringFrom("Chungus"),
 	}
-	if powertrain == nil {
-		pt := "ICE" // note cannot import enum from services
-		powertrain = &pt
+	if metadata == nil {
+		// note cannot import enum from services
+		md := []byte(`{"powertrainType":"ICE"}`)
+		metadata = &md
 	}
-	if powertrain != nil {
-		ud.Metadata = null.JSONFrom([]byte(fmt.Sprintf(`{"powertrainType": "%s"}`, *powertrain)))
-	}
+	ud.Metadata = null.JSONFrom(*metadata)
 	err := ud.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
 	assert.NoError(t, err)
 	return ud
@@ -222,6 +221,7 @@ func SetupCreateDeviceDefinition(t *testing.T, dm models.DeviceMake, model strin
 		Model:        model,
 		Year:         int16(year),
 		Verified:     true,
+		Metadata:     null.JSONFrom([]byte(`{"mpg":"40.000000","mpg_city":"41.000000","mpg_highway":"38.000000","fuel_tank_capacity_gal":"14.500000"}`)),
 	}
 	err := dd.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
 	assert.NoError(t, err, "database error")

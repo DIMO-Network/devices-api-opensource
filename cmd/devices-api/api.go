@@ -142,6 +142,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Patch("/user/devices/:userDeviceID/image", userDeviceController.UpdateImage)
 	v1Auth.Get("/user/devices/:userDeviceID/valuations", userDeviceController.GetValuations)
 	v1Auth.Get("/user/devices/:userDeviceID/offers", userDeviceController.GetOffers)
+	v1Auth.Get("/user/devices/:userDeviceID/range", userDeviceController.GetRange)
 	// device integrations
 	v1Auth.Get("/user/devices/:userDeviceID/integrations/:integrationID", userDeviceController.GetUserDeviceIntegration)
 	v1Auth.Delete("/user/devices/:userDeviceID/integrations/:integrationID", userDeviceController.DeleteUserDeviceIntegration)

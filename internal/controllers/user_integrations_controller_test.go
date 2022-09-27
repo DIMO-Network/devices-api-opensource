@@ -568,11 +568,11 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCustomPowerTrain() {
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
 	// arrange
 	evTemplateID := 12
-	powertrain := "BEV"
+	udMetadata := []byte(`{"powertrainType":"BEV"}`)
 	integration := test.SetupCreateAutoPiIntegration(s.T(), 34, &evTemplateID, s.pdb)
 	dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
 	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model 4", 2022, s.pdb)
-	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, &powertrain, s.pdb)
+	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, &udMetadata, s.pdb)
 	const (
 		jobID     = "123"
 		deviceID  = "1dd96159-3bb2-9472-91f6-72fe9211cfeb"

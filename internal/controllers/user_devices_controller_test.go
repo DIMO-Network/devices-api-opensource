@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
@@ -86,6 +87,7 @@ func (s *UserDevicesControllerTestSuite) SetupSuite() {
 	app.Patch("/user/devices/:userDeviceID/image", test.AuthInjectorTestHandler(s.testUserID), c.UpdateImage)
 	app.Get("/user/devices/:userDeviceID/offers", test.AuthInjectorTestHandler(s.testUserID), c.GetOffers)
 	app.Get("/user/devices/:userDeviceID/valuations", test.AuthInjectorTestHandler(s.testUserID), c.GetValuations)
+	app.Get("/user/devices/:userDeviceID/range", test.AuthInjectorTestHandler(s.testUserID), c.GetRange)
 	app.Post("/user/devices/:userDeviceID/commands/refresh", test.AuthInjectorTestHandler(s.testUserID), c.RefreshUserDeviceStatus)
 
 	s.deviceDefSvc.EXPECT().CheckAndSetImage(s.ctx, gomock.Any(), false).AnyTimes().Return(nil) // todo move to each test where used
@@ -435,6 +437,44 @@ func (s *UserDevicesControllerTestSuite) TestGetDeviceOffers() {
 	assert.Equal(s.T(), 10123, int(gjson.GetBytes(body, "offerSets.0.offers.#(vendor=carvana).price").Int()))
 	assert.Equal(s.T(), "Make[Ford],Model[Mustang Mach-E],Year[2022] is not eligible for offer.",
 		gjson.GetBytes(body, "offerSets.0.offers.#(vendor=carmax).declineReason").String())
+}
+
+//go:embed test_user_device_metadata.json
+var testUserDeviceMetadata []byte
+
+func (s *UserDevicesControllerTestSuite) TestGetDeviceRange() {
+	// arrange db, insert some user_devices
+	dm := test.SetupCreateMake(s.T(), "Ford", s.pdb)
+	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Mach E", 2022, s.pdb)
+
+	gddir := []*grpc.GetDeviceDefinitionItemResponse{
+		{
+			VehicleData: &grpc.VehicleInfo{
+				MPG:                 40.0,
+				MPGHighway:          38.0,
+				FuelTankCapacityGal: 14.5,
+			},
+			Make: &grpc.GetDeviceDefinitionItemResponse_Make{
+				Name: "Ford",
+			},
+			Name:               "F-150",
+			DeviceDefinitionId: dd.ID,
+		},
+	}
+	ud := test.SetupCreateUserDevice(s.T(), s.testUserID, dd, &testUserDeviceMetadata, s.pdb)
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dd.ID}).Return(gddir, nil)
+	request := test.BuildRequest("GET", fmt.Sprintf("/user/devices/%s/range", ud.ID), "")
+	response, err := s.app.Test(request)
+	assert.NoError(s.T(), err)
+	body, _ := io.ReadAll(response.Body)
+
+	assert.Equal(s.T(), fiber.StatusOK, response.StatusCode)
+
+	assert.Equal(s.T(), 3, int(gjson.GetBytes(body, "rangeSets.#").Int()))
+	assert.Equal(s.T(), "MPG", gjson.GetBytes(body, "rangeSets.0.rangeBasis").String())
+	assert.Equal(s.T(), "miles", gjson.GetBytes(body, "rangeSets.0.rangeUnit").String())
+	assert.Equal(s.T(), 391, int(gjson.GetBytes(body, "rangeSets.1.rangeDistance").Int()))
+	assert.Equal(s.T(), 380, int(gjson.GetBytes(body, "rangeSets.2.rangeDistance").Int()))
 }
 
 func (s *UserDevicesControllerTestSuite) TestPostRefreshSmartCar() {
