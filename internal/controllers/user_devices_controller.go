@@ -18,6 +18,7 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
+	"github.com/DIMO-Network/devices-api/internal/services/registry"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
 	pb "github.com/DIMO-Network/shared/api/users"
@@ -1145,6 +1146,76 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 	return c.JSON(typedData)
 }
 
+// GetMintDataToSignV2 godoc
+// @Description Returns the data the user must sign in order to mint this device.
+// @Tags        user-devices
+// @Param       userDeviceID path     string true "user device ID"
+// @Success     200          {object} signer.TypedData
+// @Security    BearerAuth
+// @Router      /user/devices/{userDeviceID}/commands/mint [get]
+func (udc *UserDevicesController) GetMintDataToSignV2(c *fiber.Ctx) error {
+	userDeviceID := c.Params("userDeviceID")
+	userID := getUserID(c)
+	// todo pull device-definitions via grpc
+	userDevice, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		models.UserDeviceWhere.UserID.EQ(userID),
+		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "No device with that ID found.")
+	}
+
+	mk := userDevice.R.DeviceDefinition.R.DeviceMake
+	if mk.TokenID.IsZero() {
+		return fiber.NewError(fiber.StatusConflict, "Device make not yet minted.")
+	}
+	makeTokenID := mk.TokenID.Int(nil)
+
+	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		udc.log.Err(err).Msg("Failed to create users API client.")
+		return opaqueInternalError
+	}
+	defer conn.Close()
+
+	usersClient := pb.NewUserServiceClient(conn)
+
+	user, err := usersClient.GetUser(c.Context(), &pb.GetUserRequest{Id: userID})
+	if err != nil {
+		udc.log.Err(err).Msg("Couldn't retrieve user record.")
+		return opaqueInternalError
+	}
+
+	if user.EthereumAddress == nil {
+		return fiber.NewError(fiber.StatusBadRequest, "User does not have an Ethereum address on file.")
+	}
+
+	client := registry.Client{
+		Producer:     udc.producer,
+		RequestTopic: "topic.transaction.request.send",
+		Contract: registry.Contract{
+			ChainID: big.NewInt(int64(udc.Settings.NFTChainID)),
+			Address: common.HexToAddress("0x72b7268bD15EC670BfdA1445bD380C9400F4b1A6"),
+			Name:    "DIMO",
+			Version: "1",
+		},
+	}
+
+	deviceMake := userDevice.R.DeviceDefinition.R.DeviceMake.Name
+	deviceModel := userDevice.R.DeviceDefinition.Model
+	deviceYear := strconv.Itoa(int(userDevice.R.DeviceDefinition.Year))
+
+	mvs := registry.MintVehicleSign{
+		ManufacturerNode: makeTokenID,
+		Owner:            common.HexToAddress(*user.EthereumAddress),
+		Attributes:       []string{"Make", "Model", "Year"},
+		Infos:            []string{deviceMake, deviceModel, deviceYear},
+	}
+
+	return c.JSON(client.GetPayload(&mvs))
+}
+
 // TODO(elffjs): Do not keep these functions in this file!
 func computeTypedDataHash(td *signer.TypedData) (hash common.Hash, err error) {
 	domainSep, err := td.HashStruct("EIP712Domain", td.Domain.Map())
@@ -1211,7 +1282,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusConflict, fmt.Sprintf("Device make %s not yet minted.", mk.Name))
 	}
 	mkBI := mk.TokenID.Int(nil)
-	mkTok := (*math.HexOrDecimal256)(mkBI)
+	makeTokenID := (*math.HexOrDecimal256)(mkBI)
 
 	mintRequestID := ksuid.New().String()
 	mreq := &models.MintRequest{
@@ -1365,7 +1436,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 			VerifyingContract: udc.Settings.NFTContractAddr,
 		},
 		Message: signer.TypedDataMessage{
-			"rootNode":   mkTok,
+			"rootNode":   makeTokenID,
 			"_owner":     *user.EthereumAddress,
 			"attributes": []any{"Make", "Model", "Year"},
 			"infos": []any{

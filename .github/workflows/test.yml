@@ -25,9 +25,6 @@ jobs:
       - name: modVerify
         run: go mod verify
 
-      - name: modTidy
-        run: go mod tidy
-
       - name: Run Tests with go testsum
         run: gotestsum --format pkgname --jsonfile test.json
 

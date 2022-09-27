@@ -157,8 +157,12 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/frunk/open", userDeviceController.OpenFrunk)
 
 	// Device NFT.
-	v1Auth.Get("/user/devices/:userDeviceID/commands/mint", userDeviceController.GetMintDataToSign)
-	v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.MintDevice)
+	if settings.Environment == "prod" {
+		v1Auth.Get("/user/devices/:userDeviceID/commands/mint", userDeviceController.GetMintDataToSign)
+		v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.MintDevice)
+	} else {
+		v1Auth.Get("/user/devices/:userDeviceID/commands/mint", userDeviceController.GetMintDataToSignV2)
+	}
 
 	v1Auth.Get("/integrations", userDeviceController.GetIntegrations)
 	// autopi specific
