@@ -17,6 +17,7 @@ import (
 	"github.com/DIMO-Network/shared"
 	pb "github.com/DIMO-Network/shared/api/users"
 	"github.com/ethereum/go-ethereum/common"
+	signer "github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -799,7 +800,9 @@ func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
 		Owner:                 common.HexToAddress(*user.EthereumAddress),
 	}
 
-	return c.JSON(client.GetPayload(cads))
+	var out *signer.TypedData = client.GetPayload(cads)
+
+	return c.JSON(out)
 }
 
 // GetAutoPiPairMessage godoc
@@ -904,19 +907,20 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 		},
 	}
 
-	pads := registry.PairAftermarketDeviceSign{
+	pads := &registry.PairAftermarketDeviceSign{
 		AftermarketDeviceNode: apToken,
 		VehicleNode:           vehicleToken,
 	}
 
-	return c.JSON(client.GetPayload(&pads))
+	var out *signer.TypedData = client.GetPayload(pads)
+
+	return c.JSON(out)
 }
 
 // PairAutoPi godoc
 // @Description Return the EIP-712 payload to be signed for AutoPi device pairing.
 // @Produce json
 // @Param userDeviceID path string true "Device id"
-// @Success 200 {object} signer.TypedData
 // @Security BearerAuth
 // @Router /user/devices/:userDeviceID/autopi/commands/pair [post]
 func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
