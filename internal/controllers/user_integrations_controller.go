@@ -918,9 +918,10 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 }
 
 // PairAutoPi godoc
-// @Description Return the EIP-712 payload to be signed for AutoPi device pairing.
+// @Description Submit the signature for pairing this device with its attached AutoPi.
 // @Produce json
 // @Param userDeviceID path string true "Device id"
+// @Param userSignature body controllers.AutoPiPairRequest true "User signature."
 // @Security BearerAuth
 // @Router /user/devices/:userDeviceID/autopi/commands/pair [post]
 func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
