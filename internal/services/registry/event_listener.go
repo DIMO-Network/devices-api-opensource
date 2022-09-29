@@ -45,6 +45,7 @@ func (c *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim saram
 	for {
 		select {
 		case message := <-claim.Messages():
+			c.logger.Info().Int32("partition", message.Partition).Int64("offset", message.Offset).RawJSON("value", message.Value).Msg("Got message")
 			event := shared.CloudEvent[ceData]{}
 			err := json.Unmarshal(message.Value, &event)
 			if err != nil {
@@ -70,6 +71,8 @@ func RunConsumer(ctx context.Context, client sarama.Client, logger *zerolog.Logg
 	}
 
 	c := &Consumer{logger: logger, storage: s}
+
+	logger.Info().Msg("Starting transaction request status listener.")
 
 	go func() {
 		for {
