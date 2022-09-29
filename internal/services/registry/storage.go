@@ -25,6 +25,8 @@ type S struct {
 }
 
 func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
+	s.Logger.Info().Str("requestId", data.RequestID).Str("status", data.Type).Str("hash", data.Transaction.Hash).Msg("Got transaction status.")
+
 	mtr, err := models.MetaTransactionRequests(
 		models.MetaTransactionRequestWhere.ID.EQ(data.RequestID),
 		// This is really ugly. We should probably link back to the type instead of doing this.
@@ -35,8 +37,6 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 	if err != nil {
 		return err
 	}
-
-	s.Logger.Info().Str("requestId", data.RequestID).Str("status", data.Type).Str("hash", data.Transaction.Hash).Msg("Got transaction status.")
 
 	mtr.Status = data.Type
 	mtr.Hash = null.BytesFrom(common.FromHex(data.Transaction.Hash))

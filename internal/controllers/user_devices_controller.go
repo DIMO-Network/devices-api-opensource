@@ -1777,6 +1777,8 @@ func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 		return err
 	}
 
+	udc.log.Info().Str("userDeviceId", userDevice.ID).Str("requestId", requestID).Msg("Submitted metatransaction request.")
+
 	return client.MintVehicleSign(requestID, makeTokenID, realAddr, mvs.Attributes, mvs.Infos, sigBytes)
 }
 
