@@ -151,7 +151,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), ids)
 
 	if err != nil {
-		return err
+		return grpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+ids[0])
 	}
 
 	filterDeviceDefinition := func(id string, items []*ddgrpc.GetDeviceDefinitionItemResponse) (*ddgrpc.GetDeviceDefinitionItemResponse, error) {
@@ -296,7 +296,7 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{*reg.DeviceDefinitionID})
 
 	if err != nil {
-		return errorResponseHandler(c, errors.Wrapf(err, "error querying for device definition id: %s", *reg.DeviceDefinitionID), fiber.StatusInternalServerError)
+		return grpcErrorToFiber(err, fmt.Sprintf("error querying for device definition id: %s ", *reg.DeviceDefinitionID))
 	}
 
 	if len(deviceDefinitionResponse) == 0 {
@@ -981,7 +981,7 @@ func (udc *UserDevicesController) GetRange(c *fiber.Ctx) error {
 
 	dds, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{userDevice.DeviceDefinitionID})
 	if err != nil {
-		return err
+		return grpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+userDevice.DeviceDefinitionID)
 	}
 
 	deviceRange := DeviceRange{
@@ -1054,7 +1054,7 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{userDevice.DeviceDefinitionID})
 
 	if err != nil {
-		return err
+		return grpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+userDevice.DeviceDefinitionID)
 	}
 
 	if len(deviceDefinitionResponse) == 0 {

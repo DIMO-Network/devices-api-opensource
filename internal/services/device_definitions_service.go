@@ -79,8 +79,9 @@ func (d *deviceDefinitionService) GetDeviceDefinitionsByIDs(ctx context.Context,
 	definitions, err := definitionsClient.GetDeviceDefinitionByID(ctx, &ddgrpc.GetDeviceDefinitionRequest{
 		Ids: ids,
 	})
+
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to call grpc endpoint GetDeviceDefinitionByID")
+		return nil, err
 	}
 
 	return definitions.GetDeviceDefinitions(), nil

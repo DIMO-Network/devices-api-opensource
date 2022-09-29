@@ -97,7 +97,7 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{device.DeviceDefinitionID})
 
 	if err != nil {
-		return err
+		return grpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+device.DeviceDefinitionID)
 	}
 
 	if len(deviceDefinitionResponse) == 0 {
@@ -823,7 +823,7 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 	autoPiInt, err := udc.DeviceDefIntSvc.GetAutoPiIntegration(c.Context())
 	if err != nil {
 		logger.Err(err).Msg("Failed to retrieve AutoPi integration.")
-		return opaqueInternalError
+		return grpcErrorToFiber(err, "failed to retrieve AutoPi integration.")
 	}
 
 	ud, err := models.FindUserDevice(c.Context(), udc.DBS().Reader, userDeviceID)
@@ -1217,7 +1217,7 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{ud.DeviceDefinitionID})
 	if err != nil {
 		logger.Err(err).Msg("Unexpected grpc error searching for device definition")
-		return err
+		return grpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+ud.DeviceDefinitionID)
 	}
 
 	if len(deviceDefinitionResponse) == 0 {
@@ -1226,7 +1226,7 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 
 	autoPiIntegration, err := udc.DeviceDefIntSvc.GetAutoPiIntegration(c.Context())
 	if err != nil {
-		return errors.Wrap(err, "failed to get autopi integration for register process")
+		return grpcErrorToFiber(err, "failed to get autopi integration for register process")
 	}
 
 	dd := deviceDefinitionResponse[0]
@@ -1870,7 +1870,7 @@ func (udc *UserDevicesController) fixSmartcarDeviceYear(ctx context.Context, log
 	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(ctx, []string{ud.DeviceDefinitionID})
 
 	if err != nil {
-		return err
+		return grpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+ud.DeviceDefinitionID)
 	}
 
 	dd := deviceDefinitionResponse[0]

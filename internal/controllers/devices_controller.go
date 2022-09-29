@@ -62,7 +62,7 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 	}
 	deviceDefinitionResponse, err := d.deviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{id})
 	if err != nil {
-		return errors.Wrapf(err, "deviceDefSvc error getting definition id: %s", id)
+		return grpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+id)
 	}
 
 	if len(deviceDefinitionResponse) == 0 {
@@ -77,7 +77,7 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 	if dd.Type.Year >= autoPiYearCutoff && !strings.EqualFold(dd.Make.Name, "Tesla") {
 		rp.CompatibleIntegrations, err = d.deviceDefIntSvc.AppendAutoPiCompatibility(c.Context(), rp.CompatibleIntegrations, dd.DeviceDefinitionId)
 		if err != nil {
-			return errors.Wrapf(err, "deviceDefIntSvc error when AppendAutoPiCompatibility. dd id: %s", dd.DeviceDefinitionId)
+			return grpcErrorToFiber(err, fmt.Sprintf("deviceDefIntSvc error when AppendAutoPiCompatibility. dd id: %s", dd.DeviceDefinitionId))
 		}
 	}
 	return c.JSON(fiber.Map{
@@ -128,7 +128,7 @@ func (d *DevicesController) GetDeviceIntegrationsByID(c *fiber.Ctx) error {
 	if dd.Year >= autoPiYearCutoff && !strings.EqualFold(dd.R.DeviceMake.Name, "Tesla") {
 		integrations, err = d.deviceDefIntSvc.AppendAutoPiCompatibility(c.Context(), integrations, dd.ID)
 		if err != nil {
-			return err
+			return grpcErrorToFiber(err, fmt.Sprintf("deviceDefIntSvc error when AppendAutoPiCompatibility. dd id: %s", dd.ID))
 		}
 	}
 	return c.JSON(fiber.Map{
