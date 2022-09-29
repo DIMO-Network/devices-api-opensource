@@ -1766,7 +1766,7 @@ func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 		ID:     requestID,
 		Status: "Unsubmitted",
 	}
-	_, err = mtr.Update(c.Context(), udc.DBS().Writer, boil.Infer())
+	err = mtr.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
 	if err != nil {
 		return err
 	}
