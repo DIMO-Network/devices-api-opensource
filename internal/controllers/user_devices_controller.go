@@ -1762,6 +1762,21 @@ func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "Signature incorrect.")
 	}
 
+	mtr := models.MetaTransactionRequest{
+		ID:     requestID,
+		Status: "Unsubmitted",
+	}
+	_, err = mtr.Update(c.Context(), udc.DBS().Writer, boil.Infer())
+	if err != nil {
+		return err
+	}
+
+	userDevice.MintMetaTransactionRequestID = null.StringFrom(requestID)
+	_, err = userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer())
+	if err != nil {
+		return err
+	}
+
 	return client.MintVehicleSign(requestID, makeTokenID, realAddr, mvs.Attributes, mvs.Infos, sigBytes)
 }
 
