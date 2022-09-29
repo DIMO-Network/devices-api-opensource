@@ -17,6 +17,7 @@ import (
 	"github.com/DIMO-Network/shared"
 	pb "github.com/DIMO-Network/shared/api/users"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	signer "github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
@@ -536,6 +537,30 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 		svc = 0
 	}
 
+	var claim *AutoPiDeviceInfoClaim
+
+	dbUnit, err := models.AutopiUnits(
+		models.AutopiUnitWhere.AutopiUnitID.EQ(unitID),
+		qm.Load(models.AutopiUnitRels.ClaimMetaTransactionRequest),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+	} else {
+		if req := dbUnit.R.ClaimMetaTransactionRequest; req != nil {
+			claim = &AutoPiDeviceInfoClaim{
+				Status:    req.Status,
+				CreatedAt: req.CreatedAt,
+				UpdatedAt: req.UpdatedAt,
+			}
+			if req.Status != "Unsubmitted" {
+				hash := hexutil.Encode(req.Hash.Bytes)
+				claim.Hash = &hash
+			}
+		}
+	}
+
 	adi := AutoPiDeviceInfo{
 		IsUpdated:         unit.IsUpdated,
 		DeviceID:          unit.ID,
@@ -546,6 +571,7 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 		LastCommunication: unit.LastCommunication,
 		ReleaseVersion:    unit.Release.Version,
 		ShouldUpdate:      svc < 0,
+		Claim:             claim,
 	}
 	return c.JSON(adi)
 }
@@ -1163,6 +1189,21 @@ func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 	}
 
 	requestID := ksuid.New().String()
+
+	mtr := models.MetaTransactionRequest{
+		ID:     requestID,
+		Status: "Unsubmitted",
+	}
+	err = mtr.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
+	if err != nil {
+		return err
+	}
+
+	unit.ClaimMetaTransactionRequestID = null.StringFrom(requestID)
+	_, err = unit.Update(c.Context(), udc.DBS().Writer, boil.Infer())
+	if err != nil {
+		return err
+	}
 
 	return client.ClaimAftermarketDeviceSign(requestID, apToken, realUserAddr, userSig, amSig)
 }
@@ -1952,13 +1993,21 @@ type AutoPiCommandRequest struct {
 
 // AutoPiDeviceInfo is used to get the info about a unit
 type AutoPiDeviceInfo struct {
-	IsUpdated         bool      `json:"isUpdated"`
-	DeviceID          string    `json:"deviceId"`
-	UnitID            string    `json:"unitId"`
-	DockerReleases    []int     `json:"dockerReleases"`
-	HwRevision        string    `json:"hwRevision"`
-	Template          int       `json:"template"`
-	LastCommunication time.Time `json:"lastCommunication"`
-	ReleaseVersion    string    `json:"releaseVersion"`
-	ShouldUpdate      bool      `json:"shouldUpdate"`
+	IsUpdated         bool                   `json:"isUpdated"`
+	DeviceID          string                 `json:"deviceId"`
+	UnitID            string                 `json:"unitId"`
+	DockerReleases    []int                  `json:"dockerReleases"`
+	HwRevision        string                 `json:"hwRevision"`
+	Template          int                    `json:"template"`
+	LastCommunication time.Time              `json:"lastCommunication"`
+	ReleaseVersion    string                 `json:"releaseVersion"`
+	ShouldUpdate      bool                   `json:"shouldUpdate"`
+	Claim             *AutoPiDeviceInfoClaim `json:"claim,omitempty"`
+}
+
+type AutoPiDeviceInfoClaim struct {
+	Status    string    `json:"status"`
+	Hash      *string   `json:"hash,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
