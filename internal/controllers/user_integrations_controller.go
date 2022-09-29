@@ -538,6 +538,7 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 	}
 
 	var claim *AutoPiDeviceInfoClaim
+	var pair *AutoPiDeviceInfoClaim
 
 	dbUnit, err := models.AutopiUnits(
 		models.AutopiUnitWhere.AutopiUnitID.EQ(unitID),
@@ -559,6 +560,27 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 				claim.Hash = &hash
 			}
 		}
+
+		// Check for pair
+		udai, err := models.UserDeviceAPIIntegrations(
+			models.UserDeviceAPIIntegrationWhere.AutopiUnitID.EQ(null.StringFrom(unitID)),
+			qm.Load(models.UserDeviceAPIIntegrationRels.PairMetaTransactionRequest),
+		).One(c.Context(), udc.DBS().Reader)
+		if err != nil {
+			if err != sql.ErrNoRows {
+				return err
+			}
+		} else if req := udai.R.PairMetaTransactionRequest; req != nil {
+			pair = &AutoPiDeviceInfoClaim{
+				Status:    req.Status,
+				CreatedAt: req.CreatedAt,
+				UpdatedAt: req.UpdatedAt,
+			}
+			if req.Status != "Unsubmitted" {
+				hash := hexutil.Encode(req.Hash.Bytes)
+				pair.Hash = &hash
+			}
+		}
 	}
 
 	adi := AutoPiDeviceInfo{
@@ -572,6 +594,7 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 		ReleaseVersion:    unit.Release.Version,
 		ShouldUpdate:      svc < 0,
 		Claim:             claim,
+		Pair:              pair,
 	}
 	return c.JSON(adi)
 }
@@ -2003,6 +2026,7 @@ type AutoPiDeviceInfo struct {
 	ReleaseVersion    string                 `json:"releaseVersion"`
 	ShouldUpdate      bool                   `json:"shouldUpdate"`
 	Claim             *AutoPiDeviceInfoClaim `json:"claim,omitempty"`
+	Pair              *AutoPiDeviceInfoClaim `json:"pair,omitempty"`
 }
 
 type AutoPiDeviceInfoClaim struct {
