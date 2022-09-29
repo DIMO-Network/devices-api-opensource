@@ -25,52 +25,57 @@ import (
 
 // AutopiUnit is an object representing the database table.
 type AutopiUnit struct {
-	AutopiUnitID    string            `boil:"autopi_unit_id" json:"autopi_unit_id" toml:"autopi_unit_id" yaml:"autopi_unit_id"`
-	AutopiDeviceID  null.String       `boil:"autopi_device_id" json:"autopi_device_id,omitempty" toml:"autopi_device_id" yaml:"autopi_device_id,omitempty"`
-	UserID          null.String       `boil:"user_id" json:"user_id,omitempty" toml:"user_id" yaml:"user_id,omitempty"`
-	EthereumAddress null.Bytes        `boil:"ethereum_address" json:"ethereum_address,omitempty" toml:"ethereum_address" yaml:"ethereum_address,omitempty"`
-	CreatedAt       time.Time         `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt       time.Time         `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	TokenID         types.NullDecimal `boil:"token_id" json:"token_id,omitempty" toml:"token_id" yaml:"token_id,omitempty"`
+	AutopiUnitID                  string            `boil:"autopi_unit_id" json:"autopi_unit_id" toml:"autopi_unit_id" yaml:"autopi_unit_id"`
+	AutopiDeviceID                null.String       `boil:"autopi_device_id" json:"autopi_device_id,omitempty" toml:"autopi_device_id" yaml:"autopi_device_id,omitempty"`
+	UserID                        null.String       `boil:"user_id" json:"user_id,omitempty" toml:"user_id" yaml:"user_id,omitempty"`
+	EthereumAddress               null.Bytes        `boil:"ethereum_address" json:"ethereum_address,omitempty" toml:"ethereum_address" yaml:"ethereum_address,omitempty"`
+	CreatedAt                     time.Time         `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt                     time.Time         `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	TokenID                       types.NullDecimal `boil:"token_id" json:"token_id,omitempty" toml:"token_id" yaml:"token_id,omitempty"`
+	ClaimMetaTransactionRequestID null.String       `boil:"claim_meta_transaction_request_id" json:"claim_meta_transaction_request_id,omitempty" toml:"claim_meta_transaction_request_id" yaml:"claim_meta_transaction_request_id,omitempty"`
 
 	R *autopiUnitR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L autopiUnitL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var AutopiUnitColumns = struct {
-	AutopiUnitID    string
-	AutopiDeviceID  string
-	UserID          string
-	EthereumAddress string
-	CreatedAt       string
-	UpdatedAt       string
-	TokenID         string
+	AutopiUnitID                  string
+	AutopiDeviceID                string
+	UserID                        string
+	EthereumAddress               string
+	CreatedAt                     string
+	UpdatedAt                     string
+	TokenID                       string
+	ClaimMetaTransactionRequestID string
 }{
-	AutopiUnitID:    "autopi_unit_id",
-	AutopiDeviceID:  "autopi_device_id",
-	UserID:          "user_id",
-	EthereumAddress: "ethereum_address",
-	CreatedAt:       "created_at",
-	UpdatedAt:       "updated_at",
-	TokenID:         "token_id",
+	AutopiUnitID:                  "autopi_unit_id",
+	AutopiDeviceID:                "autopi_device_id",
+	UserID:                        "user_id",
+	EthereumAddress:               "ethereum_address",
+	CreatedAt:                     "created_at",
+	UpdatedAt:                     "updated_at",
+	TokenID:                       "token_id",
+	ClaimMetaTransactionRequestID: "claim_meta_transaction_request_id",
 }
 
 var AutopiUnitTableColumns = struct {
-	AutopiUnitID    string
-	AutopiDeviceID  string
-	UserID          string
-	EthereumAddress string
-	CreatedAt       string
-	UpdatedAt       string
-	TokenID         string
+	AutopiUnitID                  string
+	AutopiDeviceID                string
+	UserID                        string
+	EthereumAddress               string
+	CreatedAt                     string
+	UpdatedAt                     string
+	TokenID                       string
+	ClaimMetaTransactionRequestID string
 }{
-	AutopiUnitID:    "autopi_units.autopi_unit_id",
-	AutopiDeviceID:  "autopi_units.autopi_device_id",
-	UserID:          "autopi_units.user_id",
-	EthereumAddress: "autopi_units.ethereum_address",
-	CreatedAt:       "autopi_units.created_at",
-	UpdatedAt:       "autopi_units.updated_at",
-	TokenID:         "autopi_units.token_id",
+	AutopiUnitID:                  "autopi_units.autopi_unit_id",
+	AutopiDeviceID:                "autopi_units.autopi_device_id",
+	UserID:                        "autopi_units.user_id",
+	EthereumAddress:               "autopi_units.ethereum_address",
+	CreatedAt:                     "autopi_units.created_at",
+	UpdatedAt:                     "autopi_units.updated_at",
+	TokenID:                       "autopi_units.token_id",
+	ClaimMetaTransactionRequestID: "autopi_units.claim_meta_transaction_request_id",
 }
 
 // Generated where
@@ -126,41 +131,53 @@ func (w whereHelpertypes_NullDecimal) IsNotNull() qm.QueryMod {
 }
 
 var AutopiUnitWhere = struct {
-	AutopiUnitID    whereHelperstring
-	AutopiDeviceID  whereHelpernull_String
-	UserID          whereHelpernull_String
-	EthereumAddress whereHelpernull_Bytes
-	CreatedAt       whereHelpertime_Time
-	UpdatedAt       whereHelpertime_Time
-	TokenID         whereHelpertypes_NullDecimal
+	AutopiUnitID                  whereHelperstring
+	AutopiDeviceID                whereHelpernull_String
+	UserID                        whereHelpernull_String
+	EthereumAddress               whereHelpernull_Bytes
+	CreatedAt                     whereHelpertime_Time
+	UpdatedAt                     whereHelpertime_Time
+	TokenID                       whereHelpertypes_NullDecimal
+	ClaimMetaTransactionRequestID whereHelpernull_String
 }{
-	AutopiUnitID:    whereHelperstring{field: "\"devices_api\".\"autopi_units\".\"autopi_unit_id\""},
-	AutopiDeviceID:  whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"autopi_device_id\""},
-	UserID:          whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"user_id\""},
-	EthereumAddress: whereHelpernull_Bytes{field: "\"devices_api\".\"autopi_units\".\"ethereum_address\""},
-	CreatedAt:       whereHelpertime_Time{field: "\"devices_api\".\"autopi_units\".\"created_at\""},
-	UpdatedAt:       whereHelpertime_Time{field: "\"devices_api\".\"autopi_units\".\"updated_at\""},
-	TokenID:         whereHelpertypes_NullDecimal{field: "\"devices_api\".\"autopi_units\".\"token_id\""},
+	AutopiUnitID:                  whereHelperstring{field: "\"devices_api\".\"autopi_units\".\"autopi_unit_id\""},
+	AutopiDeviceID:                whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"autopi_device_id\""},
+	UserID:                        whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"user_id\""},
+	EthereumAddress:               whereHelpernull_Bytes{field: "\"devices_api\".\"autopi_units\".\"ethereum_address\""},
+	CreatedAt:                     whereHelpertime_Time{field: "\"devices_api\".\"autopi_units\".\"created_at\""},
+	UpdatedAt:                     whereHelpertime_Time{field: "\"devices_api\".\"autopi_units\".\"updated_at\""},
+	TokenID:                       whereHelpertypes_NullDecimal{field: "\"devices_api\".\"autopi_units\".\"token_id\""},
+	ClaimMetaTransactionRequestID: whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"claim_meta_transaction_request_id\""},
 }
 
 // AutopiUnitRels is where relationship names are stored.
 var AutopiUnitRels = struct {
-	AutopiJobs                string
-	UserDeviceAPIIntegrations string
+	ClaimMetaTransactionRequest string
+	AutopiJobs                  string
+	UserDeviceAPIIntegrations   string
 }{
-	AutopiJobs:                "AutopiJobs",
-	UserDeviceAPIIntegrations: "UserDeviceAPIIntegrations",
+	ClaimMetaTransactionRequest: "ClaimMetaTransactionRequest",
+	AutopiJobs:                  "AutopiJobs",
+	UserDeviceAPIIntegrations:   "UserDeviceAPIIntegrations",
 }
 
 // autopiUnitR is where relationships are stored.
 type autopiUnitR struct {
-	AutopiJobs                AutopiJobSlice                `boil:"AutopiJobs" json:"AutopiJobs" toml:"AutopiJobs" yaml:"AutopiJobs"`
-	UserDeviceAPIIntegrations UserDeviceAPIIntegrationSlice `boil:"UserDeviceAPIIntegrations" json:"UserDeviceAPIIntegrations" toml:"UserDeviceAPIIntegrations" yaml:"UserDeviceAPIIntegrations"`
+	ClaimMetaTransactionRequest *MetaTransactionRequest       `boil:"ClaimMetaTransactionRequest" json:"ClaimMetaTransactionRequest" toml:"ClaimMetaTransactionRequest" yaml:"ClaimMetaTransactionRequest"`
+	AutopiJobs                  AutopiJobSlice                `boil:"AutopiJobs" json:"AutopiJobs" toml:"AutopiJobs" yaml:"AutopiJobs"`
+	UserDeviceAPIIntegrations   UserDeviceAPIIntegrationSlice `boil:"UserDeviceAPIIntegrations" json:"UserDeviceAPIIntegrations" toml:"UserDeviceAPIIntegrations" yaml:"UserDeviceAPIIntegrations"`
 }
 
 // NewStruct creates a new relationship struct
 func (*autopiUnitR) NewStruct() *autopiUnitR {
 	return &autopiUnitR{}
+}
+
+func (r *autopiUnitR) GetClaimMetaTransactionRequest() *MetaTransactionRequest {
+	if r == nil {
+		return nil
+	}
+	return r.ClaimMetaTransactionRequest
 }
 
 func (r *autopiUnitR) GetAutopiJobs() AutopiJobSlice {
@@ -181,9 +198,9 @@ func (r *autopiUnitR) GetUserDeviceAPIIntegrations() UserDeviceAPIIntegrationSli
 type autopiUnitL struct{}
 
 var (
-	autopiUnitAllColumns            = []string{"autopi_unit_id", "autopi_device_id", "user_id", "ethereum_address", "created_at", "updated_at", "token_id"}
+	autopiUnitAllColumns            = []string{"autopi_unit_id", "autopi_device_id", "user_id", "ethereum_address", "created_at", "updated_at", "token_id", "claim_meta_transaction_request_id"}
 	autopiUnitColumnsWithoutDefault = []string{"autopi_unit_id"}
-	autopiUnitColumnsWithDefault    = []string{"autopi_device_id", "user_id", "ethereum_address", "created_at", "updated_at", "token_id"}
+	autopiUnitColumnsWithDefault    = []string{"autopi_device_id", "user_id", "ethereum_address", "created_at", "updated_at", "token_id", "claim_meta_transaction_request_id"}
 	autopiUnitPrimaryKeyColumns     = []string{"autopi_unit_id"}
 	autopiUnitGeneratedColumns      = []string{}
 )
@@ -466,6 +483,17 @@ func (q autopiUnitQuery) Exists(ctx context.Context, exec boil.ContextExecutor) 
 	return count > 0, nil
 }
 
+// ClaimMetaTransactionRequest pointed to by the foreign key.
+func (o *AutopiUnit) ClaimMetaTransactionRequest(mods ...qm.QueryMod) metaTransactionRequestQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"id\" = ?", o.ClaimMetaTransactionRequestID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	return MetaTransactionRequests(queryMods...)
+}
+
 // AutopiJobs retrieves all the autopi_job's AutopiJobs with an executor.
 func (o *AutopiUnit) AutopiJobs(mods ...qm.QueryMod) autopiJobQuery {
 	var queryMods []qm.QueryMod
@@ -492,6 +520,130 @@ func (o *AutopiUnit) UserDeviceAPIIntegrations(mods ...qm.QueryMod) userDeviceAP
 	)
 
 	return UserDeviceAPIIntegrations(queryMods...)
+}
+
+// LoadClaimMetaTransactionRequest allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (autopiUnitL) LoadClaimMetaTransactionRequest(ctx context.Context, e boil.ContextExecutor, singular bool, maybeAutopiUnit interface{}, mods queries.Applicator) error {
+	var slice []*AutopiUnit
+	var object *AutopiUnit
+
+	if singular {
+		var ok bool
+		object, ok = maybeAutopiUnit.(*AutopiUnit)
+		if !ok {
+			object = new(AutopiUnit)
+			ok = queries.SetFromEmbeddedStruct(&object, &maybeAutopiUnit)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", object, maybeAutopiUnit))
+			}
+		}
+	} else {
+		s, ok := maybeAutopiUnit.(*[]*AutopiUnit)
+		if ok {
+			slice = *s
+		} else {
+			ok = queries.SetFromEmbeddedStruct(&slice, maybeAutopiUnit)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", slice, maybeAutopiUnit))
+			}
+		}
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &autopiUnitR{}
+		}
+		if !queries.IsNil(object.ClaimMetaTransactionRequestID) {
+			args = append(args, object.ClaimMetaTransactionRequestID)
+		}
+
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &autopiUnitR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.ClaimMetaTransactionRequestID) {
+					continue Outer
+				}
+			}
+
+			if !queries.IsNil(obj.ClaimMetaTransactionRequestID) {
+				args = append(args, obj.ClaimMetaTransactionRequestID)
+			}
+
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`devices_api.meta_transaction_requests`),
+		qm.WhereIn(`devices_api.meta_transaction_requests.id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load MetaTransactionRequest")
+	}
+
+	var resultSlice []*MetaTransactionRequest
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice MetaTransactionRequest")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for meta_transaction_requests")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for meta_transaction_requests")
+	}
+
+	if len(autopiUnitAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.ClaimMetaTransactionRequest = foreign
+		if foreign.R == nil {
+			foreign.R = &metaTransactionRequestR{}
+		}
+		foreign.R.ClaimMetaTransactionRequestAutopiUnit = object
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if queries.Equal(local.ClaimMetaTransactionRequestID, foreign.ID) {
+				local.R.ClaimMetaTransactionRequest = foreign
+				if foreign.R == nil {
+					foreign.R = &metaTransactionRequestR{}
+				}
+				foreign.R.ClaimMetaTransactionRequestAutopiUnit = local
+				break
+			}
+		}
+	}
+
+	return nil
 }
 
 // LoadAutopiJobs allows an eager lookup of values, cached into the
@@ -719,6 +871,75 @@ func (autopiUnitL) LoadUserDeviceAPIIntegrations(ctx context.Context, e boil.Con
 		}
 	}
 
+	return nil
+}
+
+// SetClaimMetaTransactionRequest of the autopiUnit to the related item.
+// Sets o.R.ClaimMetaTransactionRequest to related.
+// Adds o to related.R.ClaimMetaTransactionRequestAutopiUnit.
+func (o *AutopiUnit) SetClaimMetaTransactionRequest(ctx context.Context, exec boil.ContextExecutor, insert bool, related *MetaTransactionRequest) error {
+	var err error
+	if insert {
+		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"devices_api\".\"autopi_units\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 1, []string{"claim_meta_transaction_request_id"}),
+		strmangle.WhereClause("\"", "\"", 2, autopiUnitPrimaryKeyColumns),
+	)
+	values := []interface{}{related.ID, o.AutopiUnitID}
+
+	if boil.IsDebug(ctx) {
+		writer := boil.DebugWriterFrom(ctx)
+		fmt.Fprintln(writer, updateQuery)
+		fmt.Fprintln(writer, values)
+	}
+	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	queries.Assign(&o.ClaimMetaTransactionRequestID, related.ID)
+	if o.R == nil {
+		o.R = &autopiUnitR{
+			ClaimMetaTransactionRequest: related,
+		}
+	} else {
+		o.R.ClaimMetaTransactionRequest = related
+	}
+
+	if related.R == nil {
+		related.R = &metaTransactionRequestR{
+			ClaimMetaTransactionRequestAutopiUnit: o,
+		}
+	} else {
+		related.R.ClaimMetaTransactionRequestAutopiUnit = o
+	}
+
+	return nil
+}
+
+// RemoveClaimMetaTransactionRequest relationship.
+// Sets o.R.ClaimMetaTransactionRequest to nil.
+// Removes o from all passed in related items' relationships struct.
+func (o *AutopiUnit) RemoveClaimMetaTransactionRequest(ctx context.Context, exec boil.ContextExecutor, related *MetaTransactionRequest) error {
+	var err error
+
+	queries.SetScanner(&o.ClaimMetaTransactionRequestID, nil)
+	if _, err = o.Update(ctx, exec, boil.Whitelist("claim_meta_transaction_request_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	if o.R != nil {
+		o.R.ClaimMetaTransactionRequest = nil
+	}
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	related.R.ClaimMetaTransactionRequestAutopiUnit = nil
 	return nil
 }
 

@@ -25,150 +25,160 @@ import (
 
 // UserDevice is an object representing the database table.
 type UserDevice struct {
-	ID                 string            `boil:"id" json:"id" toml:"id" yaml:"id"`
-	UserID             string            `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
-	DeviceDefinitionID string            `boil:"device_definition_id" json:"device_definition_id" toml:"device_definition_id" yaml:"device_definition_id"`
-	VinIdentifier      null.String       `boil:"vin_identifier" json:"vin_identifier,omitempty" toml:"vin_identifier" yaml:"vin_identifier,omitempty"`
-	Name               null.String       `boil:"name" json:"name,omitempty" toml:"name" yaml:"name,omitempty"`
-	CustomImageURL     null.String       `boil:"custom_image_url" json:"custom_image_url,omitempty" toml:"custom_image_url" yaml:"custom_image_url,omitempty"`
-	CountryCode        null.String       `boil:"country_code" json:"country_code,omitempty" toml:"country_code" yaml:"country_code,omitempty"`
-	CreatedAt          time.Time         `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt          time.Time         `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	VinConfirmed       bool              `boil:"vin_confirmed" json:"vin_confirmed" toml:"vin_confirmed" yaml:"vin_confirmed"`
-	Metadata           null.JSON         `boil:"metadata" json:"metadata,omitempty" toml:"metadata" yaml:"metadata,omitempty"`
-	DeviceStyleID      null.String       `boil:"device_style_id" json:"device_style_id,omitempty" toml:"device_style_id" yaml:"device_style_id,omitempty"`
-	TokenID            types.NullDecimal `boil:"token_id" json:"token_id,omitempty" toml:"token_id" yaml:"token_id,omitempty"`
+	ID                           string            `boil:"id" json:"id" toml:"id" yaml:"id"`
+	UserID                       string            `boil:"user_id" json:"user_id" toml:"user_id" yaml:"user_id"`
+	DeviceDefinitionID           string            `boil:"device_definition_id" json:"device_definition_id" toml:"device_definition_id" yaml:"device_definition_id"`
+	VinIdentifier                null.String       `boil:"vin_identifier" json:"vin_identifier,omitempty" toml:"vin_identifier" yaml:"vin_identifier,omitempty"`
+	Name                         null.String       `boil:"name" json:"name,omitempty" toml:"name" yaml:"name,omitempty"`
+	CustomImageURL               null.String       `boil:"custom_image_url" json:"custom_image_url,omitempty" toml:"custom_image_url" yaml:"custom_image_url,omitempty"`
+	CountryCode                  null.String       `boil:"country_code" json:"country_code,omitempty" toml:"country_code" yaml:"country_code,omitempty"`
+	CreatedAt                    time.Time         `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt                    time.Time         `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	VinConfirmed                 bool              `boil:"vin_confirmed" json:"vin_confirmed" toml:"vin_confirmed" yaml:"vin_confirmed"`
+	Metadata                     null.JSON         `boil:"metadata" json:"metadata,omitempty" toml:"metadata" yaml:"metadata,omitempty"`
+	DeviceStyleID                null.String       `boil:"device_style_id" json:"device_style_id,omitempty" toml:"device_style_id" yaml:"device_style_id,omitempty"`
+	TokenID                      types.NullDecimal `boil:"token_id" json:"token_id,omitempty" toml:"token_id" yaml:"token_id,omitempty"`
+	MintMetaTransactionRequestID null.String       `boil:"mint_meta_transaction_request_id" json:"mint_meta_transaction_request_id,omitempty" toml:"mint_meta_transaction_request_id" yaml:"mint_meta_transaction_request_id,omitempty"`
 
 	R *userDeviceR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userDeviceL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var UserDeviceColumns = struct {
-	ID                 string
-	UserID             string
-	DeviceDefinitionID string
-	VinIdentifier      string
-	Name               string
-	CustomImageURL     string
-	CountryCode        string
-	CreatedAt          string
-	UpdatedAt          string
-	VinConfirmed       string
-	Metadata           string
-	DeviceStyleID      string
-	TokenID            string
+	ID                           string
+	UserID                       string
+	DeviceDefinitionID           string
+	VinIdentifier                string
+	Name                         string
+	CustomImageURL               string
+	CountryCode                  string
+	CreatedAt                    string
+	UpdatedAt                    string
+	VinConfirmed                 string
+	Metadata                     string
+	DeviceStyleID                string
+	TokenID                      string
+	MintMetaTransactionRequestID string
 }{
-	ID:                 "id",
-	UserID:             "user_id",
-	DeviceDefinitionID: "device_definition_id",
-	VinIdentifier:      "vin_identifier",
-	Name:               "name",
-	CustomImageURL:     "custom_image_url",
-	CountryCode:        "country_code",
-	CreatedAt:          "created_at",
-	UpdatedAt:          "updated_at",
-	VinConfirmed:       "vin_confirmed",
-	Metadata:           "metadata",
-	DeviceStyleID:      "device_style_id",
-	TokenID:            "token_id",
+	ID:                           "id",
+	UserID:                       "user_id",
+	DeviceDefinitionID:           "device_definition_id",
+	VinIdentifier:                "vin_identifier",
+	Name:                         "name",
+	CustomImageURL:               "custom_image_url",
+	CountryCode:                  "country_code",
+	CreatedAt:                    "created_at",
+	UpdatedAt:                    "updated_at",
+	VinConfirmed:                 "vin_confirmed",
+	Metadata:                     "metadata",
+	DeviceStyleID:                "device_style_id",
+	TokenID:                      "token_id",
+	MintMetaTransactionRequestID: "mint_meta_transaction_request_id",
 }
 
 var UserDeviceTableColumns = struct {
-	ID                 string
-	UserID             string
-	DeviceDefinitionID string
-	VinIdentifier      string
-	Name               string
-	CustomImageURL     string
-	CountryCode        string
-	CreatedAt          string
-	UpdatedAt          string
-	VinConfirmed       string
-	Metadata           string
-	DeviceStyleID      string
-	TokenID            string
+	ID                           string
+	UserID                       string
+	DeviceDefinitionID           string
+	VinIdentifier                string
+	Name                         string
+	CustomImageURL               string
+	CountryCode                  string
+	CreatedAt                    string
+	UpdatedAt                    string
+	VinConfirmed                 string
+	Metadata                     string
+	DeviceStyleID                string
+	TokenID                      string
+	MintMetaTransactionRequestID string
 }{
-	ID:                 "user_devices.id",
-	UserID:             "user_devices.user_id",
-	DeviceDefinitionID: "user_devices.device_definition_id",
-	VinIdentifier:      "user_devices.vin_identifier",
-	Name:               "user_devices.name",
-	CustomImageURL:     "user_devices.custom_image_url",
-	CountryCode:        "user_devices.country_code",
-	CreatedAt:          "user_devices.created_at",
-	UpdatedAt:          "user_devices.updated_at",
-	VinConfirmed:       "user_devices.vin_confirmed",
-	Metadata:           "user_devices.metadata",
-	DeviceStyleID:      "user_devices.device_style_id",
-	TokenID:            "user_devices.token_id",
+	ID:                           "user_devices.id",
+	UserID:                       "user_devices.user_id",
+	DeviceDefinitionID:           "user_devices.device_definition_id",
+	VinIdentifier:                "user_devices.vin_identifier",
+	Name:                         "user_devices.name",
+	CustomImageURL:               "user_devices.custom_image_url",
+	CountryCode:                  "user_devices.country_code",
+	CreatedAt:                    "user_devices.created_at",
+	UpdatedAt:                    "user_devices.updated_at",
+	VinConfirmed:                 "user_devices.vin_confirmed",
+	Metadata:                     "user_devices.metadata",
+	DeviceStyleID:                "user_devices.device_style_id",
+	TokenID:                      "user_devices.token_id",
+	MintMetaTransactionRequestID: "user_devices.mint_meta_transaction_request_id",
 }
 
 // Generated where
 
 var UserDeviceWhere = struct {
-	ID                 whereHelperstring
-	UserID             whereHelperstring
-	DeviceDefinitionID whereHelperstring
-	VinIdentifier      whereHelpernull_String
-	Name               whereHelpernull_String
-	CustomImageURL     whereHelpernull_String
-	CountryCode        whereHelpernull_String
-	CreatedAt          whereHelpertime_Time
-	UpdatedAt          whereHelpertime_Time
-	VinConfirmed       whereHelperbool
-	Metadata           whereHelpernull_JSON
-	DeviceStyleID      whereHelpernull_String
-	TokenID            whereHelpertypes_NullDecimal
+	ID                           whereHelperstring
+	UserID                       whereHelperstring
+	DeviceDefinitionID           whereHelperstring
+	VinIdentifier                whereHelpernull_String
+	Name                         whereHelpernull_String
+	CustomImageURL               whereHelpernull_String
+	CountryCode                  whereHelpernull_String
+	CreatedAt                    whereHelpertime_Time
+	UpdatedAt                    whereHelpertime_Time
+	VinConfirmed                 whereHelperbool
+	Metadata                     whereHelpernull_JSON
+	DeviceStyleID                whereHelpernull_String
+	TokenID                      whereHelpertypes_NullDecimal
+	MintMetaTransactionRequestID whereHelpernull_String
 }{
-	ID:                 whereHelperstring{field: "\"devices_api\".\"user_devices\".\"id\""},
-	UserID:             whereHelperstring{field: "\"devices_api\".\"user_devices\".\"user_id\""},
-	DeviceDefinitionID: whereHelperstring{field: "\"devices_api\".\"user_devices\".\"device_definition_id\""},
-	VinIdentifier:      whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"vin_identifier\""},
-	Name:               whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"name\""},
-	CustomImageURL:     whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"custom_image_url\""},
-	CountryCode:        whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"country_code\""},
-	CreatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"user_devices\".\"created_at\""},
-	UpdatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"user_devices\".\"updated_at\""},
-	VinConfirmed:       whereHelperbool{field: "\"devices_api\".\"user_devices\".\"vin_confirmed\""},
-	Metadata:           whereHelpernull_JSON{field: "\"devices_api\".\"user_devices\".\"metadata\""},
-	DeviceStyleID:      whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"device_style_id\""},
-	TokenID:            whereHelpertypes_NullDecimal{field: "\"devices_api\".\"user_devices\".\"token_id\""},
+	ID:                           whereHelperstring{field: "\"devices_api\".\"user_devices\".\"id\""},
+	UserID:                       whereHelperstring{field: "\"devices_api\".\"user_devices\".\"user_id\""},
+	DeviceDefinitionID:           whereHelperstring{field: "\"devices_api\".\"user_devices\".\"device_definition_id\""},
+	VinIdentifier:                whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"vin_identifier\""},
+	Name:                         whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"name\""},
+	CustomImageURL:               whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"custom_image_url\""},
+	CountryCode:                  whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"country_code\""},
+	CreatedAt:                    whereHelpertime_Time{field: "\"devices_api\".\"user_devices\".\"created_at\""},
+	UpdatedAt:                    whereHelpertime_Time{field: "\"devices_api\".\"user_devices\".\"updated_at\""},
+	VinConfirmed:                 whereHelperbool{field: "\"devices_api\".\"user_devices\".\"vin_confirmed\""},
+	Metadata:                     whereHelpernull_JSON{field: "\"devices_api\".\"user_devices\".\"metadata\""},
+	DeviceStyleID:                whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"device_style_id\""},
+	TokenID:                      whereHelpertypes_NullDecimal{field: "\"devices_api\".\"user_devices\".\"token_id\""},
+	MintMetaTransactionRequestID: whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"mint_meta_transaction_request_id\""},
 }
 
 // UserDeviceRels is where relationship names are stored.
 var UserDeviceRels = struct {
-	DeviceDefinition          string
-	DeviceStyle               string
-	MintRequest               string
-	AutopiJobs                string
-	DeviceCommandRequests     string
-	ExternalVinData           string
-	UserDeviceAPIIntegrations string
-	UserDeviceData            string
-	UserDeviceToGeofences     string
+	DeviceDefinition           string
+	MintMetaTransactionRequest string
+	DeviceStyle                string
+	MintRequest                string
+	AutopiJobs                 string
+	DeviceCommandRequests      string
+	ExternalVinData            string
+	UserDeviceAPIIntegrations  string
+	UserDeviceData             string
+	UserDeviceToGeofences      string
 }{
-	DeviceDefinition:          "DeviceDefinition",
-	DeviceStyle:               "DeviceStyle",
-	MintRequest:               "MintRequest",
-	AutopiJobs:                "AutopiJobs",
-	DeviceCommandRequests:     "DeviceCommandRequests",
-	ExternalVinData:           "ExternalVinData",
-	UserDeviceAPIIntegrations: "UserDeviceAPIIntegrations",
-	UserDeviceData:            "UserDeviceData",
-	UserDeviceToGeofences:     "UserDeviceToGeofences",
+	DeviceDefinition:           "DeviceDefinition",
+	MintMetaTransactionRequest: "MintMetaTransactionRequest",
+	DeviceStyle:                "DeviceStyle",
+	MintRequest:                "MintRequest",
+	AutopiJobs:                 "AutopiJobs",
+	DeviceCommandRequests:      "DeviceCommandRequests",
+	ExternalVinData:            "ExternalVinData",
+	UserDeviceAPIIntegrations:  "UserDeviceAPIIntegrations",
+	UserDeviceData:             "UserDeviceData",
+	UserDeviceToGeofences:      "UserDeviceToGeofences",
 }
 
 // userDeviceR is where relationships are stored.
 type userDeviceR struct {
-	DeviceDefinition          *DeviceDefinition             `boil:"DeviceDefinition" json:"DeviceDefinition" toml:"DeviceDefinition" yaml:"DeviceDefinition"`
-	DeviceStyle               *DeviceStyle                  `boil:"DeviceStyle" json:"DeviceStyle" toml:"DeviceStyle" yaml:"DeviceStyle"`
-	MintRequest               *MintRequest                  `boil:"MintRequest" json:"MintRequest" toml:"MintRequest" yaml:"MintRequest"`
-	AutopiJobs                AutopiJobSlice                `boil:"AutopiJobs" json:"AutopiJobs" toml:"AutopiJobs" yaml:"AutopiJobs"`
-	DeviceCommandRequests     DeviceCommandRequestSlice     `boil:"DeviceCommandRequests" json:"DeviceCommandRequests" toml:"DeviceCommandRequests" yaml:"DeviceCommandRequests"`
-	ExternalVinData           ExternalVinDatumSlice         `boil:"ExternalVinData" json:"ExternalVinData" toml:"ExternalVinData" yaml:"ExternalVinData"`
-	UserDeviceAPIIntegrations UserDeviceAPIIntegrationSlice `boil:"UserDeviceAPIIntegrations" json:"UserDeviceAPIIntegrations" toml:"UserDeviceAPIIntegrations" yaml:"UserDeviceAPIIntegrations"`
-	UserDeviceData            UserDeviceDatumSlice          `boil:"UserDeviceData" json:"UserDeviceData" toml:"UserDeviceData" yaml:"UserDeviceData"`
-	UserDeviceToGeofences     UserDeviceToGeofenceSlice     `boil:"UserDeviceToGeofences" json:"UserDeviceToGeofences" toml:"UserDeviceToGeofences" yaml:"UserDeviceToGeofences"`
+	DeviceDefinition           *DeviceDefinition             `boil:"DeviceDefinition" json:"DeviceDefinition" toml:"DeviceDefinition" yaml:"DeviceDefinition"`
+	MintMetaTransactionRequest *MetaTransactionRequest       `boil:"MintMetaTransactionRequest" json:"MintMetaTransactionRequest" toml:"MintMetaTransactionRequest" yaml:"MintMetaTransactionRequest"`
+	DeviceStyle                *DeviceStyle                  `boil:"DeviceStyle" json:"DeviceStyle" toml:"DeviceStyle" yaml:"DeviceStyle"`
+	MintRequest                *MintRequest                  `boil:"MintRequest" json:"MintRequest" toml:"MintRequest" yaml:"MintRequest"`
+	AutopiJobs                 AutopiJobSlice                `boil:"AutopiJobs" json:"AutopiJobs" toml:"AutopiJobs" yaml:"AutopiJobs"`
+	DeviceCommandRequests      DeviceCommandRequestSlice     `boil:"DeviceCommandRequests" json:"DeviceCommandRequests" toml:"DeviceCommandRequests" yaml:"DeviceCommandRequests"`
+	ExternalVinData            ExternalVinDatumSlice         `boil:"ExternalVinData" json:"ExternalVinData" toml:"ExternalVinData" yaml:"ExternalVinData"`
+	UserDeviceAPIIntegrations  UserDeviceAPIIntegrationSlice `boil:"UserDeviceAPIIntegrations" json:"UserDeviceAPIIntegrations" toml:"UserDeviceAPIIntegrations" yaml:"UserDeviceAPIIntegrations"`
+	UserDeviceData             UserDeviceDatumSlice          `boil:"UserDeviceData" json:"UserDeviceData" toml:"UserDeviceData" yaml:"UserDeviceData"`
+	UserDeviceToGeofences      UserDeviceToGeofenceSlice     `boil:"UserDeviceToGeofences" json:"UserDeviceToGeofences" toml:"UserDeviceToGeofences" yaml:"UserDeviceToGeofences"`
 }
 
 // NewStruct creates a new relationship struct
@@ -181,6 +191,13 @@ func (r *userDeviceR) GetDeviceDefinition() *DeviceDefinition {
 		return nil
 	}
 	return r.DeviceDefinition
+}
+
+func (r *userDeviceR) GetMintMetaTransactionRequest() *MetaTransactionRequest {
+	if r == nil {
+		return nil
+	}
+	return r.MintMetaTransactionRequest
 }
 
 func (r *userDeviceR) GetDeviceStyle() *DeviceStyle {
@@ -243,9 +260,9 @@ func (r *userDeviceR) GetUserDeviceToGeofences() UserDeviceToGeofenceSlice {
 type userDeviceL struct{}
 
 var (
-	userDeviceAllColumns            = []string{"id", "user_id", "device_definition_id", "vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed", "metadata", "device_style_id", "token_id"}
+	userDeviceAllColumns            = []string{"id", "user_id", "device_definition_id", "vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed", "metadata", "device_style_id", "token_id", "mint_meta_transaction_request_id"}
 	userDeviceColumnsWithoutDefault = []string{"id", "user_id", "device_definition_id"}
-	userDeviceColumnsWithDefault    = []string{"vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed", "metadata", "device_style_id", "token_id"}
+	userDeviceColumnsWithDefault    = []string{"vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed", "metadata", "device_style_id", "token_id", "mint_meta_transaction_request_id"}
 	userDevicePrimaryKeyColumns     = []string{"id"}
 	userDeviceGeneratedColumns      = []string{}
 )
@@ -539,6 +556,17 @@ func (o *UserDevice) DeviceDefinition(mods ...qm.QueryMod) deviceDefinitionQuery
 	return DeviceDefinitions(queryMods...)
 }
 
+// MintMetaTransactionRequest pointed to by the foreign key.
+func (o *UserDevice) MintMetaTransactionRequest(mods ...qm.QueryMod) metaTransactionRequestQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"id\" = ?", o.MintMetaTransactionRequestID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	return MetaTransactionRequests(queryMods...)
+}
+
 // DeviceStyle pointed to by the foreign key.
 func (o *UserDevice) DeviceStyle(mods ...qm.QueryMod) deviceStyleQuery {
 	queryMods := []qm.QueryMod{
@@ -757,6 +785,130 @@ func (userDeviceL) LoadDeviceDefinition(ctx context.Context, e boil.ContextExecu
 					foreign.R = &deviceDefinitionR{}
 				}
 				foreign.R.UserDevices = append(foreign.R.UserDevices, local)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadMintMetaTransactionRequest allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (userDeviceL) LoadMintMetaTransactionRequest(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserDevice interface{}, mods queries.Applicator) error {
+	var slice []*UserDevice
+	var object *UserDevice
+
+	if singular {
+		var ok bool
+		object, ok = maybeUserDevice.(*UserDevice)
+		if !ok {
+			object = new(UserDevice)
+			ok = queries.SetFromEmbeddedStruct(&object, &maybeUserDevice)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", object, maybeUserDevice))
+			}
+		}
+	} else {
+		s, ok := maybeUserDevice.(*[]*UserDevice)
+		if ok {
+			slice = *s
+		} else {
+			ok = queries.SetFromEmbeddedStruct(&slice, maybeUserDevice)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", slice, maybeUserDevice))
+			}
+		}
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &userDeviceR{}
+		}
+		if !queries.IsNil(object.MintMetaTransactionRequestID) {
+			args = append(args, object.MintMetaTransactionRequestID)
+		}
+
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &userDeviceR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.MintMetaTransactionRequestID) {
+					continue Outer
+				}
+			}
+
+			if !queries.IsNil(obj.MintMetaTransactionRequestID) {
+				args = append(args, obj.MintMetaTransactionRequestID)
+			}
+
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`devices_api.meta_transaction_requests`),
+		qm.WhereIn(`devices_api.meta_transaction_requests.id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load MetaTransactionRequest")
+	}
+
+	var resultSlice []*MetaTransactionRequest
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice MetaTransactionRequest")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for meta_transaction_requests")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for meta_transaction_requests")
+	}
+
+	if len(userDeviceAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.MintMetaTransactionRequest = foreign
+		if foreign.R == nil {
+			foreign.R = &metaTransactionRequestR{}
+		}
+		foreign.R.MintMetaTransactionRequestUserDevice = object
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if queries.Equal(local.MintMetaTransactionRequestID, foreign.ID) {
+				local.R.MintMetaTransactionRequest = foreign
+				if foreign.R == nil {
+					foreign.R = &metaTransactionRequestR{}
+				}
+				foreign.R.MintMetaTransactionRequestUserDevice = local
 				break
 			}
 		}
@@ -1734,6 +1886,75 @@ func (o *UserDevice) SetDeviceDefinition(ctx context.Context, exec boil.ContextE
 		related.R.UserDevices = append(related.R.UserDevices, o)
 	}
 
+	return nil
+}
+
+// SetMintMetaTransactionRequest of the userDevice to the related item.
+// Sets o.R.MintMetaTransactionRequest to related.
+// Adds o to related.R.MintMetaTransactionRequestUserDevice.
+func (o *UserDevice) SetMintMetaTransactionRequest(ctx context.Context, exec boil.ContextExecutor, insert bool, related *MetaTransactionRequest) error {
+	var err error
+	if insert {
+		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"devices_api\".\"user_devices\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 1, []string{"mint_meta_transaction_request_id"}),
+		strmangle.WhereClause("\"", "\"", 2, userDevicePrimaryKeyColumns),
+	)
+	values := []interface{}{related.ID, o.ID}
+
+	if boil.IsDebug(ctx) {
+		writer := boil.DebugWriterFrom(ctx)
+		fmt.Fprintln(writer, updateQuery)
+		fmt.Fprintln(writer, values)
+	}
+	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	queries.Assign(&o.MintMetaTransactionRequestID, related.ID)
+	if o.R == nil {
+		o.R = &userDeviceR{
+			MintMetaTransactionRequest: related,
+		}
+	} else {
+		o.R.MintMetaTransactionRequest = related
+	}
+
+	if related.R == nil {
+		related.R = &metaTransactionRequestR{
+			MintMetaTransactionRequestUserDevice: o,
+		}
+	} else {
+		related.R.MintMetaTransactionRequestUserDevice = o
+	}
+
+	return nil
+}
+
+// RemoveMintMetaTransactionRequest relationship.
+// Sets o.R.MintMetaTransactionRequest to nil.
+// Removes o from all passed in related items' relationships struct.
+func (o *UserDevice) RemoveMintMetaTransactionRequest(ctx context.Context, exec boil.ContextExecutor, related *MetaTransactionRequest) error {
+	var err error
+
+	queries.SetScanner(&o.MintMetaTransactionRequestID, nil)
+	if _, err = o.Update(ctx, exec, boil.Whitelist("mint_meta_transaction_request_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	if o.R != nil {
+		o.R.MintMetaTransactionRequest = nil
+	}
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	related.R.MintMetaTransactionRequestUserDevice = nil
 	return nil
 }
 

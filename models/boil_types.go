@@ -109,6 +109,23 @@ func AllIntegrationStyle() []string {
 	}
 }
 
+// Enum values for MetaTransactionRequestStatus
+const (
+	MetaTransactionRequestStatusUnsubmitted string = "Unsubmitted"
+	MetaTransactionRequestStatusSubmitted   string = "Submitted"
+	MetaTransactionRequestStatusMined       string = "Mined"
+	MetaTransactionRequestStatusConfirmed   string = "Confirmed"
+)
+
+func AllMetaTransactionRequestStatus() []string {
+	return []string{
+		MetaTransactionRequestStatusUnsubmitted,
+		MetaTransactionRequestStatusSubmitted,
+		MetaTransactionRequestStatusMined,
+		MetaTransactionRequestStatusConfirmed,
+	}
+}
+
 // Enum values for Txstate
 const (
 	TxstateUnstarted string = "Unstarted"

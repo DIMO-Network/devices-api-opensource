@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/controllers"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
+	"github.com/DIMO-Network/devices-api/internal/services/registry"
 	"github.com/DIMO-Network/shared"
 	pb "github.com/DIMO-Network/shared/api/devices"
 	"github.com/DIMO-Network/zflogger"
@@ -151,9 +153,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	if settings.Environment == "prod" {
 		v1Auth.Get("/user/devices/:userDeviceID/commands/mint", userDeviceController.GetMintDataToSign)
 		v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.MintDevice)
-	} else {
-		v1Auth.Get("/user/devices/:userDeviceID/commands/mint", userDeviceController.GetMintDataToSignV2)
-		v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.MintDeviceV2)
 	}
 
 	v1Auth.Get("/integrations", userDeviceController.GetIntegrations)
@@ -169,6 +168,28 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 
 	// AutoPi NFT pairing.
 	if settings.Environment != "prod" {
+		v1Auth.Get("/user/devices/:userDeviceID/commands/mint", userDeviceController.GetMintDataToSignV2)
+		v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.MintDeviceV2)
+
+		kconf := sarama.NewConfig()
+		kconf.Version = sarama.V2_8_1_0
+
+		kclient, err := sarama.NewClient(strings.Split(settings.KafkaBrokers, ","), kconf)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Failed to create Sarama client")
+		}
+
+		store, err := registry.NewStorage(pdb.DBS, &logger)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Failed to create registry storage client")
+		}
+
+		ctx := context.Background()
+		err = registry.RunConsumer(ctx, kclient, &logger, store)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Failed to create transaction listener")
+		}
+
 		v1Auth.Get("/autopi/unit/:unitID/commands/claim", userDeviceController.GetAutoPiClaimMessage)
 		v1Auth.Post("/autopi/unit/:unitID/commands/claim", userDeviceController.ClaimAutoPi)
 
