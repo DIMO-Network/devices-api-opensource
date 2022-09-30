@@ -1791,6 +1791,56 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+type linkVehicleDevice struct {
+	UserDeviceID string `json:"userDeviceId"`
+	AutoPiUnitID string `json:"autoPiUnitId"`
+}
+
+func (udc *UserDevicesController) AdminVehicleDeviceLink(c *fiber.Ctx) error {
+	lvd := linkVehicleDevice{}
+	err := c.BodyParser(&lvd)
+	if err != nil {
+		return err
+	}
+
+	ud, err := models.FindUserDevice(c.Context(), udc.DBS().Reader, lvd.UserDeviceID)
+	if err != nil {
+		return err
+	}
+
+	au, err := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, lvd.AutoPiUnitID)
+	if err != nil {
+		return err
+	}
+
+	ai, err := models.Integrations(models.IntegrationWhere.Vendor.EQ("AutoPi")).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		return err
+	}
+
+	oldUDAI, err := models.FindUserDeviceAPIIntegration(c.Context(), udc.DBS().Reader, ud.ID, ai.ID)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+	} else {
+		_, err = oldUDAI.Delete(c.Context(), udc.DBS().Writer)
+		if err != nil {
+			return err
+		}
+	}
+
+	newUDAI := &models.UserDeviceAPIIntegration{
+		UserDeviceID:  ud.ID,
+		IntegrationID: ai.ID,
+		Status:        models.UserDeviceAPIIntegrationStatusActive,
+		ExternalID:    au.AutopiDeviceID,
+		AutopiUnitID:  null.StringFrom(au.AutopiUnitID),
+	}
+
+	return newUDAI.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
+}
+
 func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, userDeviceID string, integ *ddgrpc.GetIntegrationItemResponse, ud *models.UserDevice) error {
 	reqBody := new(RegisterDeviceIntegrationRequest)
 	if err := c.BodyParser(reqBody); err != nil {
