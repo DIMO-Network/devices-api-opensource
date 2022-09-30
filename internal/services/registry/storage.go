@@ -5,6 +5,7 @@ import (
 
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/ericlagergren/decimal"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	eth_types "github.com/ethereum/go-ethereum/core/types"
@@ -12,6 +13,7 @@ import (
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/types"
 )
 
 type Storage interface {
@@ -63,7 +65,7 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 					return err
 				}
 
-				mtr.R.MintMetaTransactionRequestUserDevice.TokenID.SetBigMantScale(out.NodeId, 0)
+				mtr.R.MintMetaTransactionRequestUserDevice.TokenID = types.NewNullDecimal(new(decimal.Big).SetBigMantScale(out.NodeId, 0))
 				_, err = mtr.R.MintMetaTransactionRequestUserDevice.Update(ctx, s.DB().Writer, boil.Infer())
 				if err != nil {
 					return err
