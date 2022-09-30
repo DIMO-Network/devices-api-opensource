@@ -40,6 +40,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
 	signer "github.com/ethereum/go-ethereum/signer/core/apitypes"
@@ -130,6 +131,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
 		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
 		qm.Load(models.UserDeviceRels.MintRequest),
+		qm.Load(models.UserDeviceRels.MintMetaTransactionRequest),
 		qm.OrderBy("created_at"),
 	).All(c.Context(), udc.DBS().Reader)
 	if err != nil {
@@ -198,7 +200,19 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		}
 
 		var nft *NFTData
-		if mr := d.R.MintRequest; mr != nil {
+		if mtr := d.R.MintMetaTransactionRequest; mtr != nil {
+			nft = &NFTData{
+				Status: mtr.Status,
+			}
+			if mtr.Hash.Valid {
+				hash := hexutil.Encode(mtr.Hash.Bytes)
+				nft.TxHash = &hash
+			}
+			if !d.TokenID.IsZero() {
+				nft.TokenID = d.TokenID.Int(nil)
+				nft.TokenURI = fmt.Sprintf("%s/v1/nfts/%s", udc.Settings.DeploymentBaseURL, nft.TokenID)
+			}
+		} else if mr := d.R.MintRequest; mr != nil {
 			nft = &NFTData{
 				Status: mr.TXState,
 			}
