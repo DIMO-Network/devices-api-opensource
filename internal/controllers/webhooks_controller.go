@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
@@ -91,7 +92,7 @@ func (wc *WebhooksController) ProcessCommand(c *fiber.Ctx) error {
 		}
 		// update the integration state, Pending first data means we are succesfully paired and template applied, just waiting for data to stream
 		apiIntegration.Status = models.UserDeviceAPIIntegrationStatusPendingFirstData
-		ss := services.TemplateConfirmed.String()
+		ss := constants.TemplateConfirmed.String()
 		udMetadata.AutoPiSubStatus = &ss
 		// update database
 		err = apiIntegration.Metadata.Marshal(udMetadata)

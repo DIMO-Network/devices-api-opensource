@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
@@ -16,11 +17,6 @@ import (
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
-)
-
-const (
-	AutoPiVendor      = "AutoPi"
-	AutoPiWebhookPath = "/webhooks/autopi-command"
 )
 
 //go:generate mockgen -source autopi_api_service.go -destination mocks/autopi_api_service_mock.go
@@ -170,7 +166,7 @@ func (a *autoPiAPIService) CommandRaw(ctx context.Context, unitID, deviceID, com
 	if !v {
 		return nil, errors.New("send command failed, invalid unitId: " + unitID)
 	}
-	webhookURL := fmt.Sprintf("%s/v1%s", a.Settings.DeploymentBaseURL, AutoPiWebhookPath)
+	webhookURL := fmt.Sprintf("%s/v1%s", a.Settings.DeploymentBaseURL, constants.AutoPiWebhookPath)
 	syncCommand := autoPiCommandRequest{
 		Command:     command,
 		CallbackURL: &webhookURL,
@@ -332,22 +328,4 @@ type autoPiCommandRequest struct {
 type AutoPiCommandResponse struct {
 	Jid     string   `json:"jid"`
 	Minions []string `json:"minions"`
-}
-
-// AutoPiSubStatusEnum integration sub-status
-type AutoPiSubStatusEnum string
-
-const (
-	PendingSoftwareUpdate      AutoPiSubStatusEnum = "PendingSoftwareUpdate"
-	CompletedSoftwareUpdate    AutoPiSubStatusEnum = "CompletedSoftwareUpdate"
-	QueriedDeviceOk            AutoPiSubStatusEnum = "QueriedDeviceOk"
-	PatchedVehicleProfile      AutoPiSubStatusEnum = "PatchedVehicleProfile"
-	AssociatedDeviceToTemplate AutoPiSubStatusEnum = "AssociatedDeviceToTemplate"
-	AppliedTemplate            AutoPiSubStatusEnum = "AppliedTemplate"
-	PendingTemplateConfirm     AutoPiSubStatusEnum = "PendingTemplateConfirm"
-	TemplateConfirmed          AutoPiSubStatusEnum = "TemplateConfirmed"
-)
-
-func (r AutoPiSubStatusEnum) String() string {
-	return string(r)
 }

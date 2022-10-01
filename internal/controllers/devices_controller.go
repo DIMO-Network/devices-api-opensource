@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/DIMO-Network/device-definitions-api/pkg/grpc"
+	"github.com/DIMO-Network/devices-api/internal/api"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
@@ -62,7 +63,7 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 	}
 	deviceDefinitionResponse, err := d.deviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{id})
 	if err != nil {
-		return grpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+id)
+		return api.GrpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+id)
 	}
 
 	if len(deviceDefinitionResponse) == 0 {
@@ -77,7 +78,7 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 	if dd.Type.Year >= autoPiYearCutoff && !strings.EqualFold(dd.Make.Name, "Tesla") {
 		rp.CompatibleIntegrations, err = d.deviceDefIntSvc.AppendAutoPiCompatibility(c.Context(), rp.CompatibleIntegrations, dd.DeviceDefinitionId)
 		if err != nil {
-			return grpcErrorToFiber(err, fmt.Sprintf("deviceDefIntSvc error when AppendAutoPiCompatibility. dd id: %s", dd.DeviceDefinitionId))
+			return api.GrpcErrorToFiber(err, fmt.Sprintf("deviceDefIntSvc error when AppendAutoPiCompatibility. dd id: %s", dd.DeviceDefinitionId))
 		}
 	}
 	return c.JSON(fiber.Map{
@@ -128,7 +129,7 @@ func (d *DevicesController) GetDeviceIntegrationsByID(c *fiber.Ctx) error {
 	if dd.Year >= autoPiYearCutoff && !strings.EqualFold(dd.R.DeviceMake.Name, "Tesla") {
 		integrations, err = d.deviceDefIntSvc.AppendAutoPiCompatibility(c.Context(), integrations, dd.ID)
 		if err != nil {
-			return grpcErrorToFiber(err, fmt.Sprintf("deviceDefIntSvc error when AppendAutoPiCompatibility. dd id: %s", dd.ID))
+			return api.GrpcErrorToFiber(err, fmt.Sprintf("deviceDefIntSvc error when AppendAutoPiCompatibility. dd id: %s", dd.ID))
 		}
 	}
 	return c.JSON(fiber.Map{
@@ -150,19 +151,19 @@ func (d *DevicesController) GetDeviceDefinitionByMMY(c *fiber.Ctx) error {
 	model := c.Query("model")
 	year := c.Query("year")
 	if mk == "" || model == "" || year == "" {
-		return errorResponseHandler(c, errors.New("make, model, and year are required"), fiber.StatusBadRequest)
+		return api.ErrorResponseHandler(c, errors.New("make, model, and year are required"), fiber.StatusBadRequest)
 	}
 	yrInt, err := strconv.Atoi(year)
 	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+		return api.ErrorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
 	dd, err := d.deviceDefSvc.FindDeviceDefinitionByMMY(c.Context(), mk, model, yrInt)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return errorResponseHandler(c, errors.Wrapf(err, "device with %s %s %s not found", mk, model, year), fiber.StatusNotFound)
+			return api.ErrorResponseHandler(c, errors.Wrapf(err, "device with %s %s %s not found", mk, model, year), fiber.StatusNotFound)
 		}
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		return api.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
 	rp, err := NewDeviceDefinitionFromGRPC(dd)

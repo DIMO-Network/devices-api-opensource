@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/appmetrics"
+	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/ThreeDotsLabs/watermill/message"
@@ -72,9 +73,9 @@ func (i *DeviceStatusIngestService) processMessage(msg *message.Message) error {
 	}
 
 	switch integration.Vendor {
-	case SmartCarVendor:
+	case constants.SmartCarVendor:
 		defer appmetrics.SmartcarIngestTotalOps.Inc()
-	case AutoPiVendor:
+	case constants.AutoPiVendor:
 		defer appmetrics.AutoPiIngestTotalOps.Inc()
 	}
 
@@ -132,7 +133,7 @@ func (i *DeviceStatusIngestService) processEvent(event *DeviceStatusEvent) error
 	var newOdometer null.Float64
 	if o, err := extractOdometer(event.Data); err == nil {
 		newOdometer = null.Float64From(o)
-	} else if integration.Vendor == AutoPiVendor {
+	} else if integration.Vendor == constants.AutoPiVendor {
 		// For AutoPis, for the purpose of odometer events we are pretending to always have
 		// an odometer reading. Users became accustomed to seeing the associated events, even
 		// though we mostly don't have odometer readings for AutoPis. For now, we fake it.
@@ -151,7 +152,7 @@ func (i *DeviceStatusIngestService) processEvent(event *DeviceStatusEvent) error
 	i.processOdometer(datum, newOdometer, device, integration.ID)
 
 	switch integration.Vendor {
-	case SmartCarVendor, TeslaVendor:
+	case constants.SmartCarVendor, constants.TeslaVendor:
 		if newOdometer.Valid {
 			datum.Data = null.JSONFrom(event.Data)
 			datum.ErrorData = null.JSON{}
@@ -159,7 +160,7 @@ func (i *DeviceStatusIngestService) processEvent(event *DeviceStatusEvent) error
 			datum.ErrorData = null.JSONFrom(event.Data)
 		}
 	// Again, most AutoPis don't have decoded odometer readings, so just let updates through.
-	case AutoPiVendor:
+	case constants.AutoPiVendor:
 		// Not every AutoPi update has every signal. Merge the new into the old.
 		compositeData := make(map[string]any)
 		if err := datum.Data.Unmarshal(&compositeData); err != nil {
@@ -194,9 +195,9 @@ func (i *DeviceStatusIngestService) processEvent(event *DeviceStatusEvent) error
 	}
 
 	switch integration.Vendor {
-	case SmartCarVendor:
+	case constants.SmartCarVendor:
 		appmetrics.SmartcarIngestSuccessOps.Inc()
-	case AutoPiVendor:
+	case constants.AutoPiVendor:
 		appmetrics.AutoPiIngestSuccessOps.Inc()
 	}
 

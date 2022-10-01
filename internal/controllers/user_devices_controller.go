@@ -15,7 +15,9 @@ import (
 	"time"
 
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
+	"github.com/DIMO-Network/devices-api/internal/api"
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/internal/services/registry"
@@ -126,7 +128,7 @@ func NewUserDevicesController(
 func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 	// todo grpc call out to grpc service endpoint in the deviceDefinitionsService udc.deviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{ "todo"} )
 
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	devices, err := models.UserDevices(qm.Where("user_id = ?", userID),
 		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
 		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
@@ -135,7 +137,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		qm.OrderBy("created_at"),
 	).All(c.Context(), udc.DBS().Reader)
 	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		return api.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 	rp := make([]UserDeviceFull, len(devices))
 	ids := []string{}
@@ -153,7 +155,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), ids)
 
 	if err != nil {
-		return grpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+ids[0])
+		return api.GrpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+ids[0])
 	}
 
 	filterDeviceDefinition := func(id string, items []*ddgrpc.GetDeviceDefinitionItemResponse) (*ddgrpc.GetDeviceDefinitionItemResponse, error) {
@@ -180,7 +182,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 
 		filteredIntegrations := []services.DeviceCompatibility{}
 		if d.CountryCode.Valid {
-			if countryRecord := services.FindCountry(d.CountryCode.String); countryRecord != nil {
+			if countryRecord := constants.FindCountry(d.CountryCode.String); countryRecord != nil {
 				for _, integration := range dd.CompatibleIntegrations {
 					if integration.Region == countryRecord.Region {
 						integration.Country = d.CountryCode.String // Faking it until the UI updates for regions.
@@ -290,14 +292,14 @@ type UserDeviceEvent struct {
 // @Security    BearerAuth
 // @Router      /user/devices [post]
 func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	reg := &RegisterUserDevice{}
 	if err := c.BodyParser(reg); err != nil {
 		// Return status 400 and error message.
-		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 	if err := reg.Validate(); err != nil {
-		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 	tx, err := udc.DBS().Writer.DB.BeginTx(c.Context(), nil)
 	defer tx.Rollback() //nolint
@@ -310,11 +312,11 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{*reg.DeviceDefinitionID})
 
 	if err != nil {
-		return grpcErrorToFiber(err, fmt.Sprintf("error querying for device definition id: %s ", *reg.DeviceDefinitionID))
+		return api.GrpcErrorToFiber(err, fmt.Sprintf("error querying for device definition id: %s ", *reg.DeviceDefinitionID))
 	}
 
 	if len(deviceDefinitionResponse) == 0 {
-		return errorResponseHandler(c, errors.Wrapf(err, "could not find device definition id: %s", *reg.DeviceDefinitionID), fiber.StatusBadRequest)
+		return fiber.NewError(fiber.StatusBadRequest, "could not find device definition id: "+*reg.DeviceDefinitionID)
 	}
 
 	dd := deviceDefinitionResponse[0]
@@ -329,7 +331,7 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	}
 	err = ud.Insert(c.Context(), tx, boil.Infer())
 	if err != nil {
-		return errorResponseHandler(c, errors.Wrapf(err, "could not create user device for def_id: %s", dd.DeviceDefinitionId), fiber.StatusInternalServerError)
+		return fiber.NewError(fiber.StatusInternalServerError, "could not create user device for def_id: "+dd.DeviceDefinitionId)
 	}
 	//region := ""
 	//if countryRecord := services.FindCountry(reg.CountryCode); countryRecord != nil {
@@ -406,7 +408,7 @@ var opaqueInternalError = fiber.NewError(fiber.StatusInternalServerError, "Inter
 // @Router      /user/devices/{userDeviceID}/vin [patch]
 func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 
 	logger := udc.log.With().Str("route", c.Route().Path).Str("userId", userID).Str("userDeviceId", udi).Logger()
 
@@ -496,7 +498,7 @@ func (udc *UserDevicesController) updateUSAPowertrain(ctx context.Context, userD
 // @Router      /user/devices/{userDeviceID}/name [patch]
 func (udc *UserDevicesController) UpdateName(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 
 	userDevice, err := models.UserDevices(models.UserDeviceWhere.ID.EQ(udi), models.UserDeviceWhere.UserID.EQ(userID)).One(c.Context(), udc.DBS().Writer)
 	if err != nil {
@@ -542,24 +544,24 @@ func (udc *UserDevicesController) UpdateName(c *fiber.Ctx) error {
 // @Router      /user/devices/{userDeviceID}/country_code [patch]
 func (udc *UserDevicesController) UpdateCountryCode(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	userDevice, err := models.UserDevices(models.UserDeviceWhere.ID.EQ(udi), models.UserDeviceWhere.UserID.EQ(userID)).One(c.Context(), udc.DBS().Writer)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return errorResponseHandler(c, err, fiber.StatusNotFound)
+			return api.ErrorResponseHandler(c, err, fiber.StatusNotFound)
 		}
 		return err
 	}
 	countryCode := &UpdateCountryCodeReq{}
 	if err := c.BodyParser(countryCode); err != nil {
 		// Return status 400 and error message.
-		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+		return api.ErrorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
 
 	userDevice.CountryCode = null.StringFromPtr(countryCode.CountryCode)
 	_, err = userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer())
 	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		return api.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
@@ -576,25 +578,25 @@ func (udc *UserDevicesController) UpdateCountryCode(c *fiber.Ctx) error {
 // @Router      /user/devices/{userDeviceID}/image [patch]
 func (udc *UserDevicesController) UpdateImage(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 
 	userDevice, err := models.UserDevices(models.UserDeviceWhere.ID.EQ(udi), models.UserDeviceWhere.UserID.EQ(userID)).One(c.Context(), udc.DBS().Writer)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return errorResponseHandler(c, err, fiber.StatusNotFound)
+			return api.ErrorResponseHandler(c, err, fiber.StatusNotFound)
 		}
 		return err
 	}
 	req := &UpdateImageURLReq{}
 	if err := c.BodyParser(req); err != nil {
 		// Return status 400 and error message.
-		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+		return api.ErrorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
 
 	userDevice.CustomImageURL = null.StringFromPtr(req.ImageURL)
 	_, err = userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer())
 	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		return api.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
@@ -640,7 +642,7 @@ type ValuationSet struct {
 // @Router      /user/devices/{userDeviceID}/valuations [get]
 func (udc *UserDevicesController) GetValuations(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 
 	// Ensure user is owner of user device
 	userDeviceExists, err := models.UserDevices(
@@ -875,7 +877,7 @@ type Offer struct {
 // @Router      /user/devices/{userDeviceID}/offers [get]
 func (udc *UserDevicesController) GetOffers(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 
 	// Ensure user is owner of user device
 	userDeviceExists, err := models.UserDevices(
@@ -982,7 +984,7 @@ type RangeSet struct {
 // @Router      /user/devices/{userDeviceID}/range [get]
 func (udc *UserDevicesController) GetRange(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 
 	// Ensure user is owner of user device
 	userDevice, err := models.UserDevices(
@@ -995,7 +997,7 @@ func (udc *UserDevicesController) GetRange(c *fiber.Ctx) error {
 
 	dds, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{userDevice.DeviceDefinitionID})
 	if err != nil {
-		return grpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+userDevice.DeviceDefinitionID)
+		return api.GrpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+userDevice.DeviceDefinitionID)
 	}
 
 	deviceRange := DeviceRange{
@@ -1044,7 +1046,7 @@ func (udc *UserDevicesController) GetRange(c *fiber.Ctx) error {
 // @Router      /user/devices/{userDeviceID} [delete]
 func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 
 	tx, err := udc.DBS().Writer.BeginTx(c.Context(), nil)
 	if err != nil {
@@ -1060,15 +1062,15 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	).One(c.Context(), tx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return errorResponseHandler(c, err, fiber.StatusNotFound)
+			return api.ErrorResponseHandler(c, err, fiber.StatusNotFound)
 		}
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		return api.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
 	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{userDevice.DeviceDefinitionID})
 
 	if err != nil {
-		return grpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+userDevice.DeviceDefinitionID)
+		return api.GrpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+userDevice.DeviceDefinitionID)
 	}
 
 	if len(deviceDefinitionResponse) == 0 {
@@ -1077,18 +1079,18 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 			Str("deviceDefinitionID", userDevice.DeviceDefinitionID).
 			Msg("unexpected error deregistering autopi")
 
-		return errorResponseHandler(c, errors.New("no device definition"), fiber.StatusBadRequest)
+		return api.ErrorResponseHandler(c, errors.New("no device definition"), fiber.StatusBadRequest)
 	}
 
 	var dd = deviceDefinitionResponse[0]
 
 	for _, apiInteg := range userDevice.R.UserDeviceAPIIntegrations {
-		if apiInteg.R.Integration.Vendor == services.SmartCarVendor {
+		if apiInteg.R.Integration.Vendor == constants.SmartCarVendor {
 			if apiInteg.ExternalID.Valid {
 				if apiInteg.TaskID.Valid {
 					err = udc.smartcarTaskSvc.StopPoll(apiInteg)
 					if err != nil {
-						return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+						return api.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
 					}
 				}
 				// Otherwise, it was on a webhook and we were never able to create a task for it.
@@ -1096,10 +1098,10 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 		} else if apiInteg.R.Integration.Vendor == "Tesla" {
 			if apiInteg.ExternalID.Valid {
 				if err := udc.teslaTaskService.StopPoll(apiInteg); err != nil {
-					return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+					return api.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
 				}
 			}
-		} else if apiInteg.R.Integration.Vendor == services.AutoPiVendor {
+		} else if apiInteg.R.Integration.Vendor == constants.AutoPiVendor {
 			err = udc.autoPiIngestRegistrar.Deregister(apiInteg.ExternalID.String, apiInteg.UserDeviceID, apiInteg.IntegrationID)
 			if err != nil {
 				udc.log.Err(err).Msgf("unexpected error deregistering autopi device from ingest. userDeviceID: %s", apiInteg.UserDeviceID)
@@ -1137,12 +1139,12 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	// This will delete the associated integrations as well.
 	_, err = userDevice.Delete(c.Context(), tx)
 	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		return api.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		return api.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
 	err = udc.eventService.Emit(&services.Event{
@@ -1176,7 +1178,7 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 // @Router      /user/devices/{userDeviceID}/commands/mint [get]
 func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 	userDeviceID := c.Params("userDeviceID")
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	// todo pull device-definitions via grpc
 	userDevice, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
@@ -1260,7 +1262,7 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 // @Router      /user/devices/{userDeviceID}/commands/mint [get]
 func (udc *UserDevicesController) GetMintDataToSignV2(c *fiber.Ctx) error {
 	userDeviceID := c.Params("userDeviceID")
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	// todo pull device-definitions via grpc
 	userDevice, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
@@ -1387,7 +1389,7 @@ func recoverAddress(td *signer.TypedData, signature []byte) (addr common.Address
 // @Router      /user/devices/{userDeviceID}/commands/mint [post]
 func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 	userDeviceID := c.Params("userDeviceID")
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 
 	userDevice, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
@@ -1422,11 +1424,11 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 			continue
 		}
 		switch apiInt.R.Integration.Vendor {
-		case services.SmartCarVendor, services.TeslaVendor:
+		case constants.SmartCarVendor, constants.TeslaVendor:
 			eligible = true
 			// Sure hope this works!
 			mreq.Vin = userDevice.VinIdentifier
-		case services.AutoPiVendor:
+		case constants.AutoPiVendor:
 			eligible = true
 			mreq.ChildDeviceID = apiInt.ExternalID
 		}
@@ -1646,7 +1648,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 // @Router      /user/devices/{userDeviceID}/commands/mint [post]
 func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 	userDeviceID := c.Params("userDeviceID")
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	// todo pull device-definitions via grpc
 	userDevice, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),

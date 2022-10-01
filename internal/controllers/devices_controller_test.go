@@ -11,6 +11,7 @@ import (
 
 	"github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	mock_services "github.com/DIMO-Network/devices-api/internal/services/mocks"
@@ -83,18 +84,18 @@ func TestDevicesControllerTestSuite(t *testing.T) {
 
 func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionById() {
 
-	ddGRPC := test.BuildDeviceDefinitionGRPC(s.deviceDefID, "Ford", "Ford", "Vehicle")
+	ddGRPC := test.BuildDeviceDefinitionGRPC(s.deviceDefID, "Ford", "Ford", "")
 
 	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{s.deviceDefID}).Times(1).Return(ddGRPC, nil) // todo move to each test where used
 
 	deviceCompatibilities := []services.DeviceCompatibility{}
 	deviceCompatibilities = append(deviceCompatibilities, services.DeviceCompatibility{
-		Vendor:       services.AutoPiVendor,
+		Vendor:       constants.AutoPiVendor,
 		Region:       "Americas",
 		Capabilities: nil,
 	})
 	deviceCompatibilities = append(deviceCompatibilities, services.DeviceCompatibility{
-		Vendor:       services.AutoPiVendor,
+		Vendor:       constants.AutoPiVendor,
 		Region:       "Europe",
 		Capabilities: nil,
 	})
@@ -115,9 +116,9 @@ func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionById() {
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), s.deviceDefID, dd.DeviceDefinitionID)
 	if assert.True(s.T(), len(dd.CompatibleIntegrations) >= 2, "should be atleast 2 integrations for autopi") {
-		assert.Equal(s.T(), services.AutoPiVendor, dd.CompatibleIntegrations[0].Vendor)
+		assert.Equal(s.T(), constants.AutoPiVendor, dd.CompatibleIntegrations[0].Vendor)
 		assert.Equal(s.T(), "Americas", dd.CompatibleIntegrations[0].Region)
-		assert.Equal(s.T(), services.AutoPiVendor, dd.CompatibleIntegrations[1].Vendor)
+		assert.Equal(s.T(), constants.AutoPiVendor, dd.CompatibleIntegrations[1].Vendor)
 		assert.Equal(s.T(), "Europe", dd.CompatibleIntegrations[1].Region)
 	} else {
 		fmt.Printf("found integrations: %+v", dd.CompatibleIntegrations)
@@ -126,7 +127,7 @@ func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionById() {
 
 func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionDoesNotAddAutoPiForOldCars() {
 	dbDdOldCar := test.SetupCreateDeviceDefinition(s.T(), s.dbMake, "Oldie", 1999, s.pdb)
-	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dbDdOldCar.ID}).Times(1).Return(test.BuildDeviceDefinitionGRPC(dbDdOldCar.ID, "Tesla", "Tesla", "Vehicle"), nil) // todo move to each test where used
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dbDdOldCar.ID}).Times(1).Return(test.BuildDeviceDefinitionGRPC(dbDdOldCar.ID, "Tesla", "Tesla", ""), nil) // todo move to each test where used
 
 	request, _ := http.NewRequest("GET", "/device-definitions/"+dbDdOldCar.ID, nil)
 	response, _ := s.app.Test(request)
@@ -144,7 +145,7 @@ func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionDoesNotAddAutoPiForO
 func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionDoesNotAddAutoPiForTesla() {
 	tesla := test.SetupCreateMake(s.T(), "Tesla", s.pdb)
 	teslaCar := test.SetupCreateDeviceDefinition(s.T(), tesla, "Cyber Truck never", 2022, s.pdb)
-	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{teslaCar.ID}).Times(1).Return(test.BuildDeviceDefinitionGRPC(tesla.ID, "Tesla", "Tesla", "Vehicle"), nil) // todo move to each test where used
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{teslaCar.ID}).Times(1).Return(test.BuildDeviceDefinitionGRPC(tesla.ID, "Tesla", "Tesla", ""), nil) // todo move to each test where used
 
 	request, _ := http.NewRequest("GET", "/device-definitions/"+teslaCar.ID, nil)
 	response, _ := s.app.Test(request)
@@ -162,12 +163,12 @@ func (s *DevicesControllerTestSuite) TestGetDeviceIntegrationsById() {
 
 	deviceCompatibilities := []services.DeviceCompatibility{}
 	deviceCompatibilities = append(deviceCompatibilities, services.DeviceCompatibility{
-		Vendor:       services.AutoPiVendor,
+		Vendor:       constants.AutoPiVendor,
 		Region:       "Americas",
 		Capabilities: nil,
 	})
 	deviceCompatibilities = append(deviceCompatibilities, services.DeviceCompatibility{
-		Vendor:       services.AutoPiVendor,
+		Vendor:       constants.AutoPiVendor,
 		Region:       "Europe",
 		Capabilities: nil,
 	})
@@ -184,9 +185,9 @@ func (s *DevicesControllerTestSuite) TestGetDeviceIntegrationsById() {
 	err := json.Unmarshal([]byte(v.Raw), &dc)
 	assert.NoError(s.T(), err)
 	if assert.True(s.T(), len(dc) >= 2, "should be atleast 2 integrations for autopi") {
-		assert.Equal(s.T(), services.AutoPiVendor, dc[0].Vendor)
+		assert.Equal(s.T(), constants.AutoPiVendor, dc[0].Vendor)
 		assert.Equal(s.T(), "Americas", dc[0].Region)
-		assert.Equal(s.T(), services.AutoPiVendor, dc[1].Vendor)
+		assert.Equal(s.T(), constants.AutoPiVendor, dc[1].Vendor)
 		assert.Equal(s.T(), "Europe", dc[1].Region)
 	}
 }

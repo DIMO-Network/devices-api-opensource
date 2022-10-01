@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
@@ -19,7 +20,7 @@ func remakeAutoPiTopic(ctx context.Context, pdb database.DbStore, producer saram
 
 	// Grab the Smartcar integration ID, there should be exactly one.
 	var apIntID string
-	integ, err := models.Integrations(models.IntegrationWhere.Vendor.EQ(services.AutoPiVendor)).One(ctx, db)
+	integ, err := models.Integrations(models.IntegrationWhere.Vendor.EQ(constants.AutoPiVendor)).One(ctx, db)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve AutoPi integration: %w", err)
 	}

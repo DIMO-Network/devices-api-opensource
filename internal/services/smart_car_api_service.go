@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/pkg/errors"
@@ -18,10 +19,6 @@ import (
 	"github.com/segmentio/ksuid"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
-)
-
-const (
-	SmartCarVendor = "SmartCar"
 )
 
 type SmartCarService struct {
@@ -79,7 +76,7 @@ func (s *SmartCarService) GetOrCreateSmartCarIntegration(ctx context.Context) (s
 		smartCarStyle = models.IntegrationStyleWebhook
 	)
 	integration, err := models.Integrations(qm.Where("type = ?", smartCarType),
-		qm.And("vendor = ?", SmartCarVendor),
+		qm.And("vendor = ?", constants.SmartCarVendor),
 		qm.And("style = ?", smartCarStyle)).One(ctx, s.DBS().Writer)
 
 	if err != nil {
@@ -87,7 +84,7 @@ func (s *SmartCarService) GetOrCreateSmartCarIntegration(ctx context.Context) (s
 			// create
 			integration = &models.Integration{}
 			integration.ID = ksuid.New().String()
-			integration.Vendor = SmartCarVendor
+			integration.Vendor = constants.SmartCarVendor
 			integration.Type = smartCarType
 			integration.Style = smartCarStyle
 			err = integration.Insert(ctx, s.DBS().Writer, boil.Infer())

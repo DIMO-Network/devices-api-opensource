@@ -13,8 +13,6 @@ import (
 	"github.com/segmentio/ksuid"
 )
 
-const TeslaVendor = "Tesla"
-
 //go:generate mockgen -source tesla_task_service.go -destination mocks/tesla_task_service_mock.go
 
 type TeslaTaskService interface {

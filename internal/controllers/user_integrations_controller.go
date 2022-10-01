@@ -11,6 +11,8 @@ import (
 	"time"
 
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
+	"github.com/DIMO-Network/devices-api/internal/api"
+	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/internal/services/registry"
 	"github.com/DIMO-Network/devices-api/models"
@@ -39,7 +41,7 @@ import (
 // @Security    BearerAuth
 // @Router      /user/devices/{userDeviceID}/integrations/{integrationID} [get]
 func (udc *UserDevicesController) GetUserDeviceIntegration(c *fiber.Ctx) error {
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	userDeviceID := c.Params("userDeviceID")
 	integrationID := c.Params("integrationID")
 	deviceExists, err := models.UserDevices(
@@ -73,7 +75,7 @@ func (udc *UserDevicesController) GetUserDeviceIntegration(c *fiber.Ctx) error {
 // @Security    BearerAuth
 // @Router      /user/devices/{userDeviceID}/integrations/{integrationID} [delete]
 func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) error {
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	userDeviceID := c.Params("userDeviceID")
 	integrationID := c.Params("integrationID")
 
@@ -98,11 +100,11 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{device.DeviceDefinitionID})
 
 	if err != nil {
-		return grpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+device.DeviceDefinitionID)
+		return api.GrpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+device.DeviceDefinitionID)
 	}
 
 	if len(deviceDefinitionResponse) == 0 {
-		return errorResponseHandler(c, errors.New("no device definition"), fiber.StatusBadRequest)
+		return api.ErrorResponseHandler(c, errors.New("no device definition"), fiber.StatusBadRequest)
 	}
 
 	var dd = deviceDefinitionResponse[0]
@@ -120,7 +122,7 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 		return err
 	}
 
-	if apiIntegration.R.Integration.Vendor == services.SmartCarVendor {
+	if apiIntegration.R.Integration.Vendor == constants.SmartCarVendor {
 		if apiIntegration.ExternalID.Valid {
 			if apiIntegration.TaskID.Valid {
 				err = udc.smartcarTaskSvc.StopPoll(apiIntegration)
@@ -136,7 +138,7 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 				return err
 			}
 		}
-	} else if apiIntegration.R.Integration.Vendor == services.AutoPiVendor {
+	} else if apiIntegration.R.Integration.Vendor == constants.AutoPiVendor {
 		err = udc.autoPiIngestRegistrar.Deregister(apiIntegration.ExternalID.String, apiIntegration.UserDeviceID, apiIntegration.IntegrationID)
 		if err != nil {
 			udc.log.Err(err).Msgf("unexpected error deregistering autopi device from ingest. userDeviceID: %s", apiIntegration.UserDeviceID)
@@ -215,7 +217,7 @@ func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
 	if udc.Settings.Environment == "prod" {
 		return c.SendStatus(fiber.StatusGone)
 	}
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	userDeviceID := c.Params("userDeviceID")
 	req := new(AutoPiCommandRequest)
 	err := c.BodyParser(req)
@@ -263,7 +265,7 @@ func (udc *UserDevicesController) SendAutoPiCommand(c *fiber.Ctx) error {
 // @Param       requestID path string true "Command request ID"
 // @Router      /user/devices/{userDeviceID}/integrations/{integrationID}/commands/{requestID} [get]
 func (udc *UserDevicesController) GetCommandRequestStatus(c *fiber.Ctx) error {
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	requestID := c.Params("requestID")
 
 	// Don't actually validate userDeviceID or integrationID, just following a URL pattern.
@@ -308,7 +310,7 @@ type CommandRequestStatusResp struct {
 //
 // Grabs user ID, device ID, and integration ID from Ctx.
 func (udc *UserDevicesController) handleEnqueueCommand(c *fiber.Ctx, commandPath string) error {
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	userDeviceID := c.Params("userDeviceID")
 	integrationID := c.Params("integrationID")
 
@@ -361,11 +363,11 @@ func (udc *UserDevicesController) handleEnqueueCommand(c *fiber.Ctx, commandPath
 
 	// TODO(elffjs): This map is ugly. Surely we interface our way out of this?
 	commandMap := map[string]map[string]func(udai *models.UserDeviceAPIIntegration) (string, error){
-		services.SmartCarVendor: {
+		constants.SmartCarVendor: {
 			"doors/unlock": udc.smartcarTaskSvc.UnlockDoors,
 			"doors/lock":   udc.smartcarTaskSvc.LockDoors,
 		},
-		services.TeslaVendor: {
+		constants.TeslaVendor: {
 			"doors/unlock": udc.teslaTaskService.UnlockDoors,
 			"doors/lock":   udc.teslaTaskService.LockDoors,
 			"trunk/open":   udc.teslaTaskService.OpenTrunk,
@@ -483,7 +485,7 @@ func (udc *UserDevicesController) OpenFrunk(c *fiber.Ctx) error {
 // @Security    BearerAuth
 // @Router      /user/devices/:userDeviceID/autopi/command/:jobID [get]
 func (udc *UserDevicesController) GetAutoPiCommandStatus(c *fiber.Ctx) error {
-	_ = getUserID(c)
+	_ = api.GetUserID(c)
 	userDeviceID := c.Params("userDeviceID")
 	jobID := c.Params("jobID")
 
@@ -516,7 +518,7 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 	if !v {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	// check if unitId has already been assigned to a different user - don't allow querying in this case
 	udai, _ := udc.autoPiSvc.GetUserDeviceIntegrationByUnitID(c.Context(), unitID)
 	if udai != nil {
@@ -613,7 +615,7 @@ func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 	if !v {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	deviceID := ""
 	userDeviceID := ""
 	// check if unitId has already been assigned to a different user - don't allow querying in this case
@@ -699,7 +701,7 @@ func (udc *UserDevicesController) StartAutoPiUpdateTask(c *fiber.Ctx) error {
 	if !v {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	deviceID := ""
 
 	// check if unitId has already been assigned to a different user - don't allow querying in this case
@@ -765,7 +767,7 @@ func (udc *UserDevicesController) GetAutoPiTask(c *fiber.Ctx) error {
 	if len(taskID) == 0 {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
-	//userID := getUserID(c)
+	//userID := api.GetUserID(c)
 	task, err := udc.autoPiTaskService.GetTaskStatus(c.Context(), taskID)
 	if err != nil {
 		return err
@@ -783,7 +785,7 @@ func (udc *UserDevicesController) GetAutoPiTask(c *fiber.Ctx) error {
 // @Security BearerAuth
 // @Router /autopi/unit/:unitID/commands/claim [get]
 func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 
 	unitID := c.Params("unitID")
 
@@ -862,7 +864,7 @@ func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
 // @Security BearerAuth
 // @Router /user/devices/:userDeviceID/autopi/commands/pair [get]
 func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 
 	userDeviceID := c.Params("userDeviceID")
 
@@ -872,7 +874,7 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 	autoPiInt, err := udc.DeviceDefIntSvc.GetAutoPiIntegration(c.Context())
 	if err != nil {
 		logger.Err(err).Msg("Failed to retrieve AutoPi integration.")
-		return grpcErrorToFiber(err, "failed to retrieve AutoPi integration.")
+		return api.GrpcErrorToFiber(err, "failed to retrieve AutoPi integration.")
 	}
 
 	ud, err := models.FindUserDevice(c.Context(), udc.DBS().Reader, userDeviceID)
@@ -974,7 +976,7 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 // @Security BearerAuth
 // @Router /user/devices/:userDeviceID/autopi/commands/pair [post]
 func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 
 	userDeviceID := c.Params("userDeviceID")
 
@@ -1074,7 +1076,7 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 	}
 
 	var pairReq AutoPiPairRequest
-	c.BodyParser(&pairReq)
+	_ = c.BodyParser(&pairReq)
 
 	realAddr := common.HexToAddress(*user.EthereumAddress)
 
@@ -1117,7 +1119,7 @@ type AutoPiPairRequest struct {
 // @Security BearerAuth
 // @Router /autopi/unit/:unitID/commands/claim [post]
 func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 
 	unitID := c.Params("unitID")
 
@@ -1240,7 +1242,7 @@ func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 // @Security    BearerAuth
 // @Router      /user/devices/:userDeviceID/integrations/:integrationID [post]
 func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error {
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	userDeviceID := c.Params("userDeviceID")
 	integrationID := c.Params("integrationID")
 
@@ -1273,7 +1275,7 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("device %s does not have a country code, can't check compatibility", ud.ID))
 	}
 
-	countryRecord := services.FindCountry(ud.CountryCode.String)
+	countryRecord := constants.FindCountry(ud.CountryCode.String)
 	if countryRecord == nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("can't find compatibility region for country %s", ud.CountryCode.String))
 	}
@@ -1281,21 +1283,16 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{ud.DeviceDefinitionID})
 	if err != nil {
 		logger.Err(err).Msg("Unexpected grpc error searching for device definition")
-		return grpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+ud.DeviceDefinitionID)
+		return api.GrpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+ud.DeviceDefinitionID)
 	}
 
 	if len(deviceDefinitionResponse) == 0 {
 		return fiber.NewError(fiber.StatusNotFound, fmt.Sprintf("device definition with id %s not found", ud.DeviceDefinitionID))
 	}
-
-	autoPiIntegration, err := udc.DeviceDefIntSvc.GetAutoPiIntegration(c.Context())
-	if err != nil {
-		return grpcErrorToFiber(err, "failed to get autopi integration for register process")
-	}
-
 	dd := deviceDefinitionResponse[0]
 	logger.Info().Msgf("get device definition id result during registration %+v", dd)
 
+	// filter out the desired integration from the compatible ones
 	var deviceInteg *ddgrpc.GetIntegrationItemResponse
 	for _, integration := range dd.CompatibleIntegrations {
 		if integration.Id == integrationID {
@@ -1310,6 +1307,10 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 	}
 
 	if deviceInteg == nil {
+		autoPiIntegration, err := udc.DeviceDefIntSvc.GetAutoPiIntegration(c.Context())
+		if err != nil {
+			return api.GrpcErrorToFiber(err, "failed to get autopi integration for register process")
+		}
 		// we should error but let's check if autopi first
 		if integrationID == autoPiIntegration.Id {
 			// we need to create an autopi device_integration first
@@ -1335,11 +1336,11 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 	// The per-integration handler is responsible for handling the fiber context and committing the
 	// transaction.
 	switch vendor := deviceInteg.Vendor; vendor {
-	case services.SmartCarVendor:
+	case constants.SmartCarVendor:
 		regErr = udc.registerSmartcarIntegration(c, &logger, tx, deviceInteg, ud)
-	case "Tesla":
+	case constants.TeslaVendor:
 		regErr = udc.registerDeviceTesla(c, &logger, tx, userDeviceID, deviceInteg, ud)
-	case services.AutoPiVendor:
+	case constants.AutoPiVendor:
 		regErr = udc.registerAutoPiUnit(c, &logger, tx, ud, integrationID, dd)
 	default:
 		logger.Error().Str("vendor", vendor).Msg("Attempted to register an unsupported integration")
@@ -1535,7 +1536,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		return err
 	}
 
-	substatus := services.QueriedDeviceOk
+	substatus := constants.QueriedDeviceOk
 	// update integration record as failed if errors after this
 	defer func() {
 		if err != nil {
@@ -1573,7 +1574,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		return errors.Wrap(err, "failed to patch autopi vehicle profile")
 	}
 
-	substatus = services.PatchedVehicleProfile
+	substatus = constants.PatchedVehicleProfile
 	// update autopi to unassociate from current base template
 	if autoPiDevice.Template > 0 {
 		err = udc.autoPiSvc.UnassociateDeviceTemplate(autoPiDevice.ID, autoPiDevice.Template)
@@ -1588,14 +1589,14 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		subLogger.Err(err).Send()
 		return errors.Wrapf(err, "failed to associate autoPiDevice %s to template %d", autoPiDevice.ID, templateID)
 	}
-	substatus = services.AssociatedDeviceToTemplate
+	substatus = constants.AssociatedDeviceToTemplate
 	// apply for next reboot
 	err = udc.autoPiSvc.ApplyTemplate(autoPiDevice.ID, templateID)
 	if err != nil {
 		subLogger.Err(err).Send()
 		return errors.Wrapf(err, "failed to apply autoPiDevice %s with template %d", autoPiDevice.ID, templateID)
 	}
-	substatus = services.AppliedTemplate
+	substatus = constants.AppliedTemplate
 	// send sync command in case autoPiDevice is on at this moment (should be during initial setup)
 	_, err = udc.autoPiSvc.CommandSyncDevice(c.Context(), autoPiDevice.UnitID, autoPiDevice.ID, ud.ID)
 	if err != nil {
@@ -1603,7 +1604,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 		return errors.Wrapf(err, "failed to sync changes to autoPiDevice %s", autoPiDevice.ID)
 	}
 
-	substatus = services.PendingTemplateConfirm
+	substatus = constants.PendingTemplateConfirm
 	ss := substatus.String()
 	udMetadata.AutoPiSubStatus = &ss
 	err = apiInt.Metadata.Marshal(udMetadata)
@@ -1844,7 +1845,7 @@ func (udc *UserDevicesController) AdminVehicleDeviceLink(c *fiber.Ctx) error {
 func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, userDeviceID string, integ *ddgrpc.GetIntegrationItemResponse, ud *models.UserDevice) error {
 	reqBody := new(RegisterDeviceIntegrationRequest)
 	if err := c.BodyParser(reqBody); err != nil {
-		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+		return api.ErrorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
 
 	// We'll use this to kick off the job
@@ -1854,7 +1855,7 @@ func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zero
 	}
 	v, err := udc.teslaService.GetVehicle(reqBody.AccessToken, teslaID)
 	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+		return api.ErrorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
 
 	// Prevent users from connecting a vehicle if it's already connected through another user
@@ -1984,7 +1985,7 @@ func (udc *UserDevicesController) fixSmartcarDeviceYear(ctx context.Context, log
 	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(ctx, []string{ud.DeviceDefinitionID})
 
 	if err != nil {
-		return grpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+ud.DeviceDefinitionID)
+		return api.GrpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+ud.DeviceDefinitionID)
 	}
 
 	dd := deviceDefinitionResponse[0]
@@ -1992,7 +1993,7 @@ func (udc *UserDevicesController) fixSmartcarDeviceYear(ctx context.Context, log
 	if int(dd.Type.Year) != year {
 		logger.Warn().Msgf("Device was attached to year %d but should be %d.", dd.Type.Year, year)
 		region := ""
-		if countryRecord := services.FindCountry(ud.CountryCode.String); countryRecord != nil {
+		if countryRecord := constants.FindCountry(ud.CountryCode.String); countryRecord != nil {
 			region = countryRecord.Region
 		}
 		// todo gprc pull by MMY from from device-defintions

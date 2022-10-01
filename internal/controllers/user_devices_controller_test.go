@@ -78,7 +78,7 @@ func (s *UserDevicesControllerTestSuite) SetupSuite() {
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, logger, s.deviceDefSvc, s.deviceDefIntSvc,
 		&fakeEventService{}, scClient, s.scTaskSvc, teslaSvc, teslaTaskService, nil, nil,
 		s.nhtsaService, autoPiIngest, deviceDefinitionIngest, autoPiTaskSvc, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
-	app := fiber.New()
+	app := test.SetupAppFiber(*logger)
 	app.Post("/user/devices", test.AuthInjectorTestHandler(s.testUserID), c.RegisterDeviceForUser)
 	app.Post("/user/devices/second", test.AuthInjectorTestHandler(testUserID2), c.RegisterDeviceForUser) // for different test user
 	app.Get("/user/devices/me", test.AuthInjectorTestHandler(s.testUserID), c.GetUserDevices)
@@ -165,12 +165,15 @@ func (s *UserDevicesControllerTestSuite) TestPostWithoutDefinitionID_BadRequest(
 	}
 	j, _ := json.Marshal(reg)
 	request := test.BuildRequest("POST", "/user/devices", string(j))
-	response, _ := s.app.Test(request)
-	body, _ := io.ReadAll(response.Body)
+	response, err := s.app.Test(request)
+	require.NoError(s.T(), err)
 	// assert
 	require.Equal(s.T(), fiber.StatusBadRequest, response.StatusCode)
 
-	errorMessage := gjson.Get(string(body), "errorMessage")
+	body, err := io.ReadAll(response.Body)
+	require.NoError(s.T(), err)
+
+	errorMessage := gjson.Get(string(body), "message")
 	if assert.Equal(s.T(), "deviceDefinitionId: cannot be blank.", errorMessage.String()) == false {
 		fmt.Println(string(body))
 	}
@@ -181,7 +184,7 @@ func (s *UserDevicesControllerTestSuite) TestPostBadPayload() {
 	response, _ := s.app.Test(request)
 	body, _ := io.ReadAll(response.Body)
 	assert.Equal(s.T(), fiber.StatusBadRequest, response.StatusCode)
-	msg := gjson.Get(string(body), "errorMessage").String()
+	msg := gjson.Get(string(body), "message").String()
 	assert.Contains(s.T(), msg, "cannot be blank")
 }
 
@@ -193,13 +196,13 @@ func (s *UserDevicesControllerTestSuite) TestPostInvalidDefinitionID() {
 	}
 	j, _ := json.Marshal(reg)
 
-	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{ddID}).Times(1).Return(test.BuildDeviceDefinitionGRPC(ddID, "Tesla", "Tesla", "Vehicle"), nil) // todo move to each test where used
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{ddID}).Times(1).Return(test.BuildDeviceDefinitionGRPC(ddID, "Tesla", "Tesla", ""), nil) // todo move to each test where used
 
 	request := test.BuildRequest("POST", "/user/devices", string(j))
 	response, _ := s.app.Test(request)
 	body, _ := io.ReadAll(response.Body)
 	assert.Equal(s.T(), fiber.StatusInternalServerError, response.StatusCode)
-	msg := gjson.Get(string(body), "errorMessage").String()
+	msg := gjson.Get(string(body), "message").String()
 	fmt.Println("message: " + msg)
 	assert.Contains(s.T(), msg, "caca")
 }
@@ -217,7 +220,7 @@ func (s *UserDevicesControllerTestSuite) TestGetMyUserDevices() {
 	_ = test.SetupCreateAutoPiUnit(s.T(), testUserID, unitID, func(s string) *string { return &s }(deviceID), s.pdb)
 	_ = test.SetupCreateUserDeviceAPIIntegration(s.T(), unitID, deviceID, ud.ID, integ.ID, s.pdb)
 
-	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dd.ID}).Times(1).Return(test.BuildDeviceDefinitionGRPC(dd.ID, "Ford", "Ford", "Vehicle"), nil) // todo move to each test where used
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dd.ID}).Times(1).Return(test.BuildDeviceDefinitionGRPC(dd.ID, "Ford", "Ford", ""), nil) // todo move to each test where used
 
 	request := test.BuildRequest("GET", "/user/devices/me", "")
 	response, _ := s.app.Test(request)
@@ -259,7 +262,7 @@ func (s *UserDevicesControllerTestSuite) TestPatchVIN() {
 		fmt.Println("message: " + string(body))
 	}
 
-	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dd.ID}).Times(1).Return(test.BuildDeviceDefinitionGRPC(dd.ID, "Ford", "Ford", "Vehicle"), nil) // todo move to each test where used
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dd.ID}).Times(1).Return(test.BuildDeviceDefinitionGRPC(dd.ID, "Ford", "Ford", ""), nil) // todo move to each test where used
 
 	request = test.BuildRequest("GET", "/user/devices/me", "")
 	response, responseError = s.app.Test(request)

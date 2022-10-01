@@ -7,6 +7,7 @@ import (
 
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/gofiber/fiber/v2"
@@ -60,7 +61,7 @@ func (d *deviceDefinitionIntegrationService) GetAutoPiIntegration(ctx context.Co
 	integrationResponse := definitions.GetIntegrations()
 
 	for _, integrationItem := range integrationResponse {
-		if integrationItem.Vendor == AutoPiVendor && integrationItem.Style == autoPiStyle && integrationItem.Type == autoPiType {
+		if integrationItem.Vendor == constants.AutoPiVendor && integrationItem.Style == autoPiStyle && integrationItem.Type == autoPiType {
 			return integrationItem, nil
 		}
 	}
@@ -82,11 +83,11 @@ func (d *deviceDefinitionIntegrationService) AppendAutoPiCompatibility(ctx conte
 	}
 
 	// create autopi device_integration mapping on the fly for both regions
-	_, err = d.CreateDeviceDefinitionIntegration(ctx, integration.Id, deviceDefinitionID, AmericasRegion.String())
+	_, err = d.CreateDeviceDefinitionIntegration(ctx, integration.Id, deviceDefinitionID, constants.AmericasRegion.String())
 	if err != nil {
 		return nil, err
 	}
-	_, err = d.CreateDeviceDefinitionIntegration(ctx, integration.Id, deviceDefinitionID, EuropeRegion.String())
+	_, err = d.CreateDeviceDefinitionIntegration(ctx, integration.Id, deviceDefinitionID, constants.EuropeRegion.String())
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +98,7 @@ func (d *deviceDefinitionIntegrationService) AppendAutoPiCompatibility(ctx conte
 		Type:         integration.Type,
 		Style:        integration.Style,
 		Vendor:       integration.Vendor,
-		Region:       AmericasRegion.String(),
+		Region:       constants.AmericasRegion.String(),
 		Capabilities: nil,
 	})
 	dcs = append(dcs, DeviceCompatibility{
@@ -105,7 +106,7 @@ func (d *deviceDefinitionIntegrationService) AppendAutoPiCompatibility(ctx conte
 		Type:         integration.Type,
 		Style:        integration.Style,
 		Vendor:       integration.Vendor,
-		Region:       EuropeRegion.String(),
+		Region:       constants.EuropeRegion.String(),
 		Capabilities: nil,
 	})
 

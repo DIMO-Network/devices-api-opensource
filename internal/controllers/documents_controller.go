@@ -1,13 +1,13 @@
 package controllers
 
 import (
+	"bytes"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"bytes"
-
+	"github.com/DIMO-Network/devices-api/internal/api"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
@@ -42,7 +42,7 @@ func NewDocumentsController(
 // @Security    BearerAuth
 // @Router      /documents [get]
 func (udc *DocumentsController) GetDocuments(c *fiber.Ctx) error {
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	udi := c.Query("user_device_id")
 
 	folder := userID
@@ -69,7 +69,7 @@ func (udc *DocumentsController) GetDocuments(c *fiber.Ctx) error {
 			})
 
 		if err != nil {
-			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+			return api.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
 		}
 
 		documents = append(documents, DocumentResponse{
@@ -97,7 +97,7 @@ func (udc *DocumentsController) GetDocuments(c *fiber.Ctx) error {
 // @Security    BearerAuth
 // @Router      /documents/{id} [get]
 func (udc *DocumentsController) GetDocumentByID(c *fiber.Ctx) error {
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	fileID := c.Params("id")
 	folder := resolveFolderKey(userID, fileID)
 
@@ -138,7 +138,7 @@ func (udc *DocumentsController) GetDocumentByID(c *fiber.Ctx) error {
 // @Router      /documents [post]
 func (udc *DocumentsController) PostDocument(c *fiber.Ctx) error {
 
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	file, err := c.FormFile("file")
 	documentName := c.FormValue("name")
 	documentType := c.FormValue("type")
@@ -152,7 +152,7 @@ func (udc *DocumentsController) PostDocument(c *fiber.Ctx) error {
 		).Exists(c.Context(), udc.DBS().Writer)
 
 		if err != nil {
-			return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+			return api.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
 		}
 
 		if !exists {
@@ -211,7 +211,7 @@ func (udc *DocumentsController) PostDocument(c *fiber.Ctx) error {
 	})
 
 	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		return api.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
 	_ = result
@@ -242,7 +242,7 @@ func (udc *DocumentsController) PostDocument(c *fiber.Ctx) error {
 // @Security    BearerAuth
 // @Router      /documents/{id} [delete]
 func (udc *DocumentsController) DeleteDocument(c *fiber.Ctx) error {
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	fileID := c.Params("id")
 	folder := resolveFolderKey(userID, fileID)
 
@@ -252,7 +252,7 @@ func (udc *DocumentsController) DeleteDocument(c *fiber.Ctx) error {
 	})
 
 	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		return api.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
@@ -269,7 +269,7 @@ func (udc *DocumentsController) DeleteDocument(c *fiber.Ctx) error {
 // @Security    BearerAuth
 // @Router      /documents/{id}/download [get]
 func (udc *DocumentsController) DownloadDocument(c *fiber.Ctx) error {
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	fileID := c.Params("id")
 	folder := resolveFolderKey(userID, fileID)
 
@@ -284,7 +284,7 @@ func (udc *DocumentsController) DownloadDocument(c *fiber.Ctx) error {
 		})
 
 	if err != nil {
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		return api.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
 	if numBytes == 0 {

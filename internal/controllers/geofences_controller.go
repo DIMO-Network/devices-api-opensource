@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/DIMO-Network/devices-api/internal/api"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
@@ -54,14 +55,14 @@ const PrivacyFenceEventType = "zone.dimo.device.privacyfence.update"
 // @Security    BearerAuth
 // @Router      /user/geofences [post]
 func (g *GeofencesController) Create(c *fiber.Ctx) error {
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	create := CreateGeofence{}
 	if err := c.BodyParser(&create); err != nil {
 		// Return status 400 and error message.
-		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+		return api.ErrorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
 	if err := create.Validate(); err != nil {
-		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+		return api.ErrorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
 	tx, err := g.DBS().Writer.DB.BeginTx(c.Context(), nil)
 	defer tx.Rollback() //nolint
@@ -75,7 +76,7 @@ func (g *GeofencesController) Create(c *fiber.Ctx) error {
 		return err
 	}
 	if exists {
-		return errorResponseHandler(c, errors.New("Geofence with that name already exists for this user"), fiber.StatusBadRequest)
+		return api.ErrorResponseHandler(c, errors.New("Geofence with that name already exists for this user"), fiber.StatusBadRequest)
 	}
 
 	// Check that the user has access to the devices in the request.
@@ -92,7 +93,7 @@ func (g *GeofencesController) Create(c *fiber.Ctx) error {
 
 		for _, userDeviceID := range create.UserDeviceIDs {
 			if !allUserDeviceIDs.Contains(userDeviceID) {
-				return errorResponseHandler(c, fmt.Errorf("user does not have a device with id %s", userDeviceID), fiber.StatusBadRequest)
+				return api.ErrorResponseHandler(c, fmt.Errorf("user does not have a device with id %s", userDeviceID), fiber.StatusBadRequest)
 			}
 		}
 	}
@@ -132,7 +133,7 @@ func (g *GeofencesController) Create(c *fiber.Ctx) error {
 		return errors.Wrapf(err, "error commiting transaction to create geofence")
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(CreateResponse{ID: geofence.ID})
+	return c.Status(fiber.StatusCreated).JSON(api.CreateResponse{ID: geofence.ID})
 }
 
 type FenceData struct {
@@ -202,7 +203,7 @@ func (g *GeofencesController) EmitPrivacyFenceUpdates(ctx context.Context, db bo
 // @Security    BearerAuth
 // @Router      /user/geofences [get]
 func (g *GeofencesController) GetAll(c *fiber.Ctx) error {
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	//could not find LoadUserDevices method for eager loading
 	items, err := models.Geofences(models.GeofenceWhere.UserID.EQ(userID),
 		qm.Load(models.GeofenceRels.UserDeviceToGeofences),
@@ -252,14 +253,14 @@ func (g *GeofencesController) GetAll(c *fiber.Ctx) error {
 // @Security    BearerAuth
 // @Router      /user/geofences/{geofenceID} [put]
 func (g *GeofencesController) Update(c *fiber.Ctx) error {
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	id := c.Params("geofenceID")
 	update := CreateGeofence{}
 	if err := c.BodyParser(&update); err != nil {
-		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+		return api.ErrorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
 	if err := update.Validate(); err != nil {
-		return errorResponseHandler(c, err, fiber.StatusBadRequest)
+		return api.ErrorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
 
 	tx, err := g.DBS().Writer.DB.BeginTx(c.Context(), nil)
@@ -327,7 +328,7 @@ func (g *GeofencesController) Update(c *fiber.Ctx) error {
 // @Security    BearerAuth
 // @Router      /user/geofences/{geofenceID} [delete]
 func (g *GeofencesController) Delete(c *fiber.Ctx) error {
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	id := c.Params("geofenceID")
 
 	tx, err := g.DBS().Writer.DB.BeginTx(c.Context(), nil)
@@ -343,9 +344,9 @@ func (g *GeofencesController) Delete(c *fiber.Ctx) error {
 	).One(c.Context(), tx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return errorResponseHandler(c, err, fiber.StatusNotFound)
+			return api.ErrorResponseHandler(c, err, fiber.StatusNotFound)
 		}
-		return errorResponseHandler(c, err, fiber.StatusInternalServerError)
+		return api.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
 
 	for _, rel := range geo.R.UserDeviceToGeofences {

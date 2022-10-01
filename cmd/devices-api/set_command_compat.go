@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
@@ -32,7 +33,7 @@ func setCommandCompatibility(ctx context.Context, settings *config.Settings, pdb
 }
 
 func setCommandCompatTesla(ctx context.Context, pdb database.DbStore) error {
-	teslaInt, err := models.Integrations(models.IntegrationWhere.Vendor.EQ(services.TeslaVendor)).One(ctx, pdb.DBS().Reader)
+	teslaInt, err := models.Integrations(models.IntegrationWhere.Vendor.EQ(constants.TeslaVendor)).One(ctx, pdb.DBS().Reader)
 	if err != nil {
 		return err
 	}
@@ -66,7 +67,7 @@ func setCommandCompatTesla(ctx context.Context, pdb database.DbStore) error {
 }
 
 func setCommandCompatSmartcar(ctx context.Context, settings *config.Settings, pdb database.DbStore) error {
-	scInt, err := models.Integrations(models.IntegrationWhere.Vendor.EQ(services.SmartCarVendor)).One(ctx, pdb.DBS().Reader)
+	scInt, err := models.Integrations(models.IntegrationWhere.Vendor.EQ(constants.SmartCarVendor)).One(ctx, pdb.DBS().Reader)
 	if err != nil {
 		return err
 	}
@@ -81,7 +82,7 @@ func setCommandCompatSmartcar(ctx context.Context, settings *config.Settings, pd
 	}
 
 	for _, su := range scUDAIs {
-		country := services.FindCountry(su.R.UserDevice.CountryCode.String)
+		country := constants.FindCountry(su.R.UserDevice.CountryCode.String)
 		doors, err := checkSmartcarDoorCompatibility(settings, su.R.UserDevice.VinIdentifier.String, country.Alpha2)
 		if err != nil {
 			log.Err(err).Msg("Error getting compat")

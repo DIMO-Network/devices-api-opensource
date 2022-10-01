@@ -4,7 +4,8 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/DIMO-Network/devices-api/internal/services"
+	"github.com/DIMO-Network/devices-api/internal/api"
+	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
@@ -24,7 +25,7 @@ import (
 // @Router      /user/devices/{userDeviceID}/status [get]
 func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	userDevice, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(udi),
 		models.UserDeviceWhere.UserID.EQ(userID),
@@ -131,7 +132,7 @@ func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 // @Router      /user/devices/{userDeviceID}/commands/refresh [post]
 func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
-	userID := getUserID(c)
+	userID := api.GetUserID(c)
 	// We could probably do a smarter join here, but it's unclear to me how to handle that
 	// in SQLBoiler.
 	ud, err := models.UserDevices(
@@ -148,7 +149,7 @@ func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
 	}
 
 	for _, deviceDatum := range ud.R.UserDeviceData {
-		if deviceDatum.R.Integration.Type == models.IntegrationTypeAPI && deviceDatum.R.Integration.Vendor == services.SmartCarVendor {
+		if deviceDatum.R.Integration.Type == models.IntegrationTypeAPI && deviceDatum.R.Integration.Vendor == constants.SmartCarVendor {
 			nextAvailableTime := deviceDatum.UpdatedAt.Add(time.Second * time.Duration(deviceDatum.R.Integration.RefreshLimitSecs))
 			if time.Now().Before(nextAvailableTime) {
 				return fiber.NewError(fiber.StatusTooManyRequests, "rate limit for integration refresh hit")

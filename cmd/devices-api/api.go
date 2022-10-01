@@ -5,13 +5,13 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/api"
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/controllers"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
@@ -34,7 +34,7 @@ import (
 func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore, eventService services.EventService, producer sarama.SyncProducer, s3ServiceClient *s3.Client, s3NFTServiceClient *s3.Client) {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			return ErrorHandler(c, err, logger, settings.Environment)
+			return api.ErrorHandler(c, err, logger, settings.Environment)
 		},
 		DisableStartupMessage: true,
 		ReadBufferSize:        16000,
@@ -112,7 +112,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1.Get("/nfts/:tokenID/image", nftController.GetNFTImage)
 
 	// webhooks, performs signature validation
-	v1.Post(services.AutoPiWebhookPath, webhooksController.ProcessCommand)
+	v1.Post(constants.AutoPiWebhookPath, webhooksController.ProcessCommand)
 
 	// secured paths
 	keyRefreshInterval := time.Hour
@@ -264,31 +264,4 @@ func startGRPCServer(settings *config.Settings, dbs func() *database.DBReaderWri
 	if err := server.Serve(lis); err != nil {
 		logger.Fatal().Err(err).Msg("gRPC server terminated unexpectedly")
 	}
-}
-
-// ErrorHandler custom handler to log recovered errors using our logger and return json instead of string
-func ErrorHandler(c *fiber.Ctx, err error, logger zerolog.Logger, environment string) error {
-	code := fiber.StatusInternalServerError // Default 500 statuscode
-
-	e, fiberTypeErr := err.(*fiber.Error)
-	if fiberTypeErr {
-		// Override status code if fiber.Error type
-		code = e.Code
-	}
-	c.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
-	codeStr := strconv.Itoa(code)
-
-	logger.Err(err).Str("httpStatusCode", codeStr).
-		Str("httpMethod", c.Method()).
-		Str("httpPath", c.Path()).
-		Msg("caught an error from http request")
-	// return an opaque error if we're in a higher level environment and we haven't specified an fiber type err.
-	if !fiberTypeErr && environment == "prod" {
-		err = fiber.NewError(fiber.StatusInternalServerError, "Internal error")
-	}
-
-	return c.Status(code).JSON(fiber.Map{
-		"code":    code,
-		"message": err.Error(),
-	})
 }

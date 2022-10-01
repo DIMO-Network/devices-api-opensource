@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseVehicleMinted(t *testing.T) {
@@ -37,11 +38,7 @@ func TestParseVehicleMinted(t *testing.T) {
 			indexed = append(indexed, arg)
 		}
 	}
-	if err := abi.ParseTopics(out, indexed, l2.Topics[1:]); err != nil {
-		t.Fatal(err)
-	}
-
-	if out.NodeId != big.NewInt(211) {
-		t.Errorf("Node id should have been %d but was %s", 211, out.NodeId)
-	}
+	err = abi.ParseTopics(out, indexed, l2.Topics[1:])
+	assert.NoError(t, err)
+	assert.Equal(t, big.NewInt(211), out.NodeId)
 }
