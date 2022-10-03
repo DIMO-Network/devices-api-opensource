@@ -67,7 +67,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiDeviceInfo"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo"
                         }
                     }
                 }
@@ -126,7 +126,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiClaimRequest"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiClaimRequest"
                         }
                     }
                 ],
@@ -557,7 +557,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp"
                         }
                     },
                     "404": {
@@ -628,7 +628,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiCommandRequest"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest"
                         }
                     }
                 ],
@@ -725,7 +725,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiPairRequest"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiPairRequest"
                         }
                     }
                 ],
@@ -753,7 +753,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.RegisterDeviceIntegrationRequest"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest"
                         }
                     }
                 ],
@@ -997,7 +997,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.GetUserDeviceIntegrationResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse"
                         }
                     }
                 }
@@ -1052,7 +1052,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1091,7 +1091,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1130,7 +1130,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1169,7 +1169,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1215,7 +1215,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandRequestStatusResp"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandRequestStatusResp"
                         }
                     }
                 }
@@ -1640,7 +1640,8 @@
             "type": "object",
             "properties": {
                 "claim": {
-                    "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfoClaim"
+                    "description": "Claim contains the status of the on-chain claiming meta-transaction.",
+                    "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiTransactionStatus"
                 },
                 "deviceId": {
                     "type": "string"
@@ -1661,7 +1662,8 @@
                     "type": "string"
                 },
                 "pair": {
-                    "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfoClaim"
+                    "description": "Pair contains the status of the on-chain pairing meta-transaction.",
+                    "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiTransactionStatus"
                 },
                 "releaseVersion": {
                     "type": "string"
@@ -1677,28 +1679,42 @@
                 }
             }
         },
-        "github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfoClaim": {
-            "type": "object",
-            "properties": {
-                "createdAt": {
-                    "type": "string"
-                },
-                "hash": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "updatedAt": {
-                    "type": "string"
-                }
-            }
-        },
         "github.com_DIMO-Network_devices-api_internal_controllers.AutoPiPairRequest": {
             "type": "object",
             "properties": {
                 "signature": {
                     "type": "string"
+                }
+            }
+        },
+        "github.com_DIMO-Network_devices-api_internal_controllers.AutoPiTransactionStatus": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "description": "CreatedAt is the timestamp of the creation of the meta-transaction.",
+                    "type": "string",
+                    "example": "2022-10-01T09:22:21.002Z"
+                },
+                "hash": {
+                    "description": "Hash is the hexidecimal transaction hash, available for any transaction at the Submitted stage or greater.",
+                    "type": "string",
+                    "example": "0x28b4662f1e1b15083261a4a5077664f4003d58cb528826b7aab7fad466c28e70"
+                },
+                "status": {
+                    "description": "Status is the state of the transaction performing this operation. There are only four options.",
+                    "type": "string",
+                    "enum": [
+                        "Unsubmitted",
+                        "Submitted",
+                        "Mined",
+                        "Confirmed"
+                    ],
+                    "example": "Mined"
+                },
+                "updatedAt": {
+                    "description": "UpdatedAt is the last time we updated the status of the transaction.",
+                    "type": "string",
+                    "example": "2022-10-01T09:22:26.337Z"
                 }
             }
         },
@@ -2332,7 +2348,8 @@
             "type": "object",
             "properties": {
                 "claim": {
-                    "$ref": "#/definitions/internal_controllers.AutoPiDeviceInfoClaim"
+                    "description": "Claim contains the status of the on-chain claiming meta-transaction.",
+                    "$ref": "#/definitions/internal_controllers.AutoPiTransactionStatus"
                 },
                 "deviceId": {
                     "type": "string"
@@ -2353,7 +2370,8 @@
                     "type": "string"
                 },
                 "pair": {
-                    "$ref": "#/definitions/internal_controllers.AutoPiDeviceInfoClaim"
+                    "description": "Pair contains the status of the on-chain pairing meta-transaction.",
+                    "$ref": "#/definitions/internal_controllers.AutoPiTransactionStatus"
                 },
                 "releaseVersion": {
                     "type": "string"
@@ -2369,28 +2387,42 @@
                 }
             }
         },
-        "internal_controllers.AutoPiDeviceInfoClaim": {
-            "type": "object",
-            "properties": {
-                "createdAt": {
-                    "type": "string"
-                },
-                "hash": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "updatedAt": {
-                    "type": "string"
-                }
-            }
-        },
         "internal_controllers.AutoPiPairRequest": {
             "type": "object",
             "properties": {
                 "signature": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_controllers.AutoPiTransactionStatus": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "description": "CreatedAt is the timestamp of the creation of the meta-transaction.",
+                    "type": "string",
+                    "example": "2022-10-01T09:22:21.002Z"
+                },
+                "hash": {
+                    "description": "Hash is the hexidecimal transaction hash, available for any transaction at the Submitted stage or greater.",
+                    "type": "string",
+                    "example": "0x28b4662f1e1b15083261a4a5077664f4003d58cb528826b7aab7fad466c28e70"
+                },
+                "status": {
+                    "description": "Status is the state of the transaction performing this operation. There are only four options.",
+                    "type": "string",
+                    "enum": [
+                        "Unsubmitted",
+                        "Submitted",
+                        "Mined",
+                        "Confirmed"
+                    ],
+                    "example": "Mined"
+                },
+                "updatedAt": {
+                    "description": "UpdatedAt is the last time we updated the status of the transaction.",
+                    "type": "string",
+                    "example": "2022-10-01T09:22:26.337Z"
                 }
             }
         },

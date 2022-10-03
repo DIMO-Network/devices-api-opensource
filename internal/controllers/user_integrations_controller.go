@@ -539,8 +539,8 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 		svc = 0
 	}
 
-	var claim *AutoPiDeviceInfoClaim
-	var pair *AutoPiDeviceInfoClaim
+	var claim *AutoPiTransactionStatus
+	var pair *AutoPiTransactionStatus
 
 	dbUnit, err := models.AutopiUnits(
 		models.AutopiUnitWhere.AutopiUnitID.EQ(unitID),
@@ -552,7 +552,7 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 		}
 	} else {
 		if req := dbUnit.R.ClaimMetaTransactionRequest; req != nil {
-			claim = &AutoPiDeviceInfoClaim{
+			claim = &AutoPiTransactionStatus{
 				Status:    req.Status,
 				CreatedAt: req.CreatedAt,
 				UpdatedAt: req.UpdatedAt,
@@ -573,7 +573,7 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 				return err
 			}
 		} else if req := udai.R.PairMetaTransactionRequest; req != nil {
-			pair = &AutoPiDeviceInfoClaim{
+			pair = &AutoPiTransactionStatus{
 				Status:    req.Status,
 				CreatedAt: req.CreatedAt,
 				UpdatedAt: req.UpdatedAt,
@@ -2067,22 +2067,29 @@ type AutoPiCommandRequest struct {
 
 // AutoPiDeviceInfo is used to get the info about a unit
 type AutoPiDeviceInfo struct {
-	IsUpdated         bool                   `json:"isUpdated"`
-	DeviceID          string                 `json:"deviceId"`
-	UnitID            string                 `json:"unitId"`
-	DockerReleases    []int                  `json:"dockerReleases"`
-	HwRevision        string                 `json:"hwRevision"`
-	Template          int                    `json:"template"`
-	LastCommunication time.Time              `json:"lastCommunication"`
-	ReleaseVersion    string                 `json:"releaseVersion"`
-	ShouldUpdate      bool                   `json:"shouldUpdate"`
-	Claim             *AutoPiDeviceInfoClaim `json:"claim,omitempty"`
-	Pair              *AutoPiDeviceInfoClaim `json:"pair,omitempty"`
+	IsUpdated         bool      `json:"isUpdated"`
+	DeviceID          string    `json:"deviceId"`
+	UnitID            string    `json:"unitId"`
+	DockerReleases    []int     `json:"dockerReleases"`
+	HwRevision        string    `json:"hwRevision"`
+	Template          int       `json:"template"`
+	LastCommunication time.Time `json:"lastCommunication"`
+	ReleaseVersion    string    `json:"releaseVersion"`
+	ShouldUpdate      bool      `json:"shouldUpdate"`
+	// Claim contains the status of the on-chain claiming meta-transaction.
+	Claim *AutoPiTransactionStatus `json:"claim,omitempty"`
+	// Pair contains the status of the on-chain pairing meta-transaction.
+	Pair *AutoPiTransactionStatus `json:"pair,omitempty"`
 }
 
-type AutoPiDeviceInfoClaim struct {
-	Status    string    `json:"status"`
-	Hash      *string   `json:"hash,omitempty"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+// AutoPiTransactionStatus summarizes the state of an on-chain AutoPi operation.
+type AutoPiTransactionStatus struct {
+	// Status is the state of the transaction performing this operation. There are only four options.
+	Status string `json:"status" enums:"Unsubmitted,Submitted,Mined,Confirmed" example:"Mined"`
+	// Hash is the hexidecimal transaction hash, available for any transaction at the Submitted stage or greater.
+	Hash *string `json:"hash,omitempty" example:"0x28b4662f1e1b15083261a4a5077664f4003d58cb528826b7aab7fad466c28e70"`
+	// CreatedAt is the timestamp of the creation of the meta-transaction.
+	CreatedAt time.Time `json:"createdAt" example:"2022-10-01T09:22:21.002Z"`
+	// UpdatedAt is the last time we updated the status of the transaction.
+	UpdatedAt time.Time `json:"updatedAt" example:"2022-10-01T09:22:26.337Z"`
 }

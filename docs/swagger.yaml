@@ -59,7 +59,8 @@ definitions:
   github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo:
     properties:
       claim:
-        $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfoClaim'
+        $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiTransactionStatus'
+        description: Claim contains the status of the on-chain claiming meta-transaction.
       deviceId:
         type: string
       dockerReleases:
@@ -73,7 +74,8 @@ definitions:
       lastCommunication:
         type: string
       pair:
-        $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfoClaim'
+        $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiTransactionStatus'
+        description: Pair contains the status of the on-chain pairing meta-transaction.
       releaseVersion:
         type: string
       shouldUpdate:
@@ -83,20 +85,35 @@ definitions:
       unitId:
         type: string
     type: object
-  github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfoClaim:
-    properties:
-      createdAt:
-        type: string
-      hash:
-        type: string
-      status:
-        type: string
-      updatedAt:
-        type: string
-    type: object
   github.com_DIMO-Network_devices-api_internal_controllers.AutoPiPairRequest:
     properties:
       signature:
+        type: string
+    type: object
+  github.com_DIMO-Network_devices-api_internal_controllers.AutoPiTransactionStatus:
+    properties:
+      createdAt:
+        description: CreatedAt is the timestamp of the creation of the meta-transaction.
+        example: "2022-10-01T09:22:21.002Z"
+        type: string
+      hash:
+        description: Hash is the hexidecimal transaction hash, available for any transaction
+          at the Submitted stage or greater.
+        example: 0x28b4662f1e1b15083261a4a5077664f4003d58cb528826b7aab7fad466c28e70
+        type: string
+      status:
+        description: Status is the state of the transaction performing this operation.
+          There are only four options.
+        enum:
+        - Unsubmitted
+        - Submitted
+        - Mined
+        - Confirmed
+        example: Mined
+        type: string
+      updatedAt:
+        description: UpdatedAt is the last time we updated the status of the transaction.
+        example: "2022-10-01T09:22:26.337Z"
         type: string
     type: object
   github.com_DIMO-Network_devices-api_internal_controllers.CommandRequestStatusResp:
@@ -549,7 +566,8 @@ definitions:
   internal_controllers.AutoPiDeviceInfo:
     properties:
       claim:
-        $ref: '#/definitions/internal_controllers.AutoPiDeviceInfoClaim'
+        $ref: '#/definitions/internal_controllers.AutoPiTransactionStatus'
+        description: Claim contains the status of the on-chain claiming meta-transaction.
       deviceId:
         type: string
       dockerReleases:
@@ -563,7 +581,8 @@ definitions:
       lastCommunication:
         type: string
       pair:
-        $ref: '#/definitions/internal_controllers.AutoPiDeviceInfoClaim'
+        $ref: '#/definitions/internal_controllers.AutoPiTransactionStatus'
+        description: Pair contains the status of the on-chain pairing meta-transaction.
       releaseVersion:
         type: string
       shouldUpdate:
@@ -573,20 +592,35 @@ definitions:
       unitId:
         type: string
     type: object
-  internal_controllers.AutoPiDeviceInfoClaim:
-    properties:
-      createdAt:
-        type: string
-      hash:
-        type: string
-      status:
-        type: string
-      updatedAt:
-        type: string
-    type: object
   internal_controllers.AutoPiPairRequest:
     properties:
       signature:
+        type: string
+    type: object
+  internal_controllers.AutoPiTransactionStatus:
+    properties:
+      createdAt:
+        description: CreatedAt is the timestamp of the creation of the meta-transaction.
+        example: "2022-10-01T09:22:21.002Z"
+        type: string
+      hash:
+        description: Hash is the hexidecimal transaction hash, available for any transaction
+          at the Submitted stage or greater.
+        example: 0x28b4662f1e1b15083261a4a5077664f4003d58cb528826b7aab7fad466c28e70
+        type: string
+      status:
+        description: Status is the state of the transaction performing this operation.
+          There are only four options.
+        enum:
+        - Unsubmitted
+        - Submitted
+        - Mined
+        - Confirmed
+        example: Mined
+        type: string
+      updatedAt:
+        description: UpdatedAt is the last time we updated the status of the transaction.
+        example: "2022-10-01T09:22:26.337Z"
         type: string
     type: object
   internal_controllers.CommandRequestStatusResp:
@@ -1250,7 +1284,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.AutoPiDeviceInfo'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo'
       security:
       - BearerAuth: []
       tags:
@@ -1286,7 +1320,7 @@ paths:
         name: claimRequest
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.AutoPiClaimRequest'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiClaimRequest'
       produces:
       - application/json
       responses:
@@ -1564,7 +1598,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.NFTMetadataResp'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp'
         "404":
           description: Not Found
       tags:
@@ -1606,7 +1640,7 @@ paths:
         name: AutoPiCommandRequest
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.AutoPiCommandRequest'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest'
       responses:
         "200":
           description: OK
@@ -1666,7 +1700,7 @@ paths:
         name: userSignature
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.AutoPiPairRequest'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiPairRequest'
       produces:
       - application/json
       responses: {}
@@ -1683,7 +1717,7 @@ paths:
         name: userDeviceIntegrationRegistration
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.RegisterDeviceIntegrationRequest'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest'
       responses:
         "204":
           description: No Content
@@ -1822,7 +1856,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.GetUserDeviceIntegrationResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse'
       security:
       - BearerAuth: []
       tags:
@@ -1853,7 +1887,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.CommandRequestStatusResp'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandRequestStatusResp'
       summary: Get the status of a submitted command.
       tags:
       - device
@@ -1880,7 +1914,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.CommandResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse'
       summary: Lock the device's doors
       tags:
       - device
@@ -1907,7 +1941,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.CommandResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse'
       summary: Unlock the device's doors
       tags:
       - device
@@ -1935,7 +1969,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.CommandResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse'
       summary: Open the device's front trunk
       tags:
       - device
@@ -1963,7 +1997,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.CommandResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse'
       summary: Open the device's rear trunk
       tags:
       - device
