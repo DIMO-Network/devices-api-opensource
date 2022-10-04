@@ -49,7 +49,7 @@ func NewDeviceStatusIngestService(db func() *database.DBReaderWriter, log *zerol
 func (i *DeviceStatusIngestService) ProcessDeviceStatusMessages(messages <-chan *message.Message) {
 	for msg := range messages {
 		if err := i.processMessage(msg); err != nil {
-			i.log.Err(err).Msg("Error processing device status message.")
+			i.log.Err(err).Str("statusUpdateMsg", string(msg.Payload)).Msg("Error processing device status message.")
 		}
 	}
 }
