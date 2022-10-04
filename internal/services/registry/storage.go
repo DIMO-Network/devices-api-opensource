@@ -59,7 +59,7 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 		for _, l1 := range data.Transaction.Logs {
 			l2 := convertLog(&l1)
 			if l2.Topics[0] == nodeMintedEvent.ID {
-				out := new(AbiNodeMinted)
+				out := new(RegistryNodeMinted)
 				err := s.parseLog(out, nodeMintedEvent, *l2)
 				if err != nil {
 					return err
@@ -119,7 +119,7 @@ func convertLog(logIn *ceLog) *eth_types.Log {
 }
 
 func NewStorage(db func() *database.DBReaderWriter, logger *zerolog.Logger) (Storage, error) {
-	abi, err := AbiMetaData.GetAbi()
+	abi, err := RegistryMetaData.GetAbi()
 	if err != nil {
 		return nil, err
 	}

@@ -9,7 +9,7 @@ import (
 )
 
 func TestParseVehicleMinted(t *testing.T) {
-	abix, err := AbiMetaData.GetAbi()
+	abix, err := RegistryMetaData.GetAbi()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +26,7 @@ func TestParseVehicleMinted(t *testing.T) {
 	nodeMintedEvent := abix.Events["NodeMinted"]
 
 	l2 := convertLog(&l1)
-	out := new(AbiNodeMinted)
+	out := new(RegistryNodeMinted)
 	if len(l2.Data) > 0 {
 		if err := abix.UnpackIntoInterface(out, nodeMintedEvent.Name, l2.Data); err != nil {
 			t.Fatal(err)

@@ -18,6 +18,7 @@ import (
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
 	pb "github.com/DIMO-Network/shared/api/users"
+	"github.com/Shopify/sarama"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	signer "github.com/ethereum/go-ethereum/signer/core/apitypes"
@@ -1842,6 +1843,66 @@ func (udc *UserDevicesController) AdminVehicleDeviceLink(c *fiber.Ctx) error {
 	}
 
 	return newUDAI.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
+}
+
+type web3UnpairDevice struct {
+	AftermarketDeviceNode *big.Int `json:"aftermarketDeviceNode"`
+}
+
+func (udc *UserDevicesController) AdminDeviceWeb3Unpair(c *fiber.Ctx) error {
+	wud := web3UnpairDevice{}
+	err := c.BodyParser(&wud)
+	if err != nil {
+		return err
+	}
+
+	type requestData struct {
+		ID   string `json:"id"`
+		To   string `json:"to"`
+		Data string `json:"data"`
+	}
+
+	reqID := ksuid.New().String()
+
+	abi, err := registry.RegistryMetaData.GetAbi()
+	if err != nil {
+		return err
+	}
+
+	data, err := abi.Pack("unpairAftermarketDeviceByDeviceNode", []*big.Int{wud.AftermarketDeviceNode})
+	if err != nil {
+		return err
+	}
+
+	addr := common.HexToAddress("0x72b7268bD15EC670BfdA1445bD380C9400F4b1A6")
+	event := shared.CloudEvent[requestData]{
+		ID:          ksuid.New().String(),
+		Source:      "devices-api",
+		SpecVersion: "1.0",
+		Subject:     reqID,
+		Time:        time.Now(),
+		Type:        "zone.dimo.transaction.request",
+		Data: requestData{
+			ID:   reqID,
+			To:   hexutil.Encode(addr[:]),
+			Data: hexutil.Encode(data),
+		},
+	}
+
+	eventBytes, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+
+	_, _, err = udc.producer.SendMessage(
+		&sarama.ProducerMessage{
+			Topic: "topic.transaction.request.send",
+			Key:   sarama.StringEncoder(reqID),
+			Value: sarama.ByteEncoder(eventBytes),
+		},
+	)
+
+	return err
 }
 
 func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, userDeviceID string, integ *ddgrpc.Integration, ud *models.UserDevice) error {
