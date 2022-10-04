@@ -82,10 +82,10 @@ func (mr *MockDeviceDefinitionServiceMockRecorder) GetDeviceDefinitionsByIDs(ctx
 }
 
 // GetIntegrationByID mocks base method.
-func (m *MockDeviceDefinitionService) GetIntegrationByID(ctx context.Context, id string) (*grpc.GetIntegrationItemResponse, error) {
+func (m *MockDeviceDefinitionService) GetIntegrationByID(ctx context.Context, id string) (*grpc.Integration, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetIntegrationByID", ctx, id)
-	ret0, _ := ret[0].(*grpc.GetIntegrationItemResponse)
+	ret0, _ := ret[0].(*grpc.Integration)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -97,10 +97,10 @@ func (mr *MockDeviceDefinitionServiceMockRecorder) GetIntegrationByID(ctx, id in
 }
 
 // GetIntegrations mocks base method.
-func (m *MockDeviceDefinitionService) GetIntegrations(ctx context.Context) ([]*grpc.GetIntegrationItemResponse, error) {
+func (m *MockDeviceDefinitionService) GetIntegrations(ctx context.Context) ([]*grpc.Integration, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetIntegrations", ctx)
-	ret0, _ := ret[0].([]*grpc.GetIntegrationItemResponse)
+	ret0, _ := ret[0].([]*grpc.Integration)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

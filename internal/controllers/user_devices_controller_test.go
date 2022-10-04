@@ -165,7 +165,7 @@ func (s *UserDevicesControllerTestSuite) TestPostWithoutDefinitionID_BadRequest(
 	}
 	j, _ := json.Marshal(reg)
 	request := test.BuildRequest("POST", "/user/devices", string(j))
-	response, err := s.app.Test(request)
+	response, err := s.app.Test(request, 10*1000)
 	require.NoError(s.T(), err)
 	// assert
 	require.Equal(s.T(), fiber.StatusBadRequest, response.StatusCode)
@@ -196,7 +196,7 @@ func (s *UserDevicesControllerTestSuite) TestPostInvalidDefinitionID() {
 	}
 	j, _ := json.Marshal(reg)
 
-	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{ddID}).Times(1).Return(test.BuildDeviceDefinitionGRPC(ddID, "Tesla", "Tesla", ""), nil) // todo move to each test where used
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{ddID}).Times(1).Return(test.BuildDeviceDefinitionGRPC(ddID, "Tesla", "Tesla", nil), nil) // todo move to each test where used
 
 	request := test.BuildRequest("POST", "/user/devices", string(j))
 	response, _ := s.app.Test(request)
@@ -220,7 +220,7 @@ func (s *UserDevicesControllerTestSuite) TestGetMyUserDevices() {
 	_ = test.SetupCreateAutoPiUnit(s.T(), testUserID, unitID, func(s string) *string { return &s }(deviceID), s.pdb)
 	_ = test.SetupCreateUserDeviceAPIIntegration(s.T(), unitID, deviceID, ud.ID, integ.ID, s.pdb)
 
-	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dd.ID}).Times(1).Return(test.BuildDeviceDefinitionGRPC(dd.ID, "Ford", "Ford", ""), nil) // todo move to each test where used
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dd.ID}).Times(1).Return(test.BuildDeviceDefinitionGRPC(dd.ID, "Ford", "Ford", nil), nil) // todo move to each test where used
 
 	request := test.BuildRequest("GET", "/user/devices/me", "")
 	response, _ := s.app.Test(request)
@@ -262,7 +262,7 @@ func (s *UserDevicesControllerTestSuite) TestPatchVIN() {
 		fmt.Println("message: " + string(body))
 	}
 
-	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dd.ID}).Times(1).Return(test.BuildDeviceDefinitionGRPC(dd.ID, "Ford", "Ford", ""), nil) // todo move to each test where used
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dd.ID}).Times(1).Return(test.BuildDeviceDefinitionGRPC(dd.ID, "Ford", "Ford", nil), nil) // todo move to each test where used
 
 	request = test.BuildRequest("GET", "/user/devices/me", "")
 	response, responseError = s.app.Test(request)
@@ -457,7 +457,7 @@ func (s *UserDevicesControllerTestSuite) TestGetDeviceRange() {
 				MPGHighway:          38.0,
 				FuelTankCapacityGal: 14.5,
 			},
-			Make: &grpc.GetDeviceDefinitionItemResponse_Make{
+			Make: &grpc.DeviceMake{
 				Name: "Ford",
 			},
 			Name:               "F-150",

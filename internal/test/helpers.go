@@ -355,43 +355,72 @@ func SetupCreateExternalVINData(t *testing.T, dd *models.DeviceDefinition, ud *m
 	return &evd
 }
 
-func BuildDeviceDefinitionGRPC(deviceDefinitionID string, make string, model string, integrationVendor string) []*ddgrpc.GetDeviceDefinitionItemResponse {
-	var integrationToAdd *ddgrpc.GetDeviceDefinitionItemResponse_CompatibleIntegrations
+func BuildIntegrationGRPC(integrationVendor string, autoPiDefaultTemplateID int, bevTemplateID int) *ddgrpc.Integration {
+	var integration *ddgrpc.Integration
 	switch integrationVendor {
 	case constants.AutoPiVendor:
-		integrationToAdd = &ddgrpc.GetDeviceDefinitionItemResponse_CompatibleIntegrations{
-			Id:     ksuid.New().String(),
-			Type:   "Hardware",
-			Style:  models.IntegrationStyleAddon,
-			Vendor: constants.AutoPiVendor,
-			Region: constants.AmericasRegion.String(),
+		integration = &ddgrpc.Integration{
+			Id:                      ksuid.New().String(),
+			Type:                    constants.IntegrationTypeHardware,
+			Style:                   constants.IntegrationStyleAddon,
+			Vendor:                  constants.AutoPiVendor,
+			AutoPiDefaultTemplateId: int32(autoPiDefaultTemplateID),
+			AutoPiPowertrainTemplate: &ddgrpc.Integration_AutoPiPowertrainTemplate{
+				BEV:  int32(bevTemplateID),
+				HEV:  10,
+				ICE:  10,
+				PHEV: 4,
+			},
 		}
 	case constants.SmartCarVendor:
-		integrationToAdd = &ddgrpc.GetDeviceDefinitionItemResponse_CompatibleIntegrations{
+		integration = &ddgrpc.Integration{
 			Id:     ksuid.New().String(),
-			Type:   models.IntegrationTypeAPI,
-			Style:  models.IntegrationStyleWebhook,
+			Type:   constants.IntegrationTypeAPI,
+			Style:  constants.IntegrationStyleWebhook,
 			Vendor: constants.SmartCarVendor,
-			Region: constants.AmericasRegion.String(),
 		}
 	case constants.TeslaVendor:
-		integrationToAdd = &ddgrpc.GetDeviceDefinitionItemResponse_CompatibleIntegrations{
+		integration = &ddgrpc.Integration{
 			Id:     ksuid.New().String(),
-			Type:   models.IntegrationTypeAPI,
-			Style:  models.IntegrationStyleOEM,
+			Type:   constants.IntegrationTypeAPI,
+			Style:  constants.IntegrationStyleOEM,
 			Vendor: constants.TeslaVendor,
-			Region: constants.AmericasRegion.String(),
+		}
+	}
+	return integration
+}
+
+// BuildDeviceDefinitionGRPC generates an array with single device definition, adds integration to response if integration passed in not nil
+func BuildDeviceDefinitionGRPC(deviceDefinitionID string, make string, model string, integration *ddgrpc.Integration) []*ddgrpc.GetDeviceDefinitionItemResponse {
+	var integrationToAdd *ddgrpc.DeviceIntegration
+	if integration != nil {
+		switch integration.Vendor {
+		case constants.AutoPiVendor:
+			integrationToAdd = &ddgrpc.DeviceIntegration{
+				Integration: integration,
+				Region:      constants.AmericasRegion.String(),
+			}
+		case constants.SmartCarVendor:
+			integrationToAdd = &ddgrpc.DeviceIntegration{
+				Integration: integration,
+				Region:      constants.AmericasRegion.String(),
+			}
+		case constants.TeslaVendor:
+			integrationToAdd = &ddgrpc.DeviceIntegration{
+				Integration: integration,
+				Region:      constants.AmericasRegion.String(),
+			}
 		}
 	}
 
 	rp := &ddgrpc.GetDeviceDefinitionItemResponse{
 		DeviceDefinitionId: deviceDefinitionID,
 		Name:               "Name",
-		Make: &ddgrpc.GetDeviceDefinitionItemResponse_Make{
+		Make: &ddgrpc.DeviceMake{
 			Id:   ksuid.New().String(),
 			Name: make,
 		},
-		Type: &ddgrpc.GetDeviceDefinitionItemResponse_Type{
+		Type: &ddgrpc.DeviceType{
 			Type:  "Vehicle",
 			Make:  make,
 			Model: model,
@@ -413,22 +442,21 @@ func BuildDeviceDefinitionGRPC(deviceDefinitionID string, make string, model str
 		Verified: true,
 	}
 	if integrationToAdd != nil {
-		rp.CompatibleIntegrations = []*ddgrpc.GetDeviceDefinitionItemResponse_CompatibleIntegrations{integrationToAdd}
+		rp.DeviceIntegrations = []*ddgrpc.DeviceIntegration{integrationToAdd}
 	}
 
 	return []*ddgrpc.GetDeviceDefinitionItemResponse{rp}
 }
-
 func BuildDeviceDefinitionWithIntegrationGRPC(deviceDefinitionID string, make string, model string, modelType string, integrationID string) []*ddgrpc.GetDeviceDefinitionItemResponse {
 	rp := &ddgrpc.GetDeviceDefinitionItemResponse{
-		DeviceDefinitionId:     deviceDefinitionID,
-		Name:                   "Name",
-		CompatibleIntegrations: []*ddgrpc.GetDeviceDefinitionItemResponse_CompatibleIntegrations{},
-		Make: &ddgrpc.GetDeviceDefinitionItemResponse_Make{
+		DeviceDefinitionId: deviceDefinitionID,
+		Name:               "Name",
+		DeviceIntegrations: []*ddgrpc.DeviceIntegration{},
+		Make: &ddgrpc.DeviceMake{
 			Id:   ksuid.New().String(),
 			Name: make,
 		},
-		Type: &ddgrpc.GetDeviceDefinitionItemResponse_Type{
+		Type: &ddgrpc.DeviceType{
 			Type:  modelType,
 			Make:  make,
 			Model: model,
@@ -450,11 +478,13 @@ func BuildDeviceDefinitionWithIntegrationGRPC(deviceDefinitionID string, make st
 		Verified: true,
 	}
 
-	rp.CompatibleIntegrations = append(rp.CompatibleIntegrations, &ddgrpc.GetDeviceDefinitionItemResponse_CompatibleIntegrations{
-		Id:     integrationID,
-		Type:   models.IntegrationTypeAPI,
-		Style:  models.IntegrationStyleWebhook,
-		Vendor: "SmartCar",
+	rp.DeviceIntegrations = append(rp.DeviceIntegrations, &ddgrpc.DeviceIntegration{
+		Integration: &ddgrpc.Integration{
+			Id:     integrationID,
+			Type:   models.IntegrationTypeAPI,
+			Style:  models.IntegrationStyleWebhook,
+			Vendor: "SmartCar",
+		},
 	})
 
 	result := []*ddgrpc.GetDeviceDefinitionItemResponse{rp}
@@ -462,14 +492,14 @@ func BuildDeviceDefinitionWithIntegrationGRPC(deviceDefinitionID string, make st
 	return result
 }
 
-func BuildAutoPiIntegrationGrpc(integrationID string, defaultTemplateID, bevTemplateID int32) *ddgrpc.GetIntegrationItemResponse {
-	autoPiIntegration := &ddgrpc.GetIntegrationItemResponse{
+func BuildAutoPiIntegrationGrpc(integrationID string, defaultTemplateID, bevTemplateID int32) *ddgrpc.Integration {
+	autoPiIntegration := &ddgrpc.Integration{
 		Id:                      integrationID,
 		Type:                    "Hardware",
 		Style:                   "Addon",
 		Vendor:                  constants.AutoPiVendor,
 		AutoPiDefaultTemplateId: defaultTemplateID,
-		AutoPiPowertrainTemplate: &ddgrpc.GetIntegrationItemResponse_GetAutoPiPowertrainTemplate{
+		AutoPiPowertrainTemplate: &ddgrpc.Integration_AutoPiPowertrainTemplate{
 			BEV:  bevTemplateID,
 			HEV:  10,
 			ICE:  10,

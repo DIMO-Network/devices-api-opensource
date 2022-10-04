@@ -216,7 +216,7 @@ func NewDeviceDefinitionFromGRPC(dd *grpc.GetDeviceDefinitionItemResponse) (serv
 	//rp.VehicleInfo = vi[vehicleInfoJSONNode]
 
 	// compatible integrations
-	rp.CompatibleIntegrations = DeviceCompatibilityFromDB(dd.CompatibleIntegrations)
+	rp.CompatibleIntegrations = DeviceCompatibilityFromDB(dd.DeviceIntegrations)
 	// sub_models
 	rp.Type.SubModels = dd.Type.SubModels
 
@@ -229,17 +229,17 @@ type DeviceRp struct {
 }
 
 // DeviceCompatibilityFromDB returns list of compatibility representation from device integrations db slice, assumes integration relation loaded
-func DeviceCompatibilityFromDB(dbDIS []*grpc.GetDeviceDefinitionItemResponse_CompatibleIntegrations) []services.DeviceCompatibility {
+func DeviceCompatibilityFromDB(dbDIS []*grpc.DeviceIntegration) []services.DeviceCompatibility {
 	if len(dbDIS) == 0 {
 		return []services.DeviceCompatibility{}
 	}
 	compatibilities := make([]services.DeviceCompatibility, len(dbDIS))
 	for i, di := range dbDIS {
 		compatibilities[i] = services.DeviceCompatibility{
-			ID:     di.Id,
-			Type:   di.Type,
-			Style:  di.Style,
-			Vendor: di.Vendor,
+			ID:     di.Integration.Id,
+			Type:   di.Integration.Type,
+			Style:  di.Integration.Style,
+			Vendor: di.Integration.Vendor,
 			Region: di.Region,
 			//Capabilities: di.Capabilities,
 		}

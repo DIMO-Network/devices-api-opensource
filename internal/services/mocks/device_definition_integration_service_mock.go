@@ -54,10 +54,10 @@ func (mr *MockDeviceDefinitionIntegrationServiceMockRecorder) AppendAutoPiCompat
 }
 
 // CreateDeviceDefinitionIntegration mocks base method.
-func (m *MockDeviceDefinitionIntegrationService) CreateDeviceDefinitionIntegration(ctx context.Context, integrationID, deviceDefinitionID, region string) (*grpc.GetIntegrationItemResponse, error) {
+func (m *MockDeviceDefinitionIntegrationService) CreateDeviceDefinitionIntegration(ctx context.Context, integrationID, deviceDefinitionID, region string) (*grpc.Integration, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateDeviceDefinitionIntegration", ctx, integrationID, deviceDefinitionID, region)
-	ret0, _ := ret[0].(*grpc.GetIntegrationItemResponse)
+	ret0, _ := ret[0].(*grpc.Integration)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -85,10 +85,10 @@ func (mr *MockDeviceDefinitionIntegrationServiceMockRecorder) FindUserDeviceAuto
 }
 
 // GetAutoPiIntegration mocks base method.
-func (m *MockDeviceDefinitionIntegrationService) GetAutoPiIntegration(ctx context.Context) (*grpc.GetIntegrationItemResponse, error) {
+func (m *MockDeviceDefinitionIntegrationService) GetAutoPiIntegration(ctx context.Context) (*grpc.Integration, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAutoPiIntegration", ctx)
-	ret0, _ := ret[0].(*grpc.GetIntegrationItemResponse)
+	ret0, _ := ret[0].(*grpc.Integration)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -100,10 +100,10 @@ func (mr *MockDeviceDefinitionIntegrationServiceMockRecorder) GetAutoPiIntegrati
 }
 
 // GetDeviceDefinitionIntegration mocks base method.
-func (m *MockDeviceDefinitionIntegrationService) GetDeviceDefinitionIntegration(ctx context.Context, deviceDefinitionID string) ([]*grpc.GetDeviceDefinitionIntegrationItemResponse, error) {
+func (m *MockDeviceDefinitionIntegrationService) GetDeviceDefinitionIntegration(ctx context.Context, deviceDefinitionID string) ([]*grpc.DeviceIntegration, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDeviceDefinitionIntegration", ctx, deviceDefinitionID)
-	ret0, _ := ret[0].([]*grpc.GetDeviceDefinitionIntegrationItemResponse)
+	ret0, _ := ret[0].([]*grpc.DeviceIntegration)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

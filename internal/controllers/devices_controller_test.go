@@ -84,7 +84,7 @@ func TestDevicesControllerTestSuite(t *testing.T) {
 
 func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionById() {
 
-	ddGRPC := test.BuildDeviceDefinitionGRPC(s.deviceDefID, "Ford", "Ford", "")
+	ddGRPC := test.BuildDeviceDefinitionGRPC(s.deviceDefID, "Ford", "Ford", nil)
 
 	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{s.deviceDefID}).Times(1).Return(ddGRPC, nil) // todo move to each test where used
 
@@ -127,7 +127,8 @@ func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionById() {
 
 func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionDoesNotAddAutoPiForOldCars() {
 	dbDdOldCar := test.SetupCreateDeviceDefinition(s.T(), s.dbMake, "Oldie", 1999, s.pdb)
-	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dbDdOldCar.ID}).Times(1).Return(test.BuildDeviceDefinitionGRPC(dbDdOldCar.ID, "Tesla", "Tesla", ""), nil) // todo move to each test where used
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dbDdOldCar.ID}).Times(1).
+		Return(test.BuildDeviceDefinitionGRPC(dbDdOldCar.ID, "Tesla", "Tesla", nil), nil) // todo move to each test where used
 
 	request, _ := http.NewRequest("GET", "/device-definitions/"+dbDdOldCar.ID, nil)
 	response, _ := s.app.Test(request)
@@ -145,7 +146,8 @@ func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionDoesNotAddAutoPiForO
 func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionDoesNotAddAutoPiForTesla() {
 	tesla := test.SetupCreateMake(s.T(), "Tesla", s.pdb)
 	teslaCar := test.SetupCreateDeviceDefinition(s.T(), tesla, "Cyber Truck never", 2022, s.pdb)
-	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{teslaCar.ID}).Times(1).Return(test.BuildDeviceDefinitionGRPC(tesla.ID, "Tesla", "Tesla", ""), nil) // todo move to each test where used
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{teslaCar.ID}).Times(1).
+		Return(test.BuildDeviceDefinitionGRPC(tesla.ID, "Tesla", "Tesla", nil), nil) // todo move to each test where used
 
 	request, _ := http.NewRequest("GET", "/device-definitions/"+teslaCar.ID, nil)
 	response, _ := s.app.Test(request)
@@ -210,7 +212,7 @@ func TestNewDeviceDefinitionFromGrpc(t *testing.T) {
 	subModels := []string{"AMG"}
 	dbDevice := &grpc.GetDeviceDefinitionItemResponse{
 		DeviceDefinitionId: "123",
-		Type: &grpc.GetDeviceDefinitionItemResponse_Type{
+		Type: &grpc.DeviceType{
 			Type:      "Vehicle",
 			Model:     "R500",
 			Year:      2020,
@@ -222,15 +224,15 @@ func TestNewDeviceDefinitionFromGrpc(t *testing.T) {
 			DrivenWheels:  "4",
 			NumberOfDoors: 5,
 		},
-		Make: &grpc.GetDeviceDefinitionItemResponse_Make{
+		Make: &grpc.DeviceMake{
 			Id:   "1",
 			Name: "Mercedes",
 		},
-		DeviceIntegrations: append([]*grpc.GetDeviceDefinitionItemResponse_DeviceIntegrations{}, &grpc.GetDeviceDefinitionItemResponse_DeviceIntegrations{
-			Id: "123",
-		}),
-		CompatibleIntegrations: append([]*grpc.GetDeviceDefinitionItemResponse_CompatibleIntegrations{}, &grpc.GetDeviceDefinitionItemResponse_CompatibleIntegrations{
-			Vendor: "Autopi",
+		DeviceIntegrations: append([]*grpc.DeviceIntegration{}, &grpc.DeviceIntegration{
+			Integration: &grpc.Integration{
+				Id:     "123",
+				Vendor: "Autopi",
+			},
 		}),
 		//Metadata:     null.JSONFrom([]byte(`{"vehicle_info": {"fuel_type": "gas", "driven_wheels": "4", "number_of_doors":"5" } }`)),
 	}

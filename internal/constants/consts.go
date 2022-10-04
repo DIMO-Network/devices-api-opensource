@@ -10,6 +10,17 @@ const (
 	AutoPiWebhookPath = "/webhooks/autopi-command"
 )
 
+const (
+	IntegrationStyleAddon   string = "Addon"
+	IntegrationStyleOEM     string = "OEM"
+	IntegrationStyleWebhook string = "Webhook"
+)
+
+const (
+	IntegrationTypeHardware string = "Hardware"
+	IntegrationTypeAPI      string = "API"
+)
+
 // AutoPiSubStatusEnum integration sub-status
 type AutoPiSubStatusEnum string
 

@@ -1293,14 +1293,14 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 	logger.Info().Msgf("get device definition id result during registration %+v", dd)
 
 	// filter out the desired integration from the compatible ones
-	var deviceInteg *ddgrpc.GetIntegrationItemResponse
-	for _, integration := range dd.CompatibleIntegrations {
-		if integration.Id == integrationID {
-			deviceInteg = &ddgrpc.GetIntegrationItemResponse{
-				Id:     integration.Id,
-				Type:   integration.Type,
-				Style:  integration.Style,
-				Vendor: integration.Vendor,
+	var deviceInteg *ddgrpc.Integration
+	for _, integration := range dd.DeviceIntegrations {
+		if integration.Integration.Id == integrationID {
+			deviceInteg = &ddgrpc.Integration{
+				Id:     integration.Integration.Id,
+				Type:   integration.Integration.Type,
+				Style:  integration.Integration.Style,
+				Vendor: integration.Integration.Vendor,
 			}
 			break
 		}
@@ -1312,7 +1312,8 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 			return api.GrpcErrorToFiber(err, "failed to get autopi integration for register process")
 		}
 		// we should error but let's check if autopi first
-		if integrationID == autoPiIntegration.Id {
+		// todo: validate with james
+		if autoPiIntegration != nil {
 			// we need to create an autopi device_integration first
 			autoPiDeviceInteg, err := udc.DeviceDefIntSvc.CreateDeviceDefinitionIntegration(c.Context(), autoPiIntegration.Id, ud.DeviceDefinitionID, countryRecord.Region)
 			if err != nil {
@@ -1360,7 +1361,7 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 
 // runPostRegistration runs tasks that should be run after a successful integration. For now, this
 // just means emitting an event to topic.event for the activity log.
-func (udc *UserDevicesController) runPostRegistration(ctx context.Context, logger *zerolog.Logger, userDeviceID, integrationID string, integ *ddgrpc.GetIntegrationItemResponse, dd *ddgrpc.GetDeviceDefinitionItemResponse) {
+func (udc *UserDevicesController) runPostRegistration(ctx context.Context, logger *zerolog.Logger, userDeviceID, integrationID string, integ *ddgrpc.Integration, dd *ddgrpc.GetDeviceDefinitionItemResponse) {
 	// Just reload the entire tree of attributes. Too many things modify this during the registration flow.
 	udai, err := models.UserDeviceAPIIntegrations(
 		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(userDeviceID),
@@ -1385,11 +1386,12 @@ func (udc *UserDevicesController) runPostRegistration(ctx context.Context, logge
 				Timestamp: time.Now(),
 				UserID:    ud.UserID,
 				Device: services.UserDeviceEventDevice{
-					ID:    userDeviceID,
-					Make:  dd.Type.Make,
-					Model: dd.Type.Model,
-					Year:  int(dd.Type.Year),
-					VIN:   ud.VinIdentifier.String,
+					ID:                 userDeviceID,
+					DeviceDefinitionID: dd.DeviceDefinitionId,
+					Make:               dd.Type.Make,
+					Model:              dd.Type.Model,
+					Year:               int(dd.Type.Year),
+					VIN:                ud.VinIdentifier.String,
 				},
 				Integration: services.UserDeviceEventIntegration{
 					ID:     integ.Id,
@@ -1636,7 +1638,7 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 
 var smartcarCallErr = fiber.NewError(fiber.StatusInternalServerError, "Error communicating with Smartcar.")
 
-func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, integ *ddgrpc.GetIntegrationItemResponse, ud *models.UserDevice) error {
+func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, integ *ddgrpc.Integration, ud *models.UserDevice) error {
 	reqBody := new(RegisterDeviceIntegrationRequest)
 	if err := c.BodyParser(reqBody); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Couldn't parse request JSON body.")
@@ -1842,7 +1844,7 @@ func (udc *UserDevicesController) AdminVehicleDeviceLink(c *fiber.Ctx) error {
 	return newUDAI.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
 }
 
-func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, userDeviceID string, integ *ddgrpc.GetIntegrationItemResponse, ud *models.UserDevice) error {
+func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, userDeviceID string, integ *ddgrpc.Integration, ud *models.UserDevice) error {
 	reqBody := new(RegisterDeviceIntegrationRequest)
 	if err := c.BodyParser(reqBody); err != nil {
 		return api.ErrorResponseHandler(c, err, fiber.StatusBadRequest)
@@ -1951,7 +1953,7 @@ func (udc *UserDevicesController) registerDeviceTesla(c *fiber.Ctx, logger *zero
 //
 // We do not attempt to create any new entries in integrations, device_definitions, or
 // device_integrations. This should all be handled elsewhere for Tesla.
-func fixTeslaDeviceDefinition(ctx context.Context, logger *zerolog.Logger, ddSvc services.DeviceDefinitionService, exec boil.ContextExecutor, integ *ddgrpc.GetIntegrationItemResponse, ud *models.UserDevice, vin string) error {
+func fixTeslaDeviceDefinition(ctx context.Context, logger *zerolog.Logger, ddSvc services.DeviceDefinitionService, exec boil.ContextExecutor, integ *ddgrpc.Integration, ud *models.UserDevice, vin string) error {
 	vinMake := "Tesla"
 	vinModel := shared.VIN(vin).TeslaModel()
 	vinYear := shared.VIN(vin).Year()
@@ -1980,7 +1982,7 @@ func fixTeslaDeviceDefinition(ctx context.Context, logger *zerolog.Logger, ddSvc
 //
 // We do not attempt to create any new entries in integrations, device_definitions, or
 // device_integrations. This seems too dangerous to me.
-func (udc *UserDevicesController) fixSmartcarDeviceYear(ctx context.Context, logger *zerolog.Logger, exec boil.ContextExecutor, integ *ddgrpc.GetIntegrationItemResponse, ud *models.UserDevice, year int) error {
+func (udc *UserDevicesController) fixSmartcarDeviceYear(ctx context.Context, logger *zerolog.Logger, exec boil.ContextExecutor, integ *ddgrpc.Integration, ud *models.UserDevice, year int) error {
 
 	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(ctx, []string{ud.DeviceDefinitionID})
 
@@ -2013,7 +2015,7 @@ func (udc *UserDevicesController) fixSmartcarDeviceYear(ctx context.Context, log
 
 		// todo: validate with james
 		//if err := ud.SetDeviceDefinition(ctx, exec, false, newDD); err != nil {
-		//	return fmt.Errorf("failed switching device definition to %s: %w", newDD.DeviceDefinitionId, err)
+		//	return fmt.Errorf("failed switching device definition to %s: %w", newDD.DeviceDefinitionID, err)
 		//}
 	}
 

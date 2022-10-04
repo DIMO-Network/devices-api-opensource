@@ -16,16 +16,17 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 //go:generate mockgen -source device_definition_integration_service.go -destination mocks/device_definition_integration_service_mock.go
 
 type DeviceDefinitionIntegrationService interface {
-	GetAutoPiIntegration(ctx context.Context) (*ddgrpc.GetIntegrationItemResponse, error)
+	GetAutoPiIntegration(ctx context.Context) (*ddgrpc.Integration, error)
 	AppendAutoPiCompatibility(ctx context.Context, dcs []DeviceCompatibility, deviceDefinitionID string) ([]DeviceCompatibility, error)
 	FindUserDeviceAutoPiIntegration(ctx context.Context, exec boil.ContextExecutor, userDeviceID, userID string) (*models.UserDeviceAPIIntegration, *UserDeviceAPIIntegrationsMetadata, error)
-	CreateDeviceDefinitionIntegration(ctx context.Context, integrationID string, deviceDefinitionID string, region string) (*ddgrpc.GetIntegrationItemResponse, error)
-	GetDeviceDefinitionIntegration(ctx context.Context, deviceDefinitionID string) ([]*ddgrpc.GetDeviceDefinitionIntegrationItemResponse, error)
+	CreateDeviceDefinitionIntegration(ctx context.Context, integrationID string, deviceDefinitionID string, region string) (*ddgrpc.Integration, error)
+	GetDeviceDefinitionIntegration(ctx context.Context, deviceDefinitionID string) ([]*ddgrpc.DeviceIntegration, error)
 }
 
 type deviceDefinitionIntegrationService struct {
@@ -41,7 +42,7 @@ func NewDeviceDefinitionIntegrationService(DBS func() *database.DBReaderWriter, 
 }
 
 // GetAutoPiIntegration calls integrations api via GRPC to get the definition. idea for testing: http://www.inanzzz.com/index.php/post/w9qr/unit-testing-golang-grpc-client-and-server-application-with-bufconn-package
-func (d *deviceDefinitionIntegrationService) GetAutoPiIntegration(ctx context.Context) (*ddgrpc.GetIntegrationItemResponse, error) {
+func (d *deviceDefinitionIntegrationService) GetAutoPiIntegration(ctx context.Context) (*ddgrpc.Integration, error) {
 	const (
 		autoPiType  = models.IntegrationTypeHardware
 		autoPiStyle = models.IntegrationStyleAddon
@@ -53,7 +54,7 @@ func (d *deviceDefinitionIntegrationService) GetAutoPiIntegration(ctx context.Co
 	}
 	defer conn.Close()
 
-	definitions, err := definitionsClient.GetIntegrations(ctx, &ddgrpc.EmptyRequest{})
+	definitions, err := definitionsClient.GetIntegrations(ctx, &emptypb.Empty{})
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +150,7 @@ func (d *deviceDefinitionIntegrationService) FindUserDeviceAutoPiIntegration(ctx
 }
 
 // CreateDeviceDefinitionIntegration calls device definitions integration api via GRPC to get the definition. idea for testing: http://www.inanzzz.com/index.php/post/w9qr/unit-testing-golang-grpc-client-and-server-application-with-bufconn-package
-func (d *deviceDefinitionIntegrationService) CreateDeviceDefinitionIntegration(ctx context.Context, integrationID string, deviceDefinitionID string, region string) (*ddgrpc.GetIntegrationItemResponse, error) {
+func (d *deviceDefinitionIntegrationService) CreateDeviceDefinitionIntegration(ctx context.Context, integrationID string, deviceDefinitionID string, region string) (*ddgrpc.Integration, error) {
 	definitionsClient, conn, err := d.getDeviceDefsIntGrpcClient()
 	if err != nil {
 		return nil, err
@@ -172,12 +173,12 @@ func (d *deviceDefinitionIntegrationService) CreateDeviceDefinitionIntegration(c
 	}
 
 	for _, item := range deviceIntegrations {
-		if item.Id == integrationID {
-			return &ddgrpc.GetIntegrationItemResponse{
-				Id:     item.Id,
-				Vendor: item.Vendor,
-				Style:  item.Style,
-				Type:   item.Type,
+		if item.Integration.Id == integrationID {
+			return &ddgrpc.Integration{
+				Id:     item.Integration.Id,
+				Vendor: item.Integration.Vendor,
+				Style:  item.Integration.Style,
+				Type:   item.Integration.Type,
 			}, nil
 		}
 	}
@@ -186,7 +187,7 @@ func (d *deviceDefinitionIntegrationService) CreateDeviceDefinitionIntegration(c
 }
 
 // GetDeviceDefinitionIntegration calls device definitions integrations api via GRPC to get the definition. idea for testing: http://www.inanzzz.com/index.php/post/w9qr/unit-testing-golang-grpc-client-and-server-application-with-bufconn-package
-func (d *deviceDefinitionIntegrationService) GetDeviceDefinitionIntegration(ctx context.Context, deviceDefinitionID string) ([]*ddgrpc.GetDeviceDefinitionIntegrationItemResponse, error) {
+func (d *deviceDefinitionIntegrationService) GetDeviceDefinitionIntegration(ctx context.Context, deviceDefinitionID string) ([]*ddgrpc.DeviceIntegration, error) {
 	definitionsClient, conn, err := d.getDeviceDefsIntGrpcClient()
 	if err != nil {
 		return nil, err

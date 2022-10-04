@@ -24,6 +24,7 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 //go:generate mockgen -source device_definitions_service.go -destination mocks/device_definitions_service_mock.go
@@ -37,8 +38,8 @@ type DeviceDefinitionService interface {
 	PullBlackbookData(ctx context.Context, userDeviceID, deviceDefinitionID string, vin string) error
 	GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*models.DeviceMake, error)
 	GetDeviceDefinitionsByIDs(ctx context.Context, ids []string) ([]*ddgrpc.GetDeviceDefinitionItemResponse, error)
-	GetIntegrations(ctx context.Context) ([]*ddgrpc.GetIntegrationItemResponse, error)
-	GetIntegrationByID(ctx context.Context, id string) (*ddgrpc.GetIntegrationItemResponse, error)
+	GetIntegrations(ctx context.Context) ([]*ddgrpc.Integration, error)
+	GetIntegrationByID(ctx context.Context, id string) (*ddgrpc.Integration, error)
 }
 
 type deviceDefinitionService struct {
@@ -88,14 +89,14 @@ func (d *deviceDefinitionService) GetDeviceDefinitionsByIDs(ctx context.Context,
 }
 
 // GetIntegrations calls device definitions integrations api via GRPC to get the definition. idea for testing: http://www.inanzzz.com/index.php/post/w9qr/unit-testing-golang-grpc-client-and-server-application-with-bufconn-package
-func (d *deviceDefinitionService) GetIntegrations(ctx context.Context) ([]*ddgrpc.GetIntegrationItemResponse, error) {
+func (d *deviceDefinitionService) GetIntegrations(ctx context.Context) ([]*ddgrpc.Integration, error) {
 	definitionsClient, conn, err := d.getDeviceDefsGrpcClient()
 	if err != nil {
 		return nil, err
 	}
 	defer conn.Close()
 
-	definitions, err := definitionsClient.GetIntegrations(ctx, &ddgrpc.EmptyRequest{})
+	definitions, err := definitionsClient.GetIntegrations(ctx, &emptypb.Empty{})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to call grpc endpoint GetIntegrations")
 	}
@@ -104,12 +105,12 @@ func (d *deviceDefinitionService) GetIntegrations(ctx context.Context) ([]*ddgrp
 }
 
 // GetIntegrationByID get integration from grpc by id
-func (d *deviceDefinitionService) GetIntegrationByID(ctx context.Context, id string) (*ddgrpc.GetIntegrationItemResponse, error) {
+func (d *deviceDefinitionService) GetIntegrationByID(ctx context.Context, id string) (*ddgrpc.Integration, error) {
 	allIntegrations, err := d.GetIntegrations(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to call grpc to get integrations")
 	}
-	var integration *ddgrpc.GetIntegrationItemResponse
+	var integration *ddgrpc.Integration
 	for _, in := range allIntegrations {
 		if in.Id == id {
 			integration = in

@@ -105,7 +105,7 @@ func (s *WebHooksControllerTestSuite) TestPostWebhookSyncCommand() {
 	test.SetupCreateDeviceIntegration(s.T(), dd, integ, s.pdb)
 	// create user device api integration
 	_ = test.SetupCreateAutoPiJob(s.T(), autoPiJobID, autoPiDeviceID, "state.sls pending", ud.ID, s.pdb)
-	integrationItem := &ddgrpc.GetIntegrationItemResponse{
+	integrationItem := &ddgrpc.Integration{
 		Id:     integ.ID,
 		Vendor: integ.Vendor,
 		Style:  integ.Style,
