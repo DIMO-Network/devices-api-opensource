@@ -75,3 +75,64 @@ ctx._source.data.year = params['year'];`,
 
 	return nil
 }
+
+func (e ElasticSearch) UpdateDeviceRegionsByQuery(d services.DeviceDefinitionDTO, region, elasticDeviceStatusIndex string) error {
+	query := jsonObj{
+		"query": jsonObj{
+			"bool": jsonObj{
+				"filter": []jsonObj{
+					{
+						"term": jsonObj{
+							"subject": d.UserDeviceID,
+						},
+					},
+				},
+			},
+		},
+		"script": jsonObj{
+			"source": `ctx._source.data.region = params['region'];`,
+			"lang":   "painless",
+			"params": jsonObj{
+				"region": region,
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+
+	if err := json.NewEncoder(&buf).Encode(query); err != nil {
+		return fmt.Errorf("error encoding es query: %w", err)
+	}
+
+	req := esapi.UpdateByQueryRequest{
+		Index:     []string{elasticDeviceStatusIndex},
+		Body:      &buf,
+		Conflicts: "proceed",
+	}
+
+	res, err := req.Do(context.Background(), e.esClient)
+	if err != nil {
+		return fmt.Errorf("error updating es by query: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		var eResp jsonObj
+		if err := json.NewDecoder(res.Body).Decode(&eResp); err != nil {
+			return fmt.Errorf("error parsing the response body: %w", err)
+		}
+		return fmt.Errorf("es error during update, status:%s, error: %v", res.Status(), eResp)
+	}
+
+	var r UpdateByQueryResponse
+	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
+		e.logger.Err(err).Msgf("Error parsing response.")
+	} else {
+		e.logger.Info().
+			Str("userDeviceId", d.UserDeviceID).
+			Str("region", region).
+			Int64("took", r.Took).Msg("Updated device region in Elastic.")
+	}
+
+	return nil
+}

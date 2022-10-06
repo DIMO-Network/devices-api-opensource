@@ -123,6 +123,11 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error running elastic search dd update")
 		}
+	case "populate-es-region-data":
+		err = populateESRegionData(ctx, &settings, esInstance, pdb, &logger)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error running elastic search region update")
+		}
 	case "populate-usa-powertrain":
 		logger.Info().Msg("Populating USA powertrain data from VINs")
 		nhtsaSvc := services.NewNHTSAService()

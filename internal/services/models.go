@@ -147,6 +147,7 @@ type UserDeviceAPIIntegrationsMetadataCommands struct {
 type UserDeviceMetadata struct {
 	PowertrainType          *PowertrainType `json:"powertrainType,omitempty"`
 	ElasticDefinitionSynced bool            `json:"elasticDefinitionSynced,omitempty"`
+	ElasticRegionSynced     bool            `json:"elasticRegionSynced,omitempty"`
 }
 
 // todo: consider moving below to controllers and have service just return db object
