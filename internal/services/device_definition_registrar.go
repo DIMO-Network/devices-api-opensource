@@ -25,6 +25,7 @@ type DeviceDefinitionDTO struct {
 	Model              string
 	Year               int
 	IntegrationID      string
+	Region             string
 }
 
 type DeviceDefinitionIDEventData struct {
@@ -33,9 +34,10 @@ type DeviceDefinitionIDEventData struct {
 }
 
 type DeviceDefinitionMetadataEventData struct {
-	Make  string `json:"make"`
-	Model string `json:"model"`
-	Year  int    `json:"year"`
+	Make   string `json:"make"`
+	Model  string `json:"model"`
+	Year   int    `json:"year"`
+	Region string `json:"region"`
 }
 
 type deviceDefinitionRegistrar struct {
@@ -82,9 +84,10 @@ func (s *deviceDefinitionRegistrar) emitDeviceDefinitionMetadataEvent(d DeviceDe
 		Time:        time.Now(),
 		Type:        eventType,
 		Data: DeviceDefinitionMetadataEventData{
-			Make:  d.Make,
-			Model: d.Model,
-			Year:  d.Year,
+			Make:   d.Make,
+			Model:  d.Model,
+			Year:   d.Year,
+			Region: d.Region,
 		},
 	}
 

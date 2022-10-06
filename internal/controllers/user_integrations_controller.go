@@ -1407,6 +1407,13 @@ func (udc *UserDevicesController) runPostRegistration(ctx context.Context, logge
 		logger.Err(err).Msg("Failed to emit integration event.")
 	}
 
+	region := ""
+	if ud.CountryCode.Valid {
+		countryRecord := constants.FindCountry(ud.CountryCode.String)
+		if countryRecord != nil {
+			region = countryRecord.Region
+		}
+	}
 	err = udc.deviceDefinitionRegistrar.Register(services.DeviceDefinitionDTO{
 		IntegrationID:      integ.Id,
 		UserDeviceID:       ud.ID,
@@ -1414,6 +1421,7 @@ func (udc *UserDevicesController) runPostRegistration(ctx context.Context, logge
 		Make:               dd.Type.Make,
 		Model:              dd.Type.Model,
 		Year:               int(dd.Type.Year),
+		Region:             region,
 	})
 	if err != nil {
 		logger.Err(err).Msg("Failed to set values in device definition tables.")

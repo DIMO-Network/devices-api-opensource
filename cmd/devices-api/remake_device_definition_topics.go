@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
@@ -44,6 +45,14 @@ func remakeDeviceDefinitionTopics(ctx context.Context, settings *config.Settings
 		dd := apiInt.R.UserDevice.R.DeviceDefinition
 		ddMake := apiInt.R.UserDevice.R.DeviceDefinition.R.DeviceMake.Name
 
+		region := ""
+
+		if country := apiInt.R.UserDevice.CountryCode; country.Valid {
+			countryData := constants.FindCountry(country.String)
+			if countryData != nil {
+				region = countryData.Region
+			}
+		}
 		ddReg := services.DeviceDefinitionDTO{
 			UserDeviceID:       userDeviceID,
 			DeviceDefinitionID: dd.ID,
@@ -51,6 +60,7 @@ func remakeDeviceDefinitionTopics(ctx context.Context, settings *config.Settings
 			Make:               ddMake,
 			Model:              dd.Model,
 			Year:               int(dd.Year),
+			Region:             region,
 		}
 
 		err := reg.Register(ddReg)

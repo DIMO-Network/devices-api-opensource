@@ -224,6 +224,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostSmartCar() {
 		Make:               dm.Name,
 		Model:              dd.Model,
 		Year:               int(dd.Year),
+		Region:             "Americas",
 	}).Return(nil)
 
 	s.scClient.EXPECT().GetUserID(gomock.Any(), "myAccess").Return(smartCarUserID, nil)
@@ -324,6 +325,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostTesla() {
 		Make:               dm.Name,
 		Model:              dd.Model,
 		Year:               int(dd.Year),
+		Region:             "Americas",
 	}).Return(nil)
 
 	s.teslaTaskService.EXPECT().StartPoll(gomock.AssignableToTypeOf(oV), gomock.AssignableToTypeOf(oUdai)).DoAndReturn(
@@ -481,6 +483,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi_HappyPath() {
 		Make:               dm.Name,
 		Model:              dd.Model,
 		Year:               int(dd.Year),
+		Region:             "Americas",
 	}).Return(nil)
 
 	s.eventSvc.EXPECT().Emit(gomock.Any()).Return(nil).Do(
@@ -598,6 +601,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCustomPowerTrain() {
 		Make:               dm.Name,
 		Model:              dd.Model,
 		Year:               int(dd.Year),
+		Region:             "Americas",
 	}).Return(nil)
 
 	autoPiIntegration := test.BuildAutoPiIntegrationGrpc(integration.ID, int32(evTemplateID), 14)
