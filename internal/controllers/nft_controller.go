@@ -8,11 +8,13 @@ import (
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/ericlagergren/decimal"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"github.com/volatiletech/sqlboiler/v4/types"
 
@@ -21,10 +23,11 @@ import (
 )
 
 type NFTController struct {
-	Settings *config.Settings
-	DBS      func() *database.DBReaderWriter
-	s3       *s3.Client
-	log      *zerolog.Logger
+	Settings   *config.Settings
+	DBS        func() *database.DBReaderWriter
+	s3         *s3.Client
+	log        *zerolog.Logger
+	defService services.DeviceDefinitionService
 }
 
 // NewUserDevicesController constructor
@@ -33,12 +36,14 @@ func NewNFTController(
 	dbs func() *database.DBReaderWriter,
 	logger *zerolog.Logger,
 	s3 *s3.Client,
+	defService services.DeviceDefinitionService,
 ) NFTController {
 	return NFTController{
-		Settings: settings,
-		DBS:      dbs,
-		log:      logger,
-		s3:       s3,
+		Settings:   settings,
+		DBS:        dbs,
+		log:        logger,
+		s3:         s3,
+		defService: defService,
 	}
 }
 
@@ -50,7 +55,7 @@ func NewNFTController(
 // @Success     200 {object} controllers.NFTMetadataResp
 // @Failure     404
 // @Router      /nfts/{tokenID} [get]
-func (udc *NFTController) GetNFTMetadata(c *fiber.Ctx) error {
+func (nc *NFTController) GetNFTMetadata(c *fiber.Ctx) error {
 	tis := c.Params("tokenID")
 	ti, ok := new(big.Int).SetString(tis, 10)
 	if !ok {
@@ -59,23 +64,46 @@ func (udc *NFTController) GetNFTMetadata(c *fiber.Ctx) error {
 
 	tid := types.NewNullDecimal(new(decimal.Big).SetBigMantScale(ti, 0))
 
-	mr, err := models.MintRequests(
-		models.MintRequestWhere.TokenID.EQ(tid),
-		qm.Load(qm.Rels(models.MintRequestRels.UserDevice, models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
-	).One(c.Context(), udc.DBS().Writer)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
+	var maybeName null.String
+	var deviceDefinitionID string
+
+	if nc.Settings.Environment != "prod" {
+		ud, err := models.UserDevices(models.UserDeviceWhere.TokenID.EQ(tid)).One(c.Context(), nc.DBS().Reader)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
+			}
+			nc.log.Err(err).Msg("Database error retrieving NFT metadata.")
+			return opaqueInternalError
 		}
-		udc.log.Err(err).Msg("Database error retrieving NFT metadata.")
-		return opaqueInternalError
+		maybeName = ud.Name
+		deviceDefinitionID = ud.DeviceDefinitionID
+	} else {
+		mr, err := models.MintRequests(
+			models.MintRequestWhere.TokenID.EQ(tid),
+			qm.Load(models.MintRequestRels.UserDevice),
+		).One(c.Context(), nc.DBS().Writer)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
+			}
+			nc.log.Err(err).Msg("Database error retrieving NFT metadata.")
+			return opaqueInternalError
+		}
+		maybeName = mr.R.UserDevice.Name
+		deviceDefinitionID = mr.R.UserDevice.DeviceDefinitionID
 	}
 
-	description := fmt.Sprintf("%s %s %d", mr.R.UserDevice.R.DeviceDefinition.R.DeviceMake.Name, mr.R.UserDevice.R.DeviceDefinition.Model, mr.R.UserDevice.R.DeviceDefinition.Year)
+	def, err := nc.defService.GetDeviceDefinitionByID(c.Context(), deviceDefinitionID)
+	if err != nil {
+		return err
+	}
+
+	description := fmt.Sprintf("%s %s %d", def.Make.Name, def.Type.Model, def.Type.Year)
 
 	var name string
-	if mr.R.UserDevice.Name.Valid {
-		name = mr.R.UserDevice.Name.String
+	if maybeName.Valid {
+		name = maybeName.String
 	} else {
 		name = description
 	}
@@ -83,11 +111,11 @@ func (udc *NFTController) GetNFTMetadata(c *fiber.Ctx) error {
 	return c.JSON(NFTMetadataResp{
 		Name:        name,
 		Description: description,
-		Image:       fmt.Sprintf("%s/v1/nfts/%s/image", udc.Settings.DeploymentBaseURL, ti),
+		Image:       fmt.Sprintf("%s/v1/nfts/%s/image", nc.Settings.DeploymentBaseURL, ti),
 		Attributes: []NFTAttribute{
-			{TraitType: "Make", Value: mr.R.UserDevice.R.DeviceDefinition.R.DeviceMake.Name},
-			{TraitType: "Model", Value: mr.R.UserDevice.R.DeviceDefinition.Model},
-			{TraitType: "Year", Value: strconv.Itoa(int(mr.R.UserDevice.R.DeviceDefinition.Year))},
+			{TraitType: "Make", Value: def.Make.Name},
+			{TraitType: "Model", Value: def.Type.Model},
+			{TraitType: "Year", Value: strconv.Itoa(int(def.Type.Year))},
 		},
 	})
 }
@@ -111,7 +139,7 @@ type NFTAttribute struct {
 // @Param       transparent query bool false "If true, remove the background in the PNG. Defaults to false."
 // @Produce     png
 // @Router      /nfts/:tokenID/image [get]
-func (udc *NFTController) GetNFTImage(c *fiber.Ctx) error {
+func (nc *NFTController) GetNFTImage(c *fiber.Ctx) error {
 	tis := c.Params("tokenID")
 	ti, ok := new(big.Int).SetString(tis, 10)
 	if !ok {
@@ -120,34 +148,39 @@ func (udc *NFTController) GetNFTImage(c *fiber.Ctx) error {
 
 	tid := types.NewNullDecimal(new(decimal.Big).SetBigMantScale(ti, 0))
 
-	transparentStr := c.Query("transparent", "false")
-	transparent, err := strconv.ParseBool(transparentStr)
-	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, `Couldn't parse query parameter "transparent".`)
-	}
+	var imageName string
 
-	mr, err := models.MintRequests(
-		models.MintRequestWhere.TokenID.EQ(tid),
-	).One(c.Context(), udc.DBS().Writer)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
+	if nc.Settings.Environment != "prod" {
+		ud, err := models.UserDevices(models.UserDeviceWhere.TokenID.EQ(tid)).One(c.Context(), nc.DBS().Reader)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
+			}
+			nc.log.Err(err).Msg("Database error retrieving NFT metadata.")
+			return opaqueInternalError
 		}
-		return opaqueInternalError
+		imageName = ud.ID
+	} else {
+		mr, err := models.MintRequests(
+			models.MintRequestWhere.TokenID.EQ(tid),
+			qm.Load(models.MintRequestRels.UserDevice),
+		).One(c.Context(), nc.DBS().Writer)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
+			}
+			nc.log.Err(err).Msg("Database error retrieving NFT metadata.")
+			return opaqueInternalError
+		}
+		imageName = mr.ID
 	}
 
-	suffix := ".png"
-	if transparent {
-		suffix = "_transparent.png"
-	}
-
-	s3o, err := udc.s3.GetObject(c.Context(), &s3.GetObjectInput{
-		Bucket: aws.String(udc.Settings.NFTS3Bucket),
-		Key:    aws.String(mr.ID + suffix),
+	s3o, err := nc.s3.GetObject(c.Context(), &s3.GetObjectInput{
+		Bucket: aws.String(nc.Settings.NFTS3Bucket),
+		Key:    aws.String(imageName + ".png"),
 	})
-
 	if err != nil {
-		udc.log.Err(err).Msg("Failure communicating with S3.")
+		nc.log.Err(err).Msg("Failure communicating with S3.")
 		return opaqueInternalError
 	}
 

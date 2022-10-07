@@ -202,29 +202,33 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		}
 
 		var nft *NFTData
-		if mtr := d.R.MintMetaTransactionRequest; mtr != nil {
-			nft = &NFTData{
-				Status: mtr.Status,
+		if udc.Settings.Environment != "prod" {
+			if mtr := d.R.MintMetaTransactionRequest; mtr != nil {
+				nft = &NFTData{
+					Status: mtr.Status,
+				}
+				if mtr.Hash.Valid {
+					hash := hexutil.Encode(mtr.Hash.Bytes)
+					nft.TxHash = &hash
+				}
+				if !d.TokenID.IsZero() {
+					nft.TokenID = d.TokenID.Int(nil)
+					nft.TokenURI = fmt.Sprintf("%s/v1/nfts/%s", udc.Settings.DeploymentBaseURL, nft.TokenID)
+				}
 			}
-			if mtr.Hash.Valid {
-				hash := hexutil.Encode(mtr.Hash.Bytes)
-				nft.TxHash = &hash
-			}
-			if !d.TokenID.IsZero() {
-				nft.TokenID = d.TokenID.Int(nil)
-				nft.TokenURI = fmt.Sprintf("%s/v1/nfts/%s", udc.Settings.DeploymentBaseURL, nft.TokenID)
-			}
-		} else if mr := d.R.MintRequest; mr != nil {
-			nft = &NFTData{
-				Status: mr.TXState,
-			}
-			if mr.TXHash.Valid {
-				txHash := common.BytesToHash(mr.TXHash.Bytes).String()
-				nft.TxHash = &txHash
-			}
-			if !mr.TokenID.IsZero() {
-				nft.TokenID = mr.TokenID.Big.Int(new(big.Int))
-				nft.TokenURI = fmt.Sprintf("%s/v1/nfts/%s", udc.Settings.DeploymentBaseURL, nft.TokenID)
+		} else {
+			if mr := d.R.MintRequest; mr != nil {
+				nft = &NFTData{
+					Status: mr.TXState,
+				}
+				if mr.TXHash.Valid {
+					txHash := common.BytesToHash(mr.TXHash.Bytes).String()
+					nft.TxHash = &txHash
+				}
+				if !mr.TokenID.IsZero() {
+					nft.TokenID = mr.TokenID.Big.Int(new(big.Int))
+					nft.TokenURI = fmt.Sprintf("%s/v1/nfts/%s", udc.Settings.DeploymentBaseURL, nft.TokenID)
+				}
 			}
 		}
 
@@ -1763,7 +1767,7 @@ func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 
 	_, err = udc.s3.PutObject(c.Context(), &s3.PutObjectInput{
 		Bucket: &udc.Settings.NFTS3Bucket,
-		Key:    aws.String(requestID + ".png"), // This will be the request ID.
+		Key:    aws.String(userDeviceID + ".png"),
 		Body:   bytes.NewReader(image),
 	})
 	if err != nil {

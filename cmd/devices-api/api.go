@@ -107,7 +107,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1.Get("/device-definitions/:id/integrations", cacheHandler, deviceControllers.GetDeviceIntegrationsByID)
 	v1.Get("/device-definitions", deviceControllers.GetDeviceDefinitionByMMY)
 
-	nftController := controllers.NewNFTController(settings, pdb.DBS, &logger, s3NFTServiceClient)
+	nftController := controllers.NewNFTController(settings, pdb.DBS, &logger, s3NFTServiceClient, ddSvc)
 	v1.Get("/nfts/:tokenID", nftController.GetNFTMetadata)
 	v1.Get("/nfts/:tokenID/image", nftController.GetNFTImage)
 
