@@ -654,7 +654,7 @@ func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 	// send command without webhook since we'll just query the jobid
 	commandResponse, err := udc.autoPiSvc.CommandRaw(c.Context(), unitID, deviceID, "test.ping", userDeviceID)
 	if err != nil {
-		return err
+		return fiber.NewError(fiber.StatusInternalServerError, "Partner API returned an error")
 	}
 	// for loop with wait timer of 1 second at begining that calls autopi get job id
 	backoffSchedule := []time.Duration{
@@ -1096,7 +1096,7 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 	if recAddr != realAddr {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid signature.")
 	}
-	
+
 	requestID := ksuid.New().String()
 
 	mtr := models.MetaTransactionRequest{
