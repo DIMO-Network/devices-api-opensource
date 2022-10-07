@@ -4,7 +4,6 @@
     "make": "CADILLAC",
     "year": 2019,
     "model": "CT6 AWD",
-    "range": 380.14,
     "tires": {
         "backLeft": 236,
         "backRight": 268,

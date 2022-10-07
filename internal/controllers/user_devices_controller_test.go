@@ -442,19 +442,24 @@ func (s *UserDevicesControllerTestSuite) TestGetDeviceOffers() {
 		gjson.GetBytes(body, "offerSets.0.offers.#(vendor=carmax).declineReason").String())
 }
 
-//go:embed test_user_device_metadata.json
-var testUserDeviceMetadata []byte
+//go:embed test_user_device_data.json
+var testUserDeviceData []byte
 
-func (s *UserDevicesControllerTestSuite) TestGetDeviceRange() {
+func (s *UserDevicesControllerTestSuite) TestGetRange() {
 	// arrange db, insert some user_devices
 	dm := test.SetupCreateMake(s.T(), "Ford", s.pdb)
 	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Mach E", 2022, s.pdb)
+	integration := test.SetupCreateAutoPiIntegration(s.T(), 10, nil, s.pdb)
+	autoPiUnitID := "1234"
+	autoPiDeviceID := "4321"
+	_ = test.SetupCreateAutoPiUnit(s.T(), testUserID, autoPiUnitID, &autoPiDeviceID, s.pdb)
+	smartCarIntegration := test.SetupCreateSmartCarIntegration(s.T(), s.pdb)
 
 	gddir := []*grpc.GetDeviceDefinitionItemResponse{
 		{
 			VehicleData: &grpc.VehicleInfo{
-				MPG:                 40.0,
-				MPGHighway:          38.0,
+				MPG:                 38.0,
+				MPGHighway:          40.0,
 				FuelTankCapacityGal: 14.5,
 			},
 			Make: &grpc.DeviceMake{
@@ -464,20 +469,42 @@ func (s *UserDevicesControllerTestSuite) TestGetDeviceRange() {
 			DeviceDefinitionId: dd.ID,
 		},
 	}
-	ud := test.SetupCreateUserDevice(s.T(), s.testUserID, dd, &testUserDeviceMetadata, s.pdb)
+	ud := test.SetupCreateUserDevice(s.T(), s.testUserID, dd, nil, s.pdb)
+	test.SetupCreateUserDeviceAPIIntegration(s.T(), autoPiUnitID, autoPiDeviceID, ud.ID, integration.ID, s.pdb)
+	udd := models.UserDeviceDatum{
+		UserDeviceID:  ud.ID,
+		Data:          null.JSONFrom(testUserDeviceData),
+		IntegrationID: integration.ID,
+	}
+	err := udd.Insert(context.Background(), s.pdb.DBS().Writer, boil.Infer())
+	require.NoError(s.T(), err)
+	udd2 := models.UserDeviceDatum{
+		UserDeviceID:  ud.ID,
+		Data:          null.JSONFrom([]byte(`{"range":380.14}`)),
+		IntegrationID: smartCarIntegration.ID,
+	}
+	err = udd2.Insert(context.Background(), s.pdb.DBS().Writer, boil.Infer())
+	require.NoError(s.T(), err)
 	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dd.ID}).Return(gddir, nil)
 	request := test.BuildRequest("GET", fmt.Sprintf("/user/devices/%s/range", ud.ID), "")
 	response, err := s.app.Test(request)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 	body, _ := io.ReadAll(response.Body)
+
+	println(string(body))
 
 	assert.Equal(s.T(), fiber.StatusOK, response.StatusCode)
 
 	assert.Equal(s.T(), 3, int(gjson.GetBytes(body, "rangeSets.#").Int()))
 	assert.Equal(s.T(), "MPG", gjson.GetBytes(body, "rangeSets.0.rangeBasis").String())
+	assert.Equal(s.T(), "MPG Highway", gjson.GetBytes(body, "rangeSets.1.rangeBasis").String())
+	assert.Equal(s.T(), "Vehicle Reported", gjson.GetBytes(body, "rangeSets.2.rangeBasis").String())
 	assert.Equal(s.T(), "miles", gjson.GetBytes(body, "rangeSets.0.rangeUnit").String())
-	assert.Equal(s.T(), 391, int(gjson.GetBytes(body, "rangeSets.1.rangeDistance").Int()))
-	assert.Equal(s.T(), 380, int(gjson.GetBytes(body, "rangeSets.2.rangeDistance").Int()))
+	assert.Equal(s.T(), "miles", gjson.GetBytes(body, "rangeSets.1.rangeUnit").String())
+	assert.Equal(s.T(), "miles", gjson.GetBytes(body, "rangeSets.2.rangeUnit").String())
+	assert.Equal(s.T(), 391, int(gjson.GetBytes(body, "rangeSets.0.rangeDistance").Int()))
+	assert.Equal(s.T(), 411, int(gjson.GetBytes(body, "rangeSets.1.rangeDistance").Int()))
+	assert.Equal(s.T(), 611, int(gjson.GetBytes(body, "rangeSets.2.rangeDistance").Int()))
 }
 
 func (s *UserDevicesControllerTestSuite) TestPostRefreshSmartCar() {

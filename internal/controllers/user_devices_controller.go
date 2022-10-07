@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -985,6 +986,7 @@ type RangeSet struct {
 // @Produce     json
 // @Success     200 {object} controllers.DeviceRange
 // @Security    BearerAuth
+// @Param       userDeviceID path string true "user device id"
 // @Router      /user/devices/{userDeviceID}/range [get]
 func (udc *UserDevicesController) GetRange(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
@@ -994,6 +996,7 @@ func (udc *UserDevicesController) GetRange(c *fiber.Ctx) error {
 	userDevice, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(udi),
 		models.UserDeviceWhere.UserID.EQ(userID),
+		qm.Load(models.UserDeviceRels.UserDeviceData),
 	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		return err
@@ -1007,13 +1010,15 @@ func (udc *UserDevicesController) GetRange(c *fiber.Ctx) error {
 	deviceRange := DeviceRange{
 		RangeSets: []RangeSet{},
 	}
-	if len(dds) > 0 && dds[0].VehicleData != nil {
+	udd := userDevice.R.UserDeviceData
+	if len(dds) > 0 && dds[0].VehicleData != nil && len(udd) > 0 {
 		vd := dds[0].VehicleData
-		fuelPercentRemaining := gjson.GetBytes(userDevice.Metadata.JSON, "fuelPercentRemaining")
+		sortByJSONFieldMostRecent(udd, "fuelPercentRemaining")
+		fuelPercentRemaining := gjson.GetBytes(udd[0].Data.JSON, "fuelPercentRemaining")
 		if fuelPercentRemaining.Exists() && vd.FuelTankCapacityGal > 0 && vd.MPG > 0 {
 			fuelTankAtGal := vd.FuelTankCapacityGal * float32(fuelPercentRemaining.Float())
 			rangeSet := RangeSet{
-				Updated:       userDevice.UpdatedAt.Format(time.RFC3339),
+				Updated:       udd[0].UpdatedAt.Format(time.RFC3339),
 				RangeBasis:    "MPG",
 				RangeDistance: int(vd.MPG * fuelTankAtGal),
 				RangeUnit:     "miles",
@@ -1025,12 +1030,14 @@ func (udc *UserDevicesController) GetRange(c *fiber.Ctx) error {
 				deviceRange.RangeSets = append(deviceRange.RangeSets, rangeSet)
 			}
 		}
-		reportedRange := gjson.GetBytes(userDevice.Metadata.JSON, "range")
+		sortByJSONFieldMostRecent(udd, "range")
+		reportedRange := gjson.GetBytes(udd[0].Data.JSON, "range")
 		if reportedRange.Exists() {
+			reportedRangeMiles := int(reportedRange.Float() * services.KmToMilesFactor)
 			rangeSet := RangeSet{
-				Updated:       userDevice.UpdatedAt.Format(time.RFC3339),
-				RangeBasis:    "Device Data",
-				RangeDistance: int(reportedRange.Int()),
+				Updated:       udd[0].UpdatedAt.Format(time.RFC3339),
+				RangeBasis:    "Vehicle Reported",
+				RangeDistance: reportedRangeMiles,
 				RangeUnit:     "miles",
 			}
 			deviceRange.RangeSets = append(deviceRange.RangeSets, rangeSet)
@@ -1921,6 +1928,20 @@ func (u *UpdateNameReq) validate() error {
 		// cannot end with space
 		validation.Field(&u.Name, validation.Required, validation.Match(regexp.MustCompile(`.+[^\s]$|[^\s]$`))),
 	)
+}
+
+// sortByJSONFieldMostRecent Sort user device data so the latest that has the specified field is first
+func sortByJSONFieldMostRecent(udd models.UserDeviceDatumSlice, field string) {
+	sort.Slice(udd, func(i, j int) bool {
+		fpri := gjson.GetBytes(udd[i].Data.JSON, field)
+		fprj := gjson.GetBytes(udd[j].Data.JSON, field)
+		if fpri.Exists() && !fprj.Exists() {
+			return true
+		} else if !fpri.Exists() && fprj.Exists() {
+			return false
+		}
+		return udd[i].UpdatedAt.After(udd[j].UpdatedAt)
+	})
 }
 
 // UserDeviceFull represents object user's see on frontend for listing of their devices
