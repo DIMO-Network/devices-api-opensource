@@ -1183,17 +1183,21 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 	userDevice, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
 		models.UserDeviceWhere.UserID.EQ(userID),
-		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
 	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "No device with that ID found.")
 	}
 
-	mk := userDevice.R.DeviceDefinition.R.DeviceMake
-	if mk.TokenID.IsZero() {
-		return fiber.NewError(fiber.StatusConflict, fmt.Sprintf("Device make %s not yet minted.", mk.Name))
+	dd, err := udc.DeviceDefSvc.GetDeviceDefinitionByID(c.Context(), userDevice.DeviceDefinitionID)
+	if err != nil {
+		return opaqueInternalError
 	}
-	mkTok := mk.TokenID.Int(nil)
+
+	if dd.Make.TokenId == 0 {
+		return fiber.NewError(fiber.StatusConflict, fmt.Sprintf("Device make %s not yet minted.", dd.Make.Name))
+	}
+
+	mkTok := big.NewInt(int64(dd.Make.TokenId))
 
 	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -1243,9 +1247,9 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 			"_owner":     *user.EthereumAddress,
 			"attributes": []string{"Make", "Model", "Year"},
 			"infos": []string{
-				userDevice.R.DeviceDefinition.R.DeviceMake.Name,
-				userDevice.R.DeviceDefinition.Model,
-				strconv.Itoa(int(userDevice.R.DeviceDefinition.Year)),
+				dd.Make.Name,
+				dd.Type.Model,
+				strconv.Itoa(int(dd.Type.Year)),
 			},
 		},
 	}
@@ -1263,21 +1267,24 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 func (udc *UserDevicesController) GetMintDataToSignV2(c *fiber.Ctx) error {
 	userDeviceID := c.Params("userDeviceID")
 	userID := api.GetUserID(c)
-	// todo pull device-definitions via grpc
+
 	userDevice, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
 		models.UserDeviceWhere.UserID.EQ(userID),
-		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
 	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "No device with that ID found.")
 	}
 
-	mk := userDevice.R.DeviceDefinition.R.DeviceMake
-	if mk.TokenID.IsZero() {
+	dd, err := udc.DeviceDefSvc.GetDeviceDefinitionByID(c.Context(), userDevice.DeviceDefinitionID)
+	if err != nil {
+		return opaqueInternalError
+	}
+
+	if dd.Make.TokenId == 0 {
 		return fiber.NewError(fiber.StatusConflict, "Device make not yet minted.")
 	}
-	makeTokenID := mk.TokenID.Int(nil)
+	makeTokenID := big.NewInt(int64(dd.Make.TokenId))
 
 	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -1309,9 +1316,9 @@ func (udc *UserDevicesController) GetMintDataToSignV2(c *fiber.Ctx) error {
 		},
 	}
 
-	deviceMake := userDevice.R.DeviceDefinition.R.DeviceMake.Name
-	deviceModel := userDevice.R.DeviceDefinition.Model
-	deviceYear := strconv.Itoa(int(userDevice.R.DeviceDefinition.Year))
+	deviceMake := dd.Make.Name
+	deviceModel := dd.Type.Model
+	deviceYear := strconv.Itoa(int(dd.Type.Year))
 
 	mvs := registry.MintVehicleSign{
 		ManufacturerNode: makeTokenID,
@@ -1394,19 +1401,23 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 	userDevice, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
 		models.UserDeviceWhere.UserID.EQ(userID),
-		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
-		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
+		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
 		qm.Load(models.UserDeviceRels.MintRequest),
 	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "No device with that ID found.")
 	}
 
-	mk := userDevice.R.DeviceDefinition.R.DeviceMake
-	if mk.TokenID.IsZero() {
-		return fiber.NewError(fiber.StatusConflict, fmt.Sprintf("Device make %s not yet minted.", mk.Name))
+	dd, err := udc.DeviceDefSvc.GetDeviceDefinitionByID(c.Context(), userDevice.DeviceDefinitionID)
+	if err != nil {
+		return opaqueInternalError
 	}
-	mkBI := mk.TokenID.Int(nil)
+
+	if dd.Make.TokenId == 0 {
+		return fiber.NewError(fiber.StatusConflict, "Device make not yet minted.")
+	}
+
+	mkBI := big.NewInt(int64(dd.Make.TokenId))
 	makeTokenID := (*math.HexOrDecimal256)(mkBI)
 
 	mintRequestID := ksuid.New().String()
@@ -1423,7 +1434,13 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 		if apiInt.Status != models.UserDeviceAPIIntegrationStatusActive {
 			continue
 		}
-		switch apiInt.R.Integration.Vendor {
+
+		integ, err := udc.DeviceDefSvc.GetIntegrationByID(c.Context(), apiInt.IntegrationID)
+		if err != nil {
+			return opaqueInternalError
+		}
+
+		switch integ.Vendor {
 		case constants.SmartCarVendor, constants.TeslaVendor:
 			eligible = true
 			// Sure hope this works!
@@ -1565,9 +1582,9 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 			"_owner":     *user.EthereumAddress,
 			"attributes": []any{"Make", "Model", "Year"},
 			"infos": []any{
-				userDevice.R.DeviceDefinition.R.DeviceMake.Name,
-				userDevice.R.DeviceDefinition.Model,
-				strconv.Itoa(int(userDevice.R.DeviceDefinition.Year)),
+				dd.Make.Name,
+				dd.Type.Model,
+				strconv.Itoa(int(dd.Type.Year)),
 			},
 		},
 	}
@@ -1606,9 +1623,9 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 			RootNode:     mkBI,
 			Attributes:   []string{"Make", "Model", "Year"},
 			Infos: []string{
-				userDevice.R.DeviceDefinition.R.DeviceMake.Name,
-				userDevice.R.DeviceDefinition.Model,
-				strconv.Itoa(int(userDevice.R.DeviceDefinition.Year)),
+				dd.Make.Name,
+				dd.Type.Model,
+				strconv.Itoa(int(dd.Type.Year)),
 			},
 			Signature: mr.Signature,
 		},
@@ -1649,21 +1666,25 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 	userDeviceID := c.Params("userDeviceID")
 	userID := api.GetUserID(c)
-	// todo pull device-definitions via grpc
+
 	userDevice, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
 		models.UserDeviceWhere.UserID.EQ(userID),
-		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
 	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "No device with that ID found.")
 	}
 
-	mk := userDevice.R.DeviceDefinition.R.DeviceMake
-	if mk.TokenID.IsZero() {
+	dd, err := udc.DeviceDefSvc.GetDeviceDefinitionByID(c.Context(), userDevice.DeviceDefinitionID)
+	if err != nil {
+		return opaqueInternalError
+	}
+
+	if dd.Make.TokenId == 0 {
 		return fiber.NewError(fiber.StatusConflict, "Device make not yet minted.")
 	}
-	makeTokenID := mk.TokenID.Int(nil)
+
+	makeTokenID := big.NewInt(int64(dd.Make.TokenId))
 
 	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -1695,9 +1716,9 @@ func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 		},
 	}
 
-	deviceMake := userDevice.R.DeviceDefinition.R.DeviceMake.Name
-	deviceModel := userDevice.R.DeviceDefinition.Model
-	deviceYear := strconv.Itoa(int(userDevice.R.DeviceDefinition.Year))
+	deviceMake := dd.Make.Name
+	deviceModel := dd.Type.Model
+	deviceYear := strconv.Itoa(int(dd.Type.Year))
 
 	mvs := registry.MintVehicleSign{
 		ManufacturerNode: makeTokenID,

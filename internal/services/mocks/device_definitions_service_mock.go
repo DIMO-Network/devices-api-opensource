@@ -66,6 +66,21 @@ func (mr *MockDeviceDefinitionServiceMockRecorder) FindDeviceDefinitionByMMY(ctx
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindDeviceDefinitionByMMY", reflect.TypeOf((*MockDeviceDefinitionService)(nil).FindDeviceDefinitionByMMY), ctx, mk, model, year)
 }
 
+// GetDeviceDefinitionByID mocks base method.
+func (m *MockDeviceDefinitionService) GetDeviceDefinitionByID(ctx context.Context, id string) (*grpc.GetDeviceDefinitionItemResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDeviceDefinitionByID", ctx, id)
+	ret0, _ := ret[0].(*grpc.GetDeviceDefinitionItemResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDeviceDefinitionByID indicates an expected call of GetDeviceDefinitionByID.
+func (mr *MockDeviceDefinitionServiceMockRecorder) GetDeviceDefinitionByID(ctx, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDeviceDefinitionByID", reflect.TypeOf((*MockDeviceDefinitionService)(nil).GetDeviceDefinitionByID), ctx, id)
+}
+
 // GetDeviceDefinitionsByIDs mocks base method.
 func (m *MockDeviceDefinitionService) GetDeviceDefinitionsByIDs(ctx context.Context, ids []string) ([]*grpc.GetDeviceDefinitionItemResponse, error) {
 	m.ctrl.T.Helper()

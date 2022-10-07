@@ -38,6 +38,7 @@ type DeviceDefinitionService interface {
 	PullBlackbookData(ctx context.Context, userDeviceID, deviceDefinitionID string, vin string) error
 	GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*models.DeviceMake, error)
 	GetDeviceDefinitionsByIDs(ctx context.Context, ids []string) ([]*ddgrpc.GetDeviceDefinitionItemResponse, error)
+	GetDeviceDefinitionByID(ctx context.Context, id string) (*ddgrpc.GetDeviceDefinitionItemResponse, error)
 	GetIntegrations(ctx context.Context) ([]*ddgrpc.Integration, error)
 	GetIntegrationByID(ctx context.Context, id string) (*ddgrpc.Integration, error)
 }
@@ -86,6 +87,20 @@ func (d *deviceDefinitionService) GetDeviceDefinitionsByIDs(ctx context.Context,
 	}
 
 	return definitions.GetDeviceDefinitions(), nil
+}
+
+// GetDeviceDefinitionByID is a helper for calling GetDeviceDefinitionsByIDs with one id.
+func (d *deviceDefinitionService) GetDeviceDefinitionByID(ctx context.Context, id string) (*ddgrpc.GetDeviceDefinitionItemResponse, error) {
+	resp, err := d.GetDeviceDefinitionsByIDs(ctx, []string{id})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(resp) == 0 {
+		return nil, errors.New("no definitions returned")
+	}
+
+	return resp[0], nil
 }
 
 // GetIntegrations calls device definitions integrations api via GRPC to get the definition. idea for testing: http://www.inanzzz.com/index.php/post/w9qr/unit-testing-golang-grpc-client-and-server-application-with-bufconn-package
