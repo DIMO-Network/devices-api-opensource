@@ -1096,8 +1096,25 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 	if recAddr != realAddr {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid signature.")
 	}
+	
+	requestID := ksuid.New().String()
 
-	return client.PairAftermarketDeviceSign(ksuid.New().String(), apToken, vehicleToken, sigBytes)
+	mtr := models.MetaTransactionRequest{
+		ID:     requestID,
+		Status: "Unsubmitted",
+	}
+	err = mtr.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
+	if err != nil {
+		return err
+	}
+
+	udai.PairMetaTransactionRequestID = null.StringFrom(requestID)
+	_, err = udai.Update(c.Context(), udc.DBS().Writer, boil.Infer())
+	if err != nil {
+		return err
+	}
+
+	return client.PairAftermarketDeviceSign(requestID, apToken, vehicleToken, sigBytes)
 }
 
 type AutoPiClaimRequest struct {
