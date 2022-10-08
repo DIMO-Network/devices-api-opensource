@@ -28,7 +28,7 @@ func TestValidateAndCleanUUID(t *testing.T) {
 		},
 		{
 			name:  "validate, lower case and trim otherwise valid uuid",
-			uuid:  "Ca6c89f7-ddc9-9b1a-5f1b-e0333ecd38e0 ",
+			uuid:  "Ca6c89f7-Ddc9-9b1a-5f1b-e0333ecd38e0 ",
 			want:  true,
 			want1: "ca6c89f7-ddc9-9b1a-5f1b-e0333ecd38e0",
 		},

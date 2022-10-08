@@ -611,9 +611,10 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 // @Security    BearerAuth
 // @Router      /autopi/unit/:unitID/is-online [get]
 func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
+	valid := false
 	unitID := c.Params("unitID")
-	v, unitID := services.ValidateAndCleanUUID(unitID)
-	if !v {
+	valid, unitID = services.ValidateAndCleanUUID(unitID)
+	if !valid {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 	userID := api.GetUserID(c)
@@ -623,7 +624,7 @@ func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 	autopiUnit, _ := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, unitID)
 	if autopiUnit != nil {
 		if autopiUnit.UserID != null.StringFrom(userID) {
-			return c.SendStatus(fiber.StatusForbidden)
+			return fiber.NewError(fiber.StatusForbidden, fmt.Sprintf("this autopi unit has already been paired. unitId: %s", unitID))
 		}
 		deviceID = autopiUnit.AutopiDeviceID.String
 		udai, _ := udc.autoPiSvc.GetUserDeviceIntegrationByUnitID(c.Context(), unitID)
@@ -631,11 +632,14 @@ func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 			userDeviceID = udai.UserDeviceID
 		}
 	}
+	log := udc.log.With().Str("userId", userID).Str("autoPiUnitId", unitID).Str("userDeviceId", userDeviceID).Logger()
 	// get the deviceID if not set
 	if len(deviceID) == 0 {
 		unit, err := udc.autoPiSvc.GetDeviceByUnitID(unitID)
 		if err != nil {
-			return err
+			log.Err(err).Msg("failed to query autopi api for unitID")
+			return fiber.NewError(fiber.StatusInternalServerError,
+				fmt.Sprintf("partner api returned an error when querying for: %s", unitID))
 		}
 		deviceID = unit.ID
 	}
@@ -648,12 +652,15 @@ func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 		}
 		err := autopiUnit.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
 		if err != nil {
-			return err
+			log.Err(err).Str("deviceId", deviceID).Msg("failed to claim autopi for user")
+			return fiber.NewError(fiber.StatusInternalServerError,
+				fmt.Sprintf("failed to claim autopi %s. This could be because it is already paired, contact support", unitID))
 		}
 	}
 	// send command without webhook since we'll just query the jobid
 	commandResponse, err := udc.autoPiSvc.CommandRaw(c.Context(), unitID, deviceID, "test.ping", userDeviceID)
 	if err != nil {
+		log.Err(err).Msg("failed to send command to autopi api")
 		return fiber.NewError(fiber.StatusInternalServerError, "Partner API returned an error")
 	}
 	// for loop with wait timer of 1 second at begining that calls autopi get job id
