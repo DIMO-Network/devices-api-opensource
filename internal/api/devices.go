@@ -9,6 +9,7 @@ import (
 	"github.com/DIMO-Network/devices-api/models"
 	pb "github.com/DIMO-Network/shared/api/devices"
 	"github.com/rs/zerolog"
+	"github.com/volatiletech/sqlboiler/v4/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -32,10 +33,13 @@ func (s *userDeviceService) GetUserDevice(ctx context.Context, req *pb.GetUserDe
 		s.logger.Err(err).Str("userDeviceId", req.Id).Msg("Database failure retrieving device.")
 		return nil, status.Error(codes.Internal, "Internal error.")
 	}
+
 	pbDevice := &pb.UserDevice{
-		Id:     dbDevice.ID,
-		UserId: dbDevice.UserID,
+		Id:      dbDevice.ID,
+		UserId:  dbDevice.UserID,
+		TokenId: s.toUint64(dbDevice.TokenID),
 	}
+
 	return pbDevice, nil
 }
 
@@ -50,11 +54,29 @@ func (s *userDeviceService) ListUserDevicesForUser(ctx context.Context, req *pb.
 	for i := 0; i < len(devices); i++ {
 		device := devices[i]
 		devOut[i] = &pb.UserDevice{
-			Id:     device.ID,
-			UserId: device.UserID,
+			Id:      device.ID,
+			UserId:  device.UserID,
+			TokenId: s.toUint64(device.TokenID),
 		}
 	}
 
 	list := &pb.ListUserDevicesForUserResponse{UserDevices: devOut}
 	return list, nil
+}
+
+// toUint64 takes a nullable decimal and returns nil if there is no value, or
+// a reference to the uint64 value of the decimal otherwise. If the value does not
+// fit then we return nil and log.
+func (s *userDeviceService) toUint64(dec types.NullDecimal) *uint64 {
+	if dec.IsZero() {
+		return nil
+	}
+
+	ui, ok := dec.Uint64()
+	if !ok {
+		s.logger.Error().Str("decimal", dec.String()).Msg("Value too large for uint64.")
+		return nil
+	}
+
+	return &ui
 }
