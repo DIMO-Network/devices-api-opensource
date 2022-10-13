@@ -94,17 +94,14 @@ var UserDeviceDatumWhere = struct {
 
 // UserDeviceDatumRels is where relationship names are stored.
 var UserDeviceDatumRels = struct {
-	UserDevice  string
-	Integration string
+	UserDevice string
 }{
-	UserDevice:  "UserDevice",
-	Integration: "Integration",
+	UserDevice: "UserDevice",
 }
 
 // userDeviceDatumR is where relationships are stored.
 type userDeviceDatumR struct {
-	UserDevice  *UserDevice  `boil:"UserDevice" json:"UserDevice" toml:"UserDevice" yaml:"UserDevice"`
-	Integration *Integration `boil:"Integration" json:"Integration" toml:"Integration" yaml:"Integration"`
+	UserDevice *UserDevice `boil:"UserDevice" json:"UserDevice" toml:"UserDevice" yaml:"UserDevice"`
 }
 
 // NewStruct creates a new relationship struct
@@ -117,13 +114,6 @@ func (r *userDeviceDatumR) GetUserDevice() *UserDevice {
 		return nil
 	}
 	return r.UserDevice
-}
-
-func (r *userDeviceDatumR) GetIntegration() *Integration {
-	if r == nil {
-		return nil
-	}
-	return r.Integration
 }
 
 // userDeviceDatumL is where Load methods for each relationship are stored.
@@ -426,17 +416,6 @@ func (o *UserDeviceDatum) UserDevice(mods ...qm.QueryMod) userDeviceQuery {
 	return UserDevices(queryMods...)
 }
 
-// Integration pointed to by the foreign key.
-func (o *UserDeviceDatum) Integration(mods ...qm.QueryMod) integrationQuery {
-	queryMods := []qm.QueryMod{
-		qm.Where("\"id\" = ?", o.IntegrationID),
-	}
-
-	queryMods = append(queryMods, mods...)
-
-	return Integrations(queryMods...)
-}
-
 // LoadUserDevice allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for an N-1 relationship.
 func (userDeviceDatumL) LoadUserDevice(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserDeviceDatum interface{}, mods queries.Applicator) error {
@@ -557,126 +536,6 @@ func (userDeviceDatumL) LoadUserDevice(ctx context.Context, e boil.ContextExecut
 	return nil
 }
 
-// LoadIntegration allows an eager lookup of values, cached into the
-// loaded structs of the objects. This is for an N-1 relationship.
-func (userDeviceDatumL) LoadIntegration(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserDeviceDatum interface{}, mods queries.Applicator) error {
-	var slice []*UserDeviceDatum
-	var object *UserDeviceDatum
-
-	if singular {
-		var ok bool
-		object, ok = maybeUserDeviceDatum.(*UserDeviceDatum)
-		if !ok {
-			object = new(UserDeviceDatum)
-			ok = queries.SetFromEmbeddedStruct(&object, &maybeUserDeviceDatum)
-			if !ok {
-				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", object, maybeUserDeviceDatum))
-			}
-		}
-	} else {
-		s, ok := maybeUserDeviceDatum.(*[]*UserDeviceDatum)
-		if ok {
-			slice = *s
-		} else {
-			ok = queries.SetFromEmbeddedStruct(&slice, maybeUserDeviceDatum)
-			if !ok {
-				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", slice, maybeUserDeviceDatum))
-			}
-		}
-	}
-
-	args := make([]interface{}, 0, 1)
-	if singular {
-		if object.R == nil {
-			object.R = &userDeviceDatumR{}
-		}
-		args = append(args, object.IntegrationID)
-
-	} else {
-	Outer:
-		for _, obj := range slice {
-			if obj.R == nil {
-				obj.R = &userDeviceDatumR{}
-			}
-
-			for _, a := range args {
-				if a == obj.IntegrationID {
-					continue Outer
-				}
-			}
-
-			args = append(args, obj.IntegrationID)
-
-		}
-	}
-
-	if len(args) == 0 {
-		return nil
-	}
-
-	query := NewQuery(
-		qm.From(`devices_api.integrations`),
-		qm.WhereIn(`devices_api.integrations.id in ?`, args...),
-	)
-	if mods != nil {
-		mods.Apply(query)
-	}
-
-	results, err := query.QueryContext(ctx, e)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load Integration")
-	}
-
-	var resultSlice []*Integration
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice Integration")
-	}
-
-	if err = results.Close(); err != nil {
-		return errors.Wrap(err, "failed to close results of eager load for integrations")
-	}
-	if err = results.Err(); err != nil {
-		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for integrations")
-	}
-
-	if len(userDeviceDatumAfterSelectHooks) != 0 {
-		for _, obj := range resultSlice {
-			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
-				return err
-			}
-		}
-	}
-
-	if len(resultSlice) == 0 {
-		return nil
-	}
-
-	if singular {
-		foreign := resultSlice[0]
-		object.R.Integration = foreign
-		if foreign.R == nil {
-			foreign.R = &integrationR{}
-		}
-		foreign.R.UserDeviceData = append(foreign.R.UserDeviceData, object)
-		return nil
-	}
-
-	for _, local := range slice {
-		for _, foreign := range resultSlice {
-			if local.IntegrationID == foreign.ID {
-				local.R.Integration = foreign
-				if foreign.R == nil {
-					foreign.R = &integrationR{}
-				}
-				foreign.R.UserDeviceData = append(foreign.R.UserDeviceData, local)
-				break
-			}
-		}
-	}
-
-	return nil
-}
-
 // SetUserDevice of the userDeviceDatum to the related item.
 // Sets o.R.UserDevice to related.
 // Adds o to related.R.UserDeviceData.
@@ -715,53 +574,6 @@ func (o *UserDeviceDatum) SetUserDevice(ctx context.Context, exec boil.ContextEx
 
 	if related.R == nil {
 		related.R = &userDeviceR{
-			UserDeviceData: UserDeviceDatumSlice{o},
-		}
-	} else {
-		related.R.UserDeviceData = append(related.R.UserDeviceData, o)
-	}
-
-	return nil
-}
-
-// SetIntegration of the userDeviceDatum to the related item.
-// Sets o.R.Integration to related.
-// Adds o to related.R.UserDeviceData.
-func (o *UserDeviceDatum) SetIntegration(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Integration) error {
-	var err error
-	if insert {
-		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
-			return errors.Wrap(err, "failed to insert into foreign table")
-		}
-	}
-
-	updateQuery := fmt.Sprintf(
-		"UPDATE \"devices_api\".\"user_device_data\" SET %s WHERE %s",
-		strmangle.SetParamNames("\"", "\"", 1, []string{"integration_id"}),
-		strmangle.WhereClause("\"", "\"", 2, userDeviceDatumPrimaryKeyColumns),
-	)
-	values := []interface{}{related.ID, o.UserDeviceID, o.IntegrationID}
-
-	if boil.IsDebug(ctx) {
-		writer := boil.DebugWriterFrom(ctx)
-		fmt.Fprintln(writer, updateQuery)
-		fmt.Fprintln(writer, values)
-	}
-	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
-		return errors.Wrap(err, "failed to update local table")
-	}
-
-	o.IntegrationID = related.ID
-	if o.R == nil {
-		o.R = &userDeviceDatumR{
-			Integration: related,
-		}
-	} else {
-		o.R.Integration = related
-	}
-
-	if related.R == nil {
-		related.R = &integrationR{
 			UserDeviceData: UserDeviceDatumSlice{o},
 		}
 	} else {

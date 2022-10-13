@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/constants"
 	mock_services "github.com/DIMO-Network/devices-api/internal/services/mocks"
 	"github.com/stretchr/testify/require"
@@ -98,29 +97,22 @@ func (s *WebHooksControllerTestSuite) TestPostWebhookSyncCommand() {
 	autoPiDeviceID := "123123"
 	autoPiTemplateID := 987
 	autoPiJobID := "AD111"
-	dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model X", 2022, s.pdb)
-	integ := test.SetupCreateAutoPiIntegration(s.T(), autoPiTemplateID, nil, s.pdb)
-	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
-	test.SetupCreateDeviceIntegration(s.T(), dd, integ, s.pdb)
-	// create user device api integration
-	_ = test.SetupCreateAutoPiJob(s.T(), autoPiJobID, autoPiDeviceID, "state.sls pending", ud.ID, s.pdb)
-	integrationItem := &ddgrpc.Integration{
-		Id:     integ.ID,
-		Vendor: integ.Vendor,
-		Style:  integ.Style,
-		Type:   integ.Type,
-	}
-	s.ddDefIntSvc.EXPECT().GetAutoPiIntegration(gomock.Any()).Return(integrationItem, nil)
+	integ := test.BuildIntegrationGRPC(constants.AutoPiVendor, autoPiTemplateID, 0)
+	dd := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Tesla", "Model X", 2020, integ)
+	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd[0].DeviceDefinitionId, nil, s.pdb)
+
+	s.ddDefIntSvc.EXPECT().GetAutoPiIntegration(gomock.Any()).Return(integ, nil)
 
 	udiai := models.UserDeviceAPIIntegration{
+		// create user device api integration
 		UserDeviceID:  ud.ID,
-		IntegrationID: integ.ID,
+		IntegrationID: integ.Id,
 		Status:        models.UserDeviceAPIIntegrationStatusPending,
 		ExternalID:    null.StringFrom(autoPiDeviceID),
 	}
 	err := udiai.Insert(s.ctx, s.pdb.DBS().Writer, boil.Infer())
 	require.NoError(s.T(), err)
+	_ = test.SetupCreateAutoPiJob(s.T(), autoPiJobID, autoPiDeviceID, "state.sls pending", ud.ID, s.pdb)
 
 	// act
 	webhookJSON := fmt.Sprintf(`{"jid": "%s","state": "COMMAND_EXECUTED","success": true,"device_id": "%s"}`, autoPiJobID, autoPiDeviceID)
@@ -134,7 +126,7 @@ func (s *WebHooksControllerTestSuite) TestPostWebhookSyncCommand() {
 	// check the database has the expected change in status, and `auto_pi_sync_command_state` in metadata
 	updatedUdiai, err := models.UserDeviceAPIIntegrations(
 		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(ud.ID),
-		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integ.ID)).
+		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integ.Id)).
 		One(s.ctx, s.pdb.DBS().Writer)
 	require.NoError(s.T(), err)
 
@@ -160,17 +152,15 @@ func (s *WebHooksControllerTestSuite) TestPostWebhookRawCommand() {
 	autoPiDeviceID := "123123"
 	autoPiTemplateID := 987
 	autoPiJobID := "AD111"
-	dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model X", 2022, s.pdb)
-	integ := test.SetupCreateAutoPiIntegration(s.T(), autoPiTemplateID, nil, s.pdb)
-	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
-	test.SetupCreateDeviceIntegration(s.T(), dd, integ, s.pdb)
+	integ := test.BuildIntegrationGRPC(constants.AutoPiVendor, autoPiTemplateID, 0)
+	dd := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Testla", "Model X", 2020, integ)
+	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd[0].DeviceDefinitionId, nil, s.pdb)
 	// create user device api integration
 	_ = test.SetupCreateAutoPiJob(s.T(), autoPiJobID, autoPiDeviceID, "some raw command", ud.ID, s.pdb)
 
 	udiai := models.UserDeviceAPIIntegration{
 		UserDeviceID:  ud.ID,
-		IntegrationID: integ.ID,
+		IntegrationID: integ.Id,
 		Status:        models.UserDeviceAPIIntegrationStatusPending, // assert this does not get changed since just raw command
 		ExternalID:    null.StringFrom(autoPiDeviceID),
 	}
@@ -189,7 +179,7 @@ func (s *WebHooksControllerTestSuite) TestPostWebhookRawCommand() {
 	// check the database has the expected change in status, and `auto_pi_sync_command_state` in metadata
 	updatedUdiai, err := models.UserDeviceAPIIntegrations(
 		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(ud.ID),
-		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integ.ID)).
+		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integ.Id)).
 		One(s.ctx, s.pdb.DBS().Writer)
 	assert.NoError(s.T(), err)
 

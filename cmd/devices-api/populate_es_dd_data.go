@@ -4,33 +4,60 @@ import (
 	"context"
 	"fmt"
 
+	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	es "github.com/DIMO-Network/devices-api/internal/elasticsearch"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
-func populateESDDData(ctx context.Context, settings *config.Settings, e es.ElasticSearch, pdb database.DbStore, logger *zerolog.Logger) error {
+func populateESDDData(ctx context.Context, settings *config.Settings, e es.ElasticSearch, pdb database.DbStore, logger *zerolog.Logger, ddSvc services.DeviceDefinitionService) error {
 	db := pdb.DBS().Reader
 
 	apiInts, err := models.UserDeviceAPIIntegrations(
 		models.UserDeviceAPIIntegrationWhere.ExternalID.IsNotNull(),
 		qm.Where("metadata ->> 'elasticDefinitionSynced' IS NULL OR metadata ->> 'elasticDefinitionSynced' = ?", false),
-		qm.Load(qm.Rels(models.UserDeviceAPIIntegrationRels.UserDevice, models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
 	).All(ctx, db)
 
 	if err != nil {
 		return fmt.Errorf("failed to retrieve all API integrations with external IDs: %w", err)
 	}
 
+	ids := make([]string, len(apiInts))
+	for _, d := range apiInts {
+		ids = append(ids, d.R.UserDevice.DeviceDefinitionID)
+	}
+
+	deviceDefinitionResponse, err := ddSvc.GetDeviceDefinitionsByIDs(ctx, ids)
+
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Failed to retrieve all devices and definitions for event generation from grpc")
+	}
+
+	filterDeviceDefinition := func(id string, items []*ddgrpc.GetDeviceDefinitionItemResponse) (*ddgrpc.GetDeviceDefinitionItemResponse, error) {
+		for _, dd := range items {
+			if id == dd.DeviceDefinitionId {
+				return dd, nil
+			}
+		}
+		return nil, errors.Errorf("no device definition %s", id)
+	}
+
 	for _, apiInt := range apiInts {
-		makeRel := apiInt.R.UserDevice.R.DeviceDefinition.R.DeviceMake
-		ddRel := apiInt.R.UserDevice.R.DeviceDefinition
-		ddID := ddRel.ID
+
+		dd, err := filterDeviceDefinition(apiInt.R.UserDevice.DeviceDefinitionID, deviceDefinitionResponse)
+		if err != nil {
+			logger.Fatal().Err(err)
+			continue
+		}
+
+		makeRel := dd.Make
+		ddID := dd.DeviceDefinitionId
 
 		md := services.UserDeviceMetadata{}
 		if err = apiInt.R.UserDevice.Metadata.Unmarshal(&md); err != nil {
@@ -43,8 +70,8 @@ func populateESDDData(ctx context.Context, settings *config.Settings, e es.Elast
 				DeviceDefinitionID: ddID,
 				UserDeviceID:       apiInt.R.UserDevice.ID,
 				Make:               makeRel.Name,
-				Model:              ddRel.Model,
-				Year:               int(ddRel.Year),
+				Model:              dd.Type.Model,
+				Year:               int(dd.Type.Year),
 			}
 			err = e.UpdateAutopiDevicesByQuery(dd, settings.ElasticDeviceStatusIndex)
 			if err != nil {

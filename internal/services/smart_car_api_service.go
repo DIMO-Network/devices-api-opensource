@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,12 +12,8 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/database"
-	"github.com/DIMO-Network/devices-api/models"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/segmentio/ksuid"
-	"github.com/volatiletech/sqlboiler/v4/boil"
-	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
 type SmartCarService struct {
@@ -73,29 +68,24 @@ func ParseSmartCarYears(yearsPtr *string) ([]int, error) {
 func (s *SmartCarService) GetOrCreateSmartCarIntegration(ctx context.Context) (string, error) {
 	const (
 		smartCarType  = "API"
-		smartCarStyle = models.IntegrationStyleWebhook
+		smartCarStyle = constants.IntegrationStyleWebhook
 	)
-	integration, err := models.Integrations(qm.Where("type = ?", smartCarType),
-		qm.And("vendor = ?", constants.SmartCarVendor),
-		qm.And("style = ?", smartCarStyle)).One(ctx, s.DBS().Writer)
+
+	integration, err := s.deviceDefSvc.GetIntegrationByFilter(ctx, smartCarType, constants.SmartCarVendor, smartCarStyle)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// create
-			integration = &models.Integration{}
-			integration.ID = ksuid.New().String()
-			integration.Vendor = constants.SmartCarVendor
-			integration.Type = smartCarType
-			integration.Style = smartCarStyle
-			err = integration.Insert(ctx, s.DBS().Writer, boil.Infer())
-			if err != nil {
-				return "", errors.Wrap(err, "error inserting smart car integration")
-			}
-		} else {
-			return "", errors.Wrap(err, "error fetching smart car integration from database")
+		return "", errors.Wrap(err, "error fetching smart car integration from grpc")
+	}
+
+	if integration == nil {
+		// create
+		integration, err = s.deviceDefSvc.CreateIntegration(ctx, smartCarType, constants.SmartCarVendor, smartCarStyle)
+
+		if err != nil {
+			return "", errors.Wrap(err, "error insert smart car integration grpc")
 		}
 	}
-	return integration.ID, nil
+	return integration.Id, nil
 }
 
 // GetSmartCarVehicleData gets all smartcar data on compatibility from their website

@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-
 	"net/http"
 	"testing"
 
@@ -11,7 +10,9 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/golang/mock/gomock"
 	"github.com/jarcoal/httpmock"
+	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -29,6 +30,9 @@ type AutoPiAPIServiceTestSuite struct {
 
 // SetupSuite starts container db
 func (s *AutoPiAPIServiceTestSuite) SetupSuite() {
+	mockCtrl := gomock.NewController(s.T())
+	defer mockCtrl.Finish()
+
 	s.ctx = context.Background()
 	s.pdb, s.container = test.StartContainerDatabase(s.ctx, s.T(), migrationsDirRelPath)
 }
@@ -54,16 +58,14 @@ func (s *AutoPiAPIServiceTestSuite) TestGetUserDeviceIntegrationByUnitID() {
 	// arrange
 	const testUserID = "123123"
 	autoPiUnitID := "456"
-	apInt := test.SetupCreateAutoPiIntegration(s.T(), 10, nil, s.pdb)
-	dm := test.SetupCreateMake(s.T(), "Tesla", s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model 3", 2020, s.pdb)
-	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
+
+	ud := test.SetupCreateUserDevice(s.T(), testUserID, ksuid.New().String(), nil, s.pdb)
 	amd := UserDeviceAPIIntegrationsMetadata{
 		AutoPiUnitID: &autoPiUnitID,
 	}
 	apUdai := &models.UserDeviceAPIIntegration{
 		UserDeviceID:  ud.ID,
-		IntegrationID: apInt.ID,
+		IntegrationID: ksuid.New().String(),
 		Status:        models.UserDeviceAPIIntegrationStatusActive,
 		ExternalID:    null.StringFrom("autoPiDeviceID"),
 	}

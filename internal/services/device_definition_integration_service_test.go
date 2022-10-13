@@ -39,10 +39,10 @@ func (s *DeviceDefinitionIntegrationTestSuite) TearDownSuite() {
 }
 
 func TestDeviceDefinitionIntegrationTestSuite(t *testing.T) {
-	suite.Run(t, new(AutoPiAPIServiceTestSuite))
+	suite.Run(t, new(DeviceDefinitionIntegrationTestSuite))
 }
 
-// todo: validate with james
+// todo: to be removed per PLA-260
 //func (s *DeviceDefinitionIntegrationTestSuite) TestAppendAutoPiCompatibility() {
 //	dm := test.SetupCreateMake(s.T(), "Ford", s.pdb)
 //	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "MachE", 2020, s.pdb)

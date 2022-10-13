@@ -10,15 +10,18 @@ import (
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
+	mock_services "github.com/DIMO-Network/devices-api/internal/services/mocks"
 	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
 	"github.com/Shopify/sarama"
 	saramamocks "github.com/Shopify/sarama/mocks"
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang/mock/gomock"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/tidwall/gjson"
@@ -70,16 +73,21 @@ func checkForDeviceAndH3(userDeviceID string, h3Indexes []string) func(*sarama.P
 
 type GeofencesControllerTestSuite struct {
 	suite.Suite
-	pdb       database.DbStore
-	container testcontainers.Container
-	ctx       context.Context
-	logger    *zerolog.Logger
+	pdb          database.DbStore
+	container    testcontainers.Container
+	ctx          context.Context
+	logger       *zerolog.Logger
+	deviceDefSvc *mock_services.MockDeviceDefinitionService
+	mockCtrl     *gomock.Controller
 }
 
 // SetupSuite starts container db
 func (s *GeofencesControllerTestSuite) SetupSuite() {
+	s.mockCtrl = gomock.NewController(s.T())
 	s.ctx = context.Background()
 	s.pdb, s.container = test.StartContainerDatabase(s.ctx, s.T(), migrationsDirRelPath)
+
+	s.deviceDefSvc = mock_services.NewMockDeviceDefinitionService(s.mockCtrl)
 
 	s.logger = test.Logger()
 }
@@ -95,7 +103,7 @@ func (s *GeofencesControllerTestSuite) TearDownSuite() {
 	if err := s.container.Terminate(s.ctx); err != nil {
 		s.T().Fatal(err)
 	}
-
+	s.mockCtrl.Finish()
 }
 
 func TestGeofencesControllerTestSuite(t *testing.T) {
@@ -106,12 +114,10 @@ func TestGeofencesControllerTestSuite(t *testing.T) {
 func (s *GeofencesControllerTestSuite) TestPostGeofence() {
 	injectedUserID := ksuid.New().String()
 	producer := saramamocks.NewSyncProducer(s.T(), sarama.NewConfig())
-	c := NewGeofencesController(&config.Settings{Port: "3000"}, s.pdb.DBS, s.logger, producer)
+	c := NewGeofencesController(&config.Settings{Port: "3000"}, s.pdb.DBS, s.logger, producer, s.deviceDefSvc)
 	app := fiber.New()
 	app.Post("/user/geofences", test.AuthInjectorTestHandler(injectedUserID), c.Create)
-	dm := test.SetupCreateMake(s.T(), "Mercedes-Benz", s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "C300", 2009, s.pdb)
-	ud := test.SetupCreateUserDevice(s.T(), injectedUserID, dd, nil, s.pdb)
+	ud := test.SetupCreateUserDevice(s.T(), injectedUserID, ksuid.New().String(), nil, s.pdb)
 	req := CreateGeofence{
 		Name:          "Home",
 		Type:          "PrivacyFence",
@@ -152,12 +158,10 @@ func (s *GeofencesControllerTestSuite) TestPostGeofence() {
 
 func (s *GeofencesControllerTestSuite) TestPostGeofence400IfSameName() {
 	injectedUserID := ksuid.New().String()
-	c := NewGeofencesController(&config.Settings{Port: "3000"}, s.pdb.DBS, s.logger, nil)
+	c := NewGeofencesController(&config.Settings{Port: "3000"}, s.pdb.DBS, s.logger, nil, s.deviceDefSvc)
 	app := fiber.New()
 	app.Post("/user/geofences", test.AuthInjectorTestHandler(injectedUserID), c.Create)
-	dm := test.SetupCreateMake(s.T(), "Mercedes-Benz", s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "C300", 2009, s.pdb)
-	ud := test.SetupCreateUserDevice(s.T(), injectedUserID, dd, nil, s.pdb)
+	ud := test.SetupCreateUserDevice(s.T(), injectedUserID, ksuid.New().String(), nil, s.pdb)
 	test.SetupCreateGeofence(s.T(), injectedUserID, "Home", &ud, s.pdb)
 
 	req := CreateGeofence{
@@ -172,13 +176,11 @@ func (s *GeofencesControllerTestSuite) TestPostGeofence400IfSameName() {
 }
 func (s *GeofencesControllerTestSuite) TestPostGeofence400IfNotYourDevice() {
 	injectedUserID := ksuid.New().String()
-	c := NewGeofencesController(&config.Settings{Port: "3000"}, s.pdb.DBS, s.logger, nil)
+	c := NewGeofencesController(&config.Settings{Port: "3000"}, s.pdb.DBS, s.logger, nil, s.deviceDefSvc)
 	app := fiber.New()
 	app.Post("/user/geofences", test.AuthInjectorTestHandler(injectedUserID), c.Create)
 	otherUserID := "7734"
-	dm := test.SetupCreateMake(s.T(), "Tesla", s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model Y", 2020, s.pdb)
-	ud := test.SetupCreateUserDevice(s.T(), otherUserID, dd, nil, s.pdb)
+	ud := test.SetupCreateUserDevice(s.T(), otherUserID, ksuid.New().String(), nil, s.pdb)
 
 	req := CreateGeofence{
 		Name:          "Home",
@@ -193,13 +195,17 @@ func (s *GeofencesControllerTestSuite) TestPostGeofence400IfNotYourDevice() {
 }
 func (s *GeofencesControllerTestSuite) TestGetAllUserGeofences() {
 	injectedUserID := ksuid.New().String()
-	c := NewGeofencesController(&config.Settings{Port: "3000"}, s.pdb.DBS, s.logger, nil)
+	c := NewGeofencesController(&config.Settings{Port: "3000"}, s.pdb.DBS, s.logger, nil, s.deviceDefSvc)
 	app := fiber.New()
 	app.Get("/user/geofences", test.AuthInjectorTestHandler(injectedUserID), c.GetAll)
-	test.SetupCreateGeofence(s.T(), injectedUserID, "Home", nil, s.pdb)
+	dd := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Ford", "escaped", 2020, nil)
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dd[0].DeviceDefinitionId}).Return(dd, nil)
+	ud := test.SetupCreateUserDevice(s.T(), injectedUserID, dd[0].DeviceDefinitionId, nil, s.pdb)
+	test.SetupCreateGeofence(s.T(), injectedUserID, "Home", &ud, s.pdb)
 
 	request, _ := http.NewRequest("GET", "/user/geofences", nil)
-	response, _ := app.Test(request)
+	response, err := app.Test(request)
+	require.NoError(s.T(), err)
 	body, _ := io.ReadAll(response.Body)
 	// assert
 	assert.Equal(s.T(), fiber.StatusOK, response.StatusCode)
@@ -212,14 +218,16 @@ func (s *GeofencesControllerTestSuite) TestGetAllUserGeofences() {
 func (s *GeofencesControllerTestSuite) TestPutGeofence() {
 	injectedUserID := ksuid.New().String()
 	producer := saramamocks.NewSyncProducer(s.T(), sarama.NewConfig())
-	c := NewGeofencesController(&config.Settings{Port: "3000"}, s.pdb.DBS, s.logger, producer)
+	c := NewGeofencesController(&config.Settings{Port: "3000"}, s.pdb.DBS, s.logger, producer, s.deviceDefSvc)
 	app := fiber.New()
 	app.Get("/user/geofences", test.AuthInjectorTestHandler(injectedUserID), c.GetAll)
 	app.Put("/user/geofences/:geofenceID", test.AuthInjectorTestHandler(injectedUserID), c.Update)
-	dm := test.SetupCreateMake(s.T(), "Tesla", s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model Y", 2020, s.pdb)
-	ud := test.SetupCreateUserDevice(s.T(), injectedUserID, dd, nil, s.pdb)
+
+	dd := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Ford", "escaped", 2020, nil)
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dd[0].DeviceDefinitionId}).Return(dd, nil)
+	ud := test.SetupCreateUserDevice(s.T(), injectedUserID, dd[0].DeviceDefinitionId, nil, s.pdb)
 	gf := test.SetupCreateGeofence(s.T(), injectedUserID, "something", &ud, s.pdb)
+
 	// The fence is being detached from the device and it has type TriggerEntry anyway.
 	producer.ExpectSendMessageWithMessageCheckerFunctionAndSucceed(checkForDeviceAndH3(ud.ID, []string{}))
 
@@ -254,12 +262,10 @@ func (s *GeofencesControllerTestSuite) TestPutGeofence() {
 func (s *GeofencesControllerTestSuite) TestDeleteGeofence() {
 	injectedUserID := ksuid.New().String()
 	producer := saramamocks.NewSyncProducer(s.T(), sarama.NewConfig())
-	c := NewGeofencesController(&config.Settings{Port: "3000"}, s.pdb.DBS, s.logger, producer)
+	c := NewGeofencesController(&config.Settings{Port: "3000"}, s.pdb.DBS, s.logger, producer, s.deviceDefSvc)
 	app := fiber.New()
 	app.Delete("/user/geofences/:geofenceID", test.AuthInjectorTestHandler(injectedUserID), c.Delete)
-	dm := test.SetupCreateMake(s.T(), "Tesla", s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model Y", 2020, s.pdb)
-	ud := test.SetupCreateUserDevice(s.T(), injectedUserID, dd, nil, s.pdb)
+	ud := test.SetupCreateUserDevice(s.T(), injectedUserID, ksuid.New().String(), nil, s.pdb)
 	gf := test.SetupCreateGeofence(s.T(), injectedUserID, "something", &ud, s.pdb)
 
 	producer.ExpectSendMessageWithMessageCheckerFunctionAndSucceed(checkForDeviceAndH3(ud.ID, []string{}))

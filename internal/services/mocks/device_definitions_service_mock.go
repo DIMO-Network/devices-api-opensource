@@ -9,7 +9,6 @@ import (
 	reflect "reflect"
 
 	grpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
-	models "github.com/DIMO-Network/devices-api/models"
 	gomock "github.com/golang/mock/gomock"
 	boil "github.com/volatiletech/sqlboiler/v4/boil"
 )
@@ -49,6 +48,21 @@ func (m *MockDeviceDefinitionService) CheckAndSetImage(ctx context.Context, dd *
 func (mr *MockDeviceDefinitionServiceMockRecorder) CheckAndSetImage(ctx, dd, overwrite interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckAndSetImage", reflect.TypeOf((*MockDeviceDefinitionService)(nil).CheckAndSetImage), ctx, dd, overwrite)
+}
+
+// CreateIntegration mocks base method.
+func (m *MockDeviceDefinitionService) CreateIntegration(ctx context.Context, integrationType, vendor, style string) (*grpc.Integration, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateIntegration", ctx, integrationType, vendor, style)
+	ret0, _ := ret[0].(*grpc.Integration)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateIntegration indicates an expected call of CreateIntegration.
+func (mr *MockDeviceDefinitionServiceMockRecorder) CreateIntegration(ctx, integrationType, vendor, style interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateIntegration", reflect.TypeOf((*MockDeviceDefinitionService)(nil).CreateIntegration), ctx, integrationType, vendor, style)
 }
 
 // FindDeviceDefinitionByMMY mocks base method.
@@ -96,6 +110,21 @@ func (mr *MockDeviceDefinitionServiceMockRecorder) GetDeviceDefinitionsByIDs(ctx
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDeviceDefinitionsByIDs", reflect.TypeOf((*MockDeviceDefinitionService)(nil).GetDeviceDefinitionsByIDs), ctx, ids)
 }
 
+// GetIntegrationByFilter mocks base method.
+func (m *MockDeviceDefinitionService) GetIntegrationByFilter(ctx context.Context, integrationType, vendor, style string) (*grpc.Integration, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetIntegrationByFilter", ctx, integrationType, vendor, style)
+	ret0, _ := ret[0].(*grpc.Integration)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetIntegrationByFilter indicates an expected call of GetIntegrationByFilter.
+func (mr *MockDeviceDefinitionServiceMockRecorder) GetIntegrationByFilter(ctx, integrationType, vendor, style interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIntegrationByFilter", reflect.TypeOf((*MockDeviceDefinitionService)(nil).GetIntegrationByFilter), ctx, integrationType, vendor, style)
+}
+
 // GetIntegrationByID mocks base method.
 func (m *MockDeviceDefinitionService) GetIntegrationByID(ctx context.Context, id string) (*grpc.Integration, error) {
 	m.ctrl.T.Helper()
@@ -109,6 +138,21 @@ func (m *MockDeviceDefinitionService) GetIntegrationByID(ctx context.Context, id
 func (mr *MockDeviceDefinitionServiceMockRecorder) GetIntegrationByID(ctx, id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIntegrationByID", reflect.TypeOf((*MockDeviceDefinitionService)(nil).GetIntegrationByID), ctx, id)
+}
+
+// GetIntegrationByVendor mocks base method.
+func (m *MockDeviceDefinitionService) GetIntegrationByVendor(ctx context.Context, vendor string) (*grpc.Integration, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetIntegrationByVendor", ctx, vendor)
+	ret0, _ := ret[0].(*grpc.Integration)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetIntegrationByVendor indicates an expected call of GetIntegrationByVendor.
+func (mr *MockDeviceDefinitionServiceMockRecorder) GetIntegrationByVendor(ctx, vendor interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIntegrationByVendor", reflect.TypeOf((*MockDeviceDefinitionService)(nil).GetIntegrationByVendor), ctx, vendor)
 }
 
 // GetIntegrations mocks base method.
@@ -127,10 +171,10 @@ func (mr *MockDeviceDefinitionServiceMockRecorder) GetIntegrations(ctx interface
 }
 
 // GetOrCreateMake mocks base method.
-func (m *MockDeviceDefinitionService) GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*models.DeviceMake, error) {
+func (m *MockDeviceDefinitionService) GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*grpc.DeviceMake, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOrCreateMake", ctx, tx, makeName)
-	ret0, _ := ret[0].(*models.DeviceMake)
+	ret0, _ := ret[0].(*grpc.DeviceMake)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

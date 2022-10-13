@@ -185,11 +185,11 @@ func Logger() *zerolog.Logger {
 	return &l
 }
 
-func SetupCreateUserDevice(t *testing.T, testUserID string, dd *models.DeviceDefinition, metadata *[]byte, pdb database.DbStore) models.UserDevice {
+func SetupCreateUserDevice(t *testing.T, testUserID string, ddID string, metadata *[]byte, pdb database.DbStore) models.UserDevice {
 	ud := models.UserDevice{
 		ID:                 ksuid.New().String(),
 		UserID:             testUserID,
-		DeviceDefinitionID: dd.ID,
+		DeviceDefinitionID: ddID,
 		CountryCode:        null.StringFrom("USA"),
 		Name:               null.StringFrom("Chungus"),
 	}
@@ -213,70 +213,6 @@ func SetupCreateAutoPiUnit(t *testing.T, userID, unitID string, deviceID *string
 	err := au.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
 	assert.NoError(t, err)
 	return &au
-}
-
-func SetupCreateDeviceIntegration(t *testing.T, dd *models.DeviceDefinition, integration models.Integration, pdb database.DbStore) {
-	di := models.DeviceIntegration{
-		DeviceDefinitionID: dd.ID,
-		IntegrationID:      integration.ID,
-		Region:             "Americas",
-	}
-	err := di.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
-	assert.NoError(t, err)
-}
-
-func SetupCreateDeviceDefinition(t *testing.T, dm models.DeviceMake, model string, year int, pdb database.DbStore) *models.DeviceDefinition {
-	dd := &models.DeviceDefinition{
-		ID:           ksuid.New().String(),
-		DeviceMakeID: dm.ID,
-		Model:        model,
-		Year:         int16(year),
-		Verified:     true,
-		Metadata:     null.JSONFrom([]byte(`{"mpg":"40.000000","mpg_city":"41.000000","mpg_highway":"38.000000","fuel_tank_capacity_gal":"14.500000"}`)),
-	}
-	err := dd.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
-	assert.NoError(t, err, "database error")
-	return dd
-}
-
-func SetupCreateMake(t *testing.T, mk string, pdb database.DbStore) models.DeviceMake {
-	dm := models.DeviceMake{
-		ID:   ksuid.New().String(),
-		Name: mk,
-	}
-	err := dm.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
-	assert.NoError(t, err, "no db error expected")
-	return dm
-}
-
-func SetupCreateSmartCarIntegration(t *testing.T, pdb database.DbStore) models.Integration {
-	integration := models.Integration{
-		ID:               ksuid.New().String(),
-		Type:             models.IntegrationTypeAPI,
-		Style:            models.IntegrationStyleWebhook,
-		Vendor:           "SmartCar",
-		RefreshLimitSecs: 1800,
-	}
-	err := integration.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
-	assert.NoError(t, err, "database error")
-	return integration
-}
-
-func SetupCreateAutoPiIntegration(t *testing.T, templateID int, evTemplateID *int, pdb database.DbStore) models.Integration {
-	integration := models.Integration{
-		ID:       ksuid.New().String(),
-		Vendor:   "AutoPi",
-		Type:     "Hardware",
-		Style:    models.IntegrationStyleAddon,
-		Metadata: null.JSONFrom([]byte(fmt.Sprintf(`{"autoPiDefaultTemplateId": %d }`, templateID))),
-	}
-	if evTemplateID != nil {
-		integration.Metadata = null.JSONFrom([]byte(fmt.Sprintf(`{"autoPiDefaultTemplateId": %d,
-			"autoPiPowertrainToTemplateId":{"BEV": %d}}`, templateID, *evTemplateID)))
-	}
-	err := integration.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
-	assert.NoError(t, err, "database error")
-	return integration
 }
 
 // SetupCreateUserDeviceAPIIntegration status set to Active, autoPiUnitId is optional
@@ -332,10 +268,10 @@ func SetupCreateGeofence(t *testing.T, userID, name string, ud *models.UserDevic
 	return &gf
 }
 
-func SetupCreateExternalVINData(t *testing.T, dd *models.DeviceDefinition, ud *models.UserDevice, md map[string][]byte, pdb database.DbStore) *models.ExternalVinDatum {
+func SetupCreateExternalVINData(t *testing.T, ddID string, ud *models.UserDevice, md map[string][]byte, pdb database.DbStore) *models.ExternalVinDatum {
 	evd := models.ExternalVinDatum{
 		ID:                 ksuid.New().String(),
-		DeviceDefinitionID: null.StringFrom(dd.ID),
+		DeviceDefinitionID: null.StringFrom(ddID),
 		Vin:                ud.VinIdentifier.String,
 		UserDeviceID:       null.StringFrom(ud.ID),
 		RequestMetadata:    null.JSONFrom([]byte(`{"mileage":49957,"zipCode":"48216"}`)),
@@ -355,6 +291,7 @@ func SetupCreateExternalVINData(t *testing.T, dd *models.DeviceDefinition, ud *m
 	return &evd
 }
 
+// BuildIntegrationGRPC depending on integration vendor, defines an integration object with typical settings. Smartcar refresh limit default is 100 seconds.
 func BuildIntegrationGRPC(integrationVendor string, autoPiDefaultTemplateID int, bevTemplateID int) *ddgrpc.Integration {
 	var integration *ddgrpc.Integration
 	switch integrationVendor {
@@ -374,10 +311,11 @@ func BuildIntegrationGRPC(integrationVendor string, autoPiDefaultTemplateID int,
 		}
 	case constants.SmartCarVendor:
 		integration = &ddgrpc.Integration{
-			Id:     ksuid.New().String(),
-			Type:   constants.IntegrationTypeAPI,
-			Style:  constants.IntegrationStyleWebhook,
-			Vendor: constants.SmartCarVendor,
+			Id:               ksuid.New().String(),
+			Type:             constants.IntegrationTypeAPI,
+			Style:            constants.IntegrationStyleWebhook,
+			Vendor:           constants.SmartCarVendor,
+			RefreshLimitSecs: 100,
 		}
 	case constants.TeslaVendor:
 		integration = &ddgrpc.Integration{
@@ -390,26 +328,18 @@ func BuildIntegrationGRPC(integrationVendor string, autoPiDefaultTemplateID int,
 	return integration
 }
 
-// BuildDeviceDefinitionGRPC generates an array with single device definition, adds integration to response if integration passed in not nil
-func BuildDeviceDefinitionGRPC(deviceDefinitionID string, make string, model string, integration *ddgrpc.Integration) []*ddgrpc.GetDeviceDefinitionItemResponse {
-	var integrationToAdd *ddgrpc.DeviceIntegration
+// BuildDeviceDefinitionGRPC generates an array with single device definition, adds integration to response if integration passed in not nil. uses Americas region
+func BuildDeviceDefinitionGRPC(deviceDefinitionID string, mk string, model string, year int, integration *ddgrpc.Integration) []*ddgrpc.GetDeviceDefinitionItemResponse {
+	// todo can we get rid of deviceDefinitionID?
+	integrationsToAdd := make([]*ddgrpc.DeviceIntegration, 2)
 	if integration != nil {
-		switch integration.Vendor {
-		case constants.AutoPiVendor:
-			integrationToAdd = &ddgrpc.DeviceIntegration{
-				Integration: integration,
-				Region:      constants.AmericasRegion.String(),
-			}
-		case constants.SmartCarVendor:
-			integrationToAdd = &ddgrpc.DeviceIntegration{
-				Integration: integration,
-				Region:      constants.AmericasRegion.String(),
-			}
-		case constants.TeslaVendor:
-			integrationToAdd = &ddgrpc.DeviceIntegration{
-				Integration: integration,
-				Region:      constants.AmericasRegion.String(),
-			}
+		integrationsToAdd[0] = &ddgrpc.DeviceIntegration{
+			Integration: integration,
+			Region:      constants.AmericasRegion.String(),
+		}
+		integrationsToAdd[1] = &ddgrpc.DeviceIntegration{
+			Integration: integration,
+			Region:      constants.EuropeRegion.String(),
 		}
 	}
 
@@ -418,13 +348,13 @@ func BuildDeviceDefinitionGRPC(deviceDefinitionID string, make string, model str
 		Name:               "Name",
 		Make: &ddgrpc.DeviceMake{
 			Id:   ksuid.New().String(),
-			Name: make,
+			Name: mk,
 		},
 		Type: &ddgrpc.DeviceType{
 			Type:  "Vehicle",
-			Make:  make,
+			Make:  mk,
 			Model: model,
-			Year:  2020,
+			Year:  int32(year),
 		},
 		VehicleData: &ddgrpc.VehicleInfo{
 			MPG:                 1,
@@ -441,70 +371,9 @@ func BuildDeviceDefinitionGRPC(deviceDefinitionID string, make string, model str
 		//Metadata: dd.Metadata,
 		Verified: true,
 	}
-	if integrationToAdd != nil {
-		rp.DeviceIntegrations = []*ddgrpc.DeviceIntegration{integrationToAdd}
+	if integration != nil {
+		rp.DeviceIntegrations = integrationsToAdd
 	}
 
 	return []*ddgrpc.GetDeviceDefinitionItemResponse{rp}
-}
-func BuildDeviceDefinitionWithIntegrationGRPC(deviceDefinitionID string, make string, model string, modelType string, integrationID string) []*ddgrpc.GetDeviceDefinitionItemResponse {
-	rp := &ddgrpc.GetDeviceDefinitionItemResponse{
-		DeviceDefinitionId: deviceDefinitionID,
-		Name:               "Name",
-		DeviceIntegrations: []*ddgrpc.DeviceIntegration{},
-		Make: &ddgrpc.DeviceMake{
-			Id:   ksuid.New().String(),
-			Name: make,
-		},
-		Type: &ddgrpc.DeviceType{
-			Type:  modelType,
-			Make:  make,
-			Model: model,
-			Year:  2020,
-		},
-		VehicleData: &ddgrpc.VehicleInfo{
-			MPG:                 1,
-			MPGHighway:          1,
-			MPGCity:             1,
-			FuelTankCapacityGal: 1,
-			FuelType:            "gas",
-			Base_MSRP:           1,
-			DrivenWheels:        "1",
-			NumberOfDoors:       1,
-			EPAClass:            "class",
-			VehicleType:         "Vehicle",
-		},
-		//Metadata: dd.Metadata,
-		Verified: true,
-	}
-
-	rp.DeviceIntegrations = append(rp.DeviceIntegrations, &ddgrpc.DeviceIntegration{
-		Integration: &ddgrpc.Integration{
-			Id:     integrationID,
-			Type:   models.IntegrationTypeAPI,
-			Style:  models.IntegrationStyleWebhook,
-			Vendor: "SmartCar",
-		},
-	})
-
-	result := []*ddgrpc.GetDeviceDefinitionItemResponse{rp}
-
-	return result
-}
-
-func BuildAutoPiIntegrationGrpc(integrationID string, defaultTemplateID, bevTemplateID int32) *ddgrpc.Integration {
-	autoPiIntegration := &ddgrpc.Integration{
-		Id:                      integrationID,
-		Type:                    "Hardware",
-		Style:                   "Addon",
-		Vendor:                  constants.AutoPiVendor,
-		AutoPiDefaultTemplateId: defaultTemplateID,
-		AutoPiPowertrainTemplate: &ddgrpc.Integration_AutoPiPowertrainTemplate{
-			BEV:  bevTemplateID,
-			HEV:  10,
-			ICE:  10,
-			PHEV: 10,
-		},
-	}
-	return autoPiIntegration
 }

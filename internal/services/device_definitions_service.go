@@ -5,9 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
@@ -28,7 +26,6 @@ import (
 )
 
 //go:generate mockgen -source device_definitions_service.go -destination mocks/device_definitions_service_mock.go
-const vehicleInfoJSONNode = "vehicle_info"
 
 type DeviceDefinitionService interface {
 	FindDeviceDefinitionByMMY(ctx context.Context, mk, model string, year int) (*ddgrpc.GetDeviceDefinitionItemResponse, error)
@@ -36,11 +33,14 @@ type DeviceDefinitionService interface {
 	UpdateDeviceDefinitionFromNHTSA(ctx context.Context, deviceDefinitionID string, vin string) error
 	PullDrivlyData(ctx context.Context, userDeviceID, deviceDefinitionID string, vin string) error
 	PullBlackbookData(ctx context.Context, userDeviceID, deviceDefinitionID string, vin string) error
-	GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*models.DeviceMake, error)
+	GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*ddgrpc.DeviceMake, error)
 	GetDeviceDefinitionsByIDs(ctx context.Context, ids []string) ([]*ddgrpc.GetDeviceDefinitionItemResponse, error)
 	GetDeviceDefinitionByID(ctx context.Context, id string) (*ddgrpc.GetDeviceDefinitionItemResponse, error)
 	GetIntegrations(ctx context.Context) ([]*ddgrpc.Integration, error)
 	GetIntegrationByID(ctx context.Context, id string) (*ddgrpc.Integration, error)
+	GetIntegrationByVendor(ctx context.Context, vendor string) (*ddgrpc.Integration, error)
+	GetIntegrationByFilter(ctx context.Context, integrationType string, vendor string, style string) (*ddgrpc.Integration, error)
+	CreateIntegration(ctx context.Context, integrationType string, vendor string, style string) (*ddgrpc.Integration, error)
 }
 
 type deviceDefinitionService struct {
@@ -65,7 +65,29 @@ func NewDeviceDefinitionService(DBS func() *database.DBReaderWriter, log *zerolo
 	}
 }
 
+func (d *deviceDefinitionService) CreateIntegration(ctx context.Context, integrationType string, vendor string, style string) (*ddgrpc.Integration, error) {
+
+	definitionsClient, conn, err := d.getDeviceDefsGrpcClient()
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	integration, err := definitionsClient.CreateIntegration(ctx, &ddgrpc.CreateIntegrationRequest{
+		Vendor: vendor,
+		Type:   integrationType,
+		Style:  style,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &ddgrpc.Integration{Id: integration.Id, Vendor: vendor, Type: integrationType, Style: style}, nil
+}
+
 // GetDeviceDefinitionsByIDs calls device definitions api via GRPC to get the definition. idea for testing: http://www.inanzzz.com/index.php/post/w9qr/unit-testing-golang-grpc-client-and-server-application-with-bufconn-package
+// if not found or other error from server, the error contains the grpc status code that can be interpreted for different conditions. example in api.GrpcErrorToFiber
 func (d *deviceDefinitionService) GetDeviceDefinitionsByIDs(ctx context.Context, ids []string) ([]*ddgrpc.GetDeviceDefinitionItemResponse, error) {
 
 	if len(ids) == 0 {
@@ -78,12 +100,12 @@ func (d *deviceDefinitionService) GetDeviceDefinitionsByIDs(ctx context.Context,
 	}
 	defer conn.Close()
 
-	definitions, err := definitionsClient.GetDeviceDefinitionByID(ctx, &ddgrpc.GetDeviceDefinitionRequest{
+	definitions, err2 := definitionsClient.GetDeviceDefinitionByID(ctx, &ddgrpc.GetDeviceDefinitionRequest{
 		Ids: ids,
 	})
 
-	if err != nil {
-		return nil, err
+	if err2 != nil {
+		return nil, err2
 	}
 
 	return definitions.GetDeviceDefinitions(), nil
@@ -138,6 +160,42 @@ func (d *deviceDefinitionService) GetIntegrationByID(ctx context.Context, id str
 	return integration, nil
 }
 
+func (d *deviceDefinitionService) GetIntegrationByFilter(ctx context.Context, integrationType string, vendor string, style string) (*ddgrpc.Integration, error) {
+	allIntegrations, err := d.GetIntegrations(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to call grpc to get integrations")
+	}
+	var integration *ddgrpc.Integration
+	for _, in := range allIntegrations {
+		if in.Type == integrationType && in.Vendor == vendor && in.Style == style {
+			integration = in
+		}
+	}
+	if integration == nil {
+		return nil, nil
+	}
+
+	return integration, nil
+}
+
+func (d *deviceDefinitionService) GetIntegrationByVendor(ctx context.Context, vendor string) (*ddgrpc.Integration, error) {
+	allIntegrations, err := d.GetIntegrations(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to call grpc to get integrations")
+	}
+	var integration *ddgrpc.Integration
+	for _, in := range allIntegrations {
+		if in.Vendor == vendor {
+			integration = in
+		}
+	}
+	if integration == nil {
+		return nil, fmt.Errorf("no integration with vendor %s found in the %d existing", vendor, len(allIntegrations))
+	}
+
+	return integration, nil
+}
+
 // FindDeviceDefinitionByMMY builds and execs query to find device definition for MMY, calling out via gRPC. Includes compatible integrations.
 func (d *deviceDefinitionService) FindDeviceDefinitionByMMY(ctx context.Context, mk, model string, year int) (*ddgrpc.GetDeviceDefinitionItemResponse, error) {
 	definitionsClient, conn, err := d.getDeviceDefsGrpcClient()
@@ -160,27 +218,23 @@ func (d *deviceDefinitionService) FindDeviceDefinitionByMMY(ctx context.Context,
 }
 
 // GetOrCreateMake gets the make from the db or creates it if not found. optional tx - if not passed in uses db writer
-func (d *deviceDefinitionService) GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*models.DeviceMake, error) {
-	if tx == nil {
-		tx = d.dbs().Writer
-	}
-	m, err := models.DeviceMakes(models.DeviceMakeWhere.Name.EQ(strings.TrimSpace(makeName))).One(ctx, tx)
+func (d *deviceDefinitionService) GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*ddgrpc.DeviceMake, error) {
+	definitionsClient, conn, err := d.getDeviceDefsGrpcClient()
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// create
-			m = &models.DeviceMake{
-				ID:   ksuid.New().String(),
-				Name: makeName,
-			}
-			err = m.Insert(ctx, tx, boil.Infer())
-			if err != nil {
-				return nil, errors.Wrapf(err, "error inserting make: %s", makeName)
-			}
-			return m, nil
-		}
-		return nil, errors.Wrapf(err, "error querying for make: %s", makeName)
+		return nil, err
 	}
-	return m, nil
+	defer conn.Close()
+
+	// question: does this load the integrations? it should
+	dm, err := definitionsClient.CreateDeviceMake(ctx, &ddgrpc.CreateDeviceMakeRequest{
+		Name: makeName,
+	})
+
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to call grpc endpoint CreateDeviceMake")
+	}
+
+	return &ddgrpc.DeviceMake{Id: dm.Id, Name: makeName}, nil
 }
 
 // CheckAndSetImage just checks if the device definitions has an image set, and if not gets it from edmunds and sets it. does not update DB. This process could take a few seconds.
@@ -212,31 +266,45 @@ func (d *deviceDefinitionService) CheckAndSetImage(ctx context.Context, dd *ddgr
 
 // UpdateDeviceDefinitionFromNHTSA (deprecated) pulls vin info from nhtsa, and updates the device definition metadata if the MMY from nhtsa matches ours, and the Source is not NHTSA verified
 func (d *deviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Context, deviceDefinitionID string, vin string) error {
-	dbDeviceDef, err := models.DeviceDefinitions(
-		models.DeviceDefinitionWhere.ID.EQ(deviceDefinitionID),
-		qm.Load(models.DeviceDefinitionRels.DeviceMake),
-	).One(ctx, d.dbs().Reader)
+
+	deviceDefinitionResponse, err := d.GetDeviceDefinitionsByIDs(ctx, []string{deviceDefinitionID})
 	if err != nil {
 		return err
 	}
+
+	if len(deviceDefinitionResponse) == 0 {
+		return errors.New("Device definition empty")
+	}
+
+	dbDeviceDef := deviceDefinitionResponse[0]
+
 	nhtsaDecode, err := d.nhtsaSvc.DecodeVIN(vin)
 	if err != nil {
 		return err
 	}
 	dd := NewDeviceDefinitionFromNHTSA(nhtsaDecode)
-	if dd.Type.Make == dbDeviceDef.R.DeviceMake.Name && dd.Type.Model == dbDeviceDef.Model && int16(dd.Type.Year) == dbDeviceDef.Year {
-		if !(dbDeviceDef.Verified && dbDeviceDef.Source.String == "NHTSA") {
-			// update our device definition metadata `vehicle_info` with latest from nhtsa
-			err = dbDeviceDef.Metadata.Marshal(map[string]interface{}{vehicleInfoJSONNode: dd.VehicleInfo})
+	if dd.Type.Make == dbDeviceDef.Make.Name && dd.Type.Model == dbDeviceDef.Type.Model && int16(dd.Type.Year) == int16(dbDeviceDef.Type.Year) {
+		if !(dbDeviceDef.Verified && dbDeviceDef.Source == "NHTSA") {
+			definitionsClient, conn, err := d.getDeviceDefsGrpcClient()
 			if err != nil {
 				return err
 			}
-			dbDeviceDef.Verified = true
-			dbDeviceDef.Source = null.StringFrom("NHTSA")
-			_, err = dbDeviceDef.Update(ctx, d.dbs().Writer, boil.Infer())
+			defer conn.Close()
+
+			_, err = definitionsClient.UpdateDeviceDefinition(ctx, &ddgrpc.UpdateDeviceDefinitionRequest{
+				DeviceDefinitionId: dbDeviceDef.DeviceDefinitionId,
+				Verified:           true,
+				Source:             "NHTSA",
+				Year:               dbDeviceDef.Type.Year,
+				Model:              dbDeviceDef.Type.Model,
+				ImageUrl:           dbDeviceDef.ImageUrl,
+				VehicleData:        dbDeviceDef.VehicleData,
+			})
+
 			if err != nil {
 				return err
 			}
+
 		}
 	} else {
 		// just log for now if no MMY match.
@@ -267,7 +335,7 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 	}
 
 	if len(deviceDefinitionResponse) == 0 {
-		return err
+		return errors.New("Device definition empty")
 	}
 
 	deviceDef := deviceDefinitionResponse[0]
@@ -430,15 +498,25 @@ func (d *deviceDefinitionService) setUserDeviceStyleFromEdmunds(ctx context.Cont
 	styleIDResult := gjson.GetBytes(edmundsJSON, "edmundsStyle.data.style.id")
 	styleID := styleIDResult.String()
 	if styleIDResult.Exists() && len(styleID) > 0 {
-		deviceStyle, err := models.DeviceStyles(models.DeviceStyleWhere.ExternalStyleID.EQ(styleID)).One(ctx, d.dbs().Reader)
+
+		definitionsClient, conn, err := d.getDeviceDefsGrpcClient()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+
+		deviceStyle, err := definitionsClient.GetDeviceStyleByExternalID(ctx, &ddgrpc.GetDeviceStyleByIDRequest{
+			Id: styleID,
+		})
+
 		if err != nil {
 			d.log.Err(err).Msgf("unable to find device_style for edmunds style_id %s", styleID)
 			return
 		}
-		ud.DeviceStyleID = null.StringFrom(deviceStyle.ID) // set foreign key
+		ud.DeviceStyleID = null.StringFrom(deviceStyle.Id) // set foreign key
 		_, err = ud.Update(ctx, d.dbs().Writer, boil.Infer())
 		if err != nil {
-			d.log.Err(err).Msgf("unable to update user_device_id %s with styleID %s", ud.ID, deviceStyle.ID)
+			d.log.Err(err).Msgf("unable to update user_device_id %s with styleID %s", ud.ID, deviceStyle.Id)
 			return
 		}
 	}
@@ -452,10 +530,17 @@ func (d *deviceDefinitionService) PullBlackbookData(ctx context.Context, userDev
 		return errors.Errorf("invalid VIN %s", vin)
 	}
 
-	dbDeviceDef, err := models.FindDeviceDefinition(ctx, d.dbs().Reader, deviceDefinitionID)
+	deviceDefinitionResponse, err := d.GetDeviceDefinitionsByIDs(ctx, []string{deviceDefinitionID})
 	if err != nil {
 		return err
 	}
+
+	if len(deviceDefinitionResponse) == 0 {
+		return errors.New("Device definition empty")
+	}
+
+	dbDeviceDef := deviceDefinitionResponse[0]
+
 	existingData, err := models.ExternalVinData(
 		models.ExternalVinDatumWhere.Vin.EQ(vin),
 		models.ExternalVinDatumWhere.BlackbookMetadata.IsNotNull(),
@@ -472,7 +557,7 @@ func (d *deviceDefinitionService) PullBlackbookData(ctx context.Context, userDev
 	// by this point we know we need to insert blackbook raw json data
 	blackbookData := &models.ExternalVinDatum{
 		ID:                 ksuid.New().String(),
-		DeviceDefinitionID: null.StringFrom(dbDeviceDef.ID),
+		DeviceDefinitionID: null.StringFrom(dbDeviceDef.DeviceDefinitionId),
 		Vin:                vin,
 		UserDeviceID:       null.StringFrom(userDeviceID),
 	}
@@ -494,25 +579,6 @@ func (d *deviceDefinitionService) PullBlackbookData(ctx context.Context, userDev
 	defer appmetrics.BlackbookRequestTotalOps.Inc()
 
 	return nil
-}
-
-// SubModelsFromStylesDB gets the unique style.SubModel from the styles slice, deduping sub_model
-func SubModelsFromStylesDB(styles models.DeviceStyleSlice) []string {
-	items := map[string]string{}
-	for _, style := range styles {
-		if _, ok := items[style.SubModel]; !ok {
-			items[style.SubModel] = style.Name
-		}
-	}
-
-	sm := make([]string, len(items))
-	i := 0
-	for key := range items {
-		sm[i] = key
-		i++
-	}
-	sort.Strings(sm)
-	return sm
 }
 
 // getDeviceDefsGrpcClient instanties new connection with client to dd service. You must defer conn.close from returned connection

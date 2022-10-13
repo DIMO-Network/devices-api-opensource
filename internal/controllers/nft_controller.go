@@ -6,10 +6,13 @@ import (
 	"math/big"
 	"strconv"
 
+	"github.com/DIMO-Network/devices-api/internal/api"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/ericlagergren/decimal"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
@@ -17,33 +20,25 @@ import (
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"github.com/volatiletech/sqlboiler/v4/types"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 type NFTController struct {
-	Settings   *config.Settings
-	DBS        func() *database.DBReaderWriter
-	s3         *s3.Client
-	log        *zerolog.Logger
-	defService services.DeviceDefinitionService
+	Settings     *config.Settings
+	DBS          func() *database.DBReaderWriter
+	s3           *s3.Client
+	log          *zerolog.Logger
+	deviceDefSvc services.DeviceDefinitionService
 }
 
-// NewUserDevicesController constructor
-func NewNFTController(
-	settings *config.Settings,
-	dbs func() *database.DBReaderWriter,
-	logger *zerolog.Logger,
-	s3 *s3.Client,
-	defService services.DeviceDefinitionService,
-) NFTController {
+// NewNFTController constructor
+func NewNFTController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, s3 *s3.Client,
+	deviceDefSvc services.DeviceDefinitionService) NFTController {
 	return NFTController{
-		Settings:   settings,
-		DBS:        dbs,
-		log:        logger,
-		s3:         s3,
-		defService: defService,
+		Settings:     settings,
+		DBS:          dbs,
+		log:          logger,
+		s3:           s3,
+		deviceDefSvc: deviceDefSvc,
 	}
 }
 
@@ -94,9 +89,9 @@ func (nc *NFTController) GetNFTMetadata(c *fiber.Ctx) error {
 		deviceDefinitionID = mr.R.UserDevice.DeviceDefinitionID
 	}
 
-	def, err := nc.defService.GetDeviceDefinitionByID(c.Context(), deviceDefinitionID)
+	def, err := nc.deviceDefSvc.GetDeviceDefinitionByID(c.Context(), deviceDefinitionID)
 	if err != nil {
-		return err
+		return api.GrpcErrorToFiber(err, "failed to get device definition")
 	}
 
 	description := fmt.Sprintf("%s %s %d", def.Make.Name, def.Type.Model, def.Type.Year)

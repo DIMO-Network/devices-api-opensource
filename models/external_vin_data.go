@@ -144,6 +144,30 @@ var ExternalVinDatumTableColumns = struct {
 
 // Generated where
 
+type whereHelpernull_JSON struct{ field string }
+
+func (w whereHelpernull_JSON) EQ(x null.JSON) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpernull_JSON) NEQ(x null.JSON) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpernull_JSON) LT(x null.JSON) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpernull_JSON) LTE(x null.JSON) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpernull_JSON) GT(x null.JSON) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpernull_JSON) GTE(x null.JSON) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+
+func (w whereHelpernull_JSON) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpernull_JSON) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+
 var ExternalVinDatumWhere = struct {
 	ID                 whereHelperstring
 	DeviceDefinitionID whereHelpernull_String
@@ -192,29 +216,19 @@ var ExternalVinDatumWhere = struct {
 
 // ExternalVinDatumRels is where relationship names are stored.
 var ExternalVinDatumRels = struct {
-	DeviceDefinition string
-	UserDevice       string
+	UserDevice string
 }{
-	DeviceDefinition: "DeviceDefinition",
-	UserDevice:       "UserDevice",
+	UserDevice: "UserDevice",
 }
 
 // externalVinDatumR is where relationships are stored.
 type externalVinDatumR struct {
-	DeviceDefinition *DeviceDefinition `boil:"DeviceDefinition" json:"DeviceDefinition" toml:"DeviceDefinition" yaml:"DeviceDefinition"`
-	UserDevice       *UserDevice       `boil:"UserDevice" json:"UserDevice" toml:"UserDevice" yaml:"UserDevice"`
+	UserDevice *UserDevice `boil:"UserDevice" json:"UserDevice" toml:"UserDevice" yaml:"UserDevice"`
 }
 
 // NewStruct creates a new relationship struct
 func (*externalVinDatumR) NewStruct() *externalVinDatumR {
 	return &externalVinDatumR{}
-}
-
-func (r *externalVinDatumR) GetDeviceDefinition() *DeviceDefinition {
-	if r == nil {
-		return nil
-	}
-	return r.DeviceDefinition
 }
 
 func (r *externalVinDatumR) GetUserDevice() *UserDevice {
@@ -513,17 +527,6 @@ func (q externalVinDatumQuery) Exists(ctx context.Context, exec boil.ContextExec
 	return count > 0, nil
 }
 
-// DeviceDefinition pointed to by the foreign key.
-func (o *ExternalVinDatum) DeviceDefinition(mods ...qm.QueryMod) deviceDefinitionQuery {
-	queryMods := []qm.QueryMod{
-		qm.Where("\"id\" = ?", o.DeviceDefinitionID),
-	}
-
-	queryMods = append(queryMods, mods...)
-
-	return DeviceDefinitions(queryMods...)
-}
-
 // UserDevice pointed to by the foreign key.
 func (o *ExternalVinDatum) UserDevice(mods ...qm.QueryMod) userDeviceQuery {
 	queryMods := []qm.QueryMod{
@@ -533,130 +536,6 @@ func (o *ExternalVinDatum) UserDevice(mods ...qm.QueryMod) userDeviceQuery {
 	queryMods = append(queryMods, mods...)
 
 	return UserDevices(queryMods...)
-}
-
-// LoadDeviceDefinition allows an eager lookup of values, cached into the
-// loaded structs of the objects. This is for an N-1 relationship.
-func (externalVinDatumL) LoadDeviceDefinition(ctx context.Context, e boil.ContextExecutor, singular bool, maybeExternalVinDatum interface{}, mods queries.Applicator) error {
-	var slice []*ExternalVinDatum
-	var object *ExternalVinDatum
-
-	if singular {
-		var ok bool
-		object, ok = maybeExternalVinDatum.(*ExternalVinDatum)
-		if !ok {
-			object = new(ExternalVinDatum)
-			ok = queries.SetFromEmbeddedStruct(&object, &maybeExternalVinDatum)
-			if !ok {
-				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", object, maybeExternalVinDatum))
-			}
-		}
-	} else {
-		s, ok := maybeExternalVinDatum.(*[]*ExternalVinDatum)
-		if ok {
-			slice = *s
-		} else {
-			ok = queries.SetFromEmbeddedStruct(&slice, maybeExternalVinDatum)
-			if !ok {
-				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", slice, maybeExternalVinDatum))
-			}
-		}
-	}
-
-	args := make([]interface{}, 0, 1)
-	if singular {
-		if object.R == nil {
-			object.R = &externalVinDatumR{}
-		}
-		if !queries.IsNil(object.DeviceDefinitionID) {
-			args = append(args, object.DeviceDefinitionID)
-		}
-
-	} else {
-	Outer:
-		for _, obj := range slice {
-			if obj.R == nil {
-				obj.R = &externalVinDatumR{}
-			}
-
-			for _, a := range args {
-				if queries.Equal(a, obj.DeviceDefinitionID) {
-					continue Outer
-				}
-			}
-
-			if !queries.IsNil(obj.DeviceDefinitionID) {
-				args = append(args, obj.DeviceDefinitionID)
-			}
-
-		}
-	}
-
-	if len(args) == 0 {
-		return nil
-	}
-
-	query := NewQuery(
-		qm.From(`devices_api.device_definitions`),
-		qm.WhereIn(`devices_api.device_definitions.id in ?`, args...),
-	)
-	if mods != nil {
-		mods.Apply(query)
-	}
-
-	results, err := query.QueryContext(ctx, e)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load DeviceDefinition")
-	}
-
-	var resultSlice []*DeviceDefinition
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice DeviceDefinition")
-	}
-
-	if err = results.Close(); err != nil {
-		return errors.Wrap(err, "failed to close results of eager load for device_definitions")
-	}
-	if err = results.Err(); err != nil {
-		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for device_definitions")
-	}
-
-	if len(externalVinDatumAfterSelectHooks) != 0 {
-		for _, obj := range resultSlice {
-			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
-				return err
-			}
-		}
-	}
-
-	if len(resultSlice) == 0 {
-		return nil
-	}
-
-	if singular {
-		foreign := resultSlice[0]
-		object.R.DeviceDefinition = foreign
-		if foreign.R == nil {
-			foreign.R = &deviceDefinitionR{}
-		}
-		foreign.R.ExternalVinData = append(foreign.R.ExternalVinData, object)
-		return nil
-	}
-
-	for _, local := range slice {
-		for _, foreign := range resultSlice {
-			if queries.Equal(local.DeviceDefinitionID, foreign.ID) {
-				local.R.DeviceDefinition = foreign
-				if foreign.R == nil {
-					foreign.R = &deviceDefinitionR{}
-				}
-				foreign.R.ExternalVinData = append(foreign.R.ExternalVinData, local)
-				break
-			}
-		}
-	}
-
-	return nil
 }
 
 // LoadUserDevice allows an eager lookup of values, cached into the
@@ -780,86 +659,6 @@ func (externalVinDatumL) LoadUserDevice(ctx context.Context, e boil.ContextExecu
 		}
 	}
 
-	return nil
-}
-
-// SetDeviceDefinition of the externalVinDatum to the related item.
-// Sets o.R.DeviceDefinition to related.
-// Adds o to related.R.ExternalVinData.
-func (o *ExternalVinDatum) SetDeviceDefinition(ctx context.Context, exec boil.ContextExecutor, insert bool, related *DeviceDefinition) error {
-	var err error
-	if insert {
-		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
-			return errors.Wrap(err, "failed to insert into foreign table")
-		}
-	}
-
-	updateQuery := fmt.Sprintf(
-		"UPDATE \"devices_api\".\"external_vin_data\" SET %s WHERE %s",
-		strmangle.SetParamNames("\"", "\"", 1, []string{"device_definition_id"}),
-		strmangle.WhereClause("\"", "\"", 2, externalVinDatumPrimaryKeyColumns),
-	)
-	values := []interface{}{related.ID, o.ID}
-
-	if boil.IsDebug(ctx) {
-		writer := boil.DebugWriterFrom(ctx)
-		fmt.Fprintln(writer, updateQuery)
-		fmt.Fprintln(writer, values)
-	}
-	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
-		return errors.Wrap(err, "failed to update local table")
-	}
-
-	queries.Assign(&o.DeviceDefinitionID, related.ID)
-	if o.R == nil {
-		o.R = &externalVinDatumR{
-			DeviceDefinition: related,
-		}
-	} else {
-		o.R.DeviceDefinition = related
-	}
-
-	if related.R == nil {
-		related.R = &deviceDefinitionR{
-			ExternalVinData: ExternalVinDatumSlice{o},
-		}
-	} else {
-		related.R.ExternalVinData = append(related.R.ExternalVinData, o)
-	}
-
-	return nil
-}
-
-// RemoveDeviceDefinition relationship.
-// Sets o.R.DeviceDefinition to nil.
-// Removes o from all passed in related items' relationships struct.
-func (o *ExternalVinDatum) RemoveDeviceDefinition(ctx context.Context, exec boil.ContextExecutor, related *DeviceDefinition) error {
-	var err error
-
-	queries.SetScanner(&o.DeviceDefinitionID, nil)
-	if _, err = o.Update(ctx, exec, boil.Whitelist("device_definition_id")); err != nil {
-		return errors.Wrap(err, "failed to update local table")
-	}
-
-	if o.R != nil {
-		o.R.DeviceDefinition = nil
-	}
-	if related == nil || related.R == nil {
-		return nil
-	}
-
-	for i, ri := range related.R.ExternalVinData {
-		if queries.Equal(o.DeviceDefinitionID, ri.DeviceDefinitionID) {
-			continue
-		}
-
-		ln := len(related.R.ExternalVinData)
-		if ln > 1 && i < ln-1 {
-			related.R.ExternalVinData[i] = related.R.ExternalVinData[ln-1]
-		}
-		related.R.ExternalVinData = related.R.ExternalVinData[:ln-1]
-		break
-	}
 	return nil
 }
 

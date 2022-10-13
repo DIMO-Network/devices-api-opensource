@@ -81,34 +81,6 @@ func AllGeofenceType() []string {
 	}
 }
 
-// Enum values for IntegrationType
-const (
-	IntegrationTypeHardware string = "Hardware"
-	IntegrationTypeAPI      string = "API"
-)
-
-func AllIntegrationType() []string {
-	return []string{
-		IntegrationTypeHardware,
-		IntegrationTypeAPI,
-	}
-}
-
-// Enum values for IntegrationStyle
-const (
-	IntegrationStyleAddon   string = "Addon"
-	IntegrationStyleOEM     string = "OEM"
-	IntegrationStyleWebhook string = "Webhook"
-)
-
-func AllIntegrationStyle() []string {
-	return []string{
-		IntegrationStyleAddon,
-		IntegrationStyleOEM,
-		IntegrationStyleWebhook,
-	}
-}
-
 // Enum values for MetaTransactionRequestStatus
 const (
 	MetaTransactionRequestStatusUnsubmitted string = "Unsubmitted"

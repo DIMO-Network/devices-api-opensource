@@ -14,17 +14,17 @@ import (
 )
 
 // remakeAutoPiTopic re-populates the autopi ingest registrar topic based on data we have in user_device_api_integrations
-func remakeAutoPiTopic(ctx context.Context, pdb database.DbStore, producer sarama.SyncProducer) error {
+func remakeAutoPiTopic(ctx context.Context, pdb database.DbStore, producer sarama.SyncProducer, ddSvc services.DeviceDefinitionService) error {
 	reg := services.NewIngestRegistrar(services.AutoPi, producer)
 	db := pdb.DBS().Reader
 
 	// Grab the Smartcar integration ID, there should be exactly one.
 	var apIntID string
-	integ, err := models.Integrations(models.IntegrationWhere.Vendor.EQ(constants.AutoPiVendor)).One(ctx, db)
+	integ, err := ddSvc.GetIntegrationByVendor(ctx, constants.AutoPiVendor)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve AutoPi integration: %w", err)
 	}
-	apIntID = integ.ID
+	apIntID = integ.Id
 
 	// Find all integration instances that have acquired Smartcar ids.
 	apiInts, err := models.UserDeviceAPIIntegrations(

@@ -44,8 +44,8 @@ func NewDeviceDefinitionIntegrationService(DBS func() *database.DBReaderWriter, 
 // GetAutoPiIntegration calls integrations api via GRPC to get the definition. idea for testing: http://www.inanzzz.com/index.php/post/w9qr/unit-testing-golang-grpc-client-and-server-application-with-bufconn-package
 func (d *deviceDefinitionIntegrationService) GetAutoPiIntegration(ctx context.Context) (*ddgrpc.Integration, error) {
 	const (
-		autoPiType  = models.IntegrationTypeHardware
-		autoPiStyle = models.IntegrationStyleAddon
+		autoPiType  = constants.IntegrationTypeHardware
+		autoPiStyle = constants.IntegrationStyleAddon
 	)
 
 	definitionsClient, conn, err := d.getDeviceDefsIntGrpcClient()

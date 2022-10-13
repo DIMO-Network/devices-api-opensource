@@ -114,7 +114,6 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 	apiIntegration, err := models.UserDeviceAPIIntegrations(
 		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(userDeviceID),
 		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID),
-		qm.Load(models.UserDeviceAPIIntegrationRels.Integration),
 	).One(c.Context(), tx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -123,7 +122,13 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 		return err
 	}
 
-	if apiIntegration.R.Integration.Vendor == constants.SmartCarVendor {
+	integration, err := udc.DeviceDefSvc.GetIntegrationByID(c.Context(), apiIntegration.IntegrationID)
+
+	if err != nil {
+		return api.GrpcErrorToFiber(err, "deviceDefSvc error getting integration id: "+apiIntegration.IntegrationID)
+	}
+
+	if integration.Vendor == constants.SmartCarVendor {
 		if apiIntegration.ExternalID.Valid {
 			if apiIntegration.TaskID.Valid {
 				err = udc.smartcarTaskSvc.StopPoll(apiIntegration)
@@ -133,13 +138,13 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 			}
 			// It was on the webhook and we were never able to create a task for it.
 		}
-	} else if apiIntegration.R.Integration.Vendor == "Tesla" {
+	} else if integration.Vendor == "Tesla" {
 		if apiIntegration.ExternalID.Valid {
 			if err := udc.teslaTaskService.StopPoll(apiIntegration); err != nil {
 				return err
 			}
 		}
-	} else if apiIntegration.R.Integration.Vendor == constants.AutoPiVendor {
+	} else if integration.Vendor == constants.AutoPiVendor {
 		err = udc.autoPiIngestRegistrar.Deregister(apiIntegration.ExternalID.String, apiIntegration.UserDeviceID, apiIntegration.IntegrationID)
 		if err != nil {
 			udc.log.Err(err).Msgf("unexpected error deregistering autopi device from ingest. userDeviceID: %s", apiIntegration.UserDeviceID)
@@ -173,10 +178,10 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 				Year:  int(dd.Type.Year),
 			},
 			Integration: services.UserDeviceEventIntegration{
-				ID:     apiIntegration.R.Integration.ID,
-				Type:   apiIntegration.R.Integration.Type,
-				Style:  apiIntegration.R.Integration.Style,
-				Vendor: apiIntegration.R.Integration.Vendor,
+				ID:     integration.Id,
+				Type:   integration.Type,
+				Style:  integration.Style,
+				Vendor: integration.Vendor,
 			},
 		},
 	})
@@ -195,10 +200,9 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 // @Security    BearerAuth
 // @Router      /integrations [get]
 func (udc *UserDevicesController) GetIntegrations(c *fiber.Ctx) error {
-	// todo get integration from device-definitions over grpc
-	all, err := models.Integrations(qm.Limit(100)).All(c.Context(), udc.DBS().Reader)
+	all, err := udc.DeviceDefSvc.GetIntegrations(c.Context())
 	if err != nil {
-		return errors.Wrap(err, "failed to get integrations")
+		return api.GrpcErrorToFiber(err, "failed to get integrations")
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -342,7 +346,6 @@ func (udc *UserDevicesController) handleEnqueueCommand(c *fiber.Ctx, commandPath
 	udai, err := models.UserDeviceAPIIntegrations(
 		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(userDeviceID),
 		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID),
-		qm.Load(models.UserDeviceAPIIntegrationRels.Integration), // Load the integration to get the vendor.
 	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -376,7 +379,13 @@ func (udc *UserDevicesController) handleEnqueueCommand(c *fiber.Ctx, commandPath
 		},
 	}
 
-	vendorCommandMap, ok := commandMap[udai.R.Integration.Vendor]
+	integration, err := udc.DeviceDefSvc.GetIntegrationByID(c.Context(), udai.IntegrationID)
+
+	if err != nil {
+		return api.GrpcErrorToFiber(err, "deviceDefSvc error getting integration id: "+udai.IntegrationID)
+	}
+
+	vendorCommandMap, ok := commandMap[integration.Vendor]
 	if !ok {
 		return fiber.NewError(fiber.StatusConflict, "Integration is not capable of this command.")
 	}
@@ -1304,17 +1313,14 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 	if countryRecord == nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("can't find compatibility region for country %s", ud.CountryCode.String))
 	}
+	logger = logger.With().Str("region", countryRecord.Region).Logger()
 
-	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{ud.DeviceDefinitionID})
+	dds, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{ud.DeviceDefinitionID})
 	if err != nil {
-		logger.Err(err).Msg("Unexpected grpc error searching for device definition")
-		return api.GrpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+ud.DeviceDefinitionID)
+		logger.Err(err).Msg("grpc error searching for device definition")
+		return api.GrpcErrorToFiber(err, "failed to get device definition with id: "+ud.DeviceDefinitionID)
 	}
-
-	if len(deviceDefinitionResponse) == 0 {
-		return fiber.NewError(fiber.StatusNotFound, fmt.Sprintf("device definition with id %s not found", ud.DeviceDefinitionID))
-	}
-	dd := deviceDefinitionResponse[0]
+	dd := dds[0]
 	logger.Info().Msgf("get device definition id result during registration %+v", dd)
 
 	// filter out the desired integration from the compatible ones
@@ -1332,23 +1338,9 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 	}
 
 	if deviceInteg == nil {
-		autoPiIntegration, err := udc.DeviceDefIntSvc.GetAutoPiIntegration(c.Context())
-		if err != nil {
-			return api.GrpcErrorToFiber(err, "failed to get autopi integration for register process")
-		}
-		// we should error but let's check if autopi first
-		// todo: validate with james
-		if autoPiIntegration != nil {
-			// we need to create an autopi device_integration first
-			autoPiDeviceInteg, err := udc.DeviceDefIntSvc.CreateDeviceDefinitionIntegration(c.Context(), autoPiIntegration.Id, ud.DeviceDefinitionID, countryRecord.Region)
-			if err != nil {
-				return errors.Wrapf(err, "failed to create device_integration for autopi. userDeviceId: %s", ud.ID)
-			}
-			logger.Info().Str("userDeviceId", ud.ID).Msg("created autopi integration on the fly")
-			deviceInteg = autoPiDeviceInteg
-		} else {
-			return fmt.Errorf("deviceDefinitionId %s does not support integrationId %s", ud.DeviceDefinitionID, integrationID)
-		}
+		// todo need a test for this
+		return fiber.NewError(fiber.StatusBadRequest,
+			fmt.Sprintf("deviceDefinitionId %s does not support integrationId %s for region %s", ud.DeviceDefinitionID, integrationID, countryRecord.Region))
 	}
 
 	if exists, err := models.UserDeviceAPIIntegrationExists(c.Context(), tx, userDeviceID, integrationID); err != nil {
@@ -1376,8 +1368,9 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 	if regErr != nil {
 		return regErr
 	}
-
-	udc.runPostRegistration(c.Context(), &logger, userDeviceID, integrationID, deviceInteg, dd)
+	// todo problem here is that dd can be "fixed up", meaning changed during registration process, but here we're still using the old one.
+	// fix could be to have it lookup the user device id, then get dd_id, then call devicedev svc to pull, see if that makes test pass.
+	udc.runPostRegistration(c.Context(), &logger, userDeviceID, integrationID, deviceInteg)
 
 	return nil
 }
@@ -1386,13 +1379,12 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 
 // runPostRegistration runs tasks that should be run after a successful integration. For now, this
 // just means emitting an event to topic.event for the activity log.
-func (udc *UserDevicesController) runPostRegistration(ctx context.Context, logger *zerolog.Logger, userDeviceID, integrationID string, integ *ddgrpc.Integration, dd *ddgrpc.GetDeviceDefinitionItemResponse) {
+func (udc *UserDevicesController) runPostRegistration(ctx context.Context, logger *zerolog.Logger, userDeviceID, integrationID string, integ *ddgrpc.Integration) {
 	// Just reload the entire tree of attributes. Too many things modify this during the registration flow.
 	udai, err := models.UserDeviceAPIIntegrations(
 		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(userDeviceID),
 		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID),
-		qm.Load(qm.Rels(models.UserDeviceAPIIntegrationRels.UserDevice, models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
-		qm.Load(qm.Rels(models.UserDeviceAPIIntegrationRels.Integration)),
+		qm.Load(qm.Rels(models.UserDeviceAPIIntegrationRels.UserDevice)),
 	).One(ctx, udc.DBS().Reader)
 	if err != nil {
 		logger.Err(err).Msg("Couldn't retrieve UDAI for post-registration tasks.")
@@ -1400,8 +1392,13 @@ func (udc *UserDevicesController) runPostRegistration(ctx context.Context, logge
 	}
 
 	ud := udai.R.UserDevice
+	// pull dd info again - don't pass it in, as it may have changed
+	dds, err2 := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(ctx, []string{ud.DeviceDefinitionID})
+	if err2 != nil {
+		logger.Err(err2).Str("deviceDefinitionId", ud.DeviceDefinitionID).Msg("failed to retrieve device defintion")
+	}
+	dd := dds[0]
 
-	// todo grpc get device devinition and integration info from device-definitions over grpc
 	err = udc.eventService.Emit(
 		&services.Event{
 			Type:    "com.dimo.zone.device.integration.create",
@@ -1849,12 +1846,12 @@ func (udc *UserDevicesController) AdminVehicleDeviceLink(c *fiber.Ctx) error {
 		return err
 	}
 
-	ai, err := models.Integrations(models.IntegrationWhere.Vendor.EQ("AutoPi")).One(c.Context(), udc.DBS().Reader)
+	ai, err := udc.DeviceDefSvc.GetIntegrationByVendor(c.Context(), "AutoPi")
 	if err != nil {
-		return err
+		return api.GrpcErrorToFiber(err, "")
 	}
 
-	oldUDAI, err := models.FindUserDeviceAPIIntegration(c.Context(), udc.DBS().Reader, ud.ID, ai.ID)
+	oldUDAI, err := models.FindUserDeviceAPIIntegration(c.Context(), udc.DBS().Reader, ud.ID, ai.Id)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
@@ -1868,7 +1865,7 @@ func (udc *UserDevicesController) AdminVehicleDeviceLink(c *fiber.Ctx) error {
 
 	newUDAI := &models.UserDeviceAPIIntegration{
 		UserDeviceID:  ud.ID,
-		IntegrationID: ai.ID,
+		IntegrationID: ai.Id,
 		Status:        models.UserDeviceAPIIntegrationStatusActive,
 		ExternalID:    au.AutopiDeviceID,
 		AutopiUnitID:  null.StringFrom(au.AutopiUnitID),

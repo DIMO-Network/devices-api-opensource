@@ -139,7 +139,7 @@ func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
 		models.UserDeviceWhere.ID.EQ(udi),
 		models.UserDeviceWhere.UserID.EQ(userID),
 		qm.Load(models.UserDeviceRels.UserDeviceData),
-		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceData, models.UserDeviceDatumRels.Integration)),
+		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceData)),
 	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -147,10 +147,14 @@ func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
 		}
 		return err
 	}
+	smartCarInteg, err := udc.DeviceDefSvc.GetIntegrationByVendor(c.Context(), constants.SmartCarVendor)
+	if err != nil {
+		return api.GrpcErrorToFiber(err, "failed to get smartcar integration")
+	}
 
 	for _, deviceDatum := range ud.R.UserDeviceData {
-		if deviceDatum.R.Integration.Type == models.IntegrationTypeAPI && deviceDatum.R.Integration.Vendor == constants.SmartCarVendor {
-			nextAvailableTime := deviceDatum.UpdatedAt.Add(time.Second * time.Duration(deviceDatum.R.Integration.RefreshLimitSecs))
+		if deviceDatum.IntegrationID == smartCarInteg.Id {
+			nextAvailableTime := deviceDatum.UpdatedAt.Add(time.Second * time.Duration(smartCarInteg.RefreshLimitSecs))
 			if time.Now().Before(nextAvailableTime) {
 				return fiber.NewError(fiber.StatusTooManyRequests, "rate limit for integration refresh hit")
 			}

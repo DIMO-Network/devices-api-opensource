@@ -6,10 +6,14 @@ import (
 	"testing"
 	"time"
 
+	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
+	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/rs/zerolog"
+	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
@@ -29,8 +33,9 @@ func TestIngestDeviceStatus(t *testing.T) {
 	mes := &testEventService{
 		Buffer: make([]*Event, 0),
 	}
+	deviceDefSvc := testDeviceDefSvc{}
 
-	logger := zerolog.New(os.Stdout).With().Timestamp().Str("app", "devices-api").Logger()
+	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
 	ctx := context.Background()
 	pdb, container := test.StartContainerDatabase(ctx, t, migrationsDirRelPath)
 	defer func() {
@@ -39,17 +44,15 @@ func TestIngestDeviceStatus(t *testing.T) {
 		}
 	}()
 
-	scIntegration := test.SetupCreateSmartCarIntegration(t, pdb)
+	integs, _ := deviceDefSvc.GetIntegrations(ctx)
+	integrationID := integs[0].Id
 
-	ingest := NewDeviceStatusIngestService(pdb.DBS, &logger, mes)
-
-	dm := test.SetupCreateMake(t, "Tesla", pdb)
-	dd := test.SetupCreateDeviceDefinition(t, dm, "Model Y", 2021, pdb)
-	ud := test.SetupCreateUserDevice(t, "dylan", dd, nil, pdb)
+	ingest := NewDeviceStatusIngestService(pdb.DBS, &logger, mes, deviceDefSvc)
+	ud := test.SetupCreateUserDevice(t, "dylan", ksuid.New().String(), nil, pdb)
 
 	udai := models.UserDeviceAPIIntegration{
 		UserDeviceID:  ud.ID,
-		IntegrationID: scIntegration.ID,
+		IntegrationID: integrationID,
 		Status:        models.UserDeviceAPIIntegrationStatusPendingFirstData,
 	}
 	err := udai.Insert(ctx, pdb.DBS().Writer, boil.Infer())
@@ -62,7 +65,6 @@ func TestIngestDeviceStatus(t *testing.T) {
 		LastOdometerEventAt null.Time
 		ExpectedEvent       null.Float64
 	}{
-		// todo commenting these out because they are failing and not sure if this is still something we need or conflicts with latest functionality
 		{
 			Name:                "New reading, none prior",
 			ExistingData:        null.JSON{},
@@ -103,7 +105,7 @@ func TestIngestDeviceStatus(t *testing.T) {
 				UserDeviceID:        ud.ID,
 				Data:                c.ExistingData,
 				LastOdometerEventAt: c.LastOdometerEventAt,
-				IntegrationID:       scIntegration.ID,
+				IntegrationID:       integrationID,
 			}
 
 			err := datum.Upsert(ctx, tx, true, []string{models.UserDeviceDatumColumns.UserDeviceID, models.UserDeviceDatumColumns.IntegrationID},
@@ -113,7 +115,7 @@ func TestIngestDeviceStatus(t *testing.T) {
 			}
 
 			input := &DeviceStatusEvent{
-				Source:      "dimo/integration/" + scIntegration.ID,
+				Source:      "dimo/integration/" + integrationID,
 				Specversion: "1.0",
 				Subject:     ud.ID,
 				Type:        deviceStatusEventType,
@@ -145,8 +147,9 @@ func TestAutoPiStatusMerge(t *testing.T) {
 	mes := &testEventService{
 		Buffer: make([]*Event, 0),
 	}
+	deviceDefSvc := testDeviceDefSvc{}
 
-	logger := zerolog.New(os.Stdout).With().Timestamp().Str("app", "devices-api").Logger()
+	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
 	ctx := context.Background()
 	pdb, container := test.StartContainerDatabase(ctx, t, migrationsDirRelPath)
 	defer func() {
@@ -156,17 +159,17 @@ func TestAutoPiStatusMerge(t *testing.T) {
 	}()
 
 	// Only making use the last parameter.
-	apInt := test.SetupCreateAutoPiIntegration(t, 1, nil, pdb)
+	ddID := ksuid.New().String()
+	integs, _ := deviceDefSvc.GetIntegrations(ctx)
+	integrationID := integs[0].Id
 
-	ingest := NewDeviceStatusIngestService(pdb.DBS, &logger, mes)
+	ingest := NewDeviceStatusIngestService(pdb.DBS, &logger, mes, deviceDefSvc)
 
-	dm := test.SetupCreateMake(t, "Toyota", pdb)
-	dd := test.SetupCreateDeviceDefinition(t, dm, "RAV4", 2021, pdb)
-	ud := test.SetupCreateUserDevice(t, "dylan", dd, nil, pdb)
+	ud := test.SetupCreateUserDevice(t, "dylan", ddID, nil, pdb)
 
 	udai := models.UserDeviceAPIIntegration{
 		UserDeviceID:  ud.ID,
-		IntegrationID: apInt.ID,
+		IntegrationID: integrationID,
 		Status:        models.UserDeviceAPIIntegrationStatusActive,
 	}
 
@@ -179,14 +182,14 @@ func TestAutoPiStatusMerge(t *testing.T) {
 		UserDeviceID:        ud.ID,
 		Data:                null.JSONFrom([]byte(`{"odometer": 45.22, "latitude": 11.0, "longitude": -7.0}`)),
 		LastOdometerEventAt: null.TimeFrom(time.Now().Add(-10 * time.Second)),
-		IntegrationID:       apInt.ID,
+		IntegrationID:       integrationID,
 	}
 
 	err = dat1.Insert(ctx, tx, boil.Infer())
 	assert.NoError(err)
 
 	input := &DeviceStatusEvent{
-		Source:      "dimo/integration/" + apInt.ID,
+		Source:      "dimo/integration/" + integrationID,
 		Specversion: "1.0",
 		Subject:     ud.ID,
 		Type:        deviceStatusEventType,
@@ -195,10 +198,90 @@ func TestAutoPiStatusMerge(t *testing.T) {
 	}
 
 	err = ingest.processEvent(input)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	err = dat1.Reload(ctx, tx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	assert.JSONEq(`{"odometer": 45.22, "latitude": 2.0, "longitude": 3.0}`, string(dat1.Data.JSON))
+}
+
+type testDeviceDefSvc struct {
+}
+
+func (t testDeviceDefSvc) GetDeviceDefinitionByID(ctx context.Context, id string) (*ddgrpc.GetDeviceDefinitionItemResponse, error) {
+	dd, err := t.GetDeviceDefinitionsByIDs(ctx, []string{id})
+	return dd[0], err
+}
+
+func (t testDeviceDefSvc) FindDeviceDefinitionByMMY(ctx context.Context, mk, model string, year int) (*ddgrpc.GetDeviceDefinitionItemResponse, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t testDeviceDefSvc) CheckAndSetImage(ctx context.Context, dd *ddgrpc.GetDeviceDefinitionItemResponse, overwrite bool) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t testDeviceDefSvc) UpdateDeviceDefinitionFromNHTSA(ctx context.Context, deviceDefinitionID string, vin string) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t testDeviceDefSvc) PullDrivlyData(ctx context.Context, userDeviceID, deviceDefinitionID string, vin string) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t testDeviceDefSvc) PullBlackbookData(ctx context.Context, userDeviceID, deviceDefinitionID string, vin string) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t testDeviceDefSvc) GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*ddgrpc.DeviceMake, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+var testDeviceDefs []*ddgrpc.GetDeviceDefinitionItemResponse
+
+func (t testDeviceDefSvc) GetDeviceDefinitionsByIDs(ctx context.Context, ids []string) ([]*ddgrpc.GetDeviceDefinitionItemResponse, error) {
+	if len(testDeviceDefs) > 0 {
+		return testDeviceDefs, nil
+	}
+	d1 := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Ford", "escape", 2022, nil)
+	testDeviceDefs = d1
+	return testDeviceDefs, nil
+}
+
+var testIntegs []*ddgrpc.Integration
+
+func (t testDeviceDefSvc) GetIntegrations(ctx context.Context) ([]*ddgrpc.Integration, error) {
+	if len(testIntegs) > 0 {
+		return testIntegs, nil
+	}
+	i1 := test.BuildIntegrationGRPC(constants.AutoPiVendor, 10, 0)
+	testIntegs = []*ddgrpc.Integration{i1}
+	return testIntegs, nil
+}
+
+func (t testDeviceDefSvc) GetIntegrationByID(ctx context.Context, id string) (*ddgrpc.Integration, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t testDeviceDefSvc) GetIntegrationByVendor(ctx context.Context, vendor string) (*ddgrpc.Integration, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t testDeviceDefSvc) GetIntegrationByFilter(ctx context.Context, integrationType string, vendor string, style string) (*ddgrpc.Integration, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t testDeviceDefSvc) CreateIntegration(ctx context.Context, integrationType string, vendor string, style string) (*ddgrpc.Integration, error) {
+	//TODO implement me
+	panic("implement me")
 }

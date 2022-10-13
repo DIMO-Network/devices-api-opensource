@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"time"
 
+	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/api"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
 	"github.com/Shopify/sarama"
@@ -26,19 +28,21 @@ import (
 const maxFenceTiles = 12
 
 type GeofencesController struct {
-	Settings *config.Settings
-	DBS      func() *database.DBReaderWriter
-	log      *zerolog.Logger
-	producer sarama.SyncProducer
+	Settings     *config.Settings
+	DBS          func() *database.DBReaderWriter
+	log          *zerolog.Logger
+	producer     sarama.SyncProducer
+	deviceDefSvc services.DeviceDefinitionService
 }
 
 // NewGeofencesController constructor
-func NewGeofencesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, producer sarama.SyncProducer) GeofencesController {
+func NewGeofencesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, producer sarama.SyncProducer, deviceDefSvc services.DeviceDefinitionService) GeofencesController {
 	return GeofencesController{
-		Settings: settings,
-		DBS:      dbs,
-		log:      logger,
-		producer: producer,
+		Settings:     settings,
+		DBS:          dbs,
+		log:          logger,
+		producer:     producer,
+		deviceDefSvc: deviceDefSvc,
 	}
 }
 
@@ -208,12 +212,24 @@ func (g *GeofencesController) GetAll(c *fiber.Ctx) error {
 	items, err := models.Geofences(models.GeofenceWhere.UserID.EQ(userID),
 		qm.Load(models.GeofenceRels.UserDeviceToGeofences),
 		qm.Load(qm.Rels(models.GeofenceRels.UserDeviceToGeofences, models.UserDeviceToGeofenceRels.UserDevice)),
-		qm.Load(qm.Rels(models.GeofenceRels.UserDeviceToGeofences, models.UserDeviceToGeofenceRels.UserDevice, models.UserDeviceRels.DeviceDefinition)),
-		qm.Load(qm.Rels(models.GeofenceRels.UserDeviceToGeofences, models.UserDeviceToGeofenceRels.UserDevice, models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
 	).All(c.Context(), g.DBS().Reader)
 	if err != nil {
 		return err
 	}
+	// pull out list of udtg. device def ids
+	var ddIds []string
+	for _, item := range items {
+		for _, udtg := range item.R.UserDeviceToGeofences {
+			if !services.Contains(ddIds, udtg.R.UserDevice.DeviceDefinitionID) {
+				ddIds = append(ddIds, udtg.R.UserDevice.DeviceDefinitionID)
+			}
+		}
+	}
+	dds, err := g.deviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), ddIds)
+	if err != nil {
+		return errors.Wrap(err, "failed to pull device definitions")
+	}
+
 	fences := make([]GetGeofence, len(items))
 	for i, item := range items {
 		f := GetGeofence{
@@ -225,12 +241,16 @@ func (g *GeofencesController) GetAll(c *fiber.Ctx) error {
 			UpdatedAt: item.UpdatedAt,
 		}
 		for _, udtg := range item.R.UserDeviceToGeofences {
+			var deviceDef *ddgrpc.GetDeviceDefinitionItemResponse
+			for _, dd := range dds {
+				if dd.DeviceDefinitionId == udtg.R.UserDevice.DeviceDefinitionID {
+					deviceDef = dd
+				}
+			}
 			f.UserDevices = append(f.UserDevices, GeoFenceUserDevice{
 				UserDeviceID: udtg.UserDeviceID,
 				Name:         udtg.R.UserDevice.Name.Ptr(),
-				MMY: fmt.Sprintf("%d %s %s", udtg.R.UserDevice.R.DeviceDefinition.Year,
-					udtg.R.UserDevice.R.DeviceDefinition.R.DeviceMake.Name,
-					udtg.R.UserDevice.R.DeviceDefinition.Model),
+				MMY:          deviceDef.Name,
 			})
 		}
 		fences[i] = f

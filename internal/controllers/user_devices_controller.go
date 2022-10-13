@@ -132,7 +132,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 	userID := api.GetUserID(c)
 	devices, err := models.UserDevices(qm.Where("user_id = ?", userID),
 		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
-		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
+		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations)),
 		qm.Load(models.UserDeviceRels.MintRequest),
 		qm.Load(models.UserDeviceRels.MintMetaTransactionRequest),
 		qm.OrderBy("created_at"),
@@ -166,6 +166,11 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 			}
 		}
 		return nil, errors.New("no device definition")
+	}
+
+	integrations, err2 := udc.DeviceDefSvc.GetIntegrations(c.Context())
+	if err2 != nil {
+		return api.GrpcErrorToFiber(err2, "failed to get integrations")
 	}
 
 	for i, d := range devices {
@@ -241,7 +246,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 			CustomImageURL:   d.CustomImageURL.Ptr(),
 			CountryCode:      d.CountryCode.Ptr(),
 			DeviceDefinition: dd,
-			Integrations:     NewUserDeviceIntegrationStatusesFromDatabase(d.R.UserDeviceAPIIntegrations),
+			Integrations:     NewUserDeviceIntegrationStatusesFromDatabase(d.R.UserDeviceAPIIntegrations, integrations),
 			Metadata:         *md,
 			NFT:              nft,
 		}
@@ -252,7 +257,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 	})
 }
 
-func NewUserDeviceIntegrationStatusesFromDatabase(udis []*models.UserDeviceAPIIntegration) []UserDeviceIntegrationStatus {
+func NewUserDeviceIntegrationStatusesFromDatabase(udis []*models.UserDeviceAPIIntegration, integrations []*ddgrpc.Integration) []UserDeviceIntegrationStatus {
 	out := make([]UserDeviceIntegrationStatus, len(udis))
 
 	for i, udi := range udis {
@@ -270,8 +275,12 @@ func NewUserDeviceIntegrationStatusesFromDatabase(udis []*models.UserDeviceAPIIn
 			UpdatedAt:     udi.UpdatedAt,
 			Metadata:      udi.Metadata,
 		}
-		if udi.R != nil && udi.R.Integration != nil {
-			out[i].IntegrationVendor = udi.R.Integration.Vendor
+
+		for _, integration := range integrations {
+			if integration.Id == udi.IntegrationID {
+				out[i].IntegrationVendor = integration.Vendor
+				break
+			}
 		}
 	}
 
@@ -313,15 +322,10 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	}
 	// attach device def to user
 
-	// todo grpc pull device-definition via grpc
-	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{*reg.DeviceDefinitionID})
+	deviceDefinitionResponse, err2 := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{*reg.DeviceDefinitionID})
 
-	if err != nil {
-		return api.GrpcErrorToFiber(err, fmt.Sprintf("error querying for device definition id: %s ", *reg.DeviceDefinitionID))
-	}
-
-	if len(deviceDefinitionResponse) == 0 {
-		return fiber.NewError(fiber.StatusBadRequest, "could not find device definition id: "+*reg.DeviceDefinitionID)
+	if err2 != nil {
+		return api.GrpcErrorToFiber(err2, fmt.Sprintf("error querying for device definition id: %s ", *reg.DeviceDefinitionID))
 	}
 
 	dd := deviceDefinitionResponse[0]
@@ -1069,7 +1073,7 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 		qm.Where("id = ?", udi),
 		qm.And("user_id = ?", userID),
 		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations), // Probably don't need this one.
-		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.Integration)),
+		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations)),
 	).One(c.Context(), tx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -1096,7 +1100,14 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	var dd = deviceDefinitionResponse[0]
 
 	for _, apiInteg := range userDevice.R.UserDeviceAPIIntegrations {
-		if apiInteg.R.Integration.Vendor == constants.SmartCarVendor {
+
+		integration, err := udc.DeviceDefSvc.GetIntegrationByID(c.Context(), apiInteg.IntegrationID)
+
+		if err != nil {
+			return api.GrpcErrorToFiber(err, "deviceDefSvc error getting integration id: "+apiInteg.IntegrationID)
+		}
+
+		if integration.Vendor == constants.SmartCarVendor {
 			if apiInteg.ExternalID.Valid {
 				if apiInteg.TaskID.Valid {
 					err = udc.smartcarTaskSvc.StopPoll(apiInteg)
@@ -1106,13 +1117,13 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 				}
 				// Otherwise, it was on a webhook and we were never able to create a task for it.
 			}
-		} else if apiInteg.R.Integration.Vendor == "Tesla" {
+		} else if integration.Vendor == "Tesla" {
 			if apiInteg.ExternalID.Valid {
 				if err := udc.teslaTaskService.StopPoll(apiInteg); err != nil {
 					return api.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
 				}
 			}
-		} else if apiInteg.R.Integration.Vendor == constants.AutoPiVendor {
+		} else if integration.Vendor == constants.AutoPiVendor {
 			err = udc.autoPiIngestRegistrar.Deregister(apiInteg.ExternalID.String, apiInteg.UserDeviceID, apiInteg.IntegrationID)
 			if err != nil {
 				udc.log.Err(err).Msgf("unexpected error deregistering autopi device from ingest. userDeviceID: %s", apiInteg.UserDeviceID)
@@ -1135,10 +1146,10 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 					Year:  int(dd.Type.Year),
 				},
 				Integration: services.UserDeviceEventIntegration{
-					ID:     apiInteg.R.Integration.ID,
-					Type:   apiInteg.R.Integration.Type,
-					Style:  apiInteg.R.Integration.Style,
-					Vendor: apiInteg.R.Integration.Vendor,
+					ID:     integration.Id,
+					Type:   integration.Type,
+					Style:  integration.Style,
+					Vendor: integration.Vendor,
 				},
 			},
 		})
@@ -1190,7 +1201,7 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 	userDeviceID := c.Params("userDeviceID")
 	userID := api.GetUserID(c)
-	// todo pull device-definitions via grpc
+
 	userDevice, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
 		models.UserDeviceWhere.UserID.EQ(userID),
@@ -1199,9 +1210,9 @@ func (udc *UserDevicesController) GetMintDataToSign(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusNotFound, "No device with that ID found.")
 	}
 
-	dd, err := udc.DeviceDefSvc.GetDeviceDefinitionByID(c.Context(), userDevice.DeviceDefinitionID)
-	if err != nil {
-		return opaqueInternalError
+	dd, err2 := udc.DeviceDefSvc.GetDeviceDefinitionByID(c.Context(), userDevice.DeviceDefinitionID)
+	if err2 != nil {
+		return api.GrpcErrorToFiber(err2, fmt.Sprintf("error querying for device definition id: %s ", userDevice.DeviceDefinitionID))
 	}
 
 	if dd.Make.TokenId == 0 {
@@ -1289,7 +1300,7 @@ func (udc *UserDevicesController) GetMintDataToSignV2(c *fiber.Ctx) error {
 
 	dd, err := udc.DeviceDefSvc.GetDeviceDefinitionByID(c.Context(), userDevice.DeviceDefinitionID)
 	if err != nil {
-		return opaqueInternalError
+		return api.GrpcErrorToFiber(err, fmt.Sprintf("error querying for device definition id: %s ", userDevice.DeviceDefinitionID))
 	}
 
 	if dd.Make.TokenId == 0 {
@@ -1421,7 +1432,7 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 
 	dd, err := udc.DeviceDefSvc.GetDeviceDefinitionByID(c.Context(), userDevice.DeviceDefinitionID)
 	if err != nil {
-		return opaqueInternalError
+		return api.GrpcErrorToFiber(err, fmt.Sprintf("error querying for device definition id: %s ", userDevice.DeviceDefinitionID))
 	}
 
 	if dd.Make.TokenId == 0 {
@@ -1446,12 +1457,13 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 			continue
 		}
 
-		integ, err := udc.DeviceDefSvc.GetIntegrationByID(c.Context(), apiInt.IntegrationID)
+		integration, err := udc.DeviceDefSvc.GetIntegrationByID(c.Context(), apiInt.IntegrationID)
+
 		if err != nil {
-			return opaqueInternalError
+			return api.GrpcErrorToFiber(err, "deviceDefSvc error getting integration id: "+apiInt.IntegrationID)
 		}
 
-		switch integ.Vendor {
+		switch integration.Vendor {
 		case constants.SmartCarVendor, constants.TeslaVendor:
 			eligible = true
 			// Sure hope this works!
@@ -1686,9 +1698,9 @@ func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusNotFound, "No device with that ID found.")
 	}
 
-	dd, err := udc.DeviceDefSvc.GetDeviceDefinitionByID(c.Context(), userDevice.DeviceDefinitionID)
-	if err != nil {
-		return opaqueInternalError
+	dd, err2 := udc.DeviceDefSvc.GetDeviceDefinitionByID(c.Context(), userDevice.DeviceDefinitionID)
+	if err2 != nil {
+		return api.GrpcErrorToFiber(err2, fmt.Sprintf("error querying for device definition id: %s ", userDevice.DeviceDefinitionID))
 	}
 
 	if dd.Make.TokenId == 0 {

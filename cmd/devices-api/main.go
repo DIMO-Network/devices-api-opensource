@@ -80,6 +80,9 @@ func main() {
 		arg = os.Args[1]
 	}
 
+	nhtsaSvc := services.NewNHTSAService()
+	ddSvc := services.NewDeviceDefinitionService(pdb.DBS, &logger, nhtsaSvc, &settings)
+
 	switch arg {
 	case "migrate":
 		command := "up"
@@ -92,19 +95,21 @@ func main() {
 		migrateDatabase(logger, &settings, command)
 	case "generate-events":
 		eventService := services.NewEventService(&logger, &settings, deps.getKafkaProducer())
-		generateEvents(logger, pdb, eventService)
+		nhtsaSvc := services.NewNHTSAService()
+		ddSvc := services.NewDeviceDefinitionService(pdb.DBS, &logger, nhtsaSvc, &settings)
+		generateEvents(logger, pdb, eventService, ddSvc)
 	case "set-command-compat":
-		if err := setCommandCompatibility(ctx, &settings, pdb); err != nil {
+		if err := setCommandCompatibility(ctx, &settings, pdb, ddSvc); err != nil {
 			logger.Fatal().Err(err).Msg("Failed during command compatibility fill.")
 		}
 		logger.Info().Msg("Finished setting command compatibility.")
 	case "remake-smartcar-topic":
-		err = remakeSmartcarTopic(ctx, pdb, deps.getKafkaProducer())
+		err = remakeSmartcarTopic(ctx, pdb, deps.getKafkaProducer(), ddSvc)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error running Smartcar Kafka re-registration")
 		}
 	case "remake-autopi-topic":
-		err = remakeAutoPiTopic(ctx, pdb, deps.getKafkaProducer())
+		err = remakeAutoPiTopic(ctx, pdb, deps.getKafkaProducer(), ddSvc)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error running AutoPi Kafka re-registration")
 		}
@@ -114,12 +119,12 @@ func main() {
 			logger.Fatal().Err(err).Msg("Error running Smartcar Kafka re-registration")
 		}
 	case "remake-dd-topics":
-		err = remakeDeviceDefinitionTopics(ctx, &settings, pdb, deps.getKafkaProducer(), &logger)
+		err = remakeDeviceDefinitionTopics(ctx, &settings, pdb, deps.getKafkaProducer(), &logger, ddSvc)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error recreating device definition KTables.")
 		}
 	case "populate-es-dd-data":
-		err = populateESDDData(ctx, &settings, esInstance, pdb, &logger)
+		err = populateESDDData(ctx, &settings, esInstance, pdb, &logger, ddSvc)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error running elastic search dd update")
 		}
@@ -160,7 +165,7 @@ func main() {
 		}
 		scClient := services.NewSmartcarClient(&settings)
 		scTask := services.NewSmartcarTaskService(&settings, deps.getKafkaProducer())
-		if err := startSmartcarFromRefresh(ctx, &logger, &settings, pdb, cipher, userDeviceID, scClient, scTask); err != nil {
+		if err := startSmartcarFromRefresh(ctx, &logger, &settings, pdb, cipher, userDeviceID, scClient, scTask, ddSvc); err != nil {
 			logger.Fatal().Err(err).Msg("Error starting Smartcar task.")
 		}
 		logger.Info().Msgf("Successfully started Smartcar task for %s.", userDeviceID)
@@ -244,7 +249,9 @@ func startDeviceStatusConsumer(logger zerolog.Logger, settings *config.Settings,
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Could not start device status update consumer")
 	}
-	ingestSvc := services.NewDeviceStatusIngestService(pdb.DBS, &logger, eventService)
+	nhtsaSvc := services.NewNHTSAService()
+	ddSvc := services.NewDeviceDefinitionService(pdb.DBS, &logger, nhtsaSvc, settings)
+	ingestSvc := services.NewDeviceStatusIngestService(pdb.DBS, &logger, eventService, ddSvc)
 	consumer.Start(context.Background(), ingestSvc.ProcessDeviceStatusMessages)
 
 	logger.Info().Msg("Device status update consumer started")
@@ -293,7 +300,11 @@ func startTaskStatusConsumer(logger zerolog.Logger, settings *config.Settings, p
 		settings.CIOApiKey,
 		customerio.WithRegion(customerio.RegionUS),
 	)
-	taskStatusService := services.NewTaskStatusListener(pdb.DBS, &logger, cio)
+
+	nhtsaSvc := services.NewNHTSAService()
+	ddSvc := services.NewDeviceDefinitionService(pdb.DBS, &logger, nhtsaSvc, settings)
+
+	taskStatusService := services.NewTaskStatusListener(pdb.DBS, &logger, cio, ddSvc)
 	consumer.Start(context.Background(), taskStatusService.ProcessTaskUpdates)
 
 	logger.Info().Msg("Task status consumer started")

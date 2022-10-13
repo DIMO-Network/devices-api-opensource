@@ -16,16 +16,16 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
-func startSmartcarFromRefresh(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore, cipher shared.Cipher, userDeviceID string, scClient services.SmartcarClient, scTask services.SmartcarTaskService) error {
+func startSmartcarFromRefresh(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore, cipher shared.Cipher, userDeviceID string, scClient services.SmartcarClient, scTask services.SmartcarTaskService, ddSvc services.DeviceDefinitionService) error {
 	db := pdb.DBS().Writer
-	scInt, err := models.Integrations(models.IntegrationWhere.Vendor.EQ("SmartCar")).One(ctx, db)
+	scInt, err := ddSvc.GetIntegrationByVendor(ctx, "SmartCar")
 	if err != nil {
 		return fmt.Errorf("couldn't find SmartCar integration: %w", err)
 	}
 
 	udai, err := models.UserDeviceAPIIntegrations(
 		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(userDeviceID),
-		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(scInt.ID),
+		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(scInt.Id),
 	).One(ctx, db)
 	if err != nil {
 		return fmt.Errorf("couldn't find a Smartcar integration for %s: %w", userDeviceID, err)

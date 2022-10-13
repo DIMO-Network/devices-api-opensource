@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/constants"
 	mock_services "github.com/DIMO-Network/devices-api/internal/services/mocks"
 	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/mock/gomock"
 	"github.com/rs/zerolog"
+	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
@@ -61,16 +63,15 @@ func TestUserDevicesController_GetUserDeviceStatus(t *testing.T) {
 
 	t.Run("GET - device status merge autopi and smartcar", func(t *testing.T) {
 		// arrange db, insert some user_devices
-		dm := test.SetupCreateMake(t, "Ford", pdb)
-		dd := test.SetupCreateDeviceDefinition(t, dm, "Mach E", 2022, pdb)
-		ud := test.SetupCreateUserDevice(t, testUserID, dd, nil, pdb)
-		autoPiInteg := test.SetupCreateAutoPiIntegration(t, 10, nil, pdb)
-		smartCarInt := test.SetupCreateSmartCarIntegration(t, pdb)
+		autoPiInteg := test.BuildIntegrationGRPC(constants.AutoPiVendor, 10, 0)
+		smartCarInt := test.BuildIntegrationGRPC(constants.SmartCarVendor, 0, 0)
+		dd := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Ford", "Mach E", 2020, autoPiInteg)
+		ud := test.SetupCreateUserDevice(t, testUserID, dd[0].DeviceDefinitionId, nil, pdb)
 		const unitID = "431d2e89-46f1-6884-6226-5d1ad20c84d9"
 		const deviceID = "device123"
 		_ = test.SetupCreateAutoPiUnit(t, testUserID, unitID, func(s string) *string { return &s }(deviceID), pdb)
-		_ = test.SetupCreateUserDeviceAPIIntegration(t, unitID, deviceID, ud.ID, autoPiInteg.ID, pdb)
-		_ = test.SetupCreateUserDeviceAPIIntegration(t, unitID, deviceID, ud.ID, smartCarInt.ID, pdb)
+		_ = test.SetupCreateUserDeviceAPIIntegration(t, unitID, deviceID, ud.ID, autoPiInteg.Id, pdb)
+		_ = test.SetupCreateUserDeviceAPIIntegration(t, unitID, deviceID, ud.ID, smartCarInt.Id, pdb)
 		// SC data setup to  older
 		smartCarData := models.UserDeviceDatum{
 			UserDeviceID:        ud.ID,
@@ -78,7 +79,7 @@ func TestUserDevicesController_GetUserDeviceStatus(t *testing.T) {
 			CreatedAt:           time.Now().Add(time.Minute * -5),
 			UpdatedAt:           time.Now().Add(time.Minute * -5),
 			LastOdometerEventAt: null.TimeFrom(time.Now().Add(time.Minute * -5)),
-			IntegrationID:       smartCarInt.ID,
+			IntegrationID:       smartCarInt.Id,
 		}
 		err := smartCarData.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 		assert.NoError(t, err)
@@ -88,7 +89,7 @@ func TestUserDevicesController_GetUserDeviceStatus(t *testing.T) {
 			Data:          null.JSONFrom([]byte(`{"latitude": 33.75, "longitude": -117.91}`)),
 			CreatedAt:     time.Now().Add(time.Minute * -1),
 			UpdatedAt:     time.Now().Add(time.Minute * -1),
-			IntegrationID: autoPiInteg.ID,
+			IntegrationID: autoPiInteg.Id,
 		}
 		err = autoPiData.Insert(ctx, pdb.DBS().Writer, boil.Infer())
 		assert.NoError(t, err)

@@ -17,13 +17,10 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
-	"github.com/Shopify/sarama"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
 	smartcar "github.com/smartcar/go-sdk"
 	"github.com/stretchr/testify/assert"
@@ -114,8 +111,10 @@ func TestUserIntegrationsControllerTestSuite(t *testing.T) {
 
 /* Actual Tests */
 func (s *UserIntegrationsControllerTestSuite) TestGetIntegrations() {
-	autoPiInteg := test.SetupCreateAutoPiIntegration(s.T(), 34, nil, s.pdb)
-	scInteg := test.SetupCreateSmartCarIntegration(s.T(), s.pdb)
+	integrations := make([]*ddgrpc.Integration, 2)
+	integrations[0] = test.BuildIntegrationGRPC(constants.SmartCarVendor, 10, 0)
+	integrations[1] = test.BuildIntegrationGRPC(constants.AutoPiVendor, 10, 0)
+	s.deviceDefSvc.EXPECT().GetIntegrations(gomock.Any()).Return(integrations, nil)
 
 	request := test.BuildRequest("GET", "/integrations", "")
 	response, err := s.app.Test(request)
@@ -126,34 +125,21 @@ func (s *UserIntegrationsControllerTestSuite) TestGetIntegrations() {
 
 	jsonIntegrations := gjson.GetBytes(body, "integrations")
 	assert.True(s.T(), jsonIntegrations.IsArray())
-	assert.Equal(s.T(), gjson.GetBytes(body, "integrations.0.id").Str, autoPiInteg.ID)
-	assert.Equal(s.T(), gjson.GetBytes(body, "integrations.1.id").Str, scInteg.ID)
+	assert.Equal(s.T(), gjson.GetBytes(body, "integrations.0.id").Str, integrations[0].Id)
+	assert.Equal(s.T(), gjson.GetBytes(body, "integrations.1.id").Str, integrations[1].Id)
 }
 func (s *UserIntegrationsControllerTestSuite) TestPostSmartCarFailure() {
-	dm := test.SetupCreateMake(s.T(), "Ford", s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Mach E", 2022, s.pdb)
-	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
+	integration := test.BuildIntegrationGRPC(constants.SmartCarVendor, 10, 0)
+	dd := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Ford", "Mach E", 2020, integration)
+	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd[0].DeviceDefinitionId, nil, s.pdb)
 
 	req := `{
 			"code": "qxyz",
 			"redirectURI": "http://dimo.zone/cb"
 		}`
-	integration := test.BuildIntegrationGRPC(constants.SmartCarVendor, 10, 0)
-	deviceDefinitions := test.BuildDeviceDefinitionGRPC(ud.DeviceDefinitionID, "Ford", "Mach E", integration)
-	deviceDefinitions[0].Type.Year = int32(dd.Year)
-	// b/c we still have old tables...
-	dbInt := models.Integration{
-		ID:               integration.Id,
-		Type:             models.IntegrationTypeAPI,
-		Style:            models.IntegrationStyleWebhook,
-		Vendor:           constants.SmartCarVendor,
-		RefreshLimitSecs: 1800,
-	}
-	err := dbInt.Insert(context.Background(), s.pdb.DBS().Writer, boil.Infer())
-	assert.NoError(s.T(), err, "database error")
 
 	s.scClient.EXPECT().ExchangeCode(gomock.Any(), "qxyz", "http://dimo.zone/cb").Times(1).Return(nil, errors.New("failure communicating with Smartcar"))
-	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{ud.DeviceDefinitionID}).Times(1).Return(deviceDefinitions, nil)
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{ud.DeviceDefinitionID}).Times(1).Return(dd, nil)
 
 	request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.Id, req)
 	response, err := s.app.Test(request, 60*1000)
@@ -167,9 +153,12 @@ func (s *UserIntegrationsControllerTestSuite) TestPostSmartCarFailure() {
 }
 func (s *UserIntegrationsControllerTestSuite) TestPostSmartCar() {
 	model := "Mach E"
-	dm := test.SetupCreateMake(s.T(), "Ford", s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, model, 2022, s.pdb)
-	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
+	integration := test.BuildIntegrationGRPC(constants.SmartCarVendor, 10, 0)
+	dd := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Ford", model, 2020, integration)
+	// corrected after query smartcar
+	dd2 := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Ford", model, 2022, integration)
+	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd[0].DeviceDefinitionId, nil, s.pdb)
+
 	const smartCarUserID = "smartCarUserId"
 	req := `{
 			"code": "qxy",
@@ -183,20 +172,6 @@ func (s *UserIntegrationsControllerTestSuite) TestPostSmartCar() {
 		RefreshExpiry: expiry.Add(24 * time.Hour),
 	}, nil)
 
-	integration := test.BuildIntegrationGRPC(constants.SmartCarVendor, 10, 0)
-	deviceDefinitions := test.BuildDeviceDefinitionGRPC(ud.DeviceDefinitionID, dm.Name, model, integration)
-	deviceDefinitions[0].Type.Year = int32(dd.Year)
-	// b/c we still have old tables...
-	dbInt := models.Integration{
-		ID:               integration.Id,
-		Type:             models.IntegrationTypeAPI,
-		Style:            models.IntegrationStyleWebhook,
-		Vendor:           constants.SmartCarVendor,
-		RefreshLimitSecs: 1800,
-	}
-	err := dbInt.Insert(context.Background(), s.pdb.DBS().Writer, boil.Infer())
-	assert.NoError(s.T(), err, "database error")
-
 	s.eventSvc.EXPECT().Emit(gomock.Any()).Return(nil).Do(
 		func(event *services.Event) error {
 			assert.Equal(s.T(), ud.ID, event.Subject)
@@ -204,10 +179,10 @@ func (s *UserIntegrationsControllerTestSuite) TestPostSmartCar() {
 
 			data := event.Data.(services.UserDeviceIntegrationEvent)
 
-			assert.Equal(s.T(), dd.ID, data.Device.DeviceDefinitionID)
-			assert.Equal(s.T(), "Ford", data.Device.Make)
-			assert.Equal(s.T(), "Mach E", data.Device.Model)
-			assert.Equal(s.T(), 2022, data.Device.Year)
+			assert.Equal(s.T(), dd2[0].DeviceDefinitionId, data.Device.DeviceDefinitionID)
+			assert.Equal(s.T(), dd2[0].Make.Name, data.Device.Make)
+			assert.Equal(s.T(), dd2[0].Type.Model, data.Device.Model)
+			assert.Equal(s.T(), int(dd2[0].Type.Year), data.Device.Year)
 			assert.Equal(s.T(), "CARVIN", data.Device.VIN)
 			assert.Equal(s.T(), ud.ID, data.Device.ID)
 
@@ -221,9 +196,9 @@ func (s *UserIntegrationsControllerTestSuite) TestPostSmartCar() {
 		IntegrationID:      integration.Id,
 		UserDeviceID:       ud.ID,
 		DeviceDefinitionID: ud.DeviceDefinitionID,
-		Make:               dm.Name,
-		Model:              dd.Model,
-		Year:               int(dd.Year),
+		Make:               dd2[0].Make.Name,
+		Model:              dd2[0].Type.Model,
+		Year:               int(dd2[0].Type.Year),
 		Region:             "Americas",
 	}).Return(nil)
 
@@ -232,9 +207,10 @@ func (s *UserIntegrationsControllerTestSuite) TestPostSmartCar() {
 	s.scClient.EXPECT().GetVIN(gomock.Any(), "myAccess", "smartcar-idx").Return("CARVIN", nil)
 	s.scClient.EXPECT().GetEndpoints(gomock.Any(), "myAccess", "smartcar-idx").Return([]string{"/", "/vin"}, nil)
 	s.scClient.EXPECT().HasDoorControl(gomock.Any(), "myAccess", "smartcar-idx").Return(false, nil)
+	// return a different year than original to fix up device definition id
 	s.scClient.EXPECT().GetYear(gomock.Any(), "myAccess", "smartcar-idx").Return(2022, nil)
-	s.drivlyTaskSvc.EXPECT().StartDrivlyUpdate(dd.ID, ud.ID, "CARVIN").Return("task-id-123", nil)
-	s.blackbookTaskSvc.EXPECT().StartBlackbookUpdate(dd.ID, ud.ID, "CARVIN").Return("task-id-123", nil)
+	s.drivlyTaskSvc.EXPECT().StartDrivlyUpdate(dd[0].DeviceDefinitionId, ud.ID, "CARVIN").Return("task-id-123", nil)
+	s.blackbookTaskSvc.EXPECT().StartBlackbookUpdate(dd[0].DeviceDefinitionId, ud.ID, "CARVIN").Return("task-id-123", nil)
 
 	oUdai := &models.UserDeviceAPIIntegration{}
 	s.scTaskSvc.EXPECT().StartPoll(gomock.AssignableToTypeOf(oUdai)).DoAndReturn(
@@ -243,8 +219,12 @@ func (s *UserIntegrationsControllerTestSuite) TestPostSmartCar() {
 			return nil
 		},
 	)
-
-	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{ud.DeviceDefinitionID}).AnyTimes().Return(deviceDefinitions, nil)
+	// original device def
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{ud.DeviceDefinitionID}).Times(2).Return(dd, nil)
+	// fixup device def with correct year
+	s.deviceDefSvc.EXPECT().FindDeviceDefinitionByMMY(gomock.Any(), "Ford", model, 2022).Return(dd2[0], nil)
+	// fixed up device definition
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{ud.DeviceDefinitionID}).Return(dd2, nil)
 
 	request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.Id, req)
 	response, err := s.app.Test(request)
@@ -261,40 +241,18 @@ func (s *UserIntegrationsControllerTestSuite) TestPostSmartCar() {
 	assert.Equal(s.T(), "zlErserfu", apiInt.RefreshToken.String)
 }
 func (s *UserIntegrationsControllerTestSuite) TestPostUnknownDevice() {
-	integration := test.SetupCreateSmartCarIntegration(s.T(), s.pdb)
 	req := `{
 			"code": "qxy",
 			"redirectURI": "http://dimo.zone/cb"
 		}`
-	request := test.BuildRequest("POST", "/user/devices/fakeDevice/integrations/"+integration.ID, req)
+	request := test.BuildRequest("POST", "/user/devices/fakeDevice/integrations/"+"some-integration", req)
 	response, _ := s.app.Test(request)
 	assert.Equal(s.T(), fiber.StatusBadRequest, response.StatusCode, "should fail")
 }
 func (s *UserIntegrationsControllerTestSuite) TestPostTesla() {
-	dm := test.SetupCreateMake(s.T(), "Tesla", s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model Y", 2022, s.pdb)
-	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
-
 	integration := test.BuildIntegrationGRPC(constants.TeslaVendor, 10, 0)
-	deviceDefinitions := test.BuildDeviceDefinitionGRPC(ud.DeviceDefinitionID, dm.Name, dd.Model, integration)
-	deviceDefinitions[0].Type.Year = int32(dd.Year)
-
-	// b/c we still have old tables...
-	dbInt := models.Integration{
-		ID:               integration.Id,
-		Type:             models.IntegrationTypeAPI,
-		Style:            models.IntegrationStyleOEM,
-		Vendor:           constants.TeslaVendor,
-		RefreshLimitSecs: 1800,
-	}
-	err := dbInt.Insert(context.Background(), s.pdb.DBS().Writer, boil.Infer())
-	assert.NoError(s.T(), err, "database error")
-	di := models.DeviceIntegration{
-		DeviceDefinitionID: dd.ID,
-		IntegrationID:      integration.Id,
-		Region:             "Americas",
-	}
-	_ = di.Insert(s.ctx, s.pdb.DBS().Writer, boil.Infer())
+	dd := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Tesla", "Model Y", 2020, integration)
+	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd[0].DeviceDefinitionId, nil, s.pdb)
 
 	oV := &services.TeslaVehicle{}
 	oUdai := &models.UserDeviceAPIIntegration{}
@@ -306,13 +264,13 @@ func (s *UserIntegrationsControllerTestSuite) TestPostTesla() {
 
 			data := event.Data.(services.UserDeviceIntegrationEvent)
 
-			assert.Equal(s.T(), "Tesla", data.Device.Make)
-			assert.Equal(s.T(), "Model Y", data.Device.Model)
-			assert.Equal(s.T(), 2022, data.Device.Year)
+			assert.Equal(s.T(), dd[0].Make.Name, data.Device.Make)
+			assert.Equal(s.T(), dd[0].Type.Model, data.Device.Model)
+			assert.Equal(s.T(), int(dd[0].Type.Year), data.Device.Year)
 			assert.Equal(s.T(), "5YJYGDEF9NF010423", data.Device.VIN)
 			assert.Equal(s.T(), ud.ID, data.Device.ID)
 
-			assert.Equal(s.T(), "Tesla", data.Integration.Vendor)
+			assert.Equal(s.T(), constants.TeslaVendor, data.Integration.Vendor)
 			assert.Equal(s.T(), integration.Id, data.Integration.ID)
 			return nil
 		},
@@ -322,9 +280,9 @@ func (s *UserIntegrationsControllerTestSuite) TestPostTesla() {
 		IntegrationID:      integration.Id,
 		UserDeviceID:       ud.ID,
 		DeviceDefinitionID: ud.DeviceDefinitionID,
-		Make:               dm.Name,
-		Model:              dd.Model,
-		Year:               int(dd.Year),
+		Make:               dd[0].Make.Name,
+		Model:              dd[0].Type.Model,
+		Year:               int(dd[0].Type.Year),
 		Region:             "Americas",
 	}).Return(nil)
 
@@ -342,8 +300,8 @@ func (s *UserIntegrationsControllerTestSuite) TestPostTesla() {
 		VIN:       "5YJYGDEF9NF010423",
 	}, nil)
 	s.teslaSvc.EXPECT().WakeUpVehicle("abc", 1145).Return(nil)
-	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{ud.DeviceDefinitionID}).AnyTimes().Return(deviceDefinitions, nil)
-	s.deviceDefSvc.EXPECT().FindDeviceDefinitionByMMY(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(deviceDefinitions[0], nil)
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{ud.DeviceDefinitionID}).Times(2).Return(dd, nil)
+	s.deviceDefSvc.EXPECT().FindDeviceDefinitionByMMY(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(dd[0], nil)
 
 	req := `{
 			"accessToken": "abc",
@@ -377,43 +335,21 @@ func (s *UserIntegrationsControllerTestSuite) TestPostTesla() {
 }
 
 func (s *UserIntegrationsControllerTestSuite) TestPostTeslaAndUpdateDD() {
-	dm := test.SetupCreateMake(s.T(), "Tesla", s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model Y", 2022, s.pdb)
-	dd.R = dd.R.NewStruct()
-	dd.R.DeviceMake = &dm
+	integration := test.BuildIntegrationGRPC(constants.TeslaVendor, 10, 20)
+	dd := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Ford", "Mach E", 2020, integration)
 
-	dd2 := test.SetupCreateDeviceDefinition(s.T(), dm, "Roadster", 2010, s.pdb)
+	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd[0].DeviceDefinitionId, nil, s.pdb)
 
-	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
-	ud.R = ud.R.NewStruct()
-	ud.R.DeviceDefinition = dd
+	s.deviceDefSvc.EXPECT().FindDeviceDefinitionByMMY(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(dd[0], nil)
 
-	teslaInt := ddgrpc.Integration{
-		Id:     ksuid.New().String(),
-		Type:   models.IntegrationTypeAPI,
-		Style:  models.IntegrationStyleOEM,
-		Vendor: "Tesla",
-	}
-
-	deviceDefinitions := test.BuildDeviceDefinitionGRPC(dd2.ID, "Ford", "Mach E", nil)
-	deviceDefinitions[0].DeviceIntegrations = append(deviceDefinitions[0].DeviceIntegrations, &ddgrpc.DeviceIntegration{
-		Integration: &ddgrpc.Integration{
-			Id:     teslaInt.Id,
-			Type:   models.IntegrationTypeAPI,
-			Style:  models.IntegrationStyleWebhook,
-			Vendor: "SmartCar",
-		},
-	})
-
-	s.deviceDefSvc.EXPECT().FindDeviceDefinitionByMMY(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(deviceDefinitions[0], nil)
-
-	err := fixTeslaDeviceDefinition(s.ctx, test.Logger(), s.deviceDefSvc, s.pdb.DBS().Writer.DB, &teslaInt, &ud, "5YJRE1A31A1P01234")
+	err := fixTeslaDeviceDefinition(s.ctx, test.Logger(), s.deviceDefSvc, s.pdb.DBS().Writer.DB, integration, &ud, "5YJRE1A31A1P01234")
 	if err != nil {
 		s.T().Fatalf("Got an error while fixing device definition: %v", err)
 	}
 
 	_ = ud.Reload(s.ctx, s.pdb.DBS().Writer.DB)
-	if ud.DeviceDefinitionID != dd2.ID {
+	// todo, we may need to point to new device def, or see how above fix method is implemented
+	if ud.DeviceDefinitionID != dd[0].DeviceDefinitionId {
 		s.T().Fatalf("Failed to switch device definition to the correct one")
 	}
 }
@@ -430,19 +366,9 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi_HappyPath() {
 	// arrange
 	const templateID = 10
 	integration := test.BuildIntegrationGRPC(constants.AutoPiVendor, templateID, 0)
-	// b/c we still have old tables...
-	dbInt := models.Integration{
-		ID:               integration.Id,
-		Type:             models.IntegrationTypeAPI,
-		Style:            models.IntegrationStyleOEM,
-		Vendor:           constants.AutoPiVendor,
-		RefreshLimitSecs: 1800,
-	}
-	err := dbInt.Insert(context.Background(), s.pdb.DBS().Writer, boil.Infer())
-	assert.NoError(s.T(), err, "database error")
-	dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model 4", 2022, s.pdb)
-	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
+	dd := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Ford", "Escape", 2020, integration)
+
+	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd[0].DeviceDefinitionId, nil, s.pdb)
 	const (
 		jobID     = "123"
 		deviceID  = "1dd96159-3bb2-9472-91f6-72fe9211cfeb"
@@ -480,9 +406,9 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi_HappyPath() {
 		IntegrationID:      integration.Id,
 		UserDeviceID:       ud.ID,
 		DeviceDefinitionID: ud.DeviceDefinitionID,
-		Make:               dm.Name,
-		Model:              dd.Model,
-		Year:               int(dd.Year),
+		Make:               dd[0].Make.Name,
+		Model:              dd[0].Type.Model,
+		Year:               int(dd[0].Type.Year),
 		Region:             "Americas",
 	}).Return(nil)
 
@@ -493,27 +419,20 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi_HappyPath() {
 
 			data := event.Data.(services.UserDeviceIntegrationEvent)
 
-			assert.Equal(s.T(), "Testla", data.Device.Make)
-			assert.Equal(s.T(), "Model 4", data.Device.Model)
-			assert.Equal(s.T(), 2022, data.Device.Year)
+			assert.Equal(s.T(), dd[0].Make.Name, data.Device.Make)
+			assert.Equal(s.T(), dd[0].Type.Model, data.Device.Model)
+			assert.Equal(s.T(), int(dd[0].Type.Year), data.Device.Year)
 			assert.Equal(s.T(), "CARVANA", data.Device.VIN)
 			assert.Equal(s.T(), ud.ID, data.Device.ID)
 
-			assert.Equal(s.T(), "AutoPi", data.Integration.Vendor)
+			assert.Equal(s.T(), constants.AutoPiVendor, data.Integration.Vendor)
 			assert.Equal(s.T(), integration.Id, data.Integration.ID)
 			return nil
 		},
 	)
 
-	deviceDefinitions := test.BuildDeviceDefinitionGRPC(ud.DeviceDefinitionID, dm.Name, dd.Model, nil)
-	deviceDefinitions[0].Type.Year = int32(dd.Year)
-
-	s.deviceDefIntSvc.EXPECT().GetAutoPiIntegration(gomock.Any()).Return(integration, nil)
 	s.deviceDefSvc.EXPECT().GetIntegrationByID(gomock.Any(), integration.Id).Return(integration, nil)
-
-	s.deviceDefIntSvc.EXPECT().CreateDeviceDefinitionIntegration(gomock.Any(), integration.Id, ud.DeviceDefinitionID, constants.AmericasRegion.String()).
-		Return(integration, nil)
-	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{ud.DeviceDefinitionID}).Return(deviceDefinitions, nil)
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{ud.DeviceDefinitionID}).Times(2).Return(dd, nil)
 
 	request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.Id, req)
 	response, err := app.Test(request, 1000*20)
@@ -558,11 +477,11 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCustomPowerTrain() {
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
 	// arrange
 	evTemplateID := 12
+	autoPiIntegration := test.BuildIntegrationGRPC(constants.AutoPiVendor, 10, evTemplateID)
+	dd := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Ford", "Escaped", 2022, autoPiIntegration)
+
 	udMetadata := []byte(`{"powertrainType":"BEV"}`)
-	integration := test.SetupCreateAutoPiIntegration(s.T(), 34, &evTemplateID, s.pdb)
-	dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model 4", 2022, s.pdb)
-	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, &udMetadata, s.pdb)
+	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd[0].DeviceDefinitionId, &udMetadata, s.pdb)
 	const (
 		jobID     = "123"
 		deviceID  = "1dd96159-3bb2-9472-91f6-72fe9211cfeb"
@@ -586,35 +505,28 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCustomPowerTrain() {
 	autopiAPISvc.EXPECT().PatchVehicleProfile(vehicleID, gomock.Any()).Times(1).Return(nil)
 	autopiAPISvc.EXPECT().UnassociateDeviceTemplate(deviceID, 1).Times(1).Return(nil)
 
-	//autopiAPISvc.EXPECT().ApplyTemplate(deviceID, evTemplateID).Times(1).Return(nil)
 	autopiAPISvc.EXPECT().AssociateDeviceToTemplate(deviceID, gomock.Any()).Times(1).Return(nil)
-	autopiAPISvc.EXPECT().ApplyTemplate(deviceID, gomock.Any()).Times(1).Return(nil)
+	autopiAPISvc.EXPECT().ApplyTemplate(deviceID, evTemplateID).Times(1).Return(nil)
 	autopiAPISvc.EXPECT().CommandSyncDevice(gomock.Any(), unitID, deviceID, ud.ID).Times(1).Return(&services.AutoPiCommandResponse{
 		Jid: jobID,
 	}, nil)
-	s.autoPiIngest.EXPECT().Register(unitID, ud.ID, integration.ID).Return(nil)
+	s.autoPiIngest.EXPECT().Register(unitID, ud.ID, autoPiIntegration.Id).Return(nil)
 
 	s.deviceDefinitionRegistrar.EXPECT().Register(services.DeviceDefinitionDTO{
-		IntegrationID:      integration.ID,
+		IntegrationID:      autoPiIntegration.Id,
 		UserDeviceID:       ud.ID,
 		DeviceDefinitionID: ud.DeviceDefinitionID,
-		Make:               dm.Name,
-		Model:              dd.Model,
-		Year:               int(dd.Year),
+		Make:               dd[0].Make.Name,
+		Model:              dd[0].Type.Model,
+		Year:               int(dd[0].Type.Year),
 		Region:             "Americas",
 	}).Return(nil)
 
-	autoPiIntegration := test.BuildAutoPiIntegrationGrpc(integration.ID, int32(evTemplateID), 14)
-	deviceDefinitions := test.BuildDeviceDefinitionGRPC(ud.DeviceDefinitionID, dm.Name, dd.Model, nil)
-	deviceDefinitions[0].Type.Year = int32(dd.Year)
-
-	s.deviceDefIntSvc.EXPECT().GetAutoPiIntegration(gomock.Any()).Return(autoPiIntegration, nil)
 	s.deviceDefSvc.EXPECT().GetIntegrationByID(gomock.Any(), autoPiIntegration.Id).Return(autoPiIntegration, nil)
-	s.deviceDefIntSvc.EXPECT().CreateDeviceDefinitionIntegration(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(autoPiIntegration, nil)
-	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dd.ID}).Times(1).Return(deviceDefinitions, nil)
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dd[0].DeviceDefinitionId}).Times(2).Return(dd, nil)
 
-	request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.ID, req)
-	response, err := app.Test(request, 200000)
+	request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+autoPiIntegration.Id, req)
+	response, err := app.Test(request, 20*1000)
 	require.NoError(s.T(), err)
 	if assert.Equal(s.T(), fiber.StatusNoContent, response.StatusCode, "should return success") == false {
 		body, _ := io.ReadAll(response.Body)
@@ -622,7 +534,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCustomPowerTrain() {
 		fmt.Println("body sent to post: " + req)
 	}
 
-	apiInt, err := models.FindUserDeviceAPIIntegration(s.ctx, s.pdb.DBS().Writer, ud.ID, integration.ID)
+	apiInt, err := models.FindUserDeviceAPIIntegration(s.ctx, s.pdb.DBS().Writer, ud.ID, autoPiIntegration.Id)
 	require.NoError(s.T(), err)
 	fmt.Printf("found user device api int: %+v", *apiInt)
 
@@ -632,7 +544,6 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCustomPowerTrain() {
 
 	assert.Equal(s.T(), deviceID, apiInt.ExternalID.String)
 	assert.Equal(s.T(), "Pending", apiInt.Status)
-	//assert.Equal(s.T(), evTemplateID, *metadata.AutoPiTemplateApplied)
 }
 func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateDeviceSameUser() {
 	// specific dependency and controller
@@ -645,19 +556,9 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateD
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
 	// arrange
 	integration := test.BuildIntegrationGRPC(constants.AutoPiVendor, 34, 0)
-	// b/c we still have old tables...
-	dbInt := models.Integration{
-		ID:               integration.Id,
-		Type:             models.IntegrationTypeAPI,
-		Style:            models.IntegrationStyleOEM,
-		Vendor:           constants.AutoPiVendor,
-		RefreshLimitSecs: 1800,
-	}
-	err := dbInt.Insert(context.Background(), s.pdb.DBS().Writer, boil.Infer())
-	assert.NoError(s.T(), err, "database error")
-	dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model 4", 2022, s.pdb)
-	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
+	dd := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Testla", "Model 4", 2020, integration)
+
+	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd[0].DeviceDefinitionId, nil, s.pdb)
 	const (
 		deviceID = "1dd96159-3bb2-9472-91f6-72fe9211cfeb"
 		unitID   = "431d2e89-46f1-6884-6226-5d1ad20c84d9"
@@ -670,9 +571,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateD
 		}`, unitID)
 	// no calls should be made to autopi api
 
-	deviceDefinitions := test.BuildDeviceDefinitionGRPC(ud.DeviceDefinitionID, "Testla", "Model 4", integration)
-
-	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{ud.DeviceDefinitionID}).AnyTimes().Return(deviceDefinitions, nil)
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{ud.DeviceDefinitionID}).AnyTimes().Return(dd, nil)
 
 	request := test.BuildRequest("POST", "/user/devices/"+ud.ID+"/integrations/"+integration.Id, req)
 	response, err := app.Test(request, 1000*240)
@@ -695,36 +594,22 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateD
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUser2), c.RegisterDeviceIntegration)
 	// arrange
 	integration := test.BuildIntegrationGRPC(constants.AutoPiVendor, 34, 0)
-	dbInt := models.Integration{
-		ID:               integration.Id,
-		Type:             models.IntegrationTypeAPI,
-		Style:            models.IntegrationStyleOEM,
-		Vendor:           constants.AutoPiVendor,
-		RefreshLimitSecs: 1800,
-	}
-	err := dbInt.Insert(context.Background(), s.pdb.DBS().Writer, boil.Infer())
-	assert.NoError(s.T(), err, "database error")
-	dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model 4", 2022, s.pdb)
+	dd := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Testla", "Model 4", 2022, nil)
 	// the other user that already claimed unit
-	_ = test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
+	_ = test.SetupCreateUserDevice(s.T(), testUserID, dd[0].DeviceDefinitionId, nil, s.pdb)
 	const (
 		deviceID = "1dd96159-3bb2-9472-91f6-72fe9211cfeb"
 		unitID   = "431d2e89-46f1-6884-6226-5d1ad20c84d9"
 	)
 	_ = test.SetupCreateAutoPiUnit(s.T(), testUserID, unitID, func(s string) *string { return &s }(deviceID), s.pdb)
 	// test user
-	ud2 := test.SetupCreateUserDevice(s.T(), testUser2, dd, nil, s.pdb)
+	ud2 := test.SetupCreateUserDevice(s.T(), testUser2, dd[0].DeviceDefinitionId, nil, s.pdb)
 
 	req := fmt.Sprintf(`{
 			"externalId": "%s"
 		}`, unitID)
 
-	deviceDefinitions := test.BuildDeviceDefinitionGRPC(dd.ID, "Ford", "Mach E", nil)
-	s.deviceDefIntSvc.EXPECT().GetAutoPiIntegration(gomock.Any()).Return(integration, nil)
-	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dd.ID}).Times(1).Return(deviceDefinitions, nil)
-	s.deviceDefIntSvc.EXPECT().CreateDeviceDefinitionIntegration(gomock.Any(), integration.Id, ud2.DeviceDefinitionID, "Americas").
-		Return(integration, nil)
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dd[0].DeviceDefinitionId}).Times(1).Return(dd, nil)
 
 	// no calls should be made to autopi api
 	request := test.BuildRequest("POST", "/user/devices/"+ud2.ID+"/integrations/"+integration.Id, req)
@@ -745,17 +630,15 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCommand() {
 	app := fiber.New()
 	app.Post("/user/devices/:userDeviceID/autopi/command", test.AuthInjectorTestHandler(testUserID), c.SendAutoPiCommand)
 	// arrange
-	integ := test.SetupCreateAutoPiIntegration(s.T(), 34, nil, s.pdb)
-	dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model 4", 2022, s.pdb)
-	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
-	test.SetupCreateDeviceIntegration(s.T(), dd, integ, s.pdb)
+	integration := test.BuildIntegrationGRPC(constants.AutoPiVendor, 34, 0)
+	dd := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Testla", "Model 4", 2022, nil)
+	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd[0].DeviceDefinitionId, nil, s.pdb)
 	const (
 		deviceID = "1dd96159-3bb2-9472-91f6-72fe9211cfeb"
 		unitID   = "431d2e89-46f1-6884-6226-5d1ad20c84d9"
 	)
 	_ = test.SetupCreateAutoPiUnit(s.T(), testUserID, unitID, func(s string) *string { return &s }(deviceID), s.pdb)
-	udapiInt := test.SetupCreateUserDeviceAPIIntegration(s.T(), unitID, deviceID, ud.ID, integ.ID, s.pdb)
+	udapiInt := test.SetupCreateUserDeviceAPIIntegration(s.T(), unitID, deviceID, ud.ID, integration.Id, s.pdb)
 
 	udAPIMetadata := services.UserDeviceAPIIntegrationsMetadata{
 		AutoPiUnitID: func(s string) *string { return &s }(unitID),
@@ -813,16 +696,14 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiCommand() {
 	app := fiber.New()
 	app.Get("/user/devices/:userDeviceID/autopi/command/:jobID", test.AuthInjectorTestHandler(testUserID), c.GetAutoPiCommandStatus)
 	//arrange
-	integ := test.SetupCreateAutoPiIntegration(s.T(), 34, nil, s.pdb)
-	dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model 4", 2022, s.pdb)
-	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
-	test.SetupCreateDeviceIntegration(s.T(), dd, integ, s.pdb)
+	integration := test.BuildIntegrationGRPC(constants.AutoPiVendor, 34, 0)
+	dd := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Testla", "Model 4", 2022, nil)
+	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd[0].DeviceDefinitionId, nil, s.pdb)
 	const (
 		deviceID = "1dd96159-3bb2-9472-91f6-72fe9211cfeb"
 		jobID    = "somepreviousjobId"
 	)
-	_ = test.SetupCreateUserDeviceAPIIntegration(s.T(), "", deviceID, ud.ID, integ.ID, s.pdb)
+	_ = test.SetupCreateUserDeviceAPIIntegration(s.T(), "", deviceID, ud.ID, integration.Id, s.pdb)
 
 	lastUpdated := time.Now()
 
@@ -854,18 +735,16 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiCommand() {
 }
 func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiCommandNoResults400() {
 	//arrange
-	integ := test.SetupCreateAutoPiIntegration(s.T(), 34, nil, s.pdb)
-	dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model 4", 2022, s.pdb)
-	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd, nil, s.pdb)
-	test.SetupCreateDeviceIntegration(s.T(), dd, integ, s.pdb)
+	integration := test.BuildIntegrationGRPC(constants.AutoPiVendor, 34, 0)
+	dd := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Testla", "Model 4", 2022, nil)
+	ud := test.SetupCreateUserDevice(s.T(), testUserID, dd[0].DeviceDefinitionId, nil, s.pdb)
 	const (
 		jobID    = "somepreviousjobId2"
 		deviceID = "1dd96159-3bb2-9472-91f6-72fe9211cfeb"
 		unitID   = "431d2e89-46f1-6884-6226-5d1ad20c84d9"
 	)
 	_ = test.SetupCreateAutoPiUnit(s.T(), testUserID, unitID, func(s string) *string { return &s }(deviceID), s.pdb)
-	test.SetupCreateUserDeviceAPIIntegration(s.T(), unitID, deviceID, ud.ID, integ.ID, s.pdb)
+	test.SetupCreateUserDeviceAPIIntegration(s.T(), unitID, deviceID, ud.ID, integration.Id, s.pdb)
 
 	s.autopiAPISvc.EXPECT().GetCommandStatus(gomock.Any(), jobID).Return(nil, nil, sql.ErrNoRows)
 
@@ -993,13 +872,11 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoMatchUDAI() {
 	app.Get("/autopi/unit/:unitID", test.AuthInjectorTestHandler(testUserID), c.GetAutoPiUnitInfo)
 	// arrange
 	const unitID = "431d2e89-46f1-6884-6226-5d1ad20c84d9"
-	integ := test.SetupCreateAutoPiIntegration(s.T(), 34, nil, s.pdb)
-	dm := test.SetupCreateMake(s.T(), "Testla", s.pdb)
-	dd := test.SetupCreateDeviceDefinition(s.T(), dm, "Model 4", 2022, s.pdb)
-	ud := test.SetupCreateUserDevice(s.T(), "some-other-user", dd, nil, s.pdb)
-	test.SetupCreateDeviceIntegration(s.T(), dd, integ, s.pdb)
+	integration := test.BuildIntegrationGRPC(constants.AutoPiVendor, 34, 0)
+	dd := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Testla", "Model 4", 2022, nil)
+	ud := test.SetupCreateUserDevice(s.T(), "some-other-user", dd[0].DeviceDefinitionId, nil, s.pdb)
 	_ = test.SetupCreateAutoPiUnit(s.T(), testUserID, unitID, func(s string) *string { return &s }("1234"), s.pdb)
-	test.SetupCreateUserDeviceAPIIntegration(s.T(), unitID, "321", ud.ID, integ.ID, s.pdb)
+	test.SetupCreateUserDeviceAPIIntegration(s.T(), unitID, "321", ud.ID, integration.Id, s.pdb)
 
 	udai := models.UserDeviceAPIIntegration{}
 	udai.R = udai.R.NewStruct()
@@ -1012,1501 +889,4 @@ func (s *UserIntegrationsControllerTestSuite) TestGetAutoPiInfoNoMatchUDAI() {
 	require.NoError(s.T(), err)
 	// assert
 	assert.Equal(s.T(), fiber.StatusForbidden, response.StatusCode)
-}
-
-func TestUserDevicesController_ClaimAutoPi(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c *fiber.Ctx
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.ClaimAutoPi(tt.args.c), fmt.Sprintf("ClaimAutoPi(%v)", tt.args.c))
-		})
-	}
-}
-
-func TestUserDevicesController_DeleteUserDeviceIntegration(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c *fiber.Ctx
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.DeleteUserDeviceIntegration(tt.args.c), fmt.Sprintf("DeleteUserDeviceIntegration(%v)", tt.args.c))
-		})
-	}
-}
-
-func TestUserDevicesController_GetAutoPiClaimMessage(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c *fiber.Ctx
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.GetAutoPiClaimMessage(tt.args.c), fmt.Sprintf("GetAutoPiClaimMessage(%v)", tt.args.c))
-		})
-	}
-}
-
-func TestUserDevicesController_GetAutoPiCommandStatus(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c *fiber.Ctx
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.GetAutoPiCommandStatus(tt.args.c), fmt.Sprintf("GetAutoPiCommandStatus(%v)", tt.args.c))
-		})
-	}
-}
-
-func TestUserDevicesController_GetAutoPiTask(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c *fiber.Ctx
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.GetAutoPiTask(tt.args.c), fmt.Sprintf("GetAutoPiTask(%v)", tt.args.c))
-		})
-	}
-}
-
-func TestUserDevicesController_GetAutoPiUnitInfo(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c *fiber.Ctx
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.GetAutoPiUnitInfo(tt.args.c), fmt.Sprintf("GetAutoPiUnitInfo(%v)", tt.args.c))
-		})
-	}
-}
-
-func TestUserDevicesController_GetCommandRequestStatus(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c *fiber.Ctx
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.GetCommandRequestStatus(tt.args.c), fmt.Sprintf("GetCommandRequestStatus(%v)", tt.args.c))
-		})
-	}
-}
-
-func TestUserDevicesController_GetIntegrations(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c *fiber.Ctx
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.GetIntegrations(tt.args.c), fmt.Sprintf("GetIntegrations(%v)", tt.args.c))
-		})
-	}
-}
-
-func TestUserDevicesController_GetIsAutoPiOnline(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c *fiber.Ctx
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.GetIsAutoPiOnline(tt.args.c), fmt.Sprintf("GetIsAutoPiOnline(%v)", tt.args.c))
-		})
-	}
-}
-
-func TestUserDevicesController_GetUserDeviceIntegration(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c *fiber.Ctx
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.GetUserDeviceIntegration(tt.args.c), fmt.Sprintf("GetUserDeviceIntegration(%v)", tt.args.c))
-		})
-	}
-}
-
-func TestUserDevicesController_LockDoors(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c *fiber.Ctx
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.LockDoors(tt.args.c), fmt.Sprintf("LockDoors(%v)", tt.args.c))
-		})
-	}
-}
-
-func TestUserDevicesController_OpenFrunk(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c *fiber.Ctx
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.OpenFrunk(tt.args.c), fmt.Sprintf("OpenFrunk(%v)", tt.args.c))
-		})
-	}
-}
-
-func TestUserDevicesController_OpenTrunk(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c *fiber.Ctx
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.OpenTrunk(tt.args.c), fmt.Sprintf("OpenTrunk(%v)", tt.args.c))
-		})
-	}
-}
-
-func TestUserDevicesController_RegisterDeviceIntegration(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c *fiber.Ctx
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.RegisterDeviceIntegration(tt.args.c), fmt.Sprintf("RegisterDeviceIntegration(%v)", tt.args.c))
-		})
-	}
-}
-
-func TestUserDevicesController_SendAutoPiCommand(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c *fiber.Ctx
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.SendAutoPiCommand(tt.args.c), fmt.Sprintf("SendAutoPiCommand(%v)", tt.args.c))
-		})
-	}
-}
-
-func TestUserDevicesController_StartAutoPiUpdateTask(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c *fiber.Ctx
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.StartAutoPiUpdateTask(tt.args.c), fmt.Sprintf("StartAutoPiUpdateTask(%v)", tt.args.c))
-		})
-	}
-}
-
-func TestUserDevicesController_UnlockDoors(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c *fiber.Ctx
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.UnlockDoors(tt.args.c), fmt.Sprintf("UnlockDoors(%v)", tt.args.c))
-		})
-	}
-}
-
-func TestUserDevicesController_fixSmartcarDeviceYear(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		ctx    context.Context
-		logger *zerolog.Logger
-		exec   boil.ContextExecutor
-		integ  *ddgrpc.Integration
-		ud     *models.UserDevice
-		year   int
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.fixSmartcarDeviceYear(tt.args.ctx, tt.args.logger, tt.args.exec, tt.args.integ, tt.args.ud, tt.args.year), fmt.Sprintf("fixSmartcarDeviceYear(%v, %v, %v, %v, %v, %v)", tt.args.ctx, tt.args.logger, tt.args.exec, tt.args.integ, tt.args.ud, tt.args.year))
-		})
-	}
-}
-
-func TestUserDevicesController_handleEnqueueCommand(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c           *fiber.Ctx
-		commandPath string
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.handleEnqueueCommand(tt.args.c, tt.args.commandPath), fmt.Sprintf("handleEnqueueCommand(%v, %v)", tt.args.c, tt.args.commandPath))
-		})
-	}
-}
-
-func TestUserDevicesController_registerAutoPiUnit(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c             *fiber.Ctx
-		logger        *zerolog.Logger
-		tx            *sql.Tx
-		ud            *models.UserDevice
-		integrationID string
-		dd            *ddgrpc.GetDeviceDefinitionItemResponse
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.registerAutoPiUnit(tt.args.c, tt.args.logger, tt.args.tx, tt.args.ud, tt.args.integrationID, tt.args.dd), fmt.Sprintf("registerAutoPiUnit(%v, %v, %v, %v, %v, %v)", tt.args.c, tt.args.logger, tt.args.tx, tt.args.ud, tt.args.integrationID, tt.args.dd))
-		})
-	}
-}
-
-func TestUserDevicesController_registerDeviceTesla(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c            *fiber.Ctx
-		logger       *zerolog.Logger
-		tx           *sql.Tx
-		userDeviceID string
-		integ        *ddgrpc.Integration
-		ud           *models.UserDevice
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.registerDeviceTesla(tt.args.c, tt.args.logger, tt.args.tx, tt.args.userDeviceID, tt.args.integ, tt.args.ud), fmt.Sprintf("registerDeviceTesla(%v, %v, %v, %v, %v, %v)", tt.args.c, tt.args.logger, tt.args.tx, tt.args.userDeviceID, tt.args.integ, tt.args.ud))
-		})
-	}
-}
-
-func TestUserDevicesController_registerSmartcarIntegration(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		c      *fiber.Ctx
-		logger *zerolog.Logger
-		tx     *sql.Tx
-		integ  *ddgrpc.Integration
-		ud     *models.UserDevice
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			tt.wantErr(t, udc.registerSmartcarIntegration(tt.args.c, tt.args.logger, tt.args.tx, tt.args.integ, tt.args.ud), fmt.Sprintf("registerSmartcarIntegration(%v, %v, %v, %v, %v)", tt.args.c, tt.args.logger, tt.args.tx, tt.args.integ, tt.args.ud))
-		})
-	}
-}
-
-func TestUserDevicesController_runPostRegistration(t *testing.T) {
-	type fields struct {
-		Settings                  *config.Settings
-		DBS                       func() *database.DBReaderWriter
-		DeviceDefSvc              services.DeviceDefinitionService
-		DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
-		log                       *zerolog.Logger
-		eventService              services.EventService
-		smartcarClient            services.SmartcarClient
-		smartcarTaskSvc           services.SmartcarTaskService
-		teslaService              services.TeslaService
-		teslaTaskService          services.TeslaTaskService
-		cipher                    shared.Cipher
-		autoPiSvc                 services.AutoPiAPIService
-		nhtsaService              services.INHTSAService
-		autoPiIngestRegistrar     services.IngestRegistrar
-		autoPiTaskService         services.AutoPiTaskService
-		drivlyTaskService         services.DrivlyTaskService
-		blackbookTaskService      services.BlackbookTaskService
-		s3                        *s3.Client
-		producer                  sarama.SyncProducer
-		deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
-	}
-	type args struct {
-		ctx           context.Context
-		logger        *zerolog.Logger
-		userDeviceID  string
-		integrationID string
-		integ         *ddgrpc.Integration
-		dd            *ddgrpc.GetDeviceDefinitionItemResponse
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			udc := &UserDevicesController{
-				Settings:                  tt.fields.Settings,
-				DBS:                       tt.fields.DBS,
-				DeviceDefSvc:              tt.fields.DeviceDefSvc,
-				DeviceDefIntSvc:           tt.fields.DeviceDefIntSvc,
-				log:                       tt.fields.log,
-				eventService:              tt.fields.eventService,
-				smartcarClient:            tt.fields.smartcarClient,
-				smartcarTaskSvc:           tt.fields.smartcarTaskSvc,
-				teslaService:              tt.fields.teslaService,
-				teslaTaskService:          tt.fields.teslaTaskService,
-				cipher:                    tt.fields.cipher,
-				autoPiSvc:                 tt.fields.autoPiSvc,
-				nhtsaService:              tt.fields.nhtsaService,
-				autoPiIngestRegistrar:     tt.fields.autoPiIngestRegistrar,
-				autoPiTaskService:         tt.fields.autoPiTaskService,
-				drivlyTaskService:         tt.fields.drivlyTaskService,
-				blackbookTaskService:      tt.fields.blackbookTaskService,
-				s3:                        tt.fields.s3,
-				producer:                  tt.fields.producer,
-				deviceDefinitionRegistrar: tt.fields.deviceDefinitionRegistrar,
-			}
-			udc.runPostRegistration(tt.args.ctx, tt.args.logger, tt.args.userDeviceID, tt.args.integrationID, tt.args.integ, tt.args.dd)
-		})
-	}
-}
-
-func Test_fixTeslaDeviceDefinition(t *testing.T) {
-	type args struct {
-		ctx    context.Context
-		logger *zerolog.Logger
-		ddSvc  services.DeviceDefinitionService
-		exec   boil.ContextExecutor
-		integ  *ddgrpc.Integration
-		ud     *models.UserDevice
-		vin    string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.wantErr(t, fixTeslaDeviceDefinition(tt.args.ctx, tt.args.logger, tt.args.ddSvc, tt.args.exec, tt.args.integ, tt.args.ud, tt.args.vin), fmt.Sprintf("fixTeslaDeviceDefinition(%v, %v, %v, %v, %v, %v, %v)", tt.args.ctx, tt.args.logger, tt.args.ddSvc, tt.args.exec, tt.args.integ, tt.args.ud, tt.args.vin))
-		})
-	}
 }

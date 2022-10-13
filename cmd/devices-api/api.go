@@ -67,7 +67,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	// controllers
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc, ddIntSvc)
 	userDeviceController := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, ddIntSvc, eventService, smartcarClient, scTaskSvc, teslaSvc, teslaTaskService, cipher, autoPiSvc, services.NewNHTSAService(), autoPiIngest, deviceDefinitionRegistrar, autoPiTaskService, producer, s3NFTServiceClient, drivlyTaskService, blackbookTaskService)
-	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer)
+	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer, ddSvc)
 	webhooksController := controllers.NewWebhooksController(settings, pdb.DBS, &logger, autoPiSvc, ddIntSvc)
 	documentsController := controllers.NewDocumentsController(settings, s3ServiceClient, pdb.DBS)
 
@@ -259,7 +259,6 @@ func startGRPCServer(settings *config.Settings, dbs func() *database.DBReaderWri
 
 	logger.Info().Msgf("Starting gRPC server on port %s", settings.GRPCPort)
 	server := grpc.NewServer()
-	pb.RegisterIntegrationServiceServer(server, api.NewIntegrationService(dbs))
 	pb.RegisterUserDeviceServiceServer(server, api.NewUserDeviceService(dbs, logger))
 
 	if err := server.Serve(lis); err != nil {

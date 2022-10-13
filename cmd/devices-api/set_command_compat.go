@@ -20,26 +20,26 @@ import (
 
 var teslaEnabledCommands = []string{"doors/lock", "doors/unlock", "trunk/open", "frunk/open", "charge/limit"}
 
-func setCommandCompatibility(ctx context.Context, settings *config.Settings, pdb database.DbStore) error {
+func setCommandCompatibility(ctx context.Context, settings *config.Settings, pdb database.DbStore, ddSvc services.DeviceDefinitionService) error {
 
-	if err := setCommandCompatTesla(ctx, pdb); err != nil {
+	if err := setCommandCompatTesla(ctx, pdb, ddSvc); err != nil {
 		return err
 	}
-	if err := setCommandCompatSmartcar(ctx, settings, pdb); err != nil {
+	if err := setCommandCompatSmartcar(ctx, settings, pdb, ddSvc); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func setCommandCompatTesla(ctx context.Context, pdb database.DbStore) error {
-	teslaInt, err := models.Integrations(models.IntegrationWhere.Vendor.EQ(constants.TeslaVendor)).One(ctx, pdb.DBS().Reader)
+func setCommandCompatTesla(ctx context.Context, pdb database.DbStore, ddSvc services.DeviceDefinitionService) error {
+	teslaInt, err := ddSvc.GetIntegrationByVendor(ctx, constants.TeslaVendor)
 	if err != nil {
 		return err
 	}
 
 	teslaUDAIs, err := models.UserDeviceAPIIntegrations(
-		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(teslaInt.ID),
+		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(teslaInt.Id),
 		models.UserDeviceAPIIntegrationWhere.Status.EQ(models.UserDeviceAPIIntegrationStatusActive),
 	).All(ctx, pdb.DBS().Reader)
 	if err != nil {
@@ -66,14 +66,14 @@ func setCommandCompatTesla(ctx context.Context, pdb database.DbStore) error {
 	return nil
 }
 
-func setCommandCompatSmartcar(ctx context.Context, settings *config.Settings, pdb database.DbStore) error {
-	scInt, err := models.Integrations(models.IntegrationWhere.Vendor.EQ(constants.SmartCarVendor)).One(ctx, pdb.DBS().Reader)
+func setCommandCompatSmartcar(ctx context.Context, settings *config.Settings, pdb database.DbStore, ddSvc services.DeviceDefinitionService) error {
+	scInt, err := ddSvc.GetIntegrationByVendor(ctx, constants.SmartCarVendor)
 	if err != nil {
 		return err
 	}
 
 	scUDAIs, err := models.UserDeviceAPIIntegrations(
-		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(scInt.ID),
+		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(scInt.Id),
 		models.UserDeviceAPIIntegrationWhere.Status.EQ(models.UserDeviceAPIIntegrationStatusActive),
 		qm.Load(models.UserDeviceAPIIntegrationRels.UserDevice), // Need VIN and country.
 	).All(ctx, pdb.DBS().Reader)

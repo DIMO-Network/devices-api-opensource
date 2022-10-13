@@ -11,17 +11,17 @@ import (
 	"github.com/volatiletech/null/v8"
 )
 
-func remakeSmartcarTopic(ctx context.Context, pdb database.DbStore, producer sarama.SyncProducer) error {
+func remakeSmartcarTopic(ctx context.Context, pdb database.DbStore, producer sarama.SyncProducer, ddSvc services.DeviceDefinitionService) error {
 	reg := services.NewIngestRegistrar(services.Smartcar, producer)
 	db := pdb.DBS().Reader
 
 	// Grab the Smartcar integration ID, there should be exactly one.
 	var scIntID string
-	scInt, err := models.Integrations(models.IntegrationWhere.Vendor.EQ("SmartCar")).One(ctx, db)
+	scInt, err := ddSvc.GetIntegrationByVendor(ctx, "SmartCar")
 	if err != nil {
 		return fmt.Errorf("failed to retrieve Smartcar integration: %w", err)
 	}
-	scIntID = scInt.ID
+	scIntID = scInt.Id
 
 	// Find all integration instances that have acquired Smartcar ids.
 	apiInts, err := models.UserDeviceAPIIntegrations(

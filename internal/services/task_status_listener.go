@@ -6,15 +6,16 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/DIMO-Network/devices-api/internal/api"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
 	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
-	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
 const (
@@ -23,9 +24,10 @@ const (
 )
 
 type TaskStatusListener struct {
-	db  func() *database.DBReaderWriter
-	log *zerolog.Logger
-	cio CIOClient
+	db           func() *database.DBReaderWriter
+	log          *zerolog.Logger
+	DeviceDefSvc DeviceDefinitionService
+	cio          CIOClient
 }
 
 type CIOClient interface {
@@ -40,8 +42,8 @@ type TaskStatusData struct {
 	Status        string `json:"status"`
 }
 
-func NewTaskStatusListener(db func() *database.DBReaderWriter, log *zerolog.Logger, cio CIOClient) *TaskStatusListener {
-	return &TaskStatusListener{db: db, log: log, cio: cio}
+func NewTaskStatusListener(db func() *database.DBReaderWriter, log *zerolog.Logger, cio CIOClient, ddSvc DeviceDefinitionService) *TaskStatusListener {
+	return &TaskStatusListener{db: db, log: log, cio: cio, DeviceDefSvc: ddSvc}
 }
 
 func (i *TaskStatusListener) ProcessTaskUpdates(messages <-chan *message.Message) {
@@ -96,13 +98,6 @@ func (i *TaskStatusListener) processSmartcarPollStatusEvent(event *shared.CloudE
 	udai, err := models.UserDeviceAPIIntegrations(
 		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(userDeviceID),
 		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID),
-		qm.Load(
-			qm.Rels(
-				models.UserDeviceAPIIntegrationRels.UserDevice,
-				models.UserDeviceRels.DeviceDefinition,
-				models.DeviceDefinitionRels.DeviceMake,
-			),
-		), // Only need this for Customer.IO.
 	).One(ctx, i.db().Writer)
 	if err != nil {
 		return fmt.Errorf("couldn't find device integration for device %s and integration %s: %w", userDeviceID, integrationID, err)
@@ -122,12 +117,22 @@ func (i *TaskStatusListener) processSmartcarPollStatusEvent(event *shared.CloudE
 		return err
 	}
 
-	dd := userDevice.R.DeviceDefinition
+	deviceDefinitionResponse, err := i.DeviceDefSvc.GetDeviceDefinitionsByIDs(ctx, []string{userDevice.DeviceDefinitionID})
+
+	if err != nil {
+		return api.GrpcErrorToFiber(err, fmt.Sprintf("error querying for device definition id: %s ", userDevice.DeviceDefinitionID))
+	}
+
+	if len(deviceDefinitionResponse) == 0 {
+		return fiber.NewError(fiber.StatusBadRequest, "could not find device definition id: "+userDevice.DeviceDefinitionID)
+	}
+
+	dd := deviceDefinitionResponse[0]
 	data := map[string]interface{}{
 		"deviceId":     userDeviceID,
-		"make_name":    dd.R.DeviceMake.Name,
-		"model_name":   dd.Model,
-		"model_year":   dd.Year,
+		"make_name":    dd.Make.Name,
+		"model_name":   dd.Type.Model,
+		"model_year":   dd.Type.Year,
 		"country_code": userDevice.CountryCode.String,
 	}
 

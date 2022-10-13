@@ -16,10 +16,10 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/services"
 	mock_services "github.com/DIMO-Network/devices-api/internal/services/mocks"
 	"github.com/DIMO-Network/devices-api/internal/test"
-	"github.com/DIMO-Network/devices-api/models"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/mock/gomock"
 	_ "github.com/lib/pq"
+	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -32,10 +32,8 @@ type DevicesControllerTestSuite struct {
 	pdb             database.DbStore
 	container       testcontainers.Container
 	ctx             context.Context
-	deviceDefID     string
 	mockCtrl        *gomock.Controller
 	app             *fiber.App
-	dbMake          models.DeviceMake
 	deviceDefSvc    *mock_services.MockDeviceDefinitionService
 	deviceDefIntSvc *mock_services.MockDeviceDefinitionIntegrationService
 }
@@ -59,11 +57,6 @@ func (s *DevicesControllerTestSuite) SetupSuite() {
 
 	s.app = app
 
-	// arrange some data
-	s.dbMake = test.SetupCreateMake(s.T(), "Testla", s.pdb)
-	dbDeviceDef := test.SetupCreateDeviceDefinition(s.T(), s.dbMake, "MODEL Y", 2020, s.pdb)
-	s.deviceDefID = dbDeviceDef.ID
-
 	// note we do not want to truncate tables after each test for this one
 }
 
@@ -83,26 +76,12 @@ func TestDevicesControllerTestSuite(t *testing.T) {
 /* Actual tests*/
 
 func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionById() {
+	integration := test.BuildIntegrationGRPC(constants.AutoPiVendor, 10, 0)
+	ddGrpc := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Ford", "Ford", 2020, integration)
 
-	ddGRPC := test.BuildDeviceDefinitionGRPC(s.deviceDefID, "Ford", "Ford", nil)
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{ddGrpc[0].DeviceDefinitionId}).Times(1).Return(ddGrpc, nil)
 
-	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{s.deviceDefID}).Times(1).Return(ddGRPC, nil) // todo move to each test where used
-
-	deviceCompatibilities := []services.DeviceCompatibility{}
-	deviceCompatibilities = append(deviceCompatibilities, services.DeviceCompatibility{
-		Vendor:       constants.AutoPiVendor,
-		Region:       "Americas",
-		Capabilities: nil,
-	})
-	deviceCompatibilities = append(deviceCompatibilities, services.DeviceCompatibility{
-		Vendor:       constants.AutoPiVendor,
-		Region:       "Europe",
-		Capabilities: nil,
-	})
-
-	s.deviceDefIntSvc.EXPECT().AppendAutoPiCompatibility(gomock.Any(), gomock.Any(), s.deviceDefID).Times(1).Return(deviceCompatibilities, nil)
-
-	request, _ := http.NewRequest("GET", "/device-definitions/"+s.deviceDefID, nil)
+	request, _ := http.NewRequest("GET", "/device-definitions/"+ddGrpc[0].DeviceDefinitionId, nil)
 	response, errRes := s.app.Test(request)
 	require.NoError(s.T(), errRes)
 
@@ -110,11 +89,12 @@ func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionById() {
 	// assert
 	assert.Equal(s.T(), 200, response.StatusCode)
 
-	v := gjson.GetBytes(body, "deviceDefinition")
 	var dd services.DeviceDefinition
+	v := gjson.GetBytes(body, "deviceDefinition")
 	err := json.Unmarshal([]byte(v.Raw), &dd)
 	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), s.deviceDefID, dd.DeviceDefinitionID)
+
+	assert.Equal(s.T(), ddGrpc[0].DeviceDefinitionId, dd.DeviceDefinitionID)
 	if assert.True(s.T(), len(dd.CompatibleIntegrations) >= 2, "should be atleast 2 integrations for autopi") {
 		assert.Equal(s.T(), constants.AutoPiVendor, dd.CompatibleIntegrations[0].Vendor)
 		assert.Equal(s.T(), "Americas", dd.CompatibleIntegrations[0].Region)
@@ -126,11 +106,12 @@ func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionById() {
 }
 
 func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionDoesNotAddAutoPiForOldCars() {
-	dbDdOldCar := test.SetupCreateDeviceDefinition(s.T(), s.dbMake, "Oldie", 1999, s.pdb)
-	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dbDdOldCar.ID}).Times(1).
-		Return(test.BuildDeviceDefinitionGRPC(dbDdOldCar.ID, "Tesla", "Tesla", nil), nil) // todo move to each test where used
+	ddOldCar := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Tesla", "Odlie", 1998, nil)
 
-	request, _ := http.NewRequest("GET", "/device-definitions/"+dbDdOldCar.ID, nil)
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{ddOldCar[0].DeviceDefinitionId}).Times(1).
+		Return(ddOldCar, nil)
+
+	request, _ := http.NewRequest("GET", "/device-definitions/"+ddOldCar[0].DeviceDefinitionId, nil)
 	response, _ := s.app.Test(request)
 	body, _ := io.ReadAll(response.Body)
 	// assert
@@ -139,17 +120,16 @@ func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionDoesNotAddAutoPiForO
 	var dd services.DeviceDefinition
 	err := json.Unmarshal([]byte(v.Raw), &dd)
 	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), dbDdOldCar.ID, dd.DeviceDefinitionID)
+	assert.Equal(s.T(), ddOldCar[0].DeviceDefinitionId, dd.DeviceDefinitionID)
 	assert.Len(s.T(), dd.CompatibleIntegrations, 0, "vehicles before 2020 should not auto inject autopi integrations")
 }
 
 func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionDoesNotAddAutoPiForTesla() {
-	tesla := test.SetupCreateMake(s.T(), "Tesla", s.pdb)
-	teslaCar := test.SetupCreateDeviceDefinition(s.T(), tesla, "Cyber Truck never", 2022, s.pdb)
-	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{teslaCar.ID}).Times(1).
-		Return(test.BuildDeviceDefinitionGRPC(tesla.ID, "Tesla", "Tesla", nil), nil) // todo move to each test where used
+	ddTesla := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Tesla", "Odlie", 2020, nil)
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{ddTesla[0].DeviceDefinitionId}).Times(1).
+		Return(ddTesla, nil)
 
-	request, _ := http.NewRequest("GET", "/device-definitions/"+teslaCar.ID, nil)
+	request, _ := http.NewRequest("GET", "/device-definitions/"+ddTesla[0].DeviceDefinitionId, nil)
 	response, _ := s.app.Test(request)
 	body, _ := io.ReadAll(response.Body)
 	// assert
@@ -158,33 +138,23 @@ func (s *DevicesControllerTestSuite) TestGetDeviceDefinitionDoesNotAddAutoPiForT
 	var dd services.DeviceDefinition
 	err := json.Unmarshal([]byte(v.Raw), &dd)
 	assert.NoError(s.T(), err)
-	assert.Len(s.T(), dd.CompatibleIntegrations, 0, "vehicles before 2020 should not auto inject autopi integrations")
+	assert.Len(s.T(), dd.CompatibleIntegrations, 0, "vehicles before 2012 should not auto inject autopi integrations")
 }
 
 func (s *DevicesControllerTestSuite) TestGetDeviceIntegrationsById() {
+	integration := test.BuildIntegrationGRPC(constants.AutoPiVendor, 10, 0)
+	dd := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Ford", "model etc", 2020, integration)
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionsByIDs(gomock.Any(), []string{dd[0].DeviceDefinitionId}).Return(dd, nil)
 
-	deviceCompatibilities := []services.DeviceCompatibility{}
-	deviceCompatibilities = append(deviceCompatibilities, services.DeviceCompatibility{
-		Vendor:       constants.AutoPiVendor,
-		Region:       "Americas",
-		Capabilities: nil,
-	})
-	deviceCompatibilities = append(deviceCompatibilities, services.DeviceCompatibility{
-		Vendor:       constants.AutoPiVendor,
-		Region:       "Europe",
-		Capabilities: nil,
-	})
-
-	s.deviceDefIntSvc.EXPECT().AppendAutoPiCompatibility(gomock.Any(), gomock.Any(), s.deviceDefID).Times(1).Return(deviceCompatibilities, nil)
-
-	request, _ := http.NewRequest("GET", "/device-definitions/"+s.deviceDefID+"/integrations", nil)
-	response, _ := s.app.Test(request)
+	request, _ := http.NewRequest("GET", "/device-definitions/"+dd[0].DeviceDefinitionId+"/integrations", nil)
+	response, err := s.app.Test(request)
+	require.NoError(s.T(), err)
 	body, _ := io.ReadAll(response.Body)
 	// assert
 	assert.Equal(s.T(), 200, response.StatusCode)
 	v := gjson.GetBytes(body, "compatibleIntegrations")
 	var dc []services.DeviceCompatibility
-	err := json.Unmarshal([]byte(v.Raw), &dc)
+	err = json.Unmarshal([]byte(v.Raw), &dc)
 	assert.NoError(s.T(), err)
 	if assert.True(s.T(), len(dc) >= 2, "should be atleast 2 integrations for autopi") {
 		assert.Equal(s.T(), constants.AutoPiVendor, dc[0].Vendor)

@@ -7,13 +7,8 @@ var TableNames = struct {
 	AutopiJobs                string
 	AutopiUnits               string
 	DeviceCommandRequests     string
-	DeviceDefinitions         string
-	DeviceIntegrations        string
-	DeviceMakes               string
-	DeviceStyles              string
 	ExternalVinData           string
 	Geofences                 string
-	Integrations              string
 	MetaTransactionRequests   string
 	MintRequests              string
 	UserDeviceAPIIntegrations string
@@ -24,13 +19,8 @@ var TableNames = struct {
 	AutopiJobs:                "autopi_jobs",
 	AutopiUnits:               "autopi_units",
 	DeviceCommandRequests:     "device_command_requests",
-	DeviceDefinitions:         "device_definitions",
-	DeviceIntegrations:        "device_integrations",
-	DeviceMakes:               "device_makes",
-	DeviceStyles:              "device_styles",
 	ExternalVinData:           "external_vin_data",
 	Geofences:                 "geofences",
-	Integrations:              "integrations",
 	MetaTransactionRequests:   "meta_transaction_requests",
 	MintRequests:              "mint_requests",
 	UserDeviceAPIIntegrations: "user_device_api_integrations",

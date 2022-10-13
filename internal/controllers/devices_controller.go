@@ -2,22 +2,18 @@ package controllers
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/api"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
-	"github.com/DIMO-Network/devices-api/models"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/null/v8"
-	qm "github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
 type DevicesController struct {
@@ -29,8 +25,6 @@ type DevicesController struct {
 	deviceDefIntSvc services.DeviceDefinitionIntegrationService
 	log             *zerolog.Logger
 }
-
-const autoPiYearCutoff = 2000
 
 // NewDevicesController constructor
 func NewDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, nhtsaSvc services.INHTSAService, ddSvc services.DeviceDefinitionService, ddIntSvc services.DeviceDefinitionIntegrationService) DevicesController {
@@ -75,12 +69,7 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 	if err != nil {
 		return errors.Wrapf(err, "could not convert device def for api response %+v", dd)
 	}
-	if dd.Type.Year >= autoPiYearCutoff && !strings.EqualFold(dd.Make.Name, "Tesla") {
-		rp.CompatibleIntegrations, err = d.deviceDefIntSvc.AppendAutoPiCompatibility(c.Context(), rp.CompatibleIntegrations, dd.DeviceDefinitionId)
-		if err != nil {
-			return api.GrpcErrorToFiber(err, fmt.Sprintf("deviceDefIntSvc error when AppendAutoPiCompatibility. dd id: %s", dd.DeviceDefinitionId))
-		}
-	}
+
 	return c.JSON(fiber.Map{
 		"deviceDefinition": rp,
 	})
@@ -94,44 +83,33 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 // @Success     200 {object} []services.DeviceCompatibility
 // @Router      /device-definitions/{id}/integrations [get]
 func (d *DevicesController) GetDeviceIntegrationsByID(c *fiber.Ctx) error {
+	// todo check if this method is even still used
 	id := c.Params("id")
 	if len(id) != 27 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"errorMessage": "invalid device definition id",
 		})
 	}
-	dd, err := models.DeviceDefinitions(
-		qm.Where("id = ?", id),
-		qm.Load(models.DeviceDefinitionRels.DeviceIntegrations),
-		qm.Load(models.DeviceDefinitionRels.DeviceMake),
-		qm.Load("DeviceIntegrations.Integration")).
-		One(c.Context(), d.dbs().Reader)
+
+	deviceDefinitionResponse, err := d.deviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{id})
+
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusNotFound, fmt.Sprintf("no device defintion with id %s found", id))
-		}
-		return err
+		return api.GrpcErrorToFiber(err, "failed to get definition id: "+id)
 	}
+
+	dd := deviceDefinitionResponse[0]
 	// build object for integrations that have all the info
-	var integrations []services.DeviceCompatibility
-	if dd.R != nil {
-		for _, di := range dd.R.DeviceIntegrations {
-			integrations = append(integrations, services.DeviceCompatibility{
-				ID:           di.R.Integration.ID,
-				Type:         di.R.Integration.Type,
-				Style:        di.R.Integration.Style,
-				Vendor:       di.R.Integration.Vendor,
-				Region:       di.Region,
-				Capabilities: jsonOrDefault(di.Capabilities),
-			})
+	integrations := make([]services.DeviceCompatibility, len(dd.DeviceIntegrations))
+	for i, di := range dd.DeviceIntegrations {
+		integrations[i] = services.DeviceCompatibility{
+			ID:     di.Integration.Id,
+			Type:   di.Integration.Type,
+			Style:  di.Integration.Style,
+			Vendor: di.Integration.Vendor,
+			Region: di.Region,
 		}
 	}
-	if dd.Year >= autoPiYearCutoff && !strings.EqualFold(dd.R.DeviceMake.Name, "Tesla") {
-		integrations, err = d.deviceDefIntSvc.AppendAutoPiCompatibility(c.Context(), integrations, dd.ID)
-		if err != nil {
-			return api.GrpcErrorToFiber(err, fmt.Sprintf("deviceDefIntSvc error when AppendAutoPiCompatibility. dd id: %s", dd.ID))
-		}
-	}
+
 	return c.JSON(fiber.Map{
 		"compatibleIntegrations": integrations,
 	})
@@ -245,15 +223,6 @@ func DeviceCompatibilityFromDB(dbDIS []*grpc.DeviceIntegration) []services.Devic
 		}
 	}
 	return compatibilities
-}
-
-// jsonOrDefault returns the raw JSON bytes if there is a value, and otherwise returns the byte
-// representation of the empty JSON object {}.
-func jsonOrDefault(j null.JSON) json.RawMessage {
-	if !j.Valid || len(j.JSON) == 0 {
-		return []byte(`{}`)
-	}
-	return j.JSON
 }
 
 type DeviceMMYRoot struct {

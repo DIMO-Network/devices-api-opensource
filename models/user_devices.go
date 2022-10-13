@@ -110,6 +110,15 @@ var UserDeviceTableColumns = struct {
 
 // Generated where
 
+type whereHelperbool struct{ field string }
+
+func (w whereHelperbool) EQ(x bool) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.EQ, x) }
+func (w whereHelperbool) NEQ(x bool) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.NEQ, x) }
+func (w whereHelperbool) LT(x bool) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.LT, x) }
+func (w whereHelperbool) LTE(x bool) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LTE, x) }
+func (w whereHelperbool) GT(x bool) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.GT, x) }
+func (w whereHelperbool) GTE(x bool) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
+
 var UserDeviceWhere = struct {
 	ID                           whereHelperstring
 	UserID                       whereHelperstring
@@ -144,9 +153,7 @@ var UserDeviceWhere = struct {
 
 // UserDeviceRels is where relationship names are stored.
 var UserDeviceRels = struct {
-	DeviceDefinition           string
 	MintMetaTransactionRequest string
-	DeviceStyle                string
 	MintRequest                string
 	AutopiJobs                 string
 	DeviceCommandRequests      string
@@ -155,9 +162,7 @@ var UserDeviceRels = struct {
 	UserDeviceData             string
 	UserDeviceToGeofences      string
 }{
-	DeviceDefinition:           "DeviceDefinition",
 	MintMetaTransactionRequest: "MintMetaTransactionRequest",
-	DeviceStyle:                "DeviceStyle",
 	MintRequest:                "MintRequest",
 	AutopiJobs:                 "AutopiJobs",
 	DeviceCommandRequests:      "DeviceCommandRequests",
@@ -169,9 +174,7 @@ var UserDeviceRels = struct {
 
 // userDeviceR is where relationships are stored.
 type userDeviceR struct {
-	DeviceDefinition           *DeviceDefinition             `boil:"DeviceDefinition" json:"DeviceDefinition" toml:"DeviceDefinition" yaml:"DeviceDefinition"`
 	MintMetaTransactionRequest *MetaTransactionRequest       `boil:"MintMetaTransactionRequest" json:"MintMetaTransactionRequest" toml:"MintMetaTransactionRequest" yaml:"MintMetaTransactionRequest"`
-	DeviceStyle                *DeviceStyle                  `boil:"DeviceStyle" json:"DeviceStyle" toml:"DeviceStyle" yaml:"DeviceStyle"`
 	MintRequest                *MintRequest                  `boil:"MintRequest" json:"MintRequest" toml:"MintRequest" yaml:"MintRequest"`
 	AutopiJobs                 AutopiJobSlice                `boil:"AutopiJobs" json:"AutopiJobs" toml:"AutopiJobs" yaml:"AutopiJobs"`
 	DeviceCommandRequests      DeviceCommandRequestSlice     `boil:"DeviceCommandRequests" json:"DeviceCommandRequests" toml:"DeviceCommandRequests" yaml:"DeviceCommandRequests"`
@@ -186,25 +189,11 @@ func (*userDeviceR) NewStruct() *userDeviceR {
 	return &userDeviceR{}
 }
 
-func (r *userDeviceR) GetDeviceDefinition() *DeviceDefinition {
-	if r == nil {
-		return nil
-	}
-	return r.DeviceDefinition
-}
-
 func (r *userDeviceR) GetMintMetaTransactionRequest() *MetaTransactionRequest {
 	if r == nil {
 		return nil
 	}
 	return r.MintMetaTransactionRequest
-}
-
-func (r *userDeviceR) GetDeviceStyle() *DeviceStyle {
-	if r == nil {
-		return nil
-	}
-	return r.DeviceStyle
 }
 
 func (r *userDeviceR) GetMintRequest() *MintRequest {
@@ -545,17 +534,6 @@ func (q userDeviceQuery) Exists(ctx context.Context, exec boil.ContextExecutor) 
 	return count > 0, nil
 }
 
-// DeviceDefinition pointed to by the foreign key.
-func (o *UserDevice) DeviceDefinition(mods ...qm.QueryMod) deviceDefinitionQuery {
-	queryMods := []qm.QueryMod{
-		qm.Where("\"id\" = ?", o.DeviceDefinitionID),
-	}
-
-	queryMods = append(queryMods, mods...)
-
-	return DeviceDefinitions(queryMods...)
-}
-
 // MintMetaTransactionRequest pointed to by the foreign key.
 func (o *UserDevice) MintMetaTransactionRequest(mods ...qm.QueryMod) metaTransactionRequestQuery {
 	queryMods := []qm.QueryMod{
@@ -565,17 +543,6 @@ func (o *UserDevice) MintMetaTransactionRequest(mods ...qm.QueryMod) metaTransac
 	queryMods = append(queryMods, mods...)
 
 	return MetaTransactionRequests(queryMods...)
-}
-
-// DeviceStyle pointed to by the foreign key.
-func (o *UserDevice) DeviceStyle(mods ...qm.QueryMod) deviceStyleQuery {
-	queryMods := []qm.QueryMod{
-		qm.Where("\"id\" = ?", o.DeviceStyleID),
-	}
-
-	queryMods = append(queryMods, mods...)
-
-	return DeviceStyles(queryMods...)
 }
 
 // MintRequest pointed to by the foreign key.
@@ -671,126 +638,6 @@ func (o *UserDevice) UserDeviceToGeofences(mods ...qm.QueryMod) userDeviceToGeof
 	)
 
 	return UserDeviceToGeofences(queryMods...)
-}
-
-// LoadDeviceDefinition allows an eager lookup of values, cached into the
-// loaded structs of the objects. This is for an N-1 relationship.
-func (userDeviceL) LoadDeviceDefinition(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserDevice interface{}, mods queries.Applicator) error {
-	var slice []*UserDevice
-	var object *UserDevice
-
-	if singular {
-		var ok bool
-		object, ok = maybeUserDevice.(*UserDevice)
-		if !ok {
-			object = new(UserDevice)
-			ok = queries.SetFromEmbeddedStruct(&object, &maybeUserDevice)
-			if !ok {
-				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", object, maybeUserDevice))
-			}
-		}
-	} else {
-		s, ok := maybeUserDevice.(*[]*UserDevice)
-		if ok {
-			slice = *s
-		} else {
-			ok = queries.SetFromEmbeddedStruct(&slice, maybeUserDevice)
-			if !ok {
-				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", slice, maybeUserDevice))
-			}
-		}
-	}
-
-	args := make([]interface{}, 0, 1)
-	if singular {
-		if object.R == nil {
-			object.R = &userDeviceR{}
-		}
-		args = append(args, object.DeviceDefinitionID)
-
-	} else {
-	Outer:
-		for _, obj := range slice {
-			if obj.R == nil {
-				obj.R = &userDeviceR{}
-			}
-
-			for _, a := range args {
-				if a == obj.DeviceDefinitionID {
-					continue Outer
-				}
-			}
-
-			args = append(args, obj.DeviceDefinitionID)
-
-		}
-	}
-
-	if len(args) == 0 {
-		return nil
-	}
-
-	query := NewQuery(
-		qm.From(`devices_api.device_definitions`),
-		qm.WhereIn(`devices_api.device_definitions.id in ?`, args...),
-	)
-	if mods != nil {
-		mods.Apply(query)
-	}
-
-	results, err := query.QueryContext(ctx, e)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load DeviceDefinition")
-	}
-
-	var resultSlice []*DeviceDefinition
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice DeviceDefinition")
-	}
-
-	if err = results.Close(); err != nil {
-		return errors.Wrap(err, "failed to close results of eager load for device_definitions")
-	}
-	if err = results.Err(); err != nil {
-		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for device_definitions")
-	}
-
-	if len(userDeviceAfterSelectHooks) != 0 {
-		for _, obj := range resultSlice {
-			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
-				return err
-			}
-		}
-	}
-
-	if len(resultSlice) == 0 {
-		return nil
-	}
-
-	if singular {
-		foreign := resultSlice[0]
-		object.R.DeviceDefinition = foreign
-		if foreign.R == nil {
-			foreign.R = &deviceDefinitionR{}
-		}
-		foreign.R.UserDevices = append(foreign.R.UserDevices, object)
-		return nil
-	}
-
-	for _, local := range slice {
-		for _, foreign := range resultSlice {
-			if local.DeviceDefinitionID == foreign.ID {
-				local.R.DeviceDefinition = foreign
-				if foreign.R == nil {
-					foreign.R = &deviceDefinitionR{}
-				}
-				foreign.R.UserDevices = append(foreign.R.UserDevices, local)
-				break
-			}
-		}
-	}
-
-	return nil
 }
 
 // LoadMintMetaTransactionRequest allows an eager lookup of values, cached into the
@@ -909,130 +756,6 @@ func (userDeviceL) LoadMintMetaTransactionRequest(ctx context.Context, e boil.Co
 					foreign.R = &metaTransactionRequestR{}
 				}
 				foreign.R.MintMetaTransactionRequestUserDevice = local
-				break
-			}
-		}
-	}
-
-	return nil
-}
-
-// LoadDeviceStyle allows an eager lookup of values, cached into the
-// loaded structs of the objects. This is for an N-1 relationship.
-func (userDeviceL) LoadDeviceStyle(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserDevice interface{}, mods queries.Applicator) error {
-	var slice []*UserDevice
-	var object *UserDevice
-
-	if singular {
-		var ok bool
-		object, ok = maybeUserDevice.(*UserDevice)
-		if !ok {
-			object = new(UserDevice)
-			ok = queries.SetFromEmbeddedStruct(&object, &maybeUserDevice)
-			if !ok {
-				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", object, maybeUserDevice))
-			}
-		}
-	} else {
-		s, ok := maybeUserDevice.(*[]*UserDevice)
-		if ok {
-			slice = *s
-		} else {
-			ok = queries.SetFromEmbeddedStruct(&slice, maybeUserDevice)
-			if !ok {
-				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", slice, maybeUserDevice))
-			}
-		}
-	}
-
-	args := make([]interface{}, 0, 1)
-	if singular {
-		if object.R == nil {
-			object.R = &userDeviceR{}
-		}
-		if !queries.IsNil(object.DeviceStyleID) {
-			args = append(args, object.DeviceStyleID)
-		}
-
-	} else {
-	Outer:
-		for _, obj := range slice {
-			if obj.R == nil {
-				obj.R = &userDeviceR{}
-			}
-
-			for _, a := range args {
-				if queries.Equal(a, obj.DeviceStyleID) {
-					continue Outer
-				}
-			}
-
-			if !queries.IsNil(obj.DeviceStyleID) {
-				args = append(args, obj.DeviceStyleID)
-			}
-
-		}
-	}
-
-	if len(args) == 0 {
-		return nil
-	}
-
-	query := NewQuery(
-		qm.From(`devices_api.device_styles`),
-		qm.WhereIn(`devices_api.device_styles.id in ?`, args...),
-	)
-	if mods != nil {
-		mods.Apply(query)
-	}
-
-	results, err := query.QueryContext(ctx, e)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load DeviceStyle")
-	}
-
-	var resultSlice []*DeviceStyle
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice DeviceStyle")
-	}
-
-	if err = results.Close(); err != nil {
-		return errors.Wrap(err, "failed to close results of eager load for device_styles")
-	}
-	if err = results.Err(); err != nil {
-		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for device_styles")
-	}
-
-	if len(userDeviceAfterSelectHooks) != 0 {
-		for _, obj := range resultSlice {
-			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
-				return err
-			}
-		}
-	}
-
-	if len(resultSlice) == 0 {
-		return nil
-	}
-
-	if singular {
-		foreign := resultSlice[0]
-		object.R.DeviceStyle = foreign
-		if foreign.R == nil {
-			foreign.R = &deviceStyleR{}
-		}
-		foreign.R.UserDevices = append(foreign.R.UserDevices, object)
-		return nil
-	}
-
-	for _, local := range slice {
-		for _, foreign := range resultSlice {
-			if queries.Equal(local.DeviceStyleID, foreign.ID) {
-				local.R.DeviceStyle = foreign
-				if foreign.R == nil {
-					foreign.R = &deviceStyleR{}
-				}
-				foreign.R.UserDevices = append(foreign.R.UserDevices, local)
 				break
 			}
 		}
@@ -1842,53 +1565,6 @@ func (userDeviceL) LoadUserDeviceToGeofences(ctx context.Context, e boil.Context
 	return nil
 }
 
-// SetDeviceDefinition of the userDevice to the related item.
-// Sets o.R.DeviceDefinition to related.
-// Adds o to related.R.UserDevices.
-func (o *UserDevice) SetDeviceDefinition(ctx context.Context, exec boil.ContextExecutor, insert bool, related *DeviceDefinition) error {
-	var err error
-	if insert {
-		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
-			return errors.Wrap(err, "failed to insert into foreign table")
-		}
-	}
-
-	updateQuery := fmt.Sprintf(
-		"UPDATE \"devices_api\".\"user_devices\" SET %s WHERE %s",
-		strmangle.SetParamNames("\"", "\"", 1, []string{"device_definition_id"}),
-		strmangle.WhereClause("\"", "\"", 2, userDevicePrimaryKeyColumns),
-	)
-	values := []interface{}{related.ID, o.ID}
-
-	if boil.IsDebug(ctx) {
-		writer := boil.DebugWriterFrom(ctx)
-		fmt.Fprintln(writer, updateQuery)
-		fmt.Fprintln(writer, values)
-	}
-	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
-		return errors.Wrap(err, "failed to update local table")
-	}
-
-	o.DeviceDefinitionID = related.ID
-	if o.R == nil {
-		o.R = &userDeviceR{
-			DeviceDefinition: related,
-		}
-	} else {
-		o.R.DeviceDefinition = related
-	}
-
-	if related.R == nil {
-		related.R = &deviceDefinitionR{
-			UserDevices: UserDeviceSlice{o},
-		}
-	} else {
-		related.R.UserDevices = append(related.R.UserDevices, o)
-	}
-
-	return nil
-}
-
 // SetMintMetaTransactionRequest of the userDevice to the related item.
 // Sets o.R.MintMetaTransactionRequest to related.
 // Adds o to related.R.MintMetaTransactionRequestUserDevice.
@@ -1955,86 +1631,6 @@ func (o *UserDevice) RemoveMintMetaTransactionRequest(ctx context.Context, exec 
 	}
 
 	related.R.MintMetaTransactionRequestUserDevice = nil
-	return nil
-}
-
-// SetDeviceStyle of the userDevice to the related item.
-// Sets o.R.DeviceStyle to related.
-// Adds o to related.R.UserDevices.
-func (o *UserDevice) SetDeviceStyle(ctx context.Context, exec boil.ContextExecutor, insert bool, related *DeviceStyle) error {
-	var err error
-	if insert {
-		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
-			return errors.Wrap(err, "failed to insert into foreign table")
-		}
-	}
-
-	updateQuery := fmt.Sprintf(
-		"UPDATE \"devices_api\".\"user_devices\" SET %s WHERE %s",
-		strmangle.SetParamNames("\"", "\"", 1, []string{"device_style_id"}),
-		strmangle.WhereClause("\"", "\"", 2, userDevicePrimaryKeyColumns),
-	)
-	values := []interface{}{related.ID, o.ID}
-
-	if boil.IsDebug(ctx) {
-		writer := boil.DebugWriterFrom(ctx)
-		fmt.Fprintln(writer, updateQuery)
-		fmt.Fprintln(writer, values)
-	}
-	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
-		return errors.Wrap(err, "failed to update local table")
-	}
-
-	queries.Assign(&o.DeviceStyleID, related.ID)
-	if o.R == nil {
-		o.R = &userDeviceR{
-			DeviceStyle: related,
-		}
-	} else {
-		o.R.DeviceStyle = related
-	}
-
-	if related.R == nil {
-		related.R = &deviceStyleR{
-			UserDevices: UserDeviceSlice{o},
-		}
-	} else {
-		related.R.UserDevices = append(related.R.UserDevices, o)
-	}
-
-	return nil
-}
-
-// RemoveDeviceStyle relationship.
-// Sets o.R.DeviceStyle to nil.
-// Removes o from all passed in related items' relationships struct.
-func (o *UserDevice) RemoveDeviceStyle(ctx context.Context, exec boil.ContextExecutor, related *DeviceStyle) error {
-	var err error
-
-	queries.SetScanner(&o.DeviceStyleID, nil)
-	if _, err = o.Update(ctx, exec, boil.Whitelist("device_style_id")); err != nil {
-		return errors.Wrap(err, "failed to update local table")
-	}
-
-	if o.R != nil {
-		o.R.DeviceStyle = nil
-	}
-	if related == nil || related.R == nil {
-		return nil
-	}
-
-	for i, ri := range related.R.UserDevices {
-		if queries.Equal(o.DeviceStyleID, ri.DeviceStyleID) {
-			continue
-		}
-
-		ln := len(related.R.UserDevices)
-		if ln > 1 && i < ln-1 {
-			related.R.UserDevices[i] = related.R.UserDevices[ln-1]
-		}
-		related.R.UserDevices = related.R.UserDevices[:ln-1]
-		break
-	}
 	return nil
 }
 

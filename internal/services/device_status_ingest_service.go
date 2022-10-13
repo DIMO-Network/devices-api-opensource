@@ -7,11 +7,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DIMO-Network/device-definitions-api/pkg/grpc"
+	"github.com/DIMO-Network/devices-api/internal/api"
 	"github.com/DIMO-Network/devices-api/internal/appmetrics"
 	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/null/v8"
@@ -28,18 +31,20 @@ type DeviceStatusIngestService struct {
 	db           func() *database.DBReaderWriter
 	log          *zerolog.Logger
 	eventService EventService
-	integrations models.IntegrationSlice
+	deviceDefSvc DeviceDefinitionService
+	integrations []*grpc.Integration
 }
 
-func NewDeviceStatusIngestService(db func() *database.DBReaderWriter, log *zerolog.Logger, eventService EventService) *DeviceStatusIngestService {
+func NewDeviceStatusIngestService(db func() *database.DBReaderWriter, log *zerolog.Logger, eventService EventService, ddSvc DeviceDefinitionService) *DeviceStatusIngestService {
 	// Cache the list of integrations.
-	integrations, err := models.Integrations().All(context.Background(), db().Reader)
+	integrations, err := ddSvc.GetIntegrations(context.Background())
 	if err != nil {
 		log.Fatal().Err(err).Msg("Couldn't retrieve global integration list.")
 	}
 	return &DeviceStatusIngestService{
 		db:           db,
 		log:          log,
+		deviceDefSvc: ddSvc,
 		eventService: eventService,
 		integrations: integrations,
 	}
@@ -101,24 +106,33 @@ func (i *DeviceStatusIngestService) processEvent(event *DeviceStatusEvent) error
 
 	device, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
-		qm.Load(models.UserDeviceRels.DeviceDefinition),
 		qm.Load(
 			models.UserDeviceRels.UserDeviceAPIIntegrations,
-			models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integration.ID),
+			models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integration.Id),
 		),
 		qm.Load(
 			models.UserDeviceRels.UserDeviceData,
-			models.UserDeviceDatumWhere.IntegrationID.EQ(integration.ID),
+			models.UserDeviceDatumWhere.IntegrationID.EQ(integration.Id),
 		),
-		qm.Load(qm.Rels(models.UserDeviceRels.DeviceDefinition, models.DeviceDefinitionRels.DeviceMake)),
 	).One(ctx, tx)
 	if err != nil {
 		return fmt.Errorf("failed to find device: %w", err)
 	}
 
 	if len(device.R.UserDeviceAPIIntegrations) == 0 {
-		return fmt.Errorf("can't find API integration for device %s and integration %s", userDeviceID, integration.ID)
+		return fmt.Errorf("can't find API integration for device %s and integration %s", userDeviceID, integration.Id)
 	}
+
+	deviceDefinitionResponse, err := i.deviceDefSvc.GetDeviceDefinitionsByIDs(ctx, []string{device.DeviceDefinitionID})
+	if err != nil {
+		return api.GrpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+device.DeviceDefinitionID)
+	}
+
+	if len(deviceDefinitionResponse) == 0 {
+		return fiber.NewError(fiber.StatusNotFound, fmt.Sprintf("device definition with id %s not found", device.DeviceDefinitionID))
+	}
+
+	dd := deviceDefinitionResponse[0]
 
 	// update status to Active if not alrady set
 	apiIntegration := device.R.UserDeviceAPIIntegrations[0]
@@ -146,10 +160,10 @@ func (i *DeviceStatusIngestService) processEvent(event *DeviceStatusEvent) error
 		datum = device.R.UserDeviceData[0]
 	} else {
 		// Insert a new record.
-		datum = &models.UserDeviceDatum{UserDeviceID: userDeviceID, IntegrationID: integration.ID}
+		datum = &models.UserDeviceDatum{UserDeviceID: userDeviceID, IntegrationID: integration.Id}
 	}
 
-	i.processOdometer(datum, newOdometer, device, integration.ID)
+	i.processOdometer(datum, newOdometer, device, dd, integration.Id)
 
 	switch integration.Vendor {
 	case constants.SmartCarVendor, constants.TeslaVendor:
@@ -210,7 +224,7 @@ func (i *DeviceStatusIngestService) processEvent(event *DeviceStatusEvent) error
 //   - the incoming status update has an odometer value, and
 //   - the old status update lacks an odometer value, or has an odometer value that differs from
 //     the new odometer reading
-func (i *DeviceStatusIngestService) processOdometer(datum *models.UserDeviceDatum, newOdometer null.Float64, device *models.UserDevice, integrationID string) {
+func (i *DeviceStatusIngestService) processOdometer(datum *models.UserDeviceDatum, newOdometer null.Float64, device *models.UserDevice, dd *grpc.GetDeviceDefinitionItemResponse, integrationID string) {
 	if !newOdometer.Valid {
 		return
 	}
@@ -228,11 +242,11 @@ func (i *DeviceStatusIngestService) processOdometer(datum *models.UserDeviceDatu
 
 	if odometerOffCooldown && odometerChanged {
 		datum.LastOdometerEventAt = null.TimeFrom(now)
-		i.emitOdometerEvent(device, integrationID, newOdometer.Float64)
+		i.emitOdometerEvent(device, dd, integrationID, newOdometer.Float64)
 	}
 }
 
-func (i *DeviceStatusIngestService) emitOdometerEvent(device *models.UserDevice, integrationID string, odometer float64) {
+func (i *DeviceStatusIngestService) emitOdometerEvent(device *models.UserDevice, dd *grpc.GetDeviceDefinitionItemResponse, integrationID string, odometer float64) {
 	event := &Event{
 		Type:    "com.dimo.zone.device.odometer.update",
 		Subject: device.ID,
@@ -242,9 +256,9 @@ func (i *DeviceStatusIngestService) emitOdometerEvent(device *models.UserDevice,
 			UserID:    device.UserID,
 			Device: odometerEventDevice{
 				ID:    device.ID,
-				Make:  device.R.DeviceDefinition.R.DeviceMake.Name,
-				Model: device.R.DeviceDefinition.Model,
-				Year:  int(device.R.DeviceDefinition.Year),
+				Make:  dd.Make.Name,
+				Model: dd.Type.Model,
+				Year:  int(dd.Type.Year),
 			},
 			Odometer: odometer,
 		},
@@ -268,9 +282,9 @@ func extractOdometer(data []byte) (float64, error) {
 	return *partialData.Odometer, nil
 }
 
-func (i *DeviceStatusIngestService) getIntegrationFromEvent(event *DeviceStatusEvent) (*models.Integration, error) {
+func (i *DeviceStatusIngestService) getIntegrationFromEvent(event *DeviceStatusEvent) (*grpc.Integration, error) {
 	for _, integration := range i.integrations {
-		if strings.HasSuffix(event.Source, integration.ID) {
+		if strings.HasSuffix(event.Source, integration.Id) {
 			return integration, nil
 		}
 	}
