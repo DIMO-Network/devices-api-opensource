@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"time"
 
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
@@ -214,6 +215,11 @@ func (g *GeofencesController) GetAll(c *fiber.Ctx) error {
 		qm.Load(qm.Rels(models.GeofenceRels.UserDeviceToGeofences, models.UserDeviceToGeofenceRels.UserDevice)),
 	).All(c.Context(), g.DBS().Reader)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.JSON(fiber.Map{
+				"geofences": []GetGeofence{},
+			})
+		}
 		return err
 	}
 	// pull out list of udtg. device def ids
@@ -224,6 +230,14 @@ func (g *GeofencesController) GetAll(c *fiber.Ctx) error {
 				ddIds = append(ddIds, udtg.R.UserDevice.DeviceDefinitionID)
 			}
 		}
+	}
+	// log in odd case ddIds is empty
+	if len(ddIds) == 0 {
+		log.Warn().Str("userId", userID).Str("httpPath", c.Path()).Str("geofenceItemsLen", string(len(items))).
+			Msg("unexpected case: device definition IDs was empty from geofences with values")
+		return c.JSON(fiber.Map{
+			"geofences": []GetGeofence{},
+		})
 	}
 	dds, err := g.deviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), ddIds)
 	if err != nil {
