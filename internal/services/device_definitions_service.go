@@ -314,7 +314,7 @@ func (d *deviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Co
 	return nil
 }
 
-const KmToMilesFactor = 1.609344
+const MilesToKmFactor = 1.609344
 
 type ValuationRequestData struct {
 	Mileage float64 `json:"mileage,omitempty"`
@@ -458,7 +458,7 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 	} else {
 		deviceOdometer := gjson.GetBytes(deviceData.Data.JSON, "odometer")
 		if deviceOdometer.Exists() {
-			deviceMileage = deviceOdometer.Float() / KmToMilesFactor
+			deviceMileage = deviceOdometer.Float() / MilesToKmFactor
 		}
 	}
 	reqData := ValuationRequestData{

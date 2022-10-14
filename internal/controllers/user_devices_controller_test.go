@@ -475,7 +475,7 @@ func (s *UserDevicesControllerTestSuite) TestGetRange() {
 	require.NoError(s.T(), err)
 	udd2 := models.UserDeviceDatum{
 		UserDeviceID:  ud.ID,
-		Data:          null.JSONFrom([]byte(`{"range":380.14}`)),
+		Data:          null.JSONFrom([]byte(`{"range":380.14,"timestamp":"2022-06-18T04:02:11.544Z"}`)),
 		IntegrationID: smartCarIntegration.Id,
 	}
 	err = udd2.Insert(context.Background(), s.pdb.DBS().Writer, boil.Infer())
@@ -486,20 +486,21 @@ func (s *UserDevicesControllerTestSuite) TestGetRange() {
 	require.NoError(s.T(), err)
 	body, _ := io.ReadAll(response.Body)
 
-	println(string(body))
-
 	assert.Equal(s.T(), fiber.StatusOK, response.StatusCode)
 
 	assert.Equal(s.T(), 3, int(gjson.GetBytes(body, "rangeSets.#").Int()))
+	assert.Equal(s.T(), "2022-06-18T04:06:40Z", gjson.GetBytes(body, "rangeSets.0.updated").String())
+	assert.Equal(s.T(), "2022-06-18T04:06:40Z", gjson.GetBytes(body, "rangeSets.1.updated").String())
+	assert.Equal(s.T(), "2022-06-18T04:02:11Z", gjson.GetBytes(body, "rangeSets.2.updated").String())
 	assert.Equal(s.T(), "MPG", gjson.GetBytes(body, "rangeSets.0.rangeBasis").String())
 	assert.Equal(s.T(), "MPG Highway", gjson.GetBytes(body, "rangeSets.1.rangeBasis").String())
 	assert.Equal(s.T(), "Vehicle Reported", gjson.GetBytes(body, "rangeSets.2.rangeBasis").String())
+	assert.Equal(s.T(), 391, int(gjson.GetBytes(body, "rangeSets.0.rangeDistance").Int()))
+	assert.Equal(s.T(), 411, int(gjson.GetBytes(body, "rangeSets.1.rangeDistance").Int()))
+	assert.Equal(s.T(), 236, int(gjson.GetBytes(body, "rangeSets.2.rangeDistance").Int()))
 	assert.Equal(s.T(), "miles", gjson.GetBytes(body, "rangeSets.0.rangeUnit").String())
 	assert.Equal(s.T(), "miles", gjson.GetBytes(body, "rangeSets.1.rangeUnit").String())
 	assert.Equal(s.T(), "miles", gjson.GetBytes(body, "rangeSets.2.rangeUnit").String())
-	assert.Equal(s.T(), 391, int(gjson.GetBytes(body, "rangeSets.0.rangeDistance").Int()))
-	assert.Equal(s.T(), 411, int(gjson.GetBytes(body, "rangeSets.1.rangeDistance").Int()))
-	assert.Equal(s.T(), 611, int(gjson.GetBytes(body, "rangeSets.2.rangeDistance").Int()))
 }
 
 func (s *UserDevicesControllerTestSuite) TestPostRefreshSmartCar() {

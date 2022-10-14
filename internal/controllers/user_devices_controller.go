@@ -763,7 +763,7 @@ func (udc *UserDevicesController) GetValuations(c *fiber.Ctx) error {
 	} else {
 		deviceOdometer := gjson.GetBytes(deviceData.Data.JSON, "odometer")
 		if deviceOdometer.Exists() && deviceData.LastOdometerEventAt.Valid {
-			deviceMileage = int(deviceOdometer.Float() / services.KmToMilesFactor)
+			deviceMileage = int(deviceOdometer.Float() / services.MilesToKmFactor)
 			deviceOdometerEvent = deviceData.LastOdometerEventAt
 		}
 	}
@@ -1019,10 +1019,11 @@ func (udc *UserDevicesController) GetRange(c *fiber.Ctx) error {
 		vd := dds[0].VehicleData
 		sortByJSONFieldMostRecent(udd, "fuelPercentRemaining")
 		fuelPercentRemaining := gjson.GetBytes(udd[0].Data.JSON, "fuelPercentRemaining")
+		dataUpdatedOn := gjson.GetBytes(udd[0].Data.JSON, "timestamp").Time()
 		if fuelPercentRemaining.Exists() && vd.FuelTankCapacityGal > 0 && vd.MPG > 0 {
 			fuelTankAtGal := vd.FuelTankCapacityGal * float32(fuelPercentRemaining.Float())
 			rangeSet := RangeSet{
-				Updated:       udd[0].UpdatedAt.Format(time.RFC3339),
+				Updated:       dataUpdatedOn.Format(time.RFC3339),
 				RangeBasis:    "MPG",
 				RangeDistance: int(vd.MPG * fuelTankAtGal),
 				RangeUnit:     "miles",
@@ -1036,10 +1037,11 @@ func (udc *UserDevicesController) GetRange(c *fiber.Ctx) error {
 		}
 		sortByJSONFieldMostRecent(udd, "range")
 		reportedRange := gjson.GetBytes(udd[0].Data.JSON, "range")
+		dataUpdatedOn = gjson.GetBytes(udd[0].Data.JSON, "timestamp").Time()
 		if reportedRange.Exists() {
-			reportedRangeMiles := int(reportedRange.Float() * services.KmToMilesFactor)
+			reportedRangeMiles := int(reportedRange.Float() / services.MilesToKmFactor)
 			rangeSet := RangeSet{
-				Updated:       udd[0].UpdatedAt.Format(time.RFC3339),
+				Updated:       dataUpdatedOn.Format(time.RFC3339),
 				RangeBasis:    "Vehicle Reported",
 				RangeDistance: reportedRangeMiles,
 				RangeUnit:     "miles",
