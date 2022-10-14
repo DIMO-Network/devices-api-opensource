@@ -154,8 +154,9 @@ type UserDeviceMetadata struct {
 
 // AutoPiCommandJob holds the autopi webhook jobs in a format for returning to clients
 type AutoPiCommandJob struct {
-	CommandJobID string     `json:"commandJobId"`
-	CommandState string     `json:"commandState"`
-	CommandRaw   string     `json:"commandRaw"`
-	LastUpdated  *time.Time `json:"lastUpdated"`
+	CommandJobID string               `json:"commandJobId"`
+	CommandState string               `json:"commandState"`
+	CommandRaw   string               `json:"commandRaw"`
+	LastUpdated  *time.Time           `json:"lastUpdated"`
+	Result       *AutoPiCommandResult `json:"result,omitempty"`
 }

@@ -1000,7 +1000,7 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 	logger := udc.log.With().Str("userId", userID).Str("userDeviceId", userDeviceID).Logger()
 	logger.Info().Msg("Got AutoPi pair request.")
 
-	autoPiInt, err := udc.DeviceDefIntSvc.GetAutoPiIntegration(c.Context())
+	autoPiInt, err := udc.DeviceDefSvc.GetIntegrationByVendor(c.Context(), constants.AutoPiVendor)
 	if err != nil {
 		logger.Err(err).Msg("Failed to retrieve AutoPi integration.")
 		return opaqueInternalError
@@ -1368,8 +1368,7 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 	if regErr != nil {
 		return regErr
 	}
-	// todo problem here is that dd can be "fixed up", meaning changed during registration process, but here we're still using the old one.
-	// fix could be to have it lookup the user device id, then get dd_id, then call devicedev svc to pull, see if that makes test pass.
+
 	udc.runPostRegistration(c.Context(), &logger, userDeviceID, integrationID, deviceInteg)
 
 	return nil
@@ -1510,9 +1509,6 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 			return err
 		}
 	}
-
-	// validate necessary conditions:
-	//- integration metadata contains AutoPiDefaultTemplateID
 
 	integration, err := udc.DeviceDefSvc.GetIntegrationByID(c.Context(), integrationID)
 	if err != nil {
@@ -1660,6 +1656,10 @@ func (udc *UserDevicesController) registerAutoPiUnit(c *fiber.Ctx, logger *zerol
 	if err != nil {
 		subLogger.Err(err).Msg("autopi ingest registrar error producing message to register")
 		return err
+	}
+	_, err = udc.autoPiTaskService.StartQueryAndUpdateVIN(autoPiDevice.ID, autoPiDevice.UnitID, ud.ID)
+	if err != nil {
+		subLogger.Err(err).Msg("failed to fire task StartQueryAndUpdateVIN")
 	}
 	subLogger.Info().Msg("succesfully registered autoPi integration. Now waiting on webhook for successful command.")
 

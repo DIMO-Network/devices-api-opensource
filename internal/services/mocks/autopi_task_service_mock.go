@@ -79,6 +79,21 @@ func (mr *MockAutoPiTaskServiceMockRecorder) StartConsumer(ctx interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartConsumer", reflect.TypeOf((*MockAutoPiTaskService)(nil).StartConsumer), ctx)
 }
 
+// StartQueryAndUpdateVIN mocks base method.
+func (m *MockAutoPiTaskService) StartQueryAndUpdateVIN(deviceID, unitID, userDeviceID string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StartQueryAndUpdateVIN", deviceID, unitID, userDeviceID)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// StartQueryAndUpdateVIN indicates an expected call of StartQueryAndUpdateVIN.
+func (mr *MockAutoPiTaskServiceMockRecorder) StartQueryAndUpdateVIN(deviceID, unitID, userDeviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartQueryAndUpdateVIN", reflect.TypeOf((*MockAutoPiTaskService)(nil).StartQueryAndUpdateVIN), deviceID, unitID, userDeviceID)
+}
+
 // MockStandardRedis is a mock of StandardRedis interface.
 type MockStandardRedis struct {
 	ctrl     *gomock.Controller

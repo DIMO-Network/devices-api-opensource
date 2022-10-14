@@ -60,7 +60,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	autoPiSvc := services.NewAutoPiAPIService(settings, pdb.DBS)
 	autoPiIngest := services.NewIngestRegistrar(services.AutoPi, producer)
 	deviceDefinitionRegistrar := services.NewDeviceDefinitionRegistrar(producer, settings)
-	autoPiTaskService := services.NewAutoPiTaskService(settings, autoPiSvc, logger)
+	autoPiTaskService := services.NewAutoPiTaskService(settings, autoPiSvc, pdb.DBS, logger)
 	drivlyTaskService := services.NewDrivlyTaskService(settings, ddSvc, logger)
 	blackbookTaskService := services.NewBlackbookTaskService(settings, ddSvc, logger)
 

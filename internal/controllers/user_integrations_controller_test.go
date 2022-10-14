@@ -45,6 +45,7 @@ type UserIntegrationsControllerTestSuite struct {
 	teslaTaskService          *mock_services.MockTeslaTaskService
 	autopiAPISvc              *mock_services.MockAutoPiAPIService
 	autoPiIngest              *mock_services.MockIngestRegistrar
+	autoPiTaskService         *mock_services.MockAutoPiTaskService
 	drivlyTaskSvc             *mock_services.MockDrivlyTaskService
 	blackbookTaskSvc          *mock_services.MockBlackbookTaskService
 	eventSvc                  *mock_services.MockEventService
@@ -75,12 +76,12 @@ func (s *UserIntegrationsControllerTestSuite) SetupSuite() {
 	s.drivlyTaskSvc = mock_services.NewMockDrivlyTaskService(s.mockCtrl)
 	s.blackbookTaskSvc = mock_services.NewMockBlackbookTaskService(s.mockCtrl)
 	s.eventSvc = mock_services.NewMockEventService(s.mockCtrl)
-	autoPiTaskSvc := mock_services.NewMockAutoPiTaskService(s.mockCtrl)
+	s.autoPiTaskService = mock_services.NewMockAutoPiTaskService(s.mockCtrl)
 
 	logger := test.Logger()
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, logger, s.deviceDefSvc, s.deviceDefIntSvc,
 		s.eventSvc, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), s.autopiAPISvc,
-		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, autoPiTaskSvc, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
+		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, s.autoPiTaskService, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := test.SetupAppFiber(*logger)
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
 	app.Post("/user2/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUser2), c.RegisterDeviceIntegration)
@@ -360,7 +361,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi_HappyPath() {
 	autopiAPISvc := mock_services.NewMockAutoPiAPIService(s.mockCtrl)
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, test.Logger(), s.deviceDefSvc, s.deviceDefIntSvc,
 		s.eventSvc, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
-		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
+		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, s.autoPiTaskService, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := fiber.New()
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
 	// arrange
@@ -402,6 +403,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPi_HappyPath() {
 		Jid: jobID,
 	}, nil)
 	s.autoPiIngest.EXPECT().Register(unitID, ud.ID, integration.Id).Return(nil)
+	s.autoPiTaskService.EXPECT().StartQueryAndUpdateVIN(deviceID, unitID, ud.ID).Times(1).Return("123", nil)
 	s.deviceDefinitionRegistrar.EXPECT().Register(services.DeviceDefinitionDTO{
 		IntegrationID:      integration.Id,
 		UserDeviceID:       ud.ID,
@@ -472,7 +474,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCustomPowerTrain() {
 	logger := test.Logger()
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, logger, s.deviceDefSvc, s.deviceDefIntSvc,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
-		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
+		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, s.autoPiTaskService, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := test.SetupAppFiber(*logger)
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
 	// arrange
@@ -511,6 +513,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiCustomPowerTrain() {
 		Jid: jobID,
 	}, nil)
 	s.autoPiIngest.EXPECT().Register(unitID, ud.ID, autoPiIntegration.Id).Return(nil)
+	s.autoPiTaskService.EXPECT().StartQueryAndUpdateVIN(deviceID, unitID, ud.ID).Times(1).Return("123", nil)
 
 	s.deviceDefinitionRegistrar.EXPECT().Register(services.DeviceDefinitionDTO{
 		IntegrationID:      autoPiIntegration.Id,
@@ -551,7 +554,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateD
 	logger := test.Logger()
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, logger, s.deviceDefSvc, s.deviceDefIntSvc,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
-		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
+		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, s.autoPiTaskService, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := test.SetupAppFiber(*logger)
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUserID), c.RegisterDeviceIntegration)
 	// arrange
@@ -589,7 +592,7 @@ func (s *UserIntegrationsControllerTestSuite) TestPostAutoPiBlockedForDuplicateD
 	logger := test.Logger()
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, logger, s.deviceDefSvc, s.deviceDefIntSvc,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, s.teslaSvc, s.teslaTaskService, new(shared.ROT13Cipher), autopiAPISvc,
-		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, nil, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
+		nil, s.autoPiIngest, s.deviceDefinitionRegistrar, s.autoPiTaskService, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := test.SetupAppFiber(*logger)
 	app.Post("/user/devices/:userDeviceID/integrations/:integrationID", test.AuthInjectorTestHandler(testUser2), c.RegisterDeviceIntegration)
 	// arrange

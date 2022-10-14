@@ -33,6 +33,7 @@ type AutopiJob struct {
 	CreatedAt          time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt          time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 	AutopiUnitID       null.String `boil:"autopi_unit_id" json:"autopi_unit_id,omitempty" toml:"autopi_unit_id" yaml:"autopi_unit_id,omitempty"`
+	CommandResult      null.JSON   `boil:"command_result" json:"command_result,omitempty" toml:"command_result" yaml:"command_result,omitempty"`
 
 	R *autopiJobR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L autopiJobL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -48,6 +49,7 @@ var AutopiJobColumns = struct {
 	CreatedAt          string
 	UpdatedAt          string
 	AutopiUnitID       string
+	CommandResult      string
 }{
 	ID:                 "id",
 	AutopiDeviceID:     "autopi_device_id",
@@ -58,6 +60,7 @@ var AutopiJobColumns = struct {
 	CreatedAt:          "created_at",
 	UpdatedAt:          "updated_at",
 	AutopiUnitID:       "autopi_unit_id",
+	CommandResult:      "command_result",
 }
 
 var AutopiJobTableColumns = struct {
@@ -70,6 +73,7 @@ var AutopiJobTableColumns = struct {
 	CreatedAt          string
 	UpdatedAt          string
 	AutopiUnitID       string
+	CommandResult      string
 }{
 	ID:                 "autopi_jobs.id",
 	AutopiDeviceID:     "autopi_jobs.autopi_device_id",
@@ -80,6 +84,7 @@ var AutopiJobTableColumns = struct {
 	CreatedAt:          "autopi_jobs.created_at",
 	UpdatedAt:          "autopi_jobs.updated_at",
 	AutopiUnitID:       "autopi_jobs.autopi_unit_id",
+	CommandResult:      "autopi_jobs.command_result",
 }
 
 // Generated where
@@ -190,6 +195,30 @@ func (w whereHelpertime_Time) GTE(x time.Time) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.GTE, x)
 }
 
+type whereHelpernull_JSON struct{ field string }
+
+func (w whereHelpernull_JSON) EQ(x null.JSON) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpernull_JSON) NEQ(x null.JSON) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpernull_JSON) LT(x null.JSON) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpernull_JSON) LTE(x null.JSON) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpernull_JSON) GT(x null.JSON) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpernull_JSON) GTE(x null.JSON) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+
+func (w whereHelpernull_JSON) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpernull_JSON) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+
 var AutopiJobWhere = struct {
 	ID                 whereHelperstring
 	AutopiDeviceID     whereHelperstring
@@ -200,6 +229,7 @@ var AutopiJobWhere = struct {
 	CreatedAt          whereHelpertime_Time
 	UpdatedAt          whereHelpertime_Time
 	AutopiUnitID       whereHelpernull_String
+	CommandResult      whereHelpernull_JSON
 }{
 	ID:                 whereHelperstring{field: "\"devices_api\".\"autopi_jobs\".\"id\""},
 	AutopiDeviceID:     whereHelperstring{field: "\"devices_api\".\"autopi_jobs\".\"autopi_device_id\""},
@@ -210,6 +240,7 @@ var AutopiJobWhere = struct {
 	CreatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"autopi_jobs\".\"created_at\""},
 	UpdatedAt:          whereHelpertime_Time{field: "\"devices_api\".\"autopi_jobs\".\"updated_at\""},
 	AutopiUnitID:       whereHelpernull_String{field: "\"devices_api\".\"autopi_jobs\".\"autopi_unit_id\""},
+	CommandResult:      whereHelpernull_JSON{field: "\"devices_api\".\"autopi_jobs\".\"command_result\""},
 }
 
 // AutopiJobRels is where relationship names are stored.
@@ -250,9 +281,9 @@ func (r *autopiJobR) GetUserDevice() *UserDevice {
 type autopiJobL struct{}
 
 var (
-	autopiJobAllColumns            = []string{"id", "autopi_device_id", "command", "state", "command_last_updated", "user_device_id", "created_at", "updated_at", "autopi_unit_id"}
+	autopiJobAllColumns            = []string{"id", "autopi_device_id", "command", "state", "command_last_updated", "user_device_id", "created_at", "updated_at", "autopi_unit_id", "command_result"}
 	autopiJobColumnsWithoutDefault = []string{"id", "autopi_device_id", "command"}
-	autopiJobColumnsWithDefault    = []string{"state", "command_last_updated", "user_device_id", "created_at", "updated_at", "autopi_unit_id"}
+	autopiJobColumnsWithDefault    = []string{"state", "command_last_updated", "user_device_id", "created_at", "updated_at", "autopi_unit_id", "command_result"}
 	autopiJobPrimaryKeyColumns     = []string{"id"}
 	autopiJobGeneratedColumns      = []string{}
 )

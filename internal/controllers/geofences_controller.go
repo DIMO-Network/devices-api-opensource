@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"time"
 
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
@@ -20,6 +19,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/segmentio/ksuid"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -233,7 +233,7 @@ func (g *GeofencesController) GetAll(c *fiber.Ctx) error {
 	}
 	// log in odd case ddIds is empty
 	if len(ddIds) == 0 {
-		log.Warn().Str("userId", userID).Str("httpPath", c.Path()).Str("geofenceItemsLen", string(len(items))).
+		log.Warn().Str("userId", userID).Str("httpPath", c.Path()).Str("geofenceItemsLen", fmt.Sprint(len(items))).
 			Msg("unexpected case: device definition IDs was empty from geofences with values")
 		return c.JSON(fiber.Map{
 			"geofences": []GetGeofence{},

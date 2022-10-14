@@ -28,11 +28,12 @@ type AutoPiAPIService interface {
 	UnassociateDeviceTemplate(deviceID string, templateID int) error
 	AssociateDeviceToTemplate(deviceID string, templateID int) error
 	ApplyTemplate(deviceID string, templateID int) error
+	CommandQueryVIN(ctx context.Context, unitID, deviceID, userDeviceID string) (*AutoPiCommandResponse, error)
 	CommandSyncDevice(ctx context.Context, unitID, deviceID, userDeviceID string) (*AutoPiCommandResponse, error)
 	CommandRaw(ctx context.Context, unitID, deviceID, command, userDeviceID string) (*AutoPiCommandResponse, error)
 	GetCommandStatus(ctx context.Context, jobID string) (*AutoPiCommandJob, *models.AutopiJob, error)
 	GetCommandStatusFromAutoPi(deviceID string, jobID string) ([]byte, error)
-	UpdateJob(ctx context.Context, jobID, newState string) (*models.AutopiJob, error)
+	UpdateJob(ctx context.Context, jobID, newState string, result *AutoPiCommandResult) (*models.AutopiJob, error)
 }
 
 type autoPiAPIService struct {
@@ -154,6 +155,13 @@ func (a *autoPiAPIService) ApplyTemplate(deviceID string, templateID int) error 
 	return nil
 }
 
+// CommandQueryVIN sends raw command to autopi to get the vin in the webhook response after. only works if device is online.
+func (a *autoPiAPIService) CommandQueryVIN(ctx context.Context, unitID, deviceID, userDeviceID string) (*AutoPiCommandResponse, error) {
+	return a.CommandRaw(ctx, unitID, deviceID,
+		"obd.query vin mode=09 pid=02 header=7DF bytes=20 formula='messages[0].data[3:].decode(\"ascii\")' baudrate=500000 protocol=6 verify=false force=true",
+		userDeviceID)
+}
+
 // CommandSyncDevice sends raw command to autopi only if it is online. Invokes syncing the pending changes (eg. template change) on the device.
 func (a *autoPiAPIService) CommandSyncDevice(ctx context.Context, unitID, deviceID, userDeviceID string) (*AutoPiCommandResponse, error) {
 	return a.CommandRaw(ctx, unitID, deviceID, "state.sls pending", userDeviceID)
@@ -208,7 +216,7 @@ func (a *autoPiAPIService) CommandRaw(ctx context.Context, unitID, deviceID, com
 }
 
 // UpdateJob updates the state of a autopi job on our end
-func (a *autoPiAPIService) UpdateJob(ctx context.Context, jobID, newState string) (*models.AutopiJob, error) {
+func (a *autoPiAPIService) UpdateJob(ctx context.Context, jobID, newState string, result *AutoPiCommandResult) (*models.AutopiJob, error) {
 	autopiJob, err := models.AutopiJobs(models.AutopiJobWhere.ID.EQ(jobID)).One(ctx, a.dbs().Reader)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error finding autopi job")
@@ -216,6 +224,13 @@ func (a *autoPiAPIService) UpdateJob(ctx context.Context, jobID, newState string
 	// update the job state
 	autopiJob.State = newState
 	autopiJob.CommandLastUpdated = null.TimeFrom(time.Now().UTC())
+	if result != nil {
+		err = autopiJob.CommandResult.Marshal(result)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to marshal command result to save in db %+v", result)
+		}
+	}
+
 	_, err = autopiJob.Update(ctx, a.dbs().Writer, boil.Infer())
 	if err != nil {
 		return nil, errors.Wrapf(err, "error updating autopi job")
@@ -241,12 +256,18 @@ func (a *autoPiAPIService) GetCommandStatus(ctx context.Context, jobID string) (
 	if err != nil {
 		return nil, nil, err
 	}
-	return &AutoPiCommandJob{
+
+	job := &AutoPiCommandJob{
 		CommandJobID: autoPiJob.ID,
 		CommandState: autoPiJob.State,
 		CommandRaw:   autoPiJob.Command,
 		LastUpdated:  autoPiJob.CommandLastUpdated.Ptr(),
-	}, autoPiJob, nil
+	}
+	if autoPiJob.CommandResult.Valid {
+		err = autoPiJob.CommandResult.Unmarshal(job.Result)
+		return nil, nil, err
+	}
+	return job, autoPiJob, nil
 }
 
 // AutoPiDongleDevice https://api.dimo.autopi.io/#/dongle/dongle_devices_read
@@ -328,4 +349,13 @@ type autoPiCommandRequest struct {
 type AutoPiCommandResponse struct {
 	Jid     string   `json:"jid"`
 	Minions []string `json:"minions"`
+}
+
+type AutoPiCommandResult struct {
+	// corresponds to webhook response.data.return._type
+	Type string `json:"type"`
+	// corresponds to webhook response.data.return.value
+	Value string `json:"value"`
+	// corresponds to webhook response.tag
+	Tag string `json:"tag"`
 }

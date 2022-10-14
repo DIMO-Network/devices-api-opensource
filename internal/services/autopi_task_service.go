@@ -8,27 +8,33 @@ import (
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/DIMO-Network/devices-api/models"
 	"github.com/go-redis/redis/v8"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
 	"github.com/vmihailenco/taskq/v3"
 	"github.com/vmihailenco/taskq/v3/redisq"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
 //go:generate mockgen -source autopi_task_service.go -destination mocks/autopi_task_service_mock.go
 type AutoPiTaskService interface {
 	StartAutoPiUpdate(deviceID, userID, unitID string) (taskID string, err error)
+	StartQueryAndUpdateVIN(deviceID, unitID, userDeviceID string) (taskID string, err error)
 	GetTaskStatus(ctx context.Context, taskID string) (task *AutoPiTask, err error)
 	StartConsumer(ctx context.Context)
 }
 
 // task names
 const (
-	updateAutoPiTask = "updateTask"
+	updateAutoPiTask      = "updateTask"
+	queryAndUpdateVINTask = "queryAndUpdateVINTask"
 )
 
-func NewAutoPiTaskService(settings *config.Settings, autoPiSvc AutoPiAPIService, logger zerolog.Logger) AutoPiTaskService {
+func NewAutoPiTaskService(settings *config.Settings, autoPiSvc AutoPiAPIService, dbs func() *database.DBReaderWriter, logger zerolog.Logger) AutoPiTaskService {
 	// setup redis connection
 	var tlsConfig *tls.Config
 	if settings.RedisTLS {
@@ -62,18 +68,29 @@ func NewAutoPiTaskService(settings *config.Settings, autoPiSvc AutoPiAPIService,
 		settings:  settings,
 		mainQueue: mainQueue,
 		autoPiSvc: autoPiSvc,
+		dbs:       dbs,
 		log:       logger.With().Str("worker queue", workerQueueName).Logger(),
 	}
 	updateTask := taskq.RegisterTask(&taskq.TaskOptions{
 		Name: updateAutoPiTask,
 		Handler: func(ctx context.Context, taskID, deviceID, userID, unitID string) error {
-			return ats.ProcessUpdate(ctx, taskID, deviceID, userID, unitID)
+			return ats.processUpdate(ctx, taskID, deviceID, userID, unitID)
 		},
 		RetryLimit: 5,
 		MinBackoff: time.Second * 30,
 		MaxBackoff: time.Minute,
 	})
+	vinTask := taskq.RegisterTask(&taskq.TaskOptions{
+		Name: queryAndUpdateVINTask,
+		Handler: func(ctx context.Context, taskID, deviceID, unitID, userDeviceID string) error {
+			return ats.queryAndUpdateVIN(ctx, taskID, deviceID, unitID, userDeviceID)
+		},
+		RetryLimit: 5,
+		MinBackoff: time.Second * 5,
+		MaxBackoff: time.Second * 30,
+	})
 
+	ats.getAndSetVinTask = vinTask
 	ats.updateAutoPiTask = updateTask
 	ats.redis = r
 	return ats
@@ -83,15 +100,34 @@ type autoPiTaskService struct {
 	settings         *config.Settings
 	mainQueue        taskq.Queue
 	updateAutoPiTask *taskq.Task
+	getAndSetVinTask *taskq.Task
 	redis            StandardRedis
 	autoPiSvc        AutoPiAPIService
+	dbs              func() *database.DBReaderWriter
 	log              zerolog.Logger
 }
 
-// StartAutoPiUpdate produces a task
-func (ats *autoPiTaskService) StartAutoPiUpdate(deviceID, userID, unitID string) (taskID string, err error) {
+func (ats *autoPiTaskService) StartQueryAndUpdateVIN(deviceID, userID, unitID string) (taskID string, err error) {
 	taskID = ksuid.New().String()
-	msg := ats.updateAutoPiTask.WithArgs(context.Background(), taskID, deviceID, userID, unitID)
+	msg := ats.getAndSetVinTask.WithArgs(context.Background(), deviceID, userID, unitID)
+	msg.Name = taskID
+	err = ats.mainQueue.Add(msg)
+
+	if err != nil {
+		return "", err
+	}
+	err = ats.updateTaskState(taskID, "waiting for task to be processed", Pending, 100, nil)
+	if err != nil {
+		return taskID, err
+	}
+
+	return taskID, nil
+}
+
+// StartAutoPiUpdate produces a task
+func (ats *autoPiTaskService) StartAutoPiUpdate(deviceID, unitID, userDeviceID string) (taskID string, err error) {
+	taskID = ksuid.New().String()
+	msg := ats.updateAutoPiTask.WithArgs(context.Background(), taskID, deviceID, unitID, userDeviceID)
 	msg.Name = taskID
 	err = ats.mainQueue.Add(msg)
 	if err != nil {
@@ -131,8 +167,8 @@ func (ats *autoPiTaskService) GetTaskStatus(ctx context.Context, taskID string) 
 	return apTask, nil
 }
 
-// ProcessUpdate handles the autopi update task when consumed
-func (ats *autoPiTaskService) ProcessUpdate(ctx context.Context, taskID, deviceID, userID, unitID string) error {
+// processUpdate handles the autopi update task when consumed
+func (ats *autoPiTaskService) processUpdate(ctx context.Context, taskID, deviceID, userID, unitID string) error {
 	// check for ctx.Done in channel etc but in non-blocking way? to then return err if so to retry on next app reboot
 
 	log := ats.log.With().Str("handler", updateAutoPiTask+"_ProcessUpdate").
@@ -212,6 +248,82 @@ func (ats *autoPiTaskService) ProcessUpdate(ctx context.Context, taskID, deviceI
 	return nil // by not returning error, task will not be processed again.
 }
 
+// queryAndUpdateVIN processes message that: sends autopi command to get vin, polls webhook db for result, and sets user_devices. retries if needed. starts drivly task if able to get vin.
+func (ats *autoPiTaskService) queryAndUpdateVIN(ctx context.Context, taskID, deviceID, unitID, userDeviceID string) error {
+	log := ats.log.With().Str("handler", queryAndUpdateVINTask).
+		Str("taskID", taskID).
+		Str("userDeviceID", userDeviceID).
+		Str("unitID", unitID).
+		Str("deviceID", deviceID).Logger()
+	// store the userID?
+	log.Info().Msg("Started processing autopi update")
+
+	err := ats.updateTaskState(taskID, "Started", InProcess, 110, nil)
+	if err != nil {
+		log.Err(err).Msg("failed to persist state to redis")
+		return err
+	}
+	//send command to update device, retry after 1m if get an error
+	cmd, err := ats.autoPiSvc.CommandQueryVIN(ctx, unitID, deviceID, userDeviceID)
+	if err != nil {
+		log.Err(err).Msg("failed to call autopi api query vin command")
+		_ = ats.updateTaskState(taskID, "autopi api call failed", Failure, 500, err)
+		return err
+	}
+	//check that command did not timeout
+	backoffSchedule := []time.Duration{
+		10 * time.Second,
+		30 * time.Second,
+		30 * time.Second,
+	}
+	for _, backoff := range backoffSchedule {
+		time.Sleep(backoff)
+		job, _, err := ats.autoPiSvc.GetCommandStatus(ctx, cmd.Jid)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				_ = ats.updateTaskState(taskID, "autopi job was not found in db", Failure, 500, err)
+				log.Err(err).Msg("autopi job not found in db")
+				return err
+			}
+			continue // try again if error
+		}
+		if job.CommandState == "COMMAND_EXECUTED" {
+			if job.Result != nil {
+				if len(job.Result.Value) == 17 {
+					// update user_devices
+					userDevice, err := models.FindUserDevice(ctx, ats.dbs().Reader, userDeviceID)
+					if err != nil {
+						_ = ats.updateTaskState(taskID, "failed to get user_device by id "+userDeviceID, Failure, 500, err)
+						log.Err(err).Msg("failed to get user_device by id")
+						return nil // we return nil b/c do not want to retry task in this situation, failure could be something bigger DB related
+					}
+					userDevice.VinIdentifier = null.StringFrom(job.Result.Value)
+					userDevice.VinConfirmed = true
+
+					_, err = userDevice.Update(ctx, ats.dbs().Writer, boil.Infer())
+					if err != nil {
+						_ = ats.updateTaskState(taskID, "failed to update user_device with VIN", Failure, 500, err)
+						log.Err(err).Msg("failed to update user_device with VIN")
+						return nil // we return nil b/c do not want to retry task in this situation, failure could be something bigger DB related
+					}
+					log = log.With().Str("vin", job.Result.Value).Logger()
+				}
+			}
+			// the job was completed, but we still may have not found a valid VIN
+			_ = ats.updateTaskState(taskID, "autopi query vin returned by device", Success, 200, nil)
+			break
+		}
+		if job.CommandState == "TIMEOUT" {
+			_ = ats.updateTaskState(taskID, "autopi query vin job timed out, device may be offline or rebooting", Failure, 400, nil)
+			log.Warn().Msg("autopi query vin job timed out")
+			return errors.New("job timeout")
+		}
+	}
+	log.Info().Msg("Succesfully queried device for vin. if no vin field in log, no fin was returned.")
+	return nil // by not returning error, task will not be retried.
+}
+
+// updateTaskState updates the status of the task in redis
 func (ats *autoPiTaskService) updateTaskState(taskID, description string, status TaskStatusEnum, code int, err error) error {
 	updateCnt := 0
 	existing, _ := ats.GetTaskStatus(context.Background(), taskID)

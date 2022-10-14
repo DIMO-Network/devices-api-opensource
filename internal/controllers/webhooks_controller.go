@@ -48,6 +48,8 @@ func (wc *WebhooksController) ProcessCommand(c *fiber.Ctx) error {
 	apwJID := gjson.GetBytes(c.Body(), "jid")
 	apwDeviceID := gjson.GetBytes(c.Body(), "device_id")
 	apwState := gjson.GetBytes(c.Body(), "state")
+	// grab value, like for pulling VIN or other obd query responses
+	cmdValue := gjson.GetBytes(c.Body(), "response.data.return.value")
 
 	if !apwJID.Exists() || !apwDeviceID.Exists() || !apwState.Exists() {
 		logger.Error().Str("payload", string(c.Body())).Msg("no jobId or deviceId found in payload")
@@ -61,8 +63,16 @@ func (wc *WebhooksController) ProcessCommand(c *fiber.Ctx) error {
 		logger.Error().Str("payload", string(c.Body())).Msg("invalid webhook signature")
 		return fiber.NewError(fiber.StatusUnauthorized, "invalid autopi webhook signature")
 	}
+	var cmdResult *services.AutoPiCommandResult
+	if cmdValue.Exists() {
+		cmdResult = &services.AutoPiCommandResult{
+			Value: cmdValue.String(),
+			Tag:   gjson.GetBytes(c.Body(), "response.tag").String(),
+			Type:  gjson.GetBytes(c.Body(), "response.data.return._type").String(),
+		}
+	}
 
-	autopiJob, err := wc.autoPiSvc.UpdateJob(c.Context(), apwJID.String(), apwState.String())
+	autopiJob, err := wc.autoPiSvc.UpdateJob(c.Context(), apwJID.String(), apwState.String(), cmdResult)
 	if err != nil {
 		logger.Err(err).Msg("error updating autopi job")
 		return c.SendStatus(fiber.StatusNoContent)

@@ -64,6 +64,21 @@ func (mr *MockAutoPiAPIServiceMockRecorder) AssociateDeviceToTemplate(deviceID, 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssociateDeviceToTemplate", reflect.TypeOf((*MockAutoPiAPIService)(nil).AssociateDeviceToTemplate), deviceID, templateID)
 }
 
+// CommandQueryVIN mocks base method.
+func (m *MockAutoPiAPIService) CommandQueryVIN(ctx context.Context, unitID, deviceID, userDeviceID string) (*services.AutoPiCommandResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CommandQueryVIN", ctx, unitID, deviceID, userDeviceID)
+	ret0, _ := ret[0].(*services.AutoPiCommandResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CommandQueryVIN indicates an expected call of CommandQueryVIN.
+func (mr *MockAutoPiAPIServiceMockRecorder) CommandQueryVIN(ctx, unitID, deviceID, userDeviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CommandQueryVIN", reflect.TypeOf((*MockAutoPiAPIService)(nil).CommandQueryVIN), ctx, unitID, deviceID, userDeviceID)
+}
+
 // CommandRaw mocks base method.
 func (m *MockAutoPiAPIService) CommandRaw(ctx context.Context, unitID, deviceID, command, userDeviceID string) (*services.AutoPiCommandResponse, error) {
 	m.ctrl.T.Helper()
@@ -199,7 +214,7 @@ func (mr *MockAutoPiAPIServiceMockRecorder) UnassociateDeviceTemplate(deviceID, 
 }
 
 // UpdateJob mocks base method.
-func (m *MockAutoPiAPIService) UpdateJob(ctx context.Context, jobID, newState string) (*models.AutopiJob, error) {
+func (m *MockAutoPiAPIService) UpdateJob(ctx context.Context, jobID, newState string, result *services.AutoPiCommandResult) (*models.AutopiJob, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateJob", ctx, jobID, newState)
 	ret0, _ := ret[0].(*models.AutopiJob)
