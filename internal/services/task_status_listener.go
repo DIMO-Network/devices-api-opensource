@@ -98,6 +98,7 @@ func (i *TaskStatusListener) processSmartcarPollStatusEvent(event *shared.CloudE
 	udai, err := models.UserDeviceAPIIntegrations(
 		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(userDeviceID),
 		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID),
+		qm.Load(models.UserDeviceAPIIntegrationRels.UserDevice),
 	).One(ctx, i.db().Writer)
 	if err != nil {
 		return fmt.Errorf("couldn't find device integration for device %s and integration %s: %w", userDeviceID, integrationID, err)
