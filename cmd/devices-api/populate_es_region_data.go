@@ -10,7 +10,6 @@ import (
 	es "github.com/DIMO-Network/devices-api/internal/elasticsearch"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
-	"github.com/DIMO-Network/shared"
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -26,27 +25,14 @@ func populateESRegionData(ctx context.Context, settings *config.Settings, e es.E
 		return fmt.Errorf("failed to retrieve all user devices: %w", err)
 	}
 
-	ddIDs := shared.NewStringSet()
-	for _, ud := range uAPIInt {
-		ddIDs.Add(ud.R.UserDevice.DeviceDefinitionID)
-	}
-
-	dds, err := ddSvc.GetDeviceDefinitionsByIDs(ctx, ddIDs.Slice())
-	if err != nil {
-		logger.Error().
-			Err(err).
-			Msg("Error fetching device information")
-	}
-
-	for _, d := range dds {
-		ud, err := models.UserDevices(
-			models.UserDeviceWhere.DeviceDefinitionID.EQ(d.DeviceDefinitionId),
-		).One(ctx, db)
-		if err != nil || ud == nil {
-			logger.Error().
-				Str("userDeviceId", ud.ID).
-				Str("deviceDefinitionId", ud.DeviceDefinitionID).
-				Msg("Could not find deviceDefinition")
+	for _, apiInt := range uAPIInt {
+		ud := apiInt.R.UserDevice
+		d, err := ddSvc.GetDeviceDefinitionByID(ctx, apiInt.R.UserDevice.DeviceDefinitionID)
+		if err != nil {
+			logger.Err(err).
+				Str("userDeviceId", apiInt.UserDeviceID).
+				Str("deviceDefinitionId", apiInt.R.UserDevice.DeviceDefinitionID).
+				Msg("Failed to retrieve device definition.")
 			continue
 		}
 

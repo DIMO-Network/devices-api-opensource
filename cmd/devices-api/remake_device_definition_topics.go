@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/database"
@@ -12,7 +11,6 @@ import (
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
 	"github.com/Shopify/sarama"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
@@ -44,26 +42,14 @@ func remakeDeviceDefinitionTopics(ctx context.Context, settings *config.Settings
 		ddIDs.Add(d.R.UserDevice.DeviceDefinitionID)
 	}
 
-	deviceDefinitionResponse, err := ddSvc.GetDeviceDefinitionsByIDs(ctx, ddIDs.Slice())
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to retrieve all devices and definitions for event generation from grpc")
-	}
-
-	filterDeviceDefinition := func(id string, items []*ddgrpc.GetDeviceDefinitionItemResponse) (*ddgrpc.GetDeviceDefinitionItemResponse, error) {
-		for _, dd := range items {
-			if id == dd.DeviceDefinitionId {
-				return dd, nil
-			}
-		}
-		return nil, errors.Errorf("no device definition %s", id)
-	}
-
 	// For each of these, register the device's device definition with the data pipeline.
 	for _, apiInt := range apiInts {
-
-		ddInfo, err := filterDeviceDefinition(apiInt.R.UserDevice.DeviceDefinitionID, deviceDefinitionResponse)
+		ddInfo, err := ddSvc.GetDeviceDefinitionByID(ctx, apiInt.R.UserDevice.DeviceDefinitionID)
 		if err != nil {
-			logger.Fatal().Err(err)
+			logger.Err(err).
+				Str("userDeviceId", apiInt.UserDeviceID).
+				Str("deviceDefinitionId", apiInt.R.UserDevice.DeviceDefinitionID).
+				Msg("Failed to retrieve device definition.")
 			continue
 		}
 
