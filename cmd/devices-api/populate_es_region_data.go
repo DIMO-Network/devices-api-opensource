@@ -10,6 +10,7 @@ import (
 	es "github.com/DIMO-Network/devices-api/internal/elasticsearch"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared"
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -25,12 +26,12 @@ func populateESRegionData(ctx context.Context, settings *config.Settings, e es.E
 		return fmt.Errorf("failed to retrieve all user devices: %w", err)
 	}
 
-	ddIds := []string{}
+	ddIDs := shared.NewStringSet()
 	for _, ud := range uAPIInt {
-		ddIds = append(ddIds, ud.R.UserDevice.DeviceDefinitionID)
+		ddIDs.Add(ud.R.UserDevice.DeviceDefinitionID)
 	}
 
-	dds, err := ddSvc.GetDeviceDefinitionsByIDs(ctx, ddIds)
+	dds, err := ddSvc.GetDeviceDefinitionsByIDs(ctx, ddIDs.Slice())
 	if err != nil {
 		logger.Error().
 			Err(err).

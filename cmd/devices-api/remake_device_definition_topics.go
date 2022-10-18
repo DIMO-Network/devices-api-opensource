@@ -10,6 +10,7 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared"
 	"github.com/Shopify/sarama"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -37,12 +38,13 @@ func remakeDeviceDefinitionTopics(ctx context.Context, settings *config.Settings
 
 	failures := 0
 
-	ids := []string{}
+	ddIDs := shared.NewStringSet()
+
 	for _, d := range apiInts {
-		ids = append(ids, d.R.UserDevice.DeviceDefinitionID)
+		ddIDs.Add(d.R.UserDevice.DeviceDefinitionID)
 	}
 
-	deviceDefinitionResponse, err := ddSvc.GetDeviceDefinitionsByIDs(ctx, ids)
+	deviceDefinitionResponse, err := ddSvc.GetDeviceDefinitionsByIDs(ctx, ddIDs.Slice())
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Failed to retrieve all devices and definitions for event generation from grpc")
 	}
