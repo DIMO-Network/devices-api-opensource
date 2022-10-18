@@ -1442,6 +1442,8 @@ func (udc *UserDevicesController) runPostRegistration(ctx context.Context, logge
 		Model:              dd.Type.Model,
 		Year:               int(dd.Type.Year),
 		Region:             region,
+		MakeSlug:           dd.Type.MakeSlug,
+		ModelSlug:          dd.Type.ModelSlug,
 	})
 	if err != nil {
 		logger.Err(err).Msg("Failed to set values in device definition tables.")

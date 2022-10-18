@@ -13,7 +13,6 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
@@ -38,13 +37,12 @@ func remakeDeviceDefinitionTopics(ctx context.Context, settings *config.Settings
 
 	failures := 0
 
-	ids := make([]string, len(apiInts))
+	ids := []string{}
 	for _, d := range apiInts {
 		ids = append(ids, d.R.UserDevice.DeviceDefinitionID)
 	}
 
 	deviceDefinitionResponse, err := ddSvc.GetDeviceDefinitionsByIDs(ctx, ids)
-
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Failed to retrieve all devices and definitions for event generation from grpc")
 	}
@@ -61,14 +59,13 @@ func remakeDeviceDefinitionTopics(ctx context.Context, settings *config.Settings
 	// For each of these, register the device's device definition with the data pipeline.
 	for _, apiInt := range apiInts {
 
-		dd, err := filterDeviceDefinition(apiInt.R.UserDevice.DeviceDefinitionID, deviceDefinitionResponse)
+		ddInfo, err := filterDeviceDefinition(apiInt.R.UserDevice.DeviceDefinitionID, deviceDefinitionResponse)
 		if err != nil {
 			logger.Fatal().Err(err)
 			continue
 		}
 
 		userDeviceID := apiInt.UserDeviceID
-		ddMake := dd.Make.Name
 
 		region := ""
 
@@ -78,14 +75,17 @@ func remakeDeviceDefinitionTopics(ctx context.Context, settings *config.Settings
 				region = countryData.Region
 			}
 		}
+
 		ddReg := services.DeviceDefinitionDTO{
 			UserDeviceID:       userDeviceID,
-			DeviceDefinitionID: dd.DeviceDefinitionId,
+			DeviceDefinitionID: ddInfo.DeviceDefinitionId,
 			IntegrationID:      apiInt.IntegrationID,
-			Make:               ddMake,
-			Model:              dd.Type.Model,
-			Year:               int(dd.Type.Year),
+			Make:               ddInfo.Type.Make,
+			Model:              ddInfo.Type.Model,
+			Year:               int(ddInfo.Type.Year),
 			Region:             region,
+			MakeSlug:           ddInfo.Type.MakeSlug,
+			ModelSlug:          ddInfo.Type.ModelSlug,
 		}
 
 		err = reg.Register(ddReg)
@@ -95,7 +95,7 @@ func remakeDeviceDefinitionTopics(ctx context.Context, settings *config.Settings
 		}
 	}
 
-	log.Info().Int("attempted", len(apiInts)).Int("failed", failures).Msg("Finished device definition registration.")
+	logger.Info().Int("attempted", len(apiInts)).Int("failed", failures).Msg("Finished device definition registration.")
 
 	return nil
 }

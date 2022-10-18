@@ -50,7 +50,7 @@ type blackbookAPIService struct {
 }
 
 func NewBlackbookAPIService(settings *config.Settings, dbs func() *database.DBReaderWriter) BlackbookAPIService {
-	if settings.BlackbookAPIURL == "" || settings.BlackbookAPIUser == "" || settings.BlackbookAPIPassword == "" {
+	if settings.Environment != "local" && (settings.BlackbookAPIURL == "" || settings.BlackbookAPIUser == "" || settings.BlackbookAPIPassword == "") {
 		log.Fatal("Blackbook configuration not set")
 	}
 	h := map[string]string{"Authorization": "Basic " + basicAuth(settings.BlackbookAPIUser, settings.BlackbookAPIPassword)}

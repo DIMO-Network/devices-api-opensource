@@ -40,9 +40,12 @@ func TestDDEventSuccess(t *testing.T) {
 		DeviceDefinitionID: "DDMockId",
 	}))
 	sp.ExpectSendMessageWithMessageCheckerFunctionAndSucceed(kafkaEventChecker(t, "dd_to_mmy_table", "DDMockId", DeviceDefinitionMetadataEventData{
-		Make:  "Tesla",
-		Model: "Model Y",
-		Year:  2021,
+		Make:      "Tesla",
+		Model:     "Model Y",
+		Year:      2021,
+		Region:    "someRegion",
+		MakeSlug:  "sommeMakeSlug",
+		ModelSlug: "someModelSlug",
 	}))
 
 	d := NewDeviceDefinitionRegistrar(sp, &config.Settings{
@@ -57,6 +60,9 @@ func TestDDEventSuccess(t *testing.T) {
 		Model:              "Model Y",
 		Year:               2021,
 		IntegrationID:      "MockIntegrationID",
+		Region:             "someRegion",
+		MakeSlug:           "sommeMakeSlug",
+		ModelSlug:          "someModelSlug",
 	}
 
 	assert.NoError(t, d.Register(ddDTO))
@@ -82,6 +88,9 @@ func TestDDEventFailure(t *testing.T) {
 		Model:              "Model Y",
 		Year:               2021,
 		IntegrationID:      "MockIntegrationID",
+		Region:             "someRegion",
+		MakeSlug:           "sommeMakeSlug",
+		ModelSlug:          "someModelSlug",
 	}
 
 	assert.ErrorIs(t, d.Register(ddDTO), sarama.ErrOutOfBrokers)

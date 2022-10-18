@@ -15,71 +15,89 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
-func populateESRegionData(ctx context.Context, settings *config.Settings, elastic es.ElasticSearch, pdb database.DbStore, logger *zerolog.Logger) error {
+func populateESRegionData(ctx context.Context, settings *config.Settings, e es.ElasticSearch, pdb database.DbStore, logger *zerolog.Logger, ddSvc services.DeviceDefinitionService) error {
 	db := pdb.DBS().Reader
 
-	userDevices, err := models.UserDevices(
-		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
+	uAPIInt, err := models.UserDeviceAPIIntegrations(
+		qm.Load(models.UserDeviceAPIIntegrationRels.UserDevice),
 	).All(ctx, db)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve all user devices: %w", err)
 	}
 
-	for _, ud := range userDevices {
-		logger := logger.With().Str("command", "populate-es-region-data").Str("userDeviceId", ud.ID).Logger()
+	ddIds := []string{}
+	for _, ud := range uAPIInt {
+		ddIds = append(ddIds, ud.R.UserDevice.DeviceDefinitionID)
+	}
 
-		if len(ud.R.UserDeviceAPIIntegrations) == 0 {
+	dds, err := ddSvc.GetDeviceDefinitionsByIDs(ctx, ddIds)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Msg("Error fetching device information")
+	}
+
+	for _, d := range dds {
+		ud, err := models.UserDevices(
+			models.UserDeviceWhere.DeviceDefinitionID.EQ(d.DeviceDefinitionId),
+		).One(ctx, db)
+		if err != nil || ud == nil {
+			logger.Error().
+				Str("userDeviceId", ud.ID).
+				Str("deviceDefinitionId", ud.DeviceDefinitionID).
+				Msg("Could not find deviceDefinition")
 			continue
 		}
 
-		integrationID := ud.R.UserDeviceAPIIntegrations[0].IntegrationID
-
 		if ud.CountryCode.IsZero() {
-			logger.Error().Msg("Device has an integration but is missing country.")
+			logger.Error().Str("userDeviceId", ud.ID).
+				Str("deviceDefinitionId", ud.DeviceDefinitionID).
+				Msg("Device missing country.")
 			continue
 		}
 
 		md := services.UserDeviceMetadata{}
 		if err = ud.Metadata.Unmarshal(&md); err != nil {
-			logger.Err(err).Msg("Could not unmarshal user device metadata.")
+			logger.Error().Msgf("Could not unmarshal userdevice metadata for device: %s", ud.ID)
 			continue
 		}
+		if !md.ElasticRegionSynced {
+			c := constants.FindCountry(ud.CountryCode.String)
+			if c == nil || c.Region == "" {
+				logger.Error().Msgf("Could not get region from country informaton for - userDeviceID: %s, deviceDefinition: %s", ud.ID, ud.DeviceDefinitionID)
+				continue
+			}
 
-		if md.ElasticRegionSynced {
-			logger.Debug().Msgf("Records have already been updated for this device.")
-			continue
+			dd := services.DeviceDefinitionDTO{
+				DeviceDefinitionID: ud.DeviceDefinitionID,
+				UserDeviceID:       ud.ID,
+				MakeSlug:           d.Type.MakeSlug,
+				ModelSlug:          d.Type.ModelSlug,
+				Region:             c.Region,
+			}
+
+			err = e.UpdateDeviceRegionsByQuery(dd, settings.ElasticDeviceStatusIndex)
+			if err != nil {
+				logger.Error().Msgf("error occurred during es update: %s", err)
+				continue
+			}
+			md.ElasticRegionSynced = true
+
+			err = ud.Metadata.Marshal(&md)
+			if err != nil {
+				logger.Error().Msgf("Could not marshal device metadata for, DeviceDefinitionId: %s", ud.DeviceDefinitionID)
+				continue
+			}
+
+			if _, err := ud.Update(ctx, pdb.DBS().Writer, boil.Infer()); err != nil {
+				logger.Err(err).
+					Str("DeviceDefinitionId", ud.DeviceDefinitionID).
+					Msg("Error updating device")
+				continue
+			}
+		} else {
+			logger.Debug().Msgf("Record has already been updated for, DeviceDefinitionId: %s", ud.DeviceDefinitionID)
 		}
-
-		dd := services.DeviceDefinitionDTO{
-			DeviceDefinitionID: ud.DeviceDefinitionID,
-			IntegrationID:      "dimo/integration/" + integrationID,
-			UserDeviceID:       ud.ID,
-		}
-
-		country := constants.FindCountry(ud.CountryCode.String)
-		if country == nil || country.Region == "" {
-			logger.Error().Str("country", ud.CountryCode.String).Msg("Could not get region from device's country.")
-			continue
-		}
-
-		err = elastic.UpdateDeviceRegionsByQuery(dd, country.Region, settings.ElasticDeviceStatusIndex)
-		if err != nil {
-			logger.Err(err).Msgf("Error occurred during Elastic region update.")
-			continue
-		}
-
-		md.ElasticRegionSynced = true
-		err = ud.Metadata.Marshal(&md)
-		if err != nil {
-			logger.Error().Msgf("Could not marshal updated metadata.")
-			continue
-		}
-
-		if _, err := ud.Update(ctx, pdb.DBS().Writer, boil.Infer()); err != nil {
-			logger.Err(err).Msg("Error updating device metadata.")
-			continue
-		}
-
 	}
 
 	return nil

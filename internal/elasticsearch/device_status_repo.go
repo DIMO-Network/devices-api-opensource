@@ -10,7 +10,13 @@ import (
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 )
 
-type jsonObj map[string]interface{}
+type jsonObj map[string]any
+
+type EsDeviceStatusDTO struct {
+	Region    string
+	MakeSlug  string
+	ModelSlug string
+}
 
 func (e ElasticSearch) UpdateAutopiDevicesByQuery(d services.DeviceDefinitionDTO, elasticDeviceStatusIndex string) error {
 	query := jsonObj{
@@ -76,11 +82,16 @@ ctx._source.data.year = params['year'];`,
 	return nil
 }
 
-func (e ElasticSearch) UpdateDeviceRegionsByQuery(d services.DeviceDefinitionDTO, region, elasticDeviceStatusIndex string) error {
+func (e ElasticSearch) UpdateDeviceRegionsByQuery(d services.DeviceDefinitionDTO, elasticDeviceStatusIndex string) error {
 	query := jsonObj{
 		"query": jsonObj{
 			"bool": jsonObj{
 				"filter": []jsonObj{
+					{
+						"term": jsonObj{
+							"data.deviceDefinitionId": d.DeviceDefinitionID,
+						},
+					},
 					{
 						"term": jsonObj{
 							"subject": d.UserDeviceID,
@@ -90,10 +101,14 @@ func (e ElasticSearch) UpdateDeviceRegionsByQuery(d services.DeviceDefinitionDTO
 			},
 		},
 		"script": jsonObj{
-			"source": `ctx._source.data.region = params['region'];`,
-			"lang":   "painless",
+			"source": `ctx._source.data.region = params['region'];
+				ctx._source.data.makeSlug = params['makeSlug'];
+				ctx._source.data.modelSlug = params['modelSlug'];`,
+			"lang": "painless",
 			"params": jsonObj{
-				"region": region,
+				"region":    d.Region,
+				"makeSlug":  d.MakeSlug,
+				"modelSlug": d.ModelSlug,
 			},
 		},
 	}
@@ -129,9 +144,11 @@ func (e ElasticSearch) UpdateDeviceRegionsByQuery(d services.DeviceDefinitionDTO
 		e.logger.Err(err).Msgf("Error parsing response.")
 	} else {
 		e.logger.Info().
-			Str("userDeviceId", d.UserDeviceID).
-			Str("region", region).
-			Int64("took", r.Took).Msg("Updated device region in Elastic.")
+			Str("DeviceDefinitionID", d.DeviceDefinitionID).
+			Str("Region", d.Region).
+			Str("MakeSlug", d.MakeSlug).
+			Str("ModelSlug", d.ModelSlug).
+			Int64("took", r.Took).Msg("Updated device region.")
 	}
 
 	return nil

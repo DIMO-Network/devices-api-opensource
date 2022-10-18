@@ -74,14 +74,14 @@ func main() {
 	if err != nil {
 		logger.Fatal().Err(err).Msgf("Couldn't instantiate Elasticsearch client.")
 	}
+
+	nhtsaSvc := services.NewNHTSAService()
+	ddSvc := services.NewDeviceDefinitionService(pdb.DBS, &logger, nhtsaSvc, &settings)
 	// todo: use flag or other package to handle args
 	arg := ""
 	if len(os.Args) > 1 {
 		arg = os.Args[1]
 	}
-
-	nhtsaSvc := services.NewNHTSAService()
-	ddSvc := services.NewDeviceDefinitionService(pdb.DBS, &logger, nhtsaSvc, &settings)
 
 	switch arg {
 	case "migrate":
@@ -129,7 +129,7 @@ func main() {
 			logger.Fatal().Err(err).Msg("Error running elastic search dd update")
 		}
 	case "populate-es-region-data":
-		err = populateESRegionData(ctx, &settings, esInstance, pdb, &logger)
+		err = populateESRegionData(ctx, &settings, esInstance, pdb, &logger, ddSvc)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error running elastic search region update")
 		}
