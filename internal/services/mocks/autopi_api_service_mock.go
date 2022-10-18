@@ -216,14 +216,14 @@ func (mr *MockAutoPiAPIServiceMockRecorder) UnassociateDeviceTemplate(deviceID, 
 // UpdateJob mocks base method.
 func (m *MockAutoPiAPIService) UpdateJob(ctx context.Context, jobID, newState string, result *services.AutoPiCommandResult) (*models.AutopiJob, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateJob", ctx, jobID, newState)
+	ret := m.ctrl.Call(m, "UpdateJob", ctx, jobID, newState, result)
 	ret0, _ := ret[0].(*models.AutopiJob)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // UpdateJob indicates an expected call of UpdateJob.
-func (mr *MockAutoPiAPIServiceMockRecorder) UpdateJob(ctx, jobID, newState interface{}) *gomock.Call {
+func (mr *MockAutoPiAPIServiceMockRecorder) UpdateJob(ctx, jobID, newState, result interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateJob", reflect.TypeOf((*MockAutoPiAPIService)(nil).UpdateJob), ctx, jobID, newState)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateJob", reflect.TypeOf((*MockAutoPiAPIService)(nil).UpdateJob), ctx, jobID, newState, result)
 }

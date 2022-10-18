@@ -16,9 +16,9 @@ import (
 //go:generate mockgen -source drivly_api_service.go -destination mocks/drivly_api_service_mock.go
 type DrivlyAPIService interface {
 	GetVINInfo(vin string) (map[string]interface{}, error)
-	GetVINPricing(vin string, mileage float64, zipcode string) (map[string]any, error)
+	GetVINPricing(vin string, reqData *ValuationRequestData) (map[string]any, error)
 
-	GetOffersByVIN(vin string, mileage float64, zipcode string) (map[string]interface{}, error)
+	GetOffersByVIN(vin string, reqData *ValuationRequestData) (map[string]interface{}, error)
 	GetAutocheckByVIN(vin string) (map[string]interface{}, error)
 	GetBuildByVIN(vin string) (map[string]interface{}, error)
 	GetCargurusByVIN(vin string) (map[string]interface{}, error)
@@ -67,15 +67,14 @@ func (ds *drivlyAPIService) GetVINInfo(vin string) (map[string]interface{}, erro
 	return res, nil
 }
 
-// mileage is not sent if equal to 0 and zipcode is not sent if length is not equal to 5
-// TODO(zavaboy): optional parameters
-func (ds *drivlyAPIService) GetVINPricing(vin string, mileage float64, zipcode string) (map[string]any, error) {
+// GetVINPricing mileage is not sent if nil and zipcode is not sent if length is not equal to 5
+func (ds *drivlyAPIService) GetVINPricing(vin string, reqData *ValuationRequestData) (map[string]any, error) {
 	params := url.Values{}
-	if mileage > 0 {
-		params.Add("mileage", fmt.Sprint(int(mileage)))
+	if reqData.Mileage != nil {
+		params.Add("mileage", fmt.Sprint(int(*reqData.Mileage)))
 	}
-	if zipcode != "" && len(zipcode) == 5 { // US 5 digit zip codes only
-		params.Add("zipcode", zipcode)
+	if reqData.ZipCode != nil && len(*reqData.ZipCode) == 5 { // US 5 digit zip codes only
+		params.Add("zipcode", *reqData.ZipCode)
 	}
 	res, err := executeAPI(ds.httpClientVIN, fmt.Sprintf("/api/%s/Pricing?"+params.Encode(), vin))
 
@@ -86,15 +85,14 @@ func (ds *drivlyAPIService) GetVINPricing(vin string, mileage float64, zipcode s
 	return res, nil
 }
 
-// mileage is not sent if equal to 0 and zipcode is not sent if length is not equal to 5
-// TODO(zavaboy): optional parameters
-func (ds *drivlyAPIService) GetOffersByVIN(vin string, mileage float64, zipcode string) (map[string]interface{}, error) {
+// GetOffersByVIN mileage is not sent if nil and zipcode is not sent if length is not equal to 5
+func (ds *drivlyAPIService) GetOffersByVIN(vin string, reqData *ValuationRequestData) (map[string]interface{}, error) {
 	params := url.Values{}
-	if mileage > 0 {
-		params.Add("mileage", fmt.Sprint(int(mileage)))
+	if reqData.Mileage != nil {
+		params.Add("mileage", fmt.Sprint(int(*reqData.Mileage)))
 	}
-	if zipcode != "" && len(zipcode) == 5 { // US 5 digit zip codes only
-		params.Add("zipcode", zipcode)
+	if reqData.ZipCode != nil && len(*reqData.ZipCode) == 5 { // US 5 digit zip codes only
+		params.Add("zipcode", *reqData.ZipCode)
 	}
 	res, err := executeAPI(ds.httpClientOffer, fmt.Sprintf("/api/vin/%s?"+params.Encode(), vin))
 
@@ -210,12 +208,12 @@ func (ds *drivlyAPIService) GetVRoomByVIN(vin string) (map[string]interface{}, e
 func (ds *drivlyAPIService) GetExtendedOffersByVIN(vin string) (*DrivlyVINSummary, error) {
 	result := new(DrivlyVINSummary)
 
-	pricingRes, err := ds.GetVINPricing(vin, 0, "")
+	pricingRes, err := ds.GetVINPricing(vin, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	offerRes, err := ds.GetOffersByVIN(vin, 0, "")
+	offerRes, err := ds.GetOffersByVIN(vin, nil)
 	if err != nil {
 		return nil, err
 	}

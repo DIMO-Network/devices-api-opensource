@@ -170,16 +170,16 @@ func (mr *MockBlackbookAPIServiceMockRecorder) GetUniversalVINInfo(vin, state in
 }
 
 // GetVINInfo mocks base method.
-func (m *MockBlackbookAPIService) GetVINInfo(vin, state string) ([]byte, error) {
+func (m *MockBlackbookAPIService) GetVINInfo(vin string, reqData *services.ValuationRequestData) ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetVINInfo", vin, state)
+	ret := m.ctrl.Call(m, "GetVINInfo", vin, reqData)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetVINInfo indicates an expected call of GetVINInfo.
-func (mr *MockBlackbookAPIServiceMockRecorder) GetVINInfo(vin, state interface{}) *gomock.Call {
+func (mr *MockBlackbookAPIServiceMockRecorder) GetVINInfo(vin, reqData interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVINInfo", reflect.TypeOf((*MockBlackbookAPIService)(nil).GetVINInfo), vin, state)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVINInfo", reflect.TypeOf((*MockBlackbookAPIService)(nil).GetVINInfo), vin, reqData)
 }

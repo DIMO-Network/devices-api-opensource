@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
@@ -23,8 +24,8 @@ https://developer.blackbookcloud.com/Documentation?product=Used%20Car%20Web%20AP
 
 //go:generate mockgen -source blackbook_api_service.go -destination mocks/blackbook_api_service_mock.go
 type BlackbookAPIService interface {
+	GetVINInfo(vin string, reqData *ValuationRequestData) ([]byte, error)
 	// VIN, State
-	GetVINInfo(vin, state string) ([]byte, error)
 	GetUniversalVINInfo(vin, state string) ([]byte, error)
 	GetBatch(vin, state string) ([]byte, error)
 	// UVC, State
@@ -65,16 +66,15 @@ func NewBlackbookAPIService(settings *config.Settings, dbs func() *database.DBRe
 	}
 }
 
-// Set the given state value to the default state if the value is empty
-func defaultState(state *string) {
-	if *state == "" {
-		*state = "NT" // default to national
+func (bs *blackbookAPIService) GetVINInfo(vin string, reqData *ValuationRequestData) ([]byte, error) {
+	params := url.Values{}
+	if reqData.Mileage != nil {
+		params.Add("mileage", strconv.Itoa(int(*reqData.Mileage)))
 	}
-}
-
-func (bs *blackbookAPIService) GetVINInfo(vin, state string) ([]byte, error) {
-	defaultState(&state)
-	res, err := bs.executeAPI(bs.httpClientVIN, fmt.Sprintf("/UsedVehicle/VIN/%s?state=%s", vin, state), nil)
+	if reqData.ZipCode != nil {
+		params.Add("state", *reqData.ZipCode)
+	}
+	res, err := bs.executeAPI(bs.httpClientVIN, fmt.Sprintf("/UsedVehicle/VIN/%s?%s", vin, params.Encode()), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,6 @@ func (bs *blackbookAPIService) GetVINInfo(vin, state string) ([]byte, error) {
 }
 
 func (bs *blackbookAPIService) GetUniversalVINInfo(vin, state string) ([]byte, error) {
-	defaultState(&state)
 	res, err := bs.executeAPI(bs.httpClientVIN, fmt.Sprintf("/Universal/VIN/%s?markets=UU&all_matches=true&state=%s", vin, state), nil)
 
 	if err != nil {
@@ -94,7 +93,6 @@ func (bs *blackbookAPIService) GetUniversalVINInfo(vin, state string) ([]byte, e
 }
 
 func (bs *blackbookAPIService) GetLikeVehicles(uvc, state string) ([]byte, error) {
-	defaultState(&state)
 	res, err := bs.executeAPI(bs.httpClientVIN, fmt.Sprintf("/UsedVehicle/Like/%s?state=%s", uvc, state), nil)
 
 	if err != nil {
@@ -105,7 +103,6 @@ func (bs *blackbookAPIService) GetLikeVehicles(uvc, state string) ([]byte, error
 }
 
 func (bs *blackbookAPIService) GetBatch(vin, state string) ([]byte, error) {
-	defaultState(&state)
 	payload, err := json.Marshal([]batchVehicle{
 		{State: state, VIN: vin},
 	})
@@ -127,7 +124,6 @@ type batchVehicle struct {
 }
 
 func (bs *blackbookAPIService) GetDrilldown(year int, make, model, series, style, state string) ([]byte, error) {
-	defaultState(&state)
 	params := url.Values{
 		"model":  {model},
 		"series": {series},
@@ -145,7 +141,6 @@ func (bs *blackbookAPIService) GetDrilldown(year int, make, model, series, style
 
 // Used Vehicle By License Plate
 func (bs *blackbookAPIService) GetPlate(plate, state string) ([]byte, error) {
-	defaultState(&state)
 	res, err := bs.executeAPI(bs.httpClientVIN, fmt.Sprintf("/UsedVehicle/plate/%s/%s", url.QueryEscape(plate), url.QueryEscape(state)), nil)
 
 	if err != nil {
@@ -156,7 +151,6 @@ func (bs *blackbookAPIService) GetPlate(plate, state string) ([]byte, error) {
 }
 
 func (bs *blackbookAPIService) GetUVCInfo(uvc, state string) ([]byte, error) {
-	defaultState(&state)
 	res, err := bs.executeAPI(bs.httpClientVIN, fmt.Sprintf("/UsedVehicle/UVC/%s?state=%s", uvc, state), nil)
 
 	if err != nil {
@@ -179,7 +173,7 @@ func (bs *blackbookAPIService) GetColors(uvc string) ([]byte, error) {
 func (bs *blackbookAPIService) GetSummaryByVIN(vin, state string) (*BlackbookVINSummary, error) {
 
 	// Used Vehicle By VIN
-	vinRes, err := bs.GetVINInfo(vin, state)
+	vinRes, err := bs.GetVINInfo(vin, nil)
 	if err != nil {
 		return nil, err
 	}

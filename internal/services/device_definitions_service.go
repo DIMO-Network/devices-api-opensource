@@ -314,11 +314,12 @@ func (d *deviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Co
 	return nil
 }
 
-const MilesToKmFactor = 1.609344
+const MilesToKmFactor = 1.609344 // there is 1.609 kilometers in a mile. const should probably be KmToMilesFactor
+const EstMilesPerYear = 12000.0
 
 type ValuationRequestData struct {
-	Mileage float64 `json:"mileage,omitempty"`
-	ZipCode string  `json:"zipCode,omitempty"`
+	Mileage *float64 `json:"mileage,omitempty"`
+	ZipCode *string  `json:"zipCode,omitempty"`
 }
 
 // PullDrivlyData pulls vin info from drivly, and inserts a record with the data.
@@ -444,35 +445,24 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 		// future: did MMY from vininfo match the device definition? if not fixup year, or model? but need external_id etc
 	}
 
-	// get mileage and zip code for our requests
-	var deviceMileage float64
-	deviceData, err := models.UserDeviceData(
-		models.UserDeviceDatumWhere.UserDeviceID.EQ(userDeviceID),
-		models.UserDeviceDatumWhere.Data.IsNotNull(),
-		qm.OrderBy("updated_at desc"),
-		qm.Limit(1)).One(context.Background(), d.dbs().Writer)
+	// get mileage for our requests
+	deviceMileage, err := d.getDeviceMileage(userDeviceID, int(deviceDef.Type.Year))
 	if err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			return err
-		}
-	} else {
-		deviceOdometer := gjson.GetBytes(deviceData.Data.JSON, "odometer")
-		if deviceOdometer.Exists() {
-			deviceMileage = deviceOdometer.Float() / MilesToKmFactor
-		}
+		return err
 	}
+	// TODO(zavaboy): get zipcode of this vehicle for better valuations
+
 	reqData := ValuationRequestData{
 		Mileage: deviceMileage,
-		ZipCode: "", // TODO(zavaboy): add vehicle location to zipcode magic to set this zipcode
 	}
 	_ = externalVinData.RequestMetadata.Marshal(reqData)
 
 	// only pull offers and pricing on every pull.
-	offer, err := d.drivlySvc.GetOffersByVIN(vin, reqData.Mileage, reqData.ZipCode)
+	offer, err := d.drivlySvc.GetOffersByVIN(vin, &reqData)
 	if err == nil {
 		_ = externalVinData.OfferMetadata.Marshal(offer)
 	}
-	pricing, err := d.drivlySvc.GetVINPricing(vin, reqData.Mileage, reqData.ZipCode)
+	pricing, err := d.drivlySvc.GetVINPricing(vin, &reqData)
 	if err == nil {
 		_ = externalVinData.PricingMetadata.Marshal(pricing)
 	}
@@ -562,7 +552,19 @@ func (d *deviceDefinitionService) PullBlackbookData(ctx context.Context, userDev
 		UserDeviceID:       null.StringFrom(userDeviceID),
 	}
 
-	vinInfo, err := d.blackbookSvc.GetVINInfo(vin, "")
+	// get mileage for our requests
+	deviceMileage, err := d.getDeviceMileage(userDeviceID, int(dbDeviceDef.Type.Year))
+	if err != nil {
+		return err
+	}
+	// TODO(zavaboy): get zipcode of this vehicle for better valuations
+
+	reqData := ValuationRequestData{
+		Mileage: deviceMileage,
+	}
+	_ = blackbookData.RequestMetadata.Marshal(reqData)
+
+	vinInfo, err := d.blackbookSvc.GetVINInfo(vin, &reqData)
 	if err != nil {
 		return errors.Wrapf(err, "error getting VIN %s. skipping", vin)
 	}
@@ -589,4 +591,45 @@ func (d *deviceDefinitionService) getDeviceDefsGrpcClient() (ddgrpc.DeviceDefini
 	}
 	definitionsClient := ddgrpc.NewDeviceDefinitionServiceClient(conn)
 	return definitionsClient, conn, nil
+}
+
+func (d *deviceDefinitionService) getDeviceMileage(udID string, modelYear int) (mileage *float64, err error) {
+	var deviceMileage *float64
+
+	// Get user device odometer
+	deviceData, err := models.UserDeviceData(
+		models.UserDeviceDatumWhere.UserDeviceID.EQ(udID),
+		models.UserDeviceDatumWhere.Data.IsNotNull(),
+		qm.OrderBy("updated_at desc"),
+		qm.Limit(1)).One(context.Background(), d.dbs().Writer)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return nil, err
+		}
+	} else {
+		deviceOdometer := gjson.GetBytes(deviceData.Data.JSON, "odometer")
+		if deviceOdometer.Exists() {
+			deviceMileage = new(float64)
+			*deviceMileage = deviceOdometer.Float() / MilesToKmFactor
+		}
+	}
+
+	// Estimate mileage based on model year
+	if deviceMileage == nil {
+		deviceMileage = new(float64)
+		yearDiff := time.Now().Year() - modelYear
+		switch {
+		case yearDiff > 0:
+			// Past model year
+			*deviceMileage = float64(yearDiff) * EstMilesPerYear
+		case yearDiff == 0:
+			// Current model year
+			*deviceMileage = EstMilesPerYear / 2
+		default:
+			// Next model year
+			*deviceMileage = 0
+		}
+	}
+
+	return deviceMileage, nil
 }
