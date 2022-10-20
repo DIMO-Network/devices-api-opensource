@@ -539,6 +539,9 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 
 	unit, err := udc.autoPiSvc.GetDeviceByUnitID(unitID)
 	if err != nil {
+		if errors.Is(err, services.ErrNotFound) {
+			return fiber.ErrNotFound
+		}
 		return err
 	}
 
@@ -647,6 +650,9 @@ func (udc *UserDevicesController) GetIsAutoPiOnline(c *fiber.Ctx) error {
 		unit, err := udc.autoPiSvc.GetDeviceByUnitID(unitID)
 		if err != nil {
 			log.Err(err).Msg("failed to query autopi api for unitID")
+			if errors.Is(err, services.ErrNotFound) {
+				return fiber.ErrNotFound
+			}
 			return fiber.NewError(fiber.StatusInternalServerError,
 				fmt.Sprintf("partner api returned an error when querying for: %s", unitID))
 		}
