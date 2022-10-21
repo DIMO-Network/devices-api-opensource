@@ -249,6 +249,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 			Integrations:     NewUserDeviceIntegrationStatusesFromDatabase(d.R.UserDeviceAPIIntegrations, integrations),
 			Metadata:         *md,
 			NFT:              nft,
+			OptedInAt:        d.OptedInAt.Ptr(),
 		}
 	}
 
@@ -404,6 +405,49 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 }
 
 var opaqueInternalError = fiber.NewError(fiber.StatusInternalServerError, "Internal error.")
+
+// DeviceOptIn godoc
+// @Description Opts the device into data-sharing, and hence rewards.
+// @Tags        user-devices
+// @Produce     json
+// @Param       userDeviceID path string                   true "user device id"
+// @Success     204
+// @Security    BearerAuth
+// @Router      /user/devices/{userDeviceID}/commands/opt-in [post]
+func (udc *UserDevicesController) DeviceOptIn(c *fiber.Ctx) error {
+	udi := c.Params("userDeviceID")
+	userID := api.GetUserID(c)
+
+	logger := udc.log.With().Str("routeName", c.Route().Name).Str("userId", userID).Str("userDeviceId", udi).Logger()
+
+	userDevice, err := models.UserDevices(
+		models.UserDeviceWhere.UserID.EQ(userID),
+		models.UserDeviceWhere.ID.EQ(udi),
+	).One(c.Context(), udc.DBS().Writer)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, "Device not found.")
+		}
+		logger.Err(err).Msg("Database error searching for device.")
+		return err
+	}
+
+	if userDevice.OptedInAt.Valid {
+		logger.Info().Time("previousTime", userDevice.OptedInAt.Time).Msg("Already opted in to data-sharing.")
+		return c.SendStatus(fiber.StatusNoContent)
+	}
+
+	userDevice.OptedInAt = null.TimeFrom(time.Now())
+
+	_, err = userDevice.Update(c.Context(), udc.DBS().Writer, boil.Whitelist(models.UserDeviceColumns.OptedInAt))
+	if err != nil {
+		return err
+	}
+
+	logger.Info().Msg("Opted into data-sharing.")
+
+	return nil
+}
 
 // UpdateVIN godoc
 // @Description updates the VIN on the user device record
@@ -1970,6 +2014,7 @@ type UserDeviceFull struct {
 	Integrations     []UserDeviceIntegrationStatus `json:"integrations"`
 	Metadata         services.UserDeviceMetadata   `json:"metadata"`
 	NFT              *NFTData                      `json:"nft,omitempty"`
+	OptedInAt        *time.Time                    `json:"optedInAt"`
 }
 
 type NFTData struct {

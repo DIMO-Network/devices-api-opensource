@@ -1,5 +1,10 @@
 basePath: /v1
 definitions:
+  api.CreateResponse:
+    properties:
+      id:
+        type: string
+    type: object
   apitypes.Type:
     properties:
       name:
@@ -163,11 +168,6 @@ definitions:
         items:
           type: string
         type: array
-    type: object
-  github.com_DIMO-Network_devices-api_internal_controllers.CreateResponse:
-    properties:
-      id:
-        type: string
     type: object
   github.com_DIMO-Network_devices-api_internal_controllers.DeviceOffer:
     properties:
@@ -477,6 +477,8 @@ definitions:
         type: string
       nft:
         $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTData'
+      optedInAt:
+        type: string
       vin:
         type: string
       vinConfirmed:
@@ -546,6 +548,34 @@ definitions:
         description: This will be the zip code used (if any) for the valuation request
           regardless if the vendor uses it
         type: string
+    type: object
+  grpc.Integration:
+    properties:
+      auto_pi_default_template_id:
+        type: integer
+      auto_pi_powertrain_template:
+        $ref: '#/definitions/grpc.Integration_AutoPiPowertrainTemplate'
+      id:
+        type: string
+      refresh_limit_secs:
+        type: integer
+      style:
+        type: string
+      type:
+        type: string
+      vendor:
+        type: string
+    type: object
+  grpc.Integration_AutoPiPowertrainTemplate:
+    properties:
+      BEV:
+        type: integer
+      HEV:
+        type: integer
+      ICE:
+        type: integer
+      PHEV:
+        type: integer
     type: object
   internal_controllers.AutoPiClaimRequest:
     properties:
@@ -670,11 +700,6 @@ definitions:
         items:
           type: string
         type: array
-    type: object
-  internal_controllers.CreateResponse:
-    properties:
-      id:
-        type: string
     type: object
   internal_controllers.DeviceOffer:
     properties:
@@ -984,6 +1009,8 @@ definitions:
         type: string
       nft:
         $ref: '#/definitions/internal_controllers.NFTData'
+      optedInAt:
+        type: string
       vin:
         type: string
       vinConfirmed:
@@ -1056,35 +1083,6 @@ definitions:
     type: object
   math.HexOrDecimal256:
     type: object
-  models.Integration:
-    properties:
-      created_at:
-        type: string
-      id:
-        type: string
-      metadata:
-        $ref: '#/definitions/null.JSON'
-      refresh_limit_secs:
-        description: How often can integration be called in seconds
-        type: integer
-      style:
-        type: string
-      type:
-        type: string
-      updated_at:
-        type: string
-      vendor:
-        type: string
-    type: object
-  null.JSON:
-    properties:
-      json:
-        items:
-          type: integer
-        type: array
-      valid:
-        type: boolean
-    type: object
   null.String:
     properties:
       string:
@@ -1101,6 +1099,20 @@ definitions:
       commandState:
         type: string
       lastUpdated:
+        type: string
+      result:
+        $ref: '#/definitions/services.AutoPiCommandResult'
+    type: object
+  services.AutoPiCommandResult:
+    properties:
+      tag:
+        description: corresponds to webhook response.tag
+        type: string
+      type:
+        description: corresponds to webhook response.data.return._type
+        type: string
+      value:
+        description: corresponds to webhook response.data.return.value
         type: string
     type: object
   services.AutoPiTask:
@@ -1219,6 +1231,8 @@ definitions:
   services.UserDeviceMetadata:
     properties:
       elasticDefinitionSynced:
+        type: boolean
+      elasticRegionSynced:
         type: boolean
       powertrainType:
         type: string
@@ -1560,7 +1574,9 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Integration'
+            items:
+              $ref: '#/definitions/grpc.Integration'
+            type: array
       security:
       - BearerAuth: []
       tags:
@@ -1598,7 +1614,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp'
+            $ref: '#/definitions/internal_controllers.NFTMetadataResp'
         "404":
           description: Not Found
       tags:
@@ -1776,6 +1792,24 @@ paths:
       responses:
         "200":
           description: OK
+      security:
+      - BearerAuth: []
+      tags:
+      - user-devices
+  /user/devices/{userDeviceID}/commands/opt-in:
+    post:
+      description: Opts the device into data-sharing, and hence rewards.
+      parameters:
+      - description: user device id
+        in: path
+        name: userDeviceID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
       security:
       - BearerAuth: []
       tags:
@@ -2046,6 +2080,12 @@ paths:
   /user/devices/{userDeviceID}/range:
     get:
       description: gets the estimated range for a particular user device
+      parameters:
+      - description: user device id
+        in: path
+        name: userDeviceID
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -2170,7 +2210,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateResponse'
+            $ref: '#/definitions/api.CreateResponse'
       security:
       - ApiKeyAuth: []
       - BearerAuth: []

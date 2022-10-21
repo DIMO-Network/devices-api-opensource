@@ -196,7 +196,7 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 // @Description gets list of integrations we have defined
 // @Tags        integrations
 // @Produce     json
-// @Success     200 {object} models.Integration
+// @Success     200 {array} ddgrpc.Integration
 // @Security    BearerAuth
 // @Router      /integrations [get]
 func (udc *UserDevicesController) GetIntegrations(c *fiber.Ctx) error {

@@ -9,9 +9,11 @@ import (
 	"github.com/DIMO-Network/devices-api/models"
 	pb "github.com/DIMO-Network/shared/api/devices"
 	"github.com/rs/zerolog"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func NewUserDeviceService(dbs func() *database.DBReaderWriter, logger *zerolog.Logger) pb.UserDeviceServiceServer {
@@ -35,9 +37,10 @@ func (s *userDeviceService) GetUserDevice(ctx context.Context, req *pb.GetUserDe
 	}
 
 	pbDevice := &pb.UserDevice{
-		Id:      dbDevice.ID,
-		UserId:  dbDevice.UserID,
-		TokenId: s.toUint64(dbDevice.TokenID),
+		Id:        dbDevice.ID,
+		UserId:    dbDevice.UserID,
+		TokenId:   s.toUint64(dbDevice.TokenID),
+		OptedInAt: nullTimeToPB(dbDevice.OptedInAt),
 	}
 
 	return pbDevice, nil
@@ -53,10 +56,12 @@ func (s *userDeviceService) ListUserDevicesForUser(ctx context.Context, req *pb.
 	devOut := make([]*pb.UserDevice, len(devices))
 	for i := 0; i < len(devices); i++ {
 		device := devices[i]
+
 		devOut[i] = &pb.UserDevice{
-			Id:      device.ID,
-			UserId:  device.UserID,
-			TokenId: s.toUint64(device.TokenID),
+			Id:        device.ID,
+			UserId:    device.UserID,
+			TokenId:   s.toUint64(device.TokenID),
+			OptedInAt: nullTimeToPB(device.OptedInAt),
 		}
 	}
 
@@ -79,4 +84,12 @@ func (s *userDeviceService) toUint64(dec types.NullDecimal) *uint64 {
 	}
 
 	return &ui
+}
+
+func nullTimeToPB(t null.Time) *timestamppb.Timestamp {
+	if !t.Valid {
+		return nil
+	}
+
+	return timestamppb.New(t.Time)
 }

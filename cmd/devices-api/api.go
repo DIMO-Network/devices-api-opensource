@@ -155,6 +155,10 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.MintDevice)
 	}
 
+	// Data sharing opt-in.
+	// TODO(elffjs): Opt out.
+	v1Auth.Post("/user/devices/:userDeviceID/commands/opt-in", userDeviceController.DeviceOptIn).Name("DeviceOptIn")
+
 	v1Auth.Get("/integrations", userDeviceController.GetIntegrations)
 	// autopi specific
 	v1Auth.Post("/user/devices/:userDeviceID/autopi/command", userDeviceController.SendAutoPiCommand)

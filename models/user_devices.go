@@ -39,6 +39,7 @@ type UserDevice struct {
 	DeviceStyleID                null.String       `boil:"device_style_id" json:"device_style_id,omitempty" toml:"device_style_id" yaml:"device_style_id,omitempty"`
 	TokenID                      types.NullDecimal `boil:"token_id" json:"token_id,omitempty" toml:"token_id" yaml:"token_id,omitempty"`
 	MintMetaTransactionRequestID null.String       `boil:"mint_meta_transaction_request_id" json:"mint_meta_transaction_request_id,omitempty" toml:"mint_meta_transaction_request_id" yaml:"mint_meta_transaction_request_id,omitempty"`
+	OptedInAt                    null.Time         `boil:"opted_in_at" json:"opted_in_at,omitempty" toml:"opted_in_at" yaml:"opted_in_at,omitempty"`
 
 	R *userDeviceR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userDeviceL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -59,6 +60,7 @@ var UserDeviceColumns = struct {
 	DeviceStyleID                string
 	TokenID                      string
 	MintMetaTransactionRequestID string
+	OptedInAt                    string
 }{
 	ID:                           "id",
 	UserID:                       "user_id",
@@ -74,6 +76,7 @@ var UserDeviceColumns = struct {
 	DeviceStyleID:                "device_style_id",
 	TokenID:                      "token_id",
 	MintMetaTransactionRequestID: "mint_meta_transaction_request_id",
+	OptedInAt:                    "opted_in_at",
 }
 
 var UserDeviceTableColumns = struct {
@@ -91,6 +94,7 @@ var UserDeviceTableColumns = struct {
 	DeviceStyleID                string
 	TokenID                      string
 	MintMetaTransactionRequestID string
+	OptedInAt                    string
 }{
 	ID:                           "user_devices.id",
 	UserID:                       "user_devices.user_id",
@@ -106,6 +110,7 @@ var UserDeviceTableColumns = struct {
 	DeviceStyleID:                "user_devices.device_style_id",
 	TokenID:                      "user_devices.token_id",
 	MintMetaTransactionRequestID: "user_devices.mint_meta_transaction_request_id",
+	OptedInAt:                    "user_devices.opted_in_at",
 }
 
 // Generated where
@@ -134,6 +139,7 @@ var UserDeviceWhere = struct {
 	DeviceStyleID                whereHelpernull_String
 	TokenID                      whereHelpertypes_NullDecimal
 	MintMetaTransactionRequestID whereHelpernull_String
+	OptedInAt                    whereHelpernull_Time
 }{
 	ID:                           whereHelperstring{field: "\"devices_api\".\"user_devices\".\"id\""},
 	UserID:                       whereHelperstring{field: "\"devices_api\".\"user_devices\".\"user_id\""},
@@ -149,6 +155,7 @@ var UserDeviceWhere = struct {
 	DeviceStyleID:                whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"device_style_id\""},
 	TokenID:                      whereHelpertypes_NullDecimal{field: "\"devices_api\".\"user_devices\".\"token_id\""},
 	MintMetaTransactionRequestID: whereHelpernull_String{field: "\"devices_api\".\"user_devices\".\"mint_meta_transaction_request_id\""},
+	OptedInAt:                    whereHelpernull_Time{field: "\"devices_api\".\"user_devices\".\"opted_in_at\""},
 }
 
 // UserDeviceRels is where relationship names are stored.
@@ -249,9 +256,9 @@ func (r *userDeviceR) GetUserDeviceToGeofences() UserDeviceToGeofenceSlice {
 type userDeviceL struct{}
 
 var (
-	userDeviceAllColumns            = []string{"id", "user_id", "device_definition_id", "vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed", "metadata", "device_style_id", "token_id", "mint_meta_transaction_request_id"}
+	userDeviceAllColumns            = []string{"id", "user_id", "device_definition_id", "vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed", "metadata", "device_style_id", "token_id", "mint_meta_transaction_request_id", "opted_in_at"}
 	userDeviceColumnsWithoutDefault = []string{"id", "user_id", "device_definition_id"}
-	userDeviceColumnsWithDefault    = []string{"vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed", "metadata", "device_style_id", "token_id", "mint_meta_transaction_request_id"}
+	userDeviceColumnsWithDefault    = []string{"vin_identifier", "name", "custom_image_url", "country_code", "created_at", "updated_at", "vin_confirmed", "metadata", "device_style_id", "token_id", "mint_meta_transaction_request_id", "opted_in_at"}
 	userDevicePrimaryKeyColumns     = []string{"id"}
 	userDeviceGeneratedColumns      = []string{}
 )
