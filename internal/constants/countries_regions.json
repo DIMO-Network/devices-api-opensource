@@ -351,6 +351,19 @@
     "intermediate_region_code": ""
   },
   {
+    "name": "Ukraine",
+    "alpha_2": "UA",
+    "alpha_3": "UKR",
+    "id": "804",
+    "iso_3166_2": "ISO 3166-2:UA",
+    "region": "Europe",
+    "sub_region": "Eastern Europe",
+    "intermediate_region": "",
+    "region_code": "150",
+    "sub_region_code": "151",
+    "intermediate_region_code": ""
+  },
+  {
     "name": "Portugal",
     "alpha_2": "PT",
     "alpha_3": "PRT",
