@@ -495,6 +495,10 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 	}
 
 	userDevice.VinIdentifier = null.StringFrom(upperVIN)
+	if udc.Settings.Environment == "dev" {
+		userDevice.VinConfirmed = true
+	}
+
 	if _, err := userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer()); err != nil {
 		// Okay to dereference here, since we validated the field.
 		logger.Err(err).Msgf("Database error updating VIN to %s.", *vinReq.VIN)

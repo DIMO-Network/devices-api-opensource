@@ -9,5 +9,5 @@ ALTER TABLE user_devices ADD COLUMN opted_in_at timestamptz;
 -- +goose StatementBegin
 SET search_path = devices_api, public;
 
-ALTER TABLE user_devices DROP COLUMN user_devices DROP COLUMN opted_in_at;
+ALTER TABLE user_devices DROP COLUMN opted_in_at;
 -- +goose StatementEnd
