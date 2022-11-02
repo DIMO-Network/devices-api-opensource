@@ -1232,6 +1232,11 @@ func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 	}
 
 	userSig := common.FromHex(reqBody.UserSignature)
+
+	if len(userSig) != 65 {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("User signature has invalid length %d.", len(userSig)))
+	}
+
 	recUserAddr, err := recoverAddress2(hash[:], userSig)
 	if err != nil {
 		return err
@@ -1242,6 +1247,11 @@ func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 	}
 
 	amSig := common.FromHex(reqBody.AftermarketDeviceSignature)
+
+	if len(amSig) != 65 {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("Device signature has invalid length %d.", len(amSig)))
+	}
+
 	recAmAddr, err := recoverAddress2(hash[:], amSig)
 	if err != nil {
 		return err

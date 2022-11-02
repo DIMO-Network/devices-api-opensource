@@ -1422,6 +1422,10 @@ func computeTypedDataHash(td *signer.TypedData) (hash common.Hash, err error) {
 }
 
 func recoverAddress2(hash []byte, sig []byte) (common.Address, error) {
+	if len(sig) != 65 {
+		return common.Address{}, fmt.Errorf("signature has invalid length %d", len(sig))
+	}
+
 	fixedSig := make([]byte, len(sig))
 	copy(fixedSig, sig)
 	fixedSig[64] -= 27
