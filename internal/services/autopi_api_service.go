@@ -70,7 +70,9 @@ func (a *autoPiAPIService) GetUserDeviceIntegrationByUnitID(ctx context.Context,
 func (a *autoPiAPIService) GetDeviceByUnitID(unitID string) (*AutoPiDongleDevice, error) {
 	res, err := a.httpClient.ExecuteRequest(fmt.Sprintf("/dongle/devices/by_unit_id/%s/", unitID), "GET", nil)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error calling autopi api to get unit with ID %s", unitID)
+		if _, ok := err.(shared.HTTPResponseError); !ok {
+			return nil, errors.Wrapf(err, "error calling autopi api to get unit with ID %s", unitID)
+		}
 	}
 	defer res.Body.Close() // nolint
 	if res.StatusCode == 404 {

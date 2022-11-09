@@ -54,9 +54,6 @@ func (e *edmundsService) getAllMakes() (*makesResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("received a non 200 response from edmunds. status code: %d", res.StatusCode)
-	}
 	defer res.Body.Close() //nolint
 
 	items := makesResponse{}

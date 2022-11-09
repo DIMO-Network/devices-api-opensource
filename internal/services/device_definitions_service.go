@@ -212,7 +212,7 @@ func (d *deviceDefinitionService) FindDeviceDefinitionByMMY(ctx context.Context,
 	})
 
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to call grpc endpoint GetDeviceDefinitionByMMY")
+		return nil, err
 	}
 
 	return dd, nil

@@ -81,6 +81,8 @@ github.com/DIMO-Network/device-definitions-api v0.1.28 h1:xxhfV4W+dXLZ2CoeJJJX4e
 github.com/DIMO-Network/device-definitions-api v0.1.28/go.mod h1:zeimbRBW4bi/5lC4yzfnc6kgQBg6AxY5yPRsdDs9gxI=
 github.com/DIMO-Network/shared v0.5.0 h1:q/zmBeoEesAcU6VlIbve+9byCHPftHa28TsMu9XpsLk=
 github.com/DIMO-Network/shared v0.5.0/go.mod h1:klPVntUChpkuE2Z9pSFLofGl8HFOaKSZzJzxasdhIU0=
+github.com/DIMO-Network/shared v0.5.1 h1:B0cBSB2L6lelHQny5KGZ92rerustPPguLOx2Qh1Eeoc=
+github.com/DIMO-Network/shared v0.5.1/go.mod h1:klPVntUChpkuE2Z9pSFLofGl8HFOaKSZzJzxasdhIU0=
 github.com/DIMO-Network/taskq/v3 v3.2.9-0.20220518233332-179b5552605f h1:pHPu50/uAiENAiUTQkdThxr7GxzVFwO9STl/jzSaKXg=
 github.com/DIMO-Network/taskq/v3 v3.2.9-0.20220518233332-179b5552605f/go.mod h1:ZoRbkYMZWEUKtKvYlLGKiaRQKUjdvwWAIs/WiW1Nwtg=
 github.com/DIMO-Network/zflogger v1.0.0-beta h1:SlXZmahk4tZqprjHzp14mbLQFMrOcyJ9jpLJLQk8bhw=

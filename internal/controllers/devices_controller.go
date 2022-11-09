@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"database/sql"
 	"fmt"
 	"strconv"
 
@@ -138,10 +137,12 @@ func (d *DevicesController) GetDeviceDefinitionByMMY(c *fiber.Ctx) error {
 	dd, err := d.deviceDefSvc.FindDeviceDefinitionByMMY(c.Context(), mk, model, yrInt)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return api.ErrorResponseHandler(c, errors.Wrapf(err, "device with %s %s %s not found", mk, model, year), fiber.StatusNotFound)
-		}
-		return api.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
+		return api.GrpcErrorToFiber(err, fmt.Sprintf("device with %s %s %s failed", mk, model, year))
+	}
+
+	// sometimes dd can empty nil.
+	if dd == nil {
+		return api.ErrorResponseHandler(c, errors.Wrapf(err, "device with %s %s %s not found", mk, model, year), fiber.StatusNotFound)
 	}
 
 	rp, err := NewDeviceDefinitionFromGRPC(dd)

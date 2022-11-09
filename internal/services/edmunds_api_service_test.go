@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/DIMO-Network/devices-api/internal/test"
+	"github.com/DIMO-Network/shared"
 	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/assert"
 )
@@ -69,6 +70,6 @@ func TestEdmundsService_retriesWillFail(t *testing.T) {
 	response, err := es.getAllMakes()
 
 	assert.Error(t, err, "expected error")
-	assert.Contains(t, err.Error(), "All attempts fail")
+	assert.ErrorIs(t, err, err.(shared.HTTPResponseError), "received a non 200 response from edmunds. status code: 409")
 	assert.Nil(t, response)
 }

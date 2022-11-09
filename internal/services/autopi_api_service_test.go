@@ -114,3 +114,25 @@ func (s *AutoPiAPIServiceTestSuite) TestCommandRaw() {
 	assert.Equal(s.T(), "command", apJob.Command)
 	assert.Equal(s.T(), deviceID, apJob.AutopiDeviceID)
 }
+
+func (s *AutoPiAPIServiceTestSuite) TestGetDeviceByUnitID_Should_Be_NotFound() {
+	// arrange
+	const (
+		unitID = "431d2e89-46f1-6884-6226-5d1ad20c84d9"
+		apiURL = "https://mock.town"
+	)
+
+	// http client mock
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	url := fmt.Sprintf("%s/dongle/devices/by_unit_id/%s/", apiURL, unitID)
+	httpmock.RegisterResponder(http.MethodGet, url, httpmock.NewStringResponder(404, `{ "status": false}`))
+
+	// act
+	autoPiSvc := NewAutoPiAPIService(&config.Settings{AutoPiAPIToken: "fdff", AutoPiAPIURL: apiURL}, s.pdb.DBS)
+	_, err := autoPiSvc.GetDeviceByUnitID(unitID)
+
+	// assert
+	require.ErrorIs(s.T(), err, ErrNotFound)
+}

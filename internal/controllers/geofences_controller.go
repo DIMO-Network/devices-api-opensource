@@ -241,7 +241,7 @@ func (g *GeofencesController) GetAll(c *fiber.Ctx) error {
 	}
 	dds, err := g.deviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), ddIds)
 	if err != nil {
-		return errors.Wrap(err, "failed to pull device definitions")
+		return api.GrpcErrorToFiber(err, "failed to pull device definitions")
 	}
 
 	fences := make([]GetGeofence, len(items))
