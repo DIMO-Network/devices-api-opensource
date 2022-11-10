@@ -1752,6 +1752,10 @@ func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusNotFound, "No device with that ID found.")
 	}
 
+	if !userDevice.VinConfirmed {
+		return fiber.NewError(fiber.StatusConflict, "VIN not confirmed.")
+	}
+
 	dd, err2 := udc.DeviceDefSvc.GetDeviceDefinitionByID(c.Context(), userDevice.DeviceDefinitionID)
 	if err2 != nil {
 		return api.GrpcErrorToFiber(err2, fmt.Sprintf("error querying for device definition id: %s ", userDevice.DeviceDefinitionID))
