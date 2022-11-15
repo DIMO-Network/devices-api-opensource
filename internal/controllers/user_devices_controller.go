@@ -1980,8 +1980,11 @@ type AdminRegisterUserDevice struct {
 }
 
 type UpdateVINReq struct {
-	VIN       *string `json:"vin"`
-	Signature *string `json:"signature"`
+	// VIN is a vehicle identification number. At the very least, it must be
+	// 17 characters in length and contain only letters and numbers.
+	VIN *string `json:"vin" example:"4Y1SL65848Z411439"`
+	// Signature is the hex-encoded result of the AutoPi signing the VIN.
+	Signature *string `json:"signature" example:"16b15f88bbd2e0a22d1d0084b8b7080f2003ea83eab1a00f80d8c18446c9c1b6224f17aa09eaf167717ca4f355bb6dc94356e037edf3adf6735a86fc3741f5231b"`
 }
 
 type UpdateNameReq struct {
