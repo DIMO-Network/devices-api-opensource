@@ -878,7 +878,7 @@ func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
 		RequestTopic: "topic.transaction.request.send",
 		Contract: registry.Contract{
 			ChainID: big.NewInt(int64(udc.Settings.NFTChainID)),
-			Address: common.HexToAddress("0x72b7268bD15EC670BfdA1445bD380C9400F4b1A6"),
+			Address: common.HexToAddress(udc.Settings.DIMORegistryAddr),
 			Name:    "DIMO",
 			Version: "1",
 		},
@@ -990,7 +990,7 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 		RequestTopic: "topic.transaction.request.send",
 		Contract: registry.Contract{
 			ChainID: big.NewInt(int64(udc.Settings.NFTChainID)),
-			Address: common.HexToAddress("0x72b7268bD15EC670BfdA1445bD380C9400F4b1A6"),
+			Address: common.HexToAddress(udc.Settings.DIMORegistryAddr),
 			Name:    "DIMO",
 			Version: "1",
 		},
@@ -1102,7 +1102,7 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 		RequestTopic: "topic.transaction.request.send",
 		Contract: registry.Contract{
 			ChainID: big.NewInt(int64(udc.Settings.NFTChainID)),
-			Address: common.HexToAddress("0x72b7268bD15EC670BfdA1445bD380C9400F4b1A6"),
+			Address: common.HexToAddress(udc.Settings.DIMORegistryAddr),
 			Name:    "DIMO",
 			Version: "1",
 		},
@@ -1228,7 +1228,7 @@ func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 		RequestTopic: "topic.transaction.request.send",
 		Contract: registry.Contract{
 			ChainID: big.NewInt(int64(udc.Settings.NFTChainID)),
-			Address: common.HexToAddress("0x72b7268bD15EC670BfdA1445bD380C9400F4b1A6"),
+			Address: common.HexToAddress(udc.Settings.DIMORegistryAddr),
 			Name:    "DIMO",
 			Version: "1",
 		},
@@ -1954,7 +1954,7 @@ func (udc *UserDevicesController) AdminDeviceWeb3Unpair(c *fiber.Ctx) error {
 		return err
 	}
 
-	addr := common.HexToAddress("0x72b7268bD15EC670BfdA1445bD380C9400F4b1A6")
+	addr := common.HexToAddress(udc.Settings.DIMORegistryAddr)
 	event := shared.CloudEvent[requestData]{
 		ID:          ksuid.New().String(),
 		Source:      "devices-api",

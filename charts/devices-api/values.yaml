@@ -68,6 +68,7 @@ env:
   DEVICE_DEFINITION_METADATA_TOPIC: table.device.definition.metadata
   BLACKBOOK_API_URL: https://service.blackbookcloud.com/UsedCarWS/UsedCarWS
   ELASTIC_DEVICE_STATUS_INDEX: device-status-dev-*
+  DIMO_REGISTRY_ADDR: '0x03AB8690BcA49af7F12BFF8cb7cdAa6685FA8766'
 service:
   type: ClusterIP
   ports:

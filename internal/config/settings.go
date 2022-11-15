@@ -74,6 +74,7 @@ type Settings struct {
 	ElasticSearchEnrichStatusHost     string `yaml:"ELASTIC_SEARCH_ENRICH_STATUS_HOST"`
 	ElasticSearchEnrichStatusUsername string `yaml:"ELASTIC_SEARCH_ENRICH_STATUS_USERNAME"`
 	ElasticSearchEnrichStatusPassword string `yaml:"ELASTIC_SEARCH_ENRICH_STATUS_PASSWORD"`
+	DIMORegistryAddr                  string `yaml:"DIMO_REGISTRY_ADDR"`
 }
 
 // GetWriterDSN builds the connection string to the db writer - for now same as reader
