@@ -496,6 +496,37 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 
 	userDevice.VinIdentifier = null.StringFrom(upperVIN)
 	if udc.Settings.Environment == "dev" {
+		if vinReq.Signature != nil {
+			udai, err := models.UserDeviceAPIIntegrations(
+				models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(udi),
+				models.UserDeviceAPIIntegrationWhere.AutopiUnitID.IsNotNull(),
+				models.UserDeviceAPIIntegrationWhere.Status.EQ(models.UserDeviceAPIIntegrationStatusActive),
+				qm.Load(models.UserDeviceAPIIntegrationRels.AutopiUnit),
+			).One(c.Context(), udc.DBS().Reader)
+			if err != nil {
+				if err != sql.ErrNoRows {
+					return fiber.NewError(fiber.StatusBadRequest, "Signature sent but no AutoPi connected to device.")
+				}
+				return err
+			}
+
+			addr := udai.R.AutopiUnit.EthereumAddress
+			if !addr.Valid {
+				return fiber.NewError(fiber.StatusBadRequest, "Connected AutoPi not minted.")
+			}
+
+			recAddr, err := recoverAddress2(crypto.Keccak256Hash([]byte(*vinReq.VIN)).Bytes(), common.FromHex(*vinReq.Signature))
+			if err != nil {
+				return fiber.NewError(fiber.StatusBadRequest, "Couldn't recover address.")
+			}
+
+			addr2 := common.BytesToAddress(addr.Bytes)
+
+			if addr2 != recAddr {
+				return fiber.NewError(fiber.StatusBadRequest, "Signature invalid.")
+			}
+		}
+
 		userDevice.VinConfirmed = true
 	}
 
@@ -1949,7 +1980,8 @@ type AdminRegisterUserDevice struct {
 }
 
 type UpdateVINReq struct {
-	VIN *string `json:"vin"`
+	VIN       *string `json:"vin"`
+	Signature *string `json:"signature"`
 }
 
 type UpdateNameReq struct {
