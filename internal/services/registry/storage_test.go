@@ -26,7 +26,7 @@ func TestParseVehicleMinted(t *testing.T) {
 	nodeMintedEvent := abix.Events["NodeMinted"]
 
 	l2 := convertLog(&l1)
-	out := new(RegistryNodeMinted)
+	out := new(RegistryVehicleNodeMinted)
 	if len(l2.Data) > 0 {
 		if err := abix.UnpackIntoInterface(out, nodeMintedEvent.Name, l2.Data); err != nil {
 			t.Fatal(err)
@@ -40,5 +40,5 @@ func TestParseVehicleMinted(t *testing.T) {
 	}
 	err = abi.ParseTopics(out, indexed, l2.Topics[1:])
 	assert.NoError(t, err)
-	assert.Equal(t, big.NewInt(211), out.NodeId)
+	assert.Equal(t, big.NewInt(211), out.TokenId)
 }

@@ -59,13 +59,13 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 		for _, l1 := range data.Transaction.Logs {
 			l2 := convertLog(&l1)
 			if l2.Topics[0] == nodeMintedEvent.ID {
-				out := new(RegistryNodeMinted)
+				out := new(RegistryVehicleNodeMinted)
 				err := s.parseLog(out, nodeMintedEvent, *l2)
 				if err != nil {
 					return err
 				}
 
-				mtr.R.MintMetaTransactionRequestUserDevice.TokenID = types.NewNullDecimal(new(decimal.Big).SetBigMantScale(out.NodeId, 0))
+				mtr.R.MintMetaTransactionRequestUserDevice.TokenID = types.NewNullDecimal(new(decimal.Big).SetBigMantScale(out.TokenId, 0))
 				_, err = mtr.R.MintMetaTransactionRequestUserDevice.Update(ctx, s.DB().Writer, boil.Infer())
 				if err != nil {
 					return err

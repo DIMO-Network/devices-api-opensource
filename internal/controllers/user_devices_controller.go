@@ -1897,7 +1897,11 @@ func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 
 	udc.log.Info().Str("userDeviceId", userDevice.ID).Str("requestId", requestID).Msg("Submitted metatransaction request.")
 
-	return client.MintVehicleSign(requestID, makeTokenID, realAddr, mvs.Attributes, mvs.Infos, sigBytes)
+	return client.MintVehicleSign(requestID, makeTokenID, realAddr, []registry.AttributeInfoPair{
+		{Attribute: "Make", Info: deviceMake},
+		{Attribute: "Model", Info: deviceModel},
+		{Attribute: "Year", Info: deviceYear},
+	}, sigBytes)
 }
 
 type MintEventData struct {
