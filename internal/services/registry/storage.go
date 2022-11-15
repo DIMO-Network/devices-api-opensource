@@ -52,7 +52,7 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 		return nil
 	}
 
-	nodeMintedEvent := s.ABI.Events["NodeMinted"]
+	nodeMintedEvent := s.ABI.Events["VehicleNodeMinted"]
 
 	switch {
 	case mtr.R.MintMetaTransactionRequestUserDevice != nil:
