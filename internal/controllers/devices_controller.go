@@ -158,6 +158,13 @@ func NewDeviceDefinitionFromGRPC(dd *grpc.GetDeviceDefinitionItemResponse) (serv
 	if dd.Make == nil {
 		return services.DeviceDefinition{}, errors.New("required DeviceMake relation is not set")
 	}
+	deviceAttributes := make([]services.DeviceAttribute, len(dd.DeviceAttributes))
+	for i, attr := range dd.DeviceAttributes {
+		deviceAttributes[i] = services.DeviceAttribute{
+			Name:  attr.Name,
+			Value: attr.Value,
+		}
+	}
 	rp := services.DeviceDefinition{
 		DeviceDefinitionID:     dd.DeviceDefinitionId,
 		Name:                   dd.Name,
@@ -169,18 +176,7 @@ func NewDeviceDefinitionFromGRPC(dd *grpc.GetDeviceDefinitionItemResponse) (serv
 			LogoURL:         null.StringFrom(dd.Make.LogoUrl),
 			OemPlatformName: null.StringFrom(dd.Make.OemPlatformName),
 		},
-		VehicleInfo: services.DeviceVehicleInfo{
-			MPG:                 fmt.Sprintf("%f", dd.VehicleData.MPG),
-			MPGHighway:          fmt.Sprintf("%f", dd.VehicleData.MPGHighway),
-			MPGCity:             fmt.Sprintf("%f", dd.VehicleData.MPGCity),
-			FuelTankCapacityGal: fmt.Sprintf("%f", dd.VehicleData.FuelTankCapacityGal),
-			FuelType:            dd.VehicleData.FuelType,
-			BaseMSRP:            int(dd.VehicleData.Base_MSRP),
-			DrivenWheels:        dd.VehicleData.DrivenWheels,
-			NumberOfDoors:       fmt.Sprintf("%d", dd.VehicleData.NumberOfDoors),
-			EPAClass:            dd.VehicleData.EPAClass,
-			VehicleType:         dd.VehicleData.VehicleType,
-		},
+		DeviceAttributes: deviceAttributes,
 		Type: services.DeviceType{
 			Type:  dd.Type.Type,
 			Make:  dd.Type.Make,

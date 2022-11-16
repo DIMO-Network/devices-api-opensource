@@ -452,10 +452,10 @@ func (s *UserDevicesControllerTestSuite) TestGetRange() {
 
 	gddir := []*grpc.GetDeviceDefinitionItemResponse{
 		{
-			VehicleData: &grpc.VehicleInfo{
-				MPG:                 38.0,
-				MPGHighway:          40.0,
-				FuelTankCapacityGal: 14.5,
+			DeviceAttributes: []*grpc.DeviceTypeAttribute{
+				{Name: "mpg", Value: "38.0"},
+				{Name: "mpg_highway", Value: "40.0"},
+				{Name: "fuel_tank_capacity_gal", Value: "14.5"},
 			},
 			Make: &grpc.DeviceMake{
 				Name: "Ford",

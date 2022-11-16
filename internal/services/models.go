@@ -20,8 +20,10 @@ type DeviceDefinition struct {
 	Type                   DeviceType            `json:"type"`
 	// VehicleInfo will be empty if not a vehicle type
 	VehicleInfo DeviceVehicleInfo `json:"vehicleData,omitempty"`
-	Metadata    interface{}       `json:"metadata"`
-	Verified    bool              `json:"verified"`
+	// DeviceAttributes is a list of attributes for the device type as defined in device_types.properties
+	DeviceAttributes []DeviceAttribute `json:"deviceAttributes,omitempty"`
+	Metadata         interface{}       `json:"metadata"`
+	Verified         bool              `json:"verified"`
 }
 
 type DeviceMake struct {
@@ -64,6 +66,12 @@ type DeviceVehicleInfo struct {
 	MPGCity             string `json:"mpg_city,omitempty"`
 	FuelTankCapacityGal string `json:"fuel_tank_capacity_gal,omitempty"`
 	MPG                 string `json:"mpg,omitempty"`
+}
+
+// DeviceAttribute represents some device type specific property stored in the metadata json field in DB
+type DeviceAttribute struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 // Converters

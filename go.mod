@@ -3,7 +3,7 @@ module github.com/DIMO-Network/devices-api
 go 1.18
 
 require (
-	github.com/DIMO-Network/device-definitions-api v0.1.28
+	github.com/DIMO-Network/device-definitions-api v0.3.9
 	github.com/DIMO-Network/shared v0.5.1
 	github.com/DIMO-Network/zflogger v1.0.0-beta
 	github.com/Shopify/sarama v1.33.0
@@ -36,7 +36,7 @@ require (
 	github.com/stretchr/testify v1.8.0
 	github.com/swaggo/swag v1.8.6
 	github.com/testcontainers/testcontainers-go v0.14.0
-	github.com/tidwall/gjson v1.14.0
+	github.com/tidwall/gjson v1.14.3
 	github.com/vmihailenco/taskq/v3 v3.2.8
 	github.com/volatiletech/null/v8 v8.1.2
 	github.com/volatiletech/sqlboiler/v4 v4.13.0

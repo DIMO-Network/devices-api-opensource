@@ -317,7 +317,10 @@ func executeAPI(httpClient shared.HTTPClientWrapper, path string) (map[string]in
 	body, _ := io.ReadAll(res.Body)
 	var result map[string]interface{}
 
-	_ = json.Unmarshal(body, &result)
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error parsing driv.ly api data => %s", path)
+	}
 
 	return result, nil
 }

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"time"
 
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
@@ -20,6 +19,7 @@ import (
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+	"golang.org/x/exp/slices"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -285,7 +285,7 @@ func (d *deviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Co
 	}
 	dd := NewDeviceDefinitionFromNHTSA(nhtsaDecode)
 	if dd.Type.Make == dbDeviceDef.Make.Name && dd.Type.Model == dbDeviceDef.Type.Model && int16(dd.Type.Year) == int16(dbDeviceDef.Type.Year) {
-		if !(dbDeviceDef.Verified && dbDeviceDef.Source == "NHTSA") {
+		if idx := slices.IndexFunc(dbDeviceDef.ExternalIds, func(c *ddgrpc.ExternalID) bool { return c.Vendor == "NHTSA" }); !(dbDeviceDef.Verified && idx != -1) {
 			definitionsClient, conn, err := d.getDeviceDefsGrpcClient()
 			if err != nil {
 				return err
@@ -299,7 +299,6 @@ func (d *deviceDefinitionService) UpdateDeviceDefinitionFromNHTSA(ctx context.Co
 				Year:               dbDeviceDef.Type.Year,
 				Model:              dbDeviceDef.Type.Model,
 				ImageUrl:           dbDeviceDef.ImageUrl,
-				VehicleData:        dbDeviceDef.VehicleData,
 			})
 
 			if err != nil {
@@ -389,36 +388,47 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 		}
 
 		// pull out vehicleInfo useful data to update our device definition over gRPC. Do NOT update if property already has value.
-		vehicleInfo := &ddgrpc.VehicleInfo{}
-		if vinInfo["mpgCity"] != nil && deviceDef.VehicleData.MPGCity == 0 {
-			v := fmt.Sprintf("%f", vinInfo["mpgCity"])
-			if s, err := strconv.ParseFloat(v, 32); err == nil {
-				vehicleInfo.MPGCity = float32(s)
+
+		// TODO: replace seekAttributes with a better solution based on device_types.attributes
+		seekAttributes := map[string]string{
+			// {device attribute, must match device_types.properties}: {vin info from drivly}
+			"mpg_city":               "mpgCity",
+			"mpg_highway":            "mpgHighway",
+			"mpg":                    "mpg",
+			"base_msrp":              "msrpBase",
+			"fuel_tank_capacity_gal": "fuelTankCapacityGal",
+			"fuel_type":              "fuel",
+			"wheelbase":              "wheelbase",
+			"generation":             "generation",
+			"number_of_doors":        "doors",
+			"manufacturer_code":      "manufacturerCode",
+			"driven_wheels":          "drive",
+		}
+
+		addedAttrCount := 0
+		var deviceAttributes []*ddgrpc.DeviceTypeAttributeRequest
+		for _, attr := range deviceDef.DeviceAttributes {
+			deviceAttributes = append(deviceAttributes, &ddgrpc.DeviceTypeAttributeRequest{
+				Name:  attr.Name,
+				Value: attr.Value,
+			})
+			if _, exists := seekAttributes[attr.Name]; exists && attr.Value != "" && attr.Value != "0" {
+				// already set, no longer seeking it
+				delete(seekAttributes, attr.Name)
 			}
 		}
-		if vinInfo["mpgHighway"] != nil && deviceDef.VehicleData.MPGHighway == 0 {
-			v := fmt.Sprintf("%f", vinInfo["mpgHighway"])
-			if s, err := strconv.ParseFloat(v, 32); err == nil {
-				vehicleInfo.MPGHighway = float32(s)
+		for k, attr := range seekAttributes {
+			if v, ok := vinInfo[attr]; ok && v != nil {
+				val := fmt.Sprintf("%v", v)
+				deviceAttributes = append(deviceAttributes, &ddgrpc.DeviceTypeAttributeRequest{
+					Name:  k,
+					Value: val,
+				})
+				addedAttrCount++
 			}
 		}
-		if vinInfo["mpg"] != nil && deviceDef.VehicleData.MPG == 0 {
-			v := fmt.Sprintf("%f", vinInfo["mpg"])
-			if s, err := strconv.ParseFloat(v, 32); err == nil {
-				vehicleInfo.MPG = float32(s)
-			}
-		}
-		if vinInfo["msrpBase"] != nil && deviceDef.VehicleData.Base_MSRP == 0 {
-			v := fmt.Sprintf("%s", vinInfo["msrpBase"])
-			if s, err := strconv.Atoi(v); err == nil {
-				vehicleInfo.Base_MSRP = int32(s)
-			}
-		}
-		if vinInfo["fuelTankCapacityGal"] != nil && deviceDef.VehicleData.FuelTankCapacityGal == 0 {
-			v := fmt.Sprintf("%f", vinInfo["fuelTankCapacityGal"])
-			if s, err := strconv.ParseFloat(v, 32); err == nil {
-				vehicleInfo.FuelTankCapacityGal = float32(s)
-			}
+		if addedAttrCount == 0 {
+			deviceAttributes = nil
 		}
 
 		definitionsClient, conn, err := d.getDeviceDefsGrpcClient()
@@ -429,7 +439,10 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 
 		_, err = definitionsClient.UpdateDeviceDefinition(ctx, &ddgrpc.UpdateDeviceDefinitionRequest{
 			DeviceDefinitionId: deviceDef.DeviceDefinitionId,
-			VehicleData:        vehicleInfo,
+			DeviceMakeId:       deviceDef.Make.Id,
+			Model:              deviceDef.Type.Model,
+			Year:               deviceDef.Type.Year,
+			DeviceAttributes:   deviceAttributes,
 		})
 		if err != nil {
 			// just log if can't update device-definition

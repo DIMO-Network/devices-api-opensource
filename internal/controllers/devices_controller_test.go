@@ -189,10 +189,10 @@ func TestNewDeviceDefinitionFromGrpc(t *testing.T) {
 			Make:      "Mercedes",
 			SubModels: subModels,
 		},
-		VehicleData: &grpc.VehicleInfo{
-			FuelType:      "gas",
-			DrivenWheels:  "4",
-			NumberOfDoors: 5,
+		DeviceAttributes: []*grpc.DeviceTypeAttribute{
+			{Name: "fuel_type", Value: "gas"},
+			{Name: "driven_wheels", Value: "4"},
+			{Name: "number_of_doors", Value: "5"},
 		},
 		Make: &grpc.DeviceMake{
 			Id:   "1",
@@ -211,9 +211,9 @@ func TestNewDeviceDefinitionFromGrpc(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "123", dd.DeviceDefinitionID)
-	assert.Equal(t, "gas", dd.VehicleInfo.FuelType)
-	assert.Equal(t, "4", dd.VehicleInfo.DrivenWheels)
-	assert.Equal(t, "5", dd.VehicleInfo.NumberOfDoors)
+	assert.Contains(t, dd.DeviceAttributes, services.DeviceAttribute{Name: "fuel_type", Value: "gas"})
+	assert.Contains(t, dd.DeviceAttributes, services.DeviceAttribute{Name: "driven_wheels", Value: "4"})
+	assert.Contains(t, dd.DeviceAttributes, services.DeviceAttribute{Name: "number_of_doors", Value: "5"})
 	assert.Equal(t, "Vehicle", dd.Type.Type)
 	assert.Equal(t, 2020, dd.Type.Year)
 	assert.Equal(t, "Mercedes", dd.Type.Make)
