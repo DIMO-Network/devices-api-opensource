@@ -1413,7 +1413,7 @@ func (udc *UserDevicesController) GetMintDataToSignV2(c *fiber.Ctx) error {
 		RequestTopic: "topic.transaction.request.send",
 		Contract: registry.Contract{
 			ChainID: big.NewInt(int64(udc.Settings.NFTChainID)),
-			Address: common.HexToAddress("0x72b7268bD15EC670BfdA1445bD380C9400F4b1A6"),
+			Address: common.HexToAddress(udc.Settings.DIMORegistryAddr),
 			Name:    "DIMO",
 			Version: "1",
 		},
@@ -1822,7 +1822,7 @@ func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 		RequestTopic: "topic.transaction.request.send",
 		Contract: registry.Contract{
 			ChainID: big.NewInt(int64(udc.Settings.NFTChainID)),
-			Address: common.HexToAddress("0x72b7268bD15EC670BfdA1445bD380C9400F4b1A6"),
+			Address: common.HexToAddress(udc.Settings.DIMORegistryAddr),
 			Name:    "DIMO",
 			Version: "1",
 		},
