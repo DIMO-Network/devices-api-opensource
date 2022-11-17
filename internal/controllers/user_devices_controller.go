@@ -504,7 +504,7 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 				qm.Load(models.UserDeviceAPIIntegrationRels.AutopiUnit),
 			).One(c.Context(), udc.DBS().Reader)
 			if err != nil {
-				if err != sql.ErrNoRows {
+				if err == sql.ErrNoRows {
 					return fiber.NewError(fiber.StatusBadRequest, "Signature sent but no AutoPi connected to device.")
 				}
 				return err
