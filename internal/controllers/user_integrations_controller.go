@@ -555,6 +555,9 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 	var claim *AutoPiTransactionStatus
 	var pair *AutoPiTransactionStatus
 
+	var tokenID *big.Int
+	var ethereumAddress *common.Address
+
 	dbUnit, err := models.AutopiUnits(
 		models.AutopiUnitWhere.AutopiUnitID.EQ(unitID),
 		qm.Load(models.AutopiUnitRels.ClaimMetaTransactionRequest),
@@ -564,6 +567,15 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 			return err
 		}
 	} else {
+		if !dbUnit.TokenID.IsZero() {
+			tokenID = dbUnit.TokenID.Int(nil)
+		}
+
+		if dbUnit.EthereumAddress.Valid {
+			addr := common.BytesToAddress(dbUnit.EthereumAddress.Bytes)
+			ethereumAddress = &addr
+		}
+
 		if req := dbUnit.R.ClaimMetaTransactionRequest; req != nil {
 			claim = &AutoPiTransactionStatus{
 				Status:    req.Status,
@@ -608,6 +620,8 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 		LastCommunication: unit.LastCommunication,
 		ReleaseVersion:    unit.Release.Version,
 		ShouldUpdate:      svc < 0,
+		TokenID:           tokenID,
+		EthereumAddress:   ethereumAddress,
 		Claim:             claim,
 		Pair:              pair,
 	}
@@ -1927,6 +1941,7 @@ func (udc *UserDevicesController) AdminVehicleDeviceLink(c *fiber.Ctx) error {
 
 type web3UnpairDevice struct {
 	AftermarketDeviceNode *big.Int `json:"aftermarketDeviceNode"`
+	AutoPiUnitID          string   `json:"autoPiUnitId"`
 }
 
 func (udc *UserDevicesController) AdminDeviceWeb3Unpair(c *fiber.Ctx) error {
@@ -1944,12 +1959,23 @@ func (udc *UserDevicesController) AdminDeviceWeb3Unpair(c *fiber.Ctx) error {
 
 	reqID := ksuid.New().String()
 
+	node := wud.AftermarketDeviceNode
+
+	if wud.AutoPiUnitID != "" {
+		unit, err := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, wud.AutoPiUnitID)
+		if err != nil {
+			return err
+		}
+
+		node = unit.TokenID.Int(nil)
+	}
+
 	abi, err := registry.RegistryMetaData.GetAbi()
 	if err != nil {
 		return err
 	}
 
-	data, err := abi.Pack("unpairAftermarketDeviceByDeviceNode", []*big.Int{wud.AftermarketDeviceNode})
+	data, err := abi.Pack("unpairAftermarketDeviceByDeviceNode", []*big.Int{node})
 	if err != nil {
 		return err
 	}
@@ -2219,6 +2245,10 @@ type AutoPiDeviceInfo struct {
 	LastCommunication time.Time `json:"lastCommunication"`
 	ReleaseVersion    string    `json:"releaseVersion"`
 	ShouldUpdate      bool      `json:"shouldUpdate"`
+
+	TokenID         *big.Int        `json:"tokenId,omitempty"`
+	EthereumAddress *common.Address `json:"ethereumAddress,omitempty"`
+
 	// Claim contains the status of the on-chain claiming meta-transaction.
 	Claim *AutoPiTransactionStatus `json:"claim,omitempty"`
 	// Pair contains the status of the on-chain pairing meta-transaction.

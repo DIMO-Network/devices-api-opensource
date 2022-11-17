@@ -45,6 +45,8 @@ definitions:
         $ref: '#/definitions/apitypes.Type'
       type: array
     type: object
+  big.Int:
+    type: object
   github.com_DIMO-Network_devices-api_internal_controllers.AutoPiClaimRequest:
     properties:
       aftermarketDeviceSignature:
@@ -72,6 +74,10 @@ definitions:
         items:
           type: integer
         type: array
+      ethereumAddress:
+        items:
+          type: integer
+        type: array
       hwRevision:
         type: string
       isUpdated:
@@ -87,6 +93,8 @@ definitions:
         type: boolean
       template:
         type: integer
+      tokenId:
+        $ref: '#/definitions/big.Int'
       unitId:
         type: string
     type: object
@@ -613,6 +621,10 @@ definitions:
         items:
           type: integer
         type: array
+      ethereumAddress:
+        items:
+          type: integer
+        type: array
       hwRevision:
         type: string
       isUpdated:
@@ -628,6 +640,8 @@ definitions:
         type: boolean
       template:
         type: integer
+      tokenId:
+        $ref: '#/definitions/big.Int'
       unitId:
         type: string
     type: object
@@ -1151,6 +1165,13 @@ definitions:
         description: Updates increments every time the job was updated.
         type: integer
     type: object
+  services.DeviceAttribute:
+    properties:
+      name:
+        type: string
+      value:
+        type: string
+    type: object
   services.DeviceCompatibility:
     properties:
       capabilities:
@@ -1177,6 +1198,12 @@ definitions:
           with
         items:
           $ref: '#/definitions/services.DeviceCompatibility'
+        type: array
+      deviceAttributes:
+        description: DeviceAttributes is a list of attributes for the device type
+          as defined in device_types.properties
+        items:
+          $ref: '#/definitions/services.DeviceAttribute'
         type: array
       deviceDefinitionId:
         type: string
@@ -1316,7 +1343,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo'
+            $ref: '#/definitions/internal_controllers.AutoPiDeviceInfo'
       security:
       - BearerAuth: []
       tags:
@@ -1352,7 +1379,7 @@ paths:
         name: claimRequest
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiClaimRequest'
+          $ref: '#/definitions/internal_controllers.AutoPiClaimRequest'
       produces:
       - application/json
       responses:
@@ -1632,7 +1659,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.NFTMetadataResp'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp'
         "404":
           description: Not Found
       tags:
@@ -1674,7 +1701,7 @@ paths:
         name: AutoPiCommandRequest
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest'
+          $ref: '#/definitions/internal_controllers.AutoPiCommandRequest'
       responses:
         "200":
           description: OK
@@ -1734,7 +1761,7 @@ paths:
         name: userSignature
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiPairRequest'
+          $ref: '#/definitions/internal_controllers.AutoPiPairRequest'
       produces:
       - application/json
       responses: {}
@@ -1751,7 +1778,7 @@ paths:
         name: userDeviceIntegrationRegistration
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest'
+          $ref: '#/definitions/internal_controllers.RegisterDeviceIntegrationRequest'
       responses:
         "204":
           description: No Content
@@ -1908,7 +1935,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse'
+            $ref: '#/definitions/internal_controllers.GetUserDeviceIntegrationResponse'
       security:
       - BearerAuth: []
       tags:
@@ -1939,7 +1966,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandRequestStatusResp'
+            $ref: '#/definitions/internal_controllers.CommandRequestStatusResp'
       summary: Get the status of a submitted command.
       tags:
       - device
@@ -1966,7 +1993,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse'
+            $ref: '#/definitions/internal_controllers.CommandResponse'
       summary: Lock the device's doors
       tags:
       - device
@@ -1993,7 +2020,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse'
+            $ref: '#/definitions/internal_controllers.CommandResponse'
       summary: Unlock the device's doors
       tags:
       - device
@@ -2021,7 +2048,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse'
+            $ref: '#/definitions/internal_controllers.CommandResponse'
       summary: Open the device's front trunk
       tags:
       - device
@@ -2049,7 +2076,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse'
+            $ref: '#/definitions/internal_controllers.CommandResponse'
       summary: Open the device's rear trunk
       tags:
       - device
@@ -2203,7 +2230,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence'
+              $ref: '#/definitions/internal_controllers.GetGeofence'
             type: array
       security:
       - ApiKeyAuth: []
@@ -2221,7 +2248,7 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence'
+          $ref: '#/definitions/internal_controllers.CreateGeofence'
       produces:
       - application/json
       responses:
@@ -2266,7 +2293,7 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence'
+          $ref: '#/definitions/internal_controllers.CreateGeofence'
       produces:
       - application/json
       responses:
