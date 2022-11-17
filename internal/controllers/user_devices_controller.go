@@ -500,7 +500,6 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 			udai, err := models.UserDeviceAPIIntegrations(
 				models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(udi),
 				models.UserDeviceAPIIntegrationWhere.AutopiUnitID.IsNotNull(),
-				models.UserDeviceAPIIntegrationWhere.Status.EQ(models.UserDeviceAPIIntegrationStatusActive),
 				qm.Load(models.UserDeviceAPIIntegrationRels.AutopiUnit),
 			).One(c.Context(), udc.DBS().Reader)
 			if err != nil {
