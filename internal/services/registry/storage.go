@@ -102,7 +102,7 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 			l2 := convertLog(&l1)
 			if l2.Topics[0] == deviceUnpairedEvent.ID {
 				out := new(RegistryAftermarketDeviceUnpaired)
-				err := s.parseLog(out, deviceClaimedEvent, *l2)
+				err := s.parseLog(out, deviceUnpairedEvent, *l2)
 				if err != nil {
 					return err
 				}
