@@ -204,7 +204,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		v1Auth.Post("/user/devices/:userDeviceID/autopi/commands/unpair", userDeviceController.UnpairAutoPi)
 
 		v1Auth.Post("/admin/vehicle-device-pair", userDeviceController.AdminVehicleDeviceLink)
-		v1Auth.Post("/admin/web3-device-unpair", userDeviceController.AdminDeviceWeb3Unpair)
+		v1Auth.Post("/admin/web3-device-unclaim", userDeviceController.AdminDeviceWeb3Unclaim)
 	}
 
 	// geofence

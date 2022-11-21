@@ -2220,13 +2220,13 @@ func (udc *UserDevicesController) AdminVehicleDeviceLink(c *fiber.Ctx) error {
 	return nil
 }
 
-type web3UnpairDevice struct {
+type web3UnclaimDevice struct {
 	AftermarketDeviceNode *big.Int `json:"aftermarketDeviceNode"`
 	AutoPiUnitID          string   `json:"autoPiUnitId"`
 }
 
-func (udc *UserDevicesController) AdminDeviceWeb3Unpair(c *fiber.Ctx) error {
-	wud := web3UnpairDevice{}
+func (udc *UserDevicesController) AdminDeviceWeb3Unclaim(c *fiber.Ctx) error {
+	wud := web3UnclaimDevice{}
 	err := c.BodyParser(&wud)
 	if err != nil {
 		return err
@@ -2256,7 +2256,7 @@ func (udc *UserDevicesController) AdminDeviceWeb3Unpair(c *fiber.Ctx) error {
 		return err
 	}
 
-	data, err := abi.Pack("unpairAftermarketDeviceByDeviceNode", []*big.Int{node})
+	data, err := abi.Pack("unclaimAftermarketDeviceNode", []*big.Int{node})
 	if err != nil {
 		return err
 	}
