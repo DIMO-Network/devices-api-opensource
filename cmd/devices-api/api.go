@@ -200,6 +200,9 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		v1Auth.Get("/user/devices/:userDeviceID/autopi/commands/pair", userDeviceController.GetAutoPiPairMessage)
 		v1Auth.Post("/user/devices/:userDeviceID/autopi/commands/pair", userDeviceController.PairAutoPi)
 
+		v1Auth.Get("/user/devices/:userDeviceID/autopi/commands/unpair", userDeviceController.GetAutoPiUnpairMessage)
+		v1Auth.Post("/user/devices/:userDeviceID/autopi/commands/unpair", userDeviceController.UnpairAutoPi)
+
 		v1Auth.Post("/admin/vehicle-device-pair", userDeviceController.AdminVehicleDeviceLink)
 		v1Auth.Post("/admin/web3-device-unpair", userDeviceController.AdminDeviceWeb3Unpair)
 	}
