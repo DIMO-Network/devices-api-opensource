@@ -33,6 +33,7 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 		models.MetaTransactionRequestWhere.ID.EQ(data.RequestID),
 		// This is really ugly. We should probably link back to the type instead of doing this.
 		qm.Load(models.MetaTransactionRequestRels.MintMetaTransactionRequestUserDevice),
+		qm.Load(models.MetaTransactionRequestRels.ClaimMetaTransactionRequestAutopiUnit),
 	).One(context.Background(), s.DB().Reader)
 	if err != nil {
 		return err
@@ -50,15 +51,16 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 		return nil
 	}
 
-	nodeMintedEvent := s.ABI.Events["VehicleNodeMinted"]
+	vehicleMintedEvent := s.ABI.Events["VehicleNodeMinted"]
+	deviceClaimedEvent := s.ABI.Events["AftermarketDeviceClaimed"]
 
 	switch {
 	case mtr.R.MintMetaTransactionRequestUserDevice != nil:
 		for _, l1 := range data.Transaction.Logs {
 			l2 := convertLog(&l1)
-			if l2.Topics[0] == nodeMintedEvent.ID {
+			if l2.Topics[0] == vehicleMintedEvent.ID {
 				out := new(RegistryVehicleNodeMinted)
-				err := s.parseLog(out, nodeMintedEvent, *l2)
+				err := s.parseLog(out, vehicleMintedEvent, *l2)
 				if err != nil {
 					return err
 				}
@@ -69,10 +71,30 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 					return err
 				}
 
-				s.Logger.Info().Str("userDeviceId", mtr.R.MintMetaTransactionRequestUserDevice.ID)
+				s.Logger.Info().Str("userDeviceId", mtr.R.MintMetaTransactionRequestUserDevice.ID).Msg("Vehicle minted.")
 			}
 		}
 		// Other soon.
+
+	case mtr.R.ClaimMetaTransactionRequestAutopiUnit != nil:
+		for _, l1 := range data.Transaction.Logs {
+			l2 := convertLog(&l1)
+			if l2.Topics[0] == deviceClaimedEvent.ID {
+				out := new(RegistryAftermarketDeviceClaimed)
+				err := s.parseLog(out, deviceClaimedEvent, *l2)
+				if err != nil {
+					return err
+				}
+
+				mtr.R.ClaimMetaTransactionRequestAutopiUnit.OwnerAddress = null.BytesFrom(out.Owner[:])
+				_, err = mtr.R.ClaimMetaTransactionRequestAutopiUnit.Update(ctx, s.DB().Writer, boil.Infer())
+				if err != nil {
+					return err
+				}
+
+				s.Logger.Info().Str("autoPiTokenId", mtr.R.ClaimMetaTransactionRequestAutopiUnit.TokenID.String()).Str("owner", out.Owner.String()).Msg("Device claimed.")
+			}
+		}
 	}
 
 	return nil

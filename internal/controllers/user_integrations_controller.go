@@ -555,7 +555,7 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 	var claim, pair, unpair *AutoPiTransactionStatus
 
 	var tokenID *big.Int
-	var ethereumAddress *common.Address
+	var ethereumAddress, ownerAddress *common.Address
 
 	dbUnit, err := models.AutopiUnits(
 		models.AutopiUnitWhere.AutopiUnitID.EQ(unitID),
@@ -573,6 +573,11 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 		if dbUnit.EthereumAddress.Valid {
 			addr := common.BytesToAddress(dbUnit.EthereumAddress.Bytes)
 			ethereumAddress = &addr
+		}
+
+		if dbUnit.OwnerAddress.Valid {
+			addr := common.BytesToAddress(dbUnit.OwnerAddress.Bytes)
+			ownerAddress = &addr
 		}
 
 		if req := dbUnit.R.ClaimMetaTransactionRequest; req != nil {
@@ -636,6 +641,7 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 		ShouldUpdate:      svc < 0,
 		TokenID:           tokenID,
 		EthereumAddress:   ethereumAddress,
+		OwnerAddress:      ownerAddress,
 		Claim:             claim,
 		Pair:              pair,
 		Unpair:            unpair,
@@ -2523,6 +2529,7 @@ type AutoPiDeviceInfo struct {
 
 	TokenID         *big.Int        `json:"tokenId,omitempty"`
 	EthereumAddress *common.Address `json:"ethereumAddress,omitempty"`
+	OwnerAddress    *common.Address `json:"ownerAddress,omitempty"`
 
 	// Claim contains the status of the on-chain claiming meta-transaction.
 	Claim *AutoPiTransactionStatus `json:"claim,omitempty"`

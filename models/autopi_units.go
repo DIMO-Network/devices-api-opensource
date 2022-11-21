@@ -33,6 +33,7 @@ type AutopiUnit struct {
 	UpdatedAt                     time.Time         `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 	TokenID                       types.NullDecimal `boil:"token_id" json:"token_id,omitempty" toml:"token_id" yaml:"token_id,omitempty"`
 	ClaimMetaTransactionRequestID null.String       `boil:"claim_meta_transaction_request_id" json:"claim_meta_transaction_request_id,omitempty" toml:"claim_meta_transaction_request_id" yaml:"claim_meta_transaction_request_id,omitempty"`
+	OwnerAddress                  null.Bytes        `boil:"owner_address" json:"owner_address,omitempty" toml:"owner_address" yaml:"owner_address,omitempty"`
 
 	R *autopiUnitR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L autopiUnitL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -47,6 +48,7 @@ var AutopiUnitColumns = struct {
 	UpdatedAt                     string
 	TokenID                       string
 	ClaimMetaTransactionRequestID string
+	OwnerAddress                  string
 }{
 	AutopiUnitID:                  "autopi_unit_id",
 	AutopiDeviceID:                "autopi_device_id",
@@ -56,6 +58,7 @@ var AutopiUnitColumns = struct {
 	UpdatedAt:                     "updated_at",
 	TokenID:                       "token_id",
 	ClaimMetaTransactionRequestID: "claim_meta_transaction_request_id",
+	OwnerAddress:                  "owner_address",
 }
 
 var AutopiUnitTableColumns = struct {
@@ -67,6 +70,7 @@ var AutopiUnitTableColumns = struct {
 	UpdatedAt                     string
 	TokenID                       string
 	ClaimMetaTransactionRequestID string
+	OwnerAddress                  string
 }{
 	AutopiUnitID:                  "autopi_units.autopi_unit_id",
 	AutopiDeviceID:                "autopi_units.autopi_device_id",
@@ -76,6 +80,7 @@ var AutopiUnitTableColumns = struct {
 	UpdatedAt:                     "autopi_units.updated_at",
 	TokenID:                       "autopi_units.token_id",
 	ClaimMetaTransactionRequestID: "autopi_units.claim_meta_transaction_request_id",
+	OwnerAddress:                  "autopi_units.owner_address",
 }
 
 // Generated where
@@ -139,6 +144,7 @@ var AutopiUnitWhere = struct {
 	UpdatedAt                     whereHelpertime_Time
 	TokenID                       whereHelpertypes_NullDecimal
 	ClaimMetaTransactionRequestID whereHelpernull_String
+	OwnerAddress                  whereHelpernull_Bytes
 }{
 	AutopiUnitID:                  whereHelperstring{field: "\"devices_api\".\"autopi_units\".\"autopi_unit_id\""},
 	AutopiDeviceID:                whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"autopi_device_id\""},
@@ -148,6 +154,7 @@ var AutopiUnitWhere = struct {
 	UpdatedAt:                     whereHelpertime_Time{field: "\"devices_api\".\"autopi_units\".\"updated_at\""},
 	TokenID:                       whereHelpertypes_NullDecimal{field: "\"devices_api\".\"autopi_units\".\"token_id\""},
 	ClaimMetaTransactionRequestID: whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"claim_meta_transaction_request_id\""},
+	OwnerAddress:                  whereHelpernull_Bytes{field: "\"devices_api\".\"autopi_units\".\"owner_address\""},
 }
 
 // AutopiUnitRels is where relationship names are stored.
@@ -198,9 +205,9 @@ func (r *autopiUnitR) GetUserDeviceAPIIntegrations() UserDeviceAPIIntegrationSli
 type autopiUnitL struct{}
 
 var (
-	autopiUnitAllColumns            = []string{"autopi_unit_id", "autopi_device_id", "user_id", "ethereum_address", "created_at", "updated_at", "token_id", "claim_meta_transaction_request_id"}
+	autopiUnitAllColumns            = []string{"autopi_unit_id", "autopi_device_id", "user_id", "ethereum_address", "created_at", "updated_at", "token_id", "claim_meta_transaction_request_id", "owner_address"}
 	autopiUnitColumnsWithoutDefault = []string{"autopi_unit_id"}
-	autopiUnitColumnsWithDefault    = []string{"autopi_device_id", "user_id", "ethereum_address", "created_at", "updated_at", "token_id", "claim_meta_transaction_request_id"}
+	autopiUnitColumnsWithDefault    = []string{"autopi_device_id", "user_id", "ethereum_address", "created_at", "updated_at", "token_id", "claim_meta_transaction_request_id", "owner_address"}
 	autopiUnitPrimaryKeyColumns     = []string{"autopi_unit_id"}
 	autopiUnitGeneratedColumns      = []string{}
 )
