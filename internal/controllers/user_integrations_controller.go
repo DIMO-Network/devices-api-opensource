@@ -19,6 +19,7 @@ import (
 	"github.com/DIMO-Network/shared"
 	pb "github.com/DIMO-Network/shared/api/users"
 	"github.com/Shopify/sarama"
+	"github.com/ericlagergren/decimal"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	signer "github.com/ethereum/go-ethereum/signer/core/apitypes"
@@ -29,6 +30,7 @@ import (
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/types"
 	"golang.org/x/exp/slices"
 	"golang.org/x/mod/semver"
 	"google.golang.org/grpc"
@@ -2242,13 +2244,29 @@ func (udc *UserDevicesController) AdminDeviceWeb3Unclaim(c *fiber.Ctx) error {
 
 	node := wud.AftermarketDeviceNode
 
+	var unit *models.AutopiUnit
+
 	if wud.AutoPiUnitID != "" {
-		unit, err := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, wud.AutoPiUnitID)
+		unit, err = models.FindAutopiUnit(c.Context(), udc.DBS().Reader, wud.AutoPiUnitID)
 		if err != nil {
 			return err
 		}
 
 		node = unit.TokenID.Int(nil)
+	} else {
+		unit, err = models.AutopiUnits(
+			models.AutopiUnitWhere.TokenID.EQ(types.NewNullDecimal(new(decimal.Big).SetBigMantScale(node, 0))),
+		).One(c.Context(), udc.DBS().Reader)
+		if err != nil {
+			return err
+		}
+	}
+
+	unit.ClaimMetaTransactionRequestID = null.String{}
+	unit.OwnerAddress = null.Bytes{}
+	_, err = unit.Update(c.Context(), udc.DBS().Reader, boil.Infer())
+	if err != nil {
+		return err
 	}
 
 	abi, err := registry.RegistryMetaData.GetAbi()
