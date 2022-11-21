@@ -80,20 +80,23 @@ var MetaTransactionRequestWhere = struct {
 
 // MetaTransactionRequestRels is where relationship names are stored.
 var MetaTransactionRequestRels = struct {
-	ClaimMetaTransactionRequestAutopiUnit              string
-	PairMetaTransactionRequestUserDeviceAPIIntegration string
-	MintMetaTransactionRequestUserDevice               string
+	ClaimMetaTransactionRequestAutopiUnit                string
+	PairMetaTransactionRequestUserDeviceAPIIntegration   string
+	UnpairMetaTransactionRequestUserDeviceAPIIntegration string
+	MintMetaTransactionRequestUserDevice                 string
 }{
-	ClaimMetaTransactionRequestAutopiUnit:              "ClaimMetaTransactionRequestAutopiUnit",
-	PairMetaTransactionRequestUserDeviceAPIIntegration: "PairMetaTransactionRequestUserDeviceAPIIntegration",
-	MintMetaTransactionRequestUserDevice:               "MintMetaTransactionRequestUserDevice",
+	ClaimMetaTransactionRequestAutopiUnit:                "ClaimMetaTransactionRequestAutopiUnit",
+	PairMetaTransactionRequestUserDeviceAPIIntegration:   "PairMetaTransactionRequestUserDeviceAPIIntegration",
+	UnpairMetaTransactionRequestUserDeviceAPIIntegration: "UnpairMetaTransactionRequestUserDeviceAPIIntegration",
+	MintMetaTransactionRequestUserDevice:                 "MintMetaTransactionRequestUserDevice",
 }
 
 // metaTransactionRequestR is where relationships are stored.
 type metaTransactionRequestR struct {
-	ClaimMetaTransactionRequestAutopiUnit              *AutopiUnit               `boil:"ClaimMetaTransactionRequestAutopiUnit" json:"ClaimMetaTransactionRequestAutopiUnit" toml:"ClaimMetaTransactionRequestAutopiUnit" yaml:"ClaimMetaTransactionRequestAutopiUnit"`
-	PairMetaTransactionRequestUserDeviceAPIIntegration *UserDeviceAPIIntegration `boil:"PairMetaTransactionRequestUserDeviceAPIIntegration" json:"PairMetaTransactionRequestUserDeviceAPIIntegration" toml:"PairMetaTransactionRequestUserDeviceAPIIntegration" yaml:"PairMetaTransactionRequestUserDeviceAPIIntegration"`
-	MintMetaTransactionRequestUserDevice               *UserDevice               `boil:"MintMetaTransactionRequestUserDevice" json:"MintMetaTransactionRequestUserDevice" toml:"MintMetaTransactionRequestUserDevice" yaml:"MintMetaTransactionRequestUserDevice"`
+	ClaimMetaTransactionRequestAutopiUnit                *AutopiUnit               `boil:"ClaimMetaTransactionRequestAutopiUnit" json:"ClaimMetaTransactionRequestAutopiUnit" toml:"ClaimMetaTransactionRequestAutopiUnit" yaml:"ClaimMetaTransactionRequestAutopiUnit"`
+	PairMetaTransactionRequestUserDeviceAPIIntegration   *UserDeviceAPIIntegration `boil:"PairMetaTransactionRequestUserDeviceAPIIntegration" json:"PairMetaTransactionRequestUserDeviceAPIIntegration" toml:"PairMetaTransactionRequestUserDeviceAPIIntegration" yaml:"PairMetaTransactionRequestUserDeviceAPIIntegration"`
+	UnpairMetaTransactionRequestUserDeviceAPIIntegration *UserDeviceAPIIntegration `boil:"UnpairMetaTransactionRequestUserDeviceAPIIntegration" json:"UnpairMetaTransactionRequestUserDeviceAPIIntegration" toml:"UnpairMetaTransactionRequestUserDeviceAPIIntegration" yaml:"UnpairMetaTransactionRequestUserDeviceAPIIntegration"`
+	MintMetaTransactionRequestUserDevice                 *UserDevice               `boil:"MintMetaTransactionRequestUserDevice" json:"MintMetaTransactionRequestUserDevice" toml:"MintMetaTransactionRequestUserDevice" yaml:"MintMetaTransactionRequestUserDevice"`
 }
 
 // NewStruct creates a new relationship struct
@@ -113,6 +116,13 @@ func (r *metaTransactionRequestR) GetPairMetaTransactionRequestUserDeviceAPIInte
 		return nil
 	}
 	return r.PairMetaTransactionRequestUserDeviceAPIIntegration
+}
+
+func (r *metaTransactionRequestR) GetUnpairMetaTransactionRequestUserDeviceAPIIntegration() *UserDeviceAPIIntegration {
+	if r == nil {
+		return nil
+	}
+	return r.UnpairMetaTransactionRequestUserDeviceAPIIntegration
 }
 
 func (r *metaTransactionRequestR) GetMintMetaTransactionRequestUserDevice() *UserDevice {
@@ -433,6 +443,17 @@ func (o *MetaTransactionRequest) PairMetaTransactionRequestUserDeviceAPIIntegrat
 	return UserDeviceAPIIntegrations(queryMods...)
 }
 
+// UnpairMetaTransactionRequestUserDeviceAPIIntegration pointed to by the foreign key.
+func (o *MetaTransactionRequest) UnpairMetaTransactionRequestUserDeviceAPIIntegration(mods ...qm.QueryMod) userDeviceAPIIntegrationQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"unpair_meta_transaction_request_id\" = ?", o.ID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	return UserDeviceAPIIntegrations(queryMods...)
+}
+
 // MintMetaTransactionRequestUserDevice pointed to by the foreign key.
 func (o *MetaTransactionRequest) MintMetaTransactionRequestUserDevice(mods ...qm.QueryMod) userDeviceQuery {
 	queryMods := []qm.QueryMod{
@@ -670,6 +691,123 @@ func (metaTransactionRequestL) LoadPairMetaTransactionRequestUserDeviceAPIIntegr
 					foreign.R = &userDeviceAPIIntegrationR{}
 				}
 				foreign.R.PairMetaTransactionRequest = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadUnpairMetaTransactionRequestUserDeviceAPIIntegration allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-1 relationship.
+func (metaTransactionRequestL) LoadUnpairMetaTransactionRequestUserDeviceAPIIntegration(ctx context.Context, e boil.ContextExecutor, singular bool, maybeMetaTransactionRequest interface{}, mods queries.Applicator) error {
+	var slice []*MetaTransactionRequest
+	var object *MetaTransactionRequest
+
+	if singular {
+		var ok bool
+		object, ok = maybeMetaTransactionRequest.(*MetaTransactionRequest)
+		if !ok {
+			object = new(MetaTransactionRequest)
+			ok = queries.SetFromEmbeddedStruct(&object, &maybeMetaTransactionRequest)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", object, maybeMetaTransactionRequest))
+			}
+		}
+	} else {
+		s, ok := maybeMetaTransactionRequest.(*[]*MetaTransactionRequest)
+		if ok {
+			slice = *s
+		} else {
+			ok = queries.SetFromEmbeddedStruct(&slice, maybeMetaTransactionRequest)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", slice, maybeMetaTransactionRequest))
+			}
+		}
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &metaTransactionRequestR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &metaTransactionRequestR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.ID) {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`devices_api.user_device_api_integrations`),
+		qm.WhereIn(`devices_api.user_device_api_integrations.unpair_meta_transaction_request_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load UserDeviceAPIIntegration")
+	}
+
+	var resultSlice []*UserDeviceAPIIntegration
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice UserDeviceAPIIntegration")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for user_device_api_integrations")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for user_device_api_integrations")
+	}
+
+	if len(metaTransactionRequestAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.UnpairMetaTransactionRequestUserDeviceAPIIntegration = foreign
+		if foreign.R == nil {
+			foreign.R = &userDeviceAPIIntegrationR{}
+		}
+		foreign.R.UnpairMetaTransactionRequest = object
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if queries.Equal(local.ID, foreign.UnpairMetaTransactionRequestID) {
+				local.R.UnpairMetaTransactionRequestUserDeviceAPIIntegration = foreign
+				if foreign.R == nil {
+					foreign.R = &userDeviceAPIIntegrationR{}
+				}
+				foreign.R.UnpairMetaTransactionRequest = local
 				break
 			}
 		}
@@ -939,6 +1077,80 @@ func (o *MetaTransactionRequest) RemovePairMetaTransactionRequestUserDeviceAPIIn
 	}
 
 	related.R.PairMetaTransactionRequest = nil
+
+	return nil
+}
+
+// SetUnpairMetaTransactionRequestUserDeviceAPIIntegration of the metaTransactionRequest to the related item.
+// Sets o.R.UnpairMetaTransactionRequestUserDeviceAPIIntegration to related.
+// Adds o to related.R.UnpairMetaTransactionRequest.
+func (o *MetaTransactionRequest) SetUnpairMetaTransactionRequestUserDeviceAPIIntegration(ctx context.Context, exec boil.ContextExecutor, insert bool, related *UserDeviceAPIIntegration) error {
+	var err error
+
+	if insert {
+		queries.Assign(&related.UnpairMetaTransactionRequestID, o.ID)
+
+		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	} else {
+		updateQuery := fmt.Sprintf(
+			"UPDATE \"devices_api\".\"user_device_api_integrations\" SET %s WHERE %s",
+			strmangle.SetParamNames("\"", "\"", 1, []string{"unpair_meta_transaction_request_id"}),
+			strmangle.WhereClause("\"", "\"", 2, userDeviceAPIIntegrationPrimaryKeyColumns),
+		)
+		values := []interface{}{o.ID, related.UserDeviceID, related.IntegrationID}
+
+		if boil.IsDebug(ctx) {
+			writer := boil.DebugWriterFrom(ctx)
+			fmt.Fprintln(writer, updateQuery)
+			fmt.Fprintln(writer, values)
+		}
+		if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+			return errors.Wrap(err, "failed to update foreign table")
+		}
+
+		queries.Assign(&related.UnpairMetaTransactionRequestID, o.ID)
+	}
+
+	if o.R == nil {
+		o.R = &metaTransactionRequestR{
+			UnpairMetaTransactionRequestUserDeviceAPIIntegration: related,
+		}
+	} else {
+		o.R.UnpairMetaTransactionRequestUserDeviceAPIIntegration = related
+	}
+
+	if related.R == nil {
+		related.R = &userDeviceAPIIntegrationR{
+			UnpairMetaTransactionRequest: o,
+		}
+	} else {
+		related.R.UnpairMetaTransactionRequest = o
+	}
+	return nil
+}
+
+// RemoveUnpairMetaTransactionRequestUserDeviceAPIIntegration relationship.
+// Sets o.R.UnpairMetaTransactionRequestUserDeviceAPIIntegration to nil.
+// Removes o from all passed in related items' relationships struct.
+func (o *MetaTransactionRequest) RemoveUnpairMetaTransactionRequestUserDeviceAPIIntegration(ctx context.Context, exec boil.ContextExecutor, related *UserDeviceAPIIntegration) error {
+	var err error
+
+	queries.SetScanner(&related.UnpairMetaTransactionRequestID, nil)
+	if _, err = related.Update(ctx, exec, boil.Whitelist("unpair_meta_transaction_request_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	if o.R != nil {
+		o.R.UnpairMetaTransactionRequestUserDeviceAPIIntegration = nil
+	}
+
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	related.R.UnpairMetaTransactionRequest = nil
 
 	return nil
 }

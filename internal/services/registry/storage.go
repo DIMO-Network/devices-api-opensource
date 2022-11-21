@@ -33,8 +33,6 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 		models.MetaTransactionRequestWhere.ID.EQ(data.RequestID),
 		// This is really ugly. We should probably link back to the type instead of doing this.
 		qm.Load(models.MetaTransactionRequestRels.MintMetaTransactionRequestUserDevice),
-		qm.Load(models.MetaTransactionRequestRels.ClaimMetaTransactionRequestAutopiUnit),
-		qm.Load(models.MetaTransactionRequestRels.PairMetaTransactionRequestUserDeviceAPIIntegration),
 	).One(context.Background(), s.DB().Reader)
 	if err != nil {
 		return err
@@ -74,8 +72,7 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 				s.Logger.Info().Str("userDeviceId", mtr.R.MintMetaTransactionRequestUserDevice.ID)
 			}
 		}
-	case mtr.R.ClaimMetaTransactionRequestAutopiUnit != nil:
-	case mtr.R.PairMetaTransactionRequestUserDeviceAPIIntegration != nil:
+		// Other soon.
 	}
 
 	return nil

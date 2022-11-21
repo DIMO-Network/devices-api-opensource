@@ -552,8 +552,7 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 		svc = 0
 	}
 
-	var claim *AutoPiTransactionStatus
-	var pair *AutoPiTransactionStatus
+	var claim, pair, unpair *AutoPiTransactionStatus
 
 	var tokenID *big.Int
 	var ethereumAddress *common.Address
@@ -592,20 +591,35 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 		udai, err := models.UserDeviceAPIIntegrations(
 			models.UserDeviceAPIIntegrationWhere.AutopiUnitID.EQ(null.StringFrom(unitID)),
 			qm.Load(models.UserDeviceAPIIntegrationRels.PairMetaTransactionRequest),
+			qm.Load(models.UserDeviceAPIIntegrationRels.UnpairMetaTransactionRequest),
 		).One(c.Context(), udc.DBS().Reader)
 		if err != nil {
 			if err != sql.ErrNoRows {
 				return err
 			}
-		} else if req := udai.R.PairMetaTransactionRequest; req != nil {
-			pair = &AutoPiTransactionStatus{
-				Status:    req.Status,
-				CreatedAt: req.CreatedAt,
-				UpdatedAt: req.UpdatedAt,
+		} else {
+			if req := udai.R.PairMetaTransactionRequest; req != nil {
+				pair = &AutoPiTransactionStatus{
+					Status:    req.Status,
+					CreatedAt: req.CreatedAt,
+					UpdatedAt: req.UpdatedAt,
+				}
+				if req.Status != "Unsubmitted" {
+					hash := hexutil.Encode(req.Hash.Bytes)
+					pair.Hash = &hash
+				}
 			}
-			if req.Status != "Unsubmitted" {
-				hash := hexutil.Encode(req.Hash.Bytes)
-				pair.Hash = &hash
+
+			if req := udai.R.UnpairMetaTransactionRequest; req != nil {
+				unpair = &AutoPiTransactionStatus{
+					Status:    req.Status,
+					CreatedAt: req.CreatedAt,
+					UpdatedAt: req.UpdatedAt,
+				}
+				if req.Status != "Unsubmitted" {
+					hash := hexutil.Encode(req.Hash.Bytes)
+					unpair.Hash = &hash
+				}
 			}
 		}
 	}
@@ -624,6 +638,7 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 		EthereumAddress:   ethereumAddress,
 		Claim:             claim,
 		Pair:              pair,
+		Unpair:            unpair,
 	}
 	return c.JSON(adi)
 }
@@ -1166,6 +1181,266 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 	}
 
 	return client.PairAftermarketDeviceSign(requestID, apToken, vehicleToken, sigBytes)
+}
+
+// UnairAutoPi godoc
+// @Description Submit the signature for unpairing this device from its attached AutoPi.
+// @Produce json
+// @Param userDeviceID path string true "Device id"
+// @Param userSignature body controllers.AutoPiPairRequest true "User signature."
+// @Security BearerAuth
+// @Router /user/devices/:userDeviceID/autopi/commands/unpair [post]
+func (udc *UserDevicesController) UnpairAutoPi(c *fiber.Ctx) error {
+	userID := api.GetUserID(c)
+
+	userDeviceID := c.Params("userDeviceID")
+
+	logger := udc.log.With().Str("userId", userID).Str("userDeviceId", userDeviceID).Logger()
+	logger.Info().Msg("Got AutoPi pair request.")
+
+	autoPiInt, err := udc.DeviceDefSvc.GetIntegrationByVendor(c.Context(), constants.AutoPiVendor)
+	if err != nil {
+		logger.Err(err).Msg("Failed to retrieve AutoPi integration.")
+		return opaqueInternalError
+	}
+
+	ud, err := models.FindUserDevice(c.Context(), udc.DBS().Reader, userDeviceID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
+		}
+		logger.Err(err).Msg("Database failure searching for device.")
+		return opaqueInternalError
+	}
+
+	if ud.UserID != userID {
+		// Err on the side of privacy.
+		return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
+	}
+
+	udai, err := ud.UserDeviceAPIIntegrations(models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(autoPiInt.Id)).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusConflict, "Device does not have an AutoPi associated.")
+		}
+		logger.Err(err).Msg("Database failure searching for device's AutoPi integration.")
+		return opaqueInternalError
+	}
+
+	if udai.Status != models.UserDeviceAPIIntegrationStatusActive {
+		return fiber.NewError(fiber.StatusConflict, "Associated AutoPi is not active.")
+	}
+
+	if !udai.AutopiUnitID.Valid {
+		// This shouldn't happen.
+		logger.Error().Msg("Active AutoPi integration with no associated unit id.")
+		return opaqueInternalError
+	}
+
+	autoPiUnit, err := udai.AutopiUnit().One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		logger.Error().Msg("Failed to retrieve AutoPi record.")
+		return opaqueInternalError
+	}
+
+	if autoPiUnit.TokenID.IsZero() {
+		return fiber.NewError(fiber.StatusConflict, "AutoPi not yet minted.")
+	}
+
+	if ud.TokenID.IsZero() {
+		return fiber.NewError(fiber.StatusConflict, "Vehicle not yet minted.")
+	}
+
+	apToken := autoPiUnit.TokenID.Int(nil)
+	vehicleToken := ud.TokenID.Int(nil)
+
+	// TODO(elffjs): Really shouldn't be dialing so much.
+	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		udc.log.Err(err).Msg("Failed to create users API client.")
+		return opaqueInternalError
+	}
+	defer conn.Close()
+
+	usersClient := pb.NewUserServiceClient(conn)
+
+	user, err := usersClient.GetUser(c.Context(), &pb.GetUserRequest{Id: userID})
+	if err != nil {
+		udc.log.Err(err).Msg("Failed to retrieve user information.")
+		return opaqueInternalError
+	}
+
+	if user.EthereumAddress == nil {
+		return fiber.NewError(fiber.StatusConflict, "User does not have an Ethereum address.")
+	}
+
+	client := registry.Client{
+		Producer:     udc.producer,
+		RequestTopic: "topic.transaction.request.send",
+		Contract: registry.Contract{
+			ChainID: big.NewInt(int64(udc.Settings.NFTChainID)),
+			Address: common.HexToAddress(udc.Settings.DIMORegistryAddr),
+			Name:    "DIMO",
+			Version: "1",
+		},
+	}
+
+	uads := registry.UnPairAftermarketDeviceSign{
+		AftermarketDeviceNode: apToken,
+		VehicleNode:           vehicleToken,
+	}
+
+	var pairReq AutoPiPairRequest
+	_ = c.BodyParser(&pairReq)
+
+	realAddr := common.HexToAddress(*user.EthereumAddress)
+
+	hash, err := client.Hash(&uads)
+	if err != nil {
+		return err
+	}
+
+	sigBytes := common.FromHex(pairReq.Signature)
+
+	recAddr, err := recoverAddress2(hash[:], sigBytes)
+	if err != nil {
+		return err
+	}
+
+	if recAddr != realAddr {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid signature.")
+	}
+
+	requestID := ksuid.New().String()
+
+	mtr := models.MetaTransactionRequest{
+		ID:     requestID,
+		Status: "Unsubmitted",
+	}
+	err = mtr.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
+	if err != nil {
+		return err
+	}
+
+	udai.UnpairMetaTransactionRequestID = null.StringFrom(requestID)
+	_, err = udai.Update(c.Context(), udc.DBS().Writer, boil.Infer())
+	if err != nil {
+		return err
+	}
+
+	return client.UnPairAftermarketDeviceSign(requestID, apToken, vehicleToken, sigBytes)
+}
+
+// GetAutoPiUnpairMessage godoc
+// @Description Return the EIP-712 payload to be signed for AutoPi device unpairing.
+// @Produce json
+// @Param userDeviceID path string true "Device id"
+// @Success 200 {object} signer.TypedData
+// @Security BearerAuth
+// @Router /user/devices/:userDeviceID/autopi/commands/unpair [get]
+func (udc *UserDevicesController) GetAutoPiUnpairMessage(c *fiber.Ctx) error {
+	userID := api.GetUserID(c)
+
+	userDeviceID := c.Params("userDeviceID")
+
+	logger := udc.log.With().Str("userId", userID).Str("userDeviceId", userDeviceID).Logger()
+	logger.Info().Msg("Got AutoPi pair request.")
+
+	autoPiInt, err := udc.DeviceDefIntSvc.GetAutoPiIntegration(c.Context())
+	if err != nil {
+		logger.Err(err).Msg("Failed to retrieve AutoPi integration.")
+		return api.GrpcErrorToFiber(err, "failed to retrieve AutoPi integration.")
+	}
+
+	ud, err := models.FindUserDevice(c.Context(), udc.DBS().Reader, userDeviceID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
+		}
+		logger.Err(err).Msg("Database failure searching for device.")
+		return opaqueInternalError
+	}
+
+	if ud.UserID != userID {
+		// Err on the side of privacy.
+		return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
+	}
+
+	udai, err := ud.UserDeviceAPIIntegrations(models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(autoPiInt.Id)).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusConflict, "Device does not have an AutoPi associated.")
+		}
+		logger.Err(err).Msg("Database failure searching for device's AutoPi integration.")
+		return opaqueInternalError
+	}
+
+	if udai.Status != models.UserDeviceAPIIntegrationStatusActive {
+		return fiber.NewError(fiber.StatusConflict, "Associated AutoPi is not active.")
+	}
+
+	if !udai.AutopiUnitID.Valid {
+		// This shouldn't happen.
+		logger.Error().Msg("Active AutoPi integration with no associated unit id.")
+		return opaqueInternalError
+	}
+
+	autoPiUnit, err := udai.AutopiUnit().One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		logger.Error().Msg("Failed to retrieve AutoPi record.")
+		return opaqueInternalError
+	}
+
+	if autoPiUnit.TokenID.IsZero() {
+		return fiber.NewError(fiber.StatusConflict, "AutoPi not yet minted.")
+	}
+
+	if ud.TokenID.IsZero() {
+		return fiber.NewError(fiber.StatusConflict, "Vehicle not yet minted.")
+	}
+
+	apToken := autoPiUnit.TokenID.Int(nil)
+	vehicleToken := ud.TokenID.Int(nil)
+
+	// TODO(elffjs): Really shouldn't be dialing so much.
+	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		udc.log.Err(err).Msg("Failed to create users API client.")
+		return opaqueInternalError
+	}
+	defer conn.Close()
+
+	usersClient := pb.NewUserServiceClient(conn)
+
+	user, err := usersClient.GetUser(c.Context(), &pb.GetUserRequest{Id: userID})
+	if err != nil {
+		udc.log.Err(err).Msg("Failed to retrieve user information.")
+		return opaqueInternalError
+	}
+
+	if user.EthereumAddress == nil {
+		return fiber.NewError(fiber.StatusConflict, "User does not have an Ethereum address.")
+	}
+
+	client := registry.Client{
+		Producer:     udc.producer,
+		RequestTopic: "topic.transaction.request.send",
+		Contract: registry.Contract{
+			ChainID: big.NewInt(int64(udc.Settings.NFTChainID)),
+			Address: common.HexToAddress(udc.Settings.DIMORegistryAddr),
+			Name:    "DIMO",
+			Version: "1",
+		},
+	}
+
+	uads := &registry.UnPairAftermarketDeviceSign{
+		AftermarketDeviceNode: apToken,
+		VehicleNode:           vehicleToken,
+	}
+
+	var out *signer.TypedData = client.GetPayload(uads)
+
+	return c.JSON(out)
 }
 
 type AutoPiClaimRequest struct {
@@ -2253,6 +2528,8 @@ type AutoPiDeviceInfo struct {
 	Claim *AutoPiTransactionStatus `json:"claim,omitempty"`
 	// Pair contains the status of the on-chain pairing meta-transaction.
 	Pair *AutoPiTransactionStatus `json:"pair,omitempty"`
+	// Unpair contains the status of the on-chain unpairing meta-transaction.
+	Unpair *AutoPiTransactionStatus `json:"unpair,omitempty"`
 }
 
 // AutoPiTransactionStatus summarizes the state of an on-chain AutoPi operation.

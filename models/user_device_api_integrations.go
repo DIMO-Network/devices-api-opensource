@@ -24,132 +24,142 @@ import (
 
 // UserDeviceAPIIntegration is an object representing the database table.
 type UserDeviceAPIIntegration struct {
-	UserDeviceID                 string      `boil:"user_device_id" json:"user_device_id" toml:"user_device_id" yaml:"user_device_id"`
-	IntegrationID                string      `boil:"integration_id" json:"integration_id" toml:"integration_id" yaml:"integration_id"`
-	Status                       string      `boil:"status" json:"status" toml:"status" yaml:"status"`
-	AccessToken                  null.String `boil:"access_token" json:"access_token,omitempty" toml:"access_token" yaml:"access_token,omitempty"`
-	AccessExpiresAt              null.Time   `boil:"access_expires_at" json:"access_expires_at,omitempty" toml:"access_expires_at" yaml:"access_expires_at,omitempty"`
-	RefreshToken                 null.String `boil:"refresh_token" json:"refresh_token,omitempty" toml:"refresh_token" yaml:"refresh_token,omitempty"`
-	ExternalID                   null.String `boil:"external_id" json:"external_id,omitempty" toml:"external_id" yaml:"external_id,omitempty"`
-	CreatedAt                    time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt                    time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	Metadata                     null.JSON   `boil:"metadata" json:"metadata,omitempty" toml:"metadata" yaml:"metadata,omitempty"`
-	TaskID                       null.String `boil:"task_id" json:"task_id,omitempty" toml:"task_id" yaml:"task_id,omitempty"`
-	AutopiUnitID                 null.String `boil:"autopi_unit_id" json:"autopi_unit_id,omitempty" toml:"autopi_unit_id" yaml:"autopi_unit_id,omitempty"`
-	PairMetaTransactionRequestID null.String `boil:"pair_meta_transaction_request_id" json:"pair_meta_transaction_request_id,omitempty" toml:"pair_meta_transaction_request_id" yaml:"pair_meta_transaction_request_id,omitempty"`
+	UserDeviceID                   string      `boil:"user_device_id" json:"user_device_id" toml:"user_device_id" yaml:"user_device_id"`
+	IntegrationID                  string      `boil:"integration_id" json:"integration_id" toml:"integration_id" yaml:"integration_id"`
+	Status                         string      `boil:"status" json:"status" toml:"status" yaml:"status"`
+	AccessToken                    null.String `boil:"access_token" json:"access_token,omitempty" toml:"access_token" yaml:"access_token,omitempty"`
+	AccessExpiresAt                null.Time   `boil:"access_expires_at" json:"access_expires_at,omitempty" toml:"access_expires_at" yaml:"access_expires_at,omitempty"`
+	RefreshToken                   null.String `boil:"refresh_token" json:"refresh_token,omitempty" toml:"refresh_token" yaml:"refresh_token,omitempty"`
+	ExternalID                     null.String `boil:"external_id" json:"external_id,omitempty" toml:"external_id" yaml:"external_id,omitempty"`
+	CreatedAt                      time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt                      time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	Metadata                       null.JSON   `boil:"metadata" json:"metadata,omitempty" toml:"metadata" yaml:"metadata,omitempty"`
+	TaskID                         null.String `boil:"task_id" json:"task_id,omitempty" toml:"task_id" yaml:"task_id,omitempty"`
+	AutopiUnitID                   null.String `boil:"autopi_unit_id" json:"autopi_unit_id,omitempty" toml:"autopi_unit_id" yaml:"autopi_unit_id,omitempty"`
+	PairMetaTransactionRequestID   null.String `boil:"pair_meta_transaction_request_id" json:"pair_meta_transaction_request_id,omitempty" toml:"pair_meta_transaction_request_id" yaml:"pair_meta_transaction_request_id,omitempty"`
+	UnpairMetaTransactionRequestID null.String `boil:"unpair_meta_transaction_request_id" json:"unpair_meta_transaction_request_id,omitempty" toml:"unpair_meta_transaction_request_id" yaml:"unpair_meta_transaction_request_id,omitempty"`
 
 	R *userDeviceAPIIntegrationR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userDeviceAPIIntegrationL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var UserDeviceAPIIntegrationColumns = struct {
-	UserDeviceID                 string
-	IntegrationID                string
-	Status                       string
-	AccessToken                  string
-	AccessExpiresAt              string
-	RefreshToken                 string
-	ExternalID                   string
-	CreatedAt                    string
-	UpdatedAt                    string
-	Metadata                     string
-	TaskID                       string
-	AutopiUnitID                 string
-	PairMetaTransactionRequestID string
+	UserDeviceID                   string
+	IntegrationID                  string
+	Status                         string
+	AccessToken                    string
+	AccessExpiresAt                string
+	RefreshToken                   string
+	ExternalID                     string
+	CreatedAt                      string
+	UpdatedAt                      string
+	Metadata                       string
+	TaskID                         string
+	AutopiUnitID                   string
+	PairMetaTransactionRequestID   string
+	UnpairMetaTransactionRequestID string
 }{
-	UserDeviceID:                 "user_device_id",
-	IntegrationID:                "integration_id",
-	Status:                       "status",
-	AccessToken:                  "access_token",
-	AccessExpiresAt:              "access_expires_at",
-	RefreshToken:                 "refresh_token",
-	ExternalID:                   "external_id",
-	CreatedAt:                    "created_at",
-	UpdatedAt:                    "updated_at",
-	Metadata:                     "metadata",
-	TaskID:                       "task_id",
-	AutopiUnitID:                 "autopi_unit_id",
-	PairMetaTransactionRequestID: "pair_meta_transaction_request_id",
+	UserDeviceID:                   "user_device_id",
+	IntegrationID:                  "integration_id",
+	Status:                         "status",
+	AccessToken:                    "access_token",
+	AccessExpiresAt:                "access_expires_at",
+	RefreshToken:                   "refresh_token",
+	ExternalID:                     "external_id",
+	CreatedAt:                      "created_at",
+	UpdatedAt:                      "updated_at",
+	Metadata:                       "metadata",
+	TaskID:                         "task_id",
+	AutopiUnitID:                   "autopi_unit_id",
+	PairMetaTransactionRequestID:   "pair_meta_transaction_request_id",
+	UnpairMetaTransactionRequestID: "unpair_meta_transaction_request_id",
 }
 
 var UserDeviceAPIIntegrationTableColumns = struct {
-	UserDeviceID                 string
-	IntegrationID                string
-	Status                       string
-	AccessToken                  string
-	AccessExpiresAt              string
-	RefreshToken                 string
-	ExternalID                   string
-	CreatedAt                    string
-	UpdatedAt                    string
-	Metadata                     string
-	TaskID                       string
-	AutopiUnitID                 string
-	PairMetaTransactionRequestID string
+	UserDeviceID                   string
+	IntegrationID                  string
+	Status                         string
+	AccessToken                    string
+	AccessExpiresAt                string
+	RefreshToken                   string
+	ExternalID                     string
+	CreatedAt                      string
+	UpdatedAt                      string
+	Metadata                       string
+	TaskID                         string
+	AutopiUnitID                   string
+	PairMetaTransactionRequestID   string
+	UnpairMetaTransactionRequestID string
 }{
-	UserDeviceID:                 "user_device_api_integrations.user_device_id",
-	IntegrationID:                "user_device_api_integrations.integration_id",
-	Status:                       "user_device_api_integrations.status",
-	AccessToken:                  "user_device_api_integrations.access_token",
-	AccessExpiresAt:              "user_device_api_integrations.access_expires_at",
-	RefreshToken:                 "user_device_api_integrations.refresh_token",
-	ExternalID:                   "user_device_api_integrations.external_id",
-	CreatedAt:                    "user_device_api_integrations.created_at",
-	UpdatedAt:                    "user_device_api_integrations.updated_at",
-	Metadata:                     "user_device_api_integrations.metadata",
-	TaskID:                       "user_device_api_integrations.task_id",
-	AutopiUnitID:                 "user_device_api_integrations.autopi_unit_id",
-	PairMetaTransactionRequestID: "user_device_api_integrations.pair_meta_transaction_request_id",
+	UserDeviceID:                   "user_device_api_integrations.user_device_id",
+	IntegrationID:                  "user_device_api_integrations.integration_id",
+	Status:                         "user_device_api_integrations.status",
+	AccessToken:                    "user_device_api_integrations.access_token",
+	AccessExpiresAt:                "user_device_api_integrations.access_expires_at",
+	RefreshToken:                   "user_device_api_integrations.refresh_token",
+	ExternalID:                     "user_device_api_integrations.external_id",
+	CreatedAt:                      "user_device_api_integrations.created_at",
+	UpdatedAt:                      "user_device_api_integrations.updated_at",
+	Metadata:                       "user_device_api_integrations.metadata",
+	TaskID:                         "user_device_api_integrations.task_id",
+	AutopiUnitID:                   "user_device_api_integrations.autopi_unit_id",
+	PairMetaTransactionRequestID:   "user_device_api_integrations.pair_meta_transaction_request_id",
+	UnpairMetaTransactionRequestID: "user_device_api_integrations.unpair_meta_transaction_request_id",
 }
 
 // Generated where
 
 var UserDeviceAPIIntegrationWhere = struct {
-	UserDeviceID                 whereHelperstring
-	IntegrationID                whereHelperstring
-	Status                       whereHelperstring
-	AccessToken                  whereHelpernull_String
-	AccessExpiresAt              whereHelpernull_Time
-	RefreshToken                 whereHelpernull_String
-	ExternalID                   whereHelpernull_String
-	CreatedAt                    whereHelpertime_Time
-	UpdatedAt                    whereHelpertime_Time
-	Metadata                     whereHelpernull_JSON
-	TaskID                       whereHelpernull_String
-	AutopiUnitID                 whereHelpernull_String
-	PairMetaTransactionRequestID whereHelpernull_String
+	UserDeviceID                   whereHelperstring
+	IntegrationID                  whereHelperstring
+	Status                         whereHelperstring
+	AccessToken                    whereHelpernull_String
+	AccessExpiresAt                whereHelpernull_Time
+	RefreshToken                   whereHelpernull_String
+	ExternalID                     whereHelpernull_String
+	CreatedAt                      whereHelpertime_Time
+	UpdatedAt                      whereHelpertime_Time
+	Metadata                       whereHelpernull_JSON
+	TaskID                         whereHelpernull_String
+	AutopiUnitID                   whereHelpernull_String
+	PairMetaTransactionRequestID   whereHelpernull_String
+	UnpairMetaTransactionRequestID whereHelpernull_String
 }{
-	UserDeviceID:                 whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"user_device_id\""},
-	IntegrationID:                whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"integration_id\""},
-	Status:                       whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"status\""},
-	AccessToken:                  whereHelpernull_String{field: "\"devices_api\".\"user_device_api_integrations\".\"access_token\""},
-	AccessExpiresAt:              whereHelpernull_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"access_expires_at\""},
-	RefreshToken:                 whereHelpernull_String{field: "\"devices_api\".\"user_device_api_integrations\".\"refresh_token\""},
-	ExternalID:                   whereHelpernull_String{field: "\"devices_api\".\"user_device_api_integrations\".\"external_id\""},
-	CreatedAt:                    whereHelpertime_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"created_at\""},
-	UpdatedAt:                    whereHelpertime_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"updated_at\""},
-	Metadata:                     whereHelpernull_JSON{field: "\"devices_api\".\"user_device_api_integrations\".\"metadata\""},
-	TaskID:                       whereHelpernull_String{field: "\"devices_api\".\"user_device_api_integrations\".\"task_id\""},
-	AutopiUnitID:                 whereHelpernull_String{field: "\"devices_api\".\"user_device_api_integrations\".\"autopi_unit_id\""},
-	PairMetaTransactionRequestID: whereHelpernull_String{field: "\"devices_api\".\"user_device_api_integrations\".\"pair_meta_transaction_request_id\""},
+	UserDeviceID:                   whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"user_device_id\""},
+	IntegrationID:                  whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"integration_id\""},
+	Status:                         whereHelperstring{field: "\"devices_api\".\"user_device_api_integrations\".\"status\""},
+	AccessToken:                    whereHelpernull_String{field: "\"devices_api\".\"user_device_api_integrations\".\"access_token\""},
+	AccessExpiresAt:                whereHelpernull_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"access_expires_at\""},
+	RefreshToken:                   whereHelpernull_String{field: "\"devices_api\".\"user_device_api_integrations\".\"refresh_token\""},
+	ExternalID:                     whereHelpernull_String{field: "\"devices_api\".\"user_device_api_integrations\".\"external_id\""},
+	CreatedAt:                      whereHelpertime_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"created_at\""},
+	UpdatedAt:                      whereHelpertime_Time{field: "\"devices_api\".\"user_device_api_integrations\".\"updated_at\""},
+	Metadata:                       whereHelpernull_JSON{field: "\"devices_api\".\"user_device_api_integrations\".\"metadata\""},
+	TaskID:                         whereHelpernull_String{field: "\"devices_api\".\"user_device_api_integrations\".\"task_id\""},
+	AutopiUnitID:                   whereHelpernull_String{field: "\"devices_api\".\"user_device_api_integrations\".\"autopi_unit_id\""},
+	PairMetaTransactionRequestID:   whereHelpernull_String{field: "\"devices_api\".\"user_device_api_integrations\".\"pair_meta_transaction_request_id\""},
+	UnpairMetaTransactionRequestID: whereHelpernull_String{field: "\"devices_api\".\"user_device_api_integrations\".\"unpair_meta_transaction_request_id\""},
 }
 
 // UserDeviceAPIIntegrationRels is where relationship names are stored.
 var UserDeviceAPIIntegrationRels = struct {
-	UserDevice                 string
-	AutopiUnit                 string
-	PairMetaTransactionRequest string
+	UserDevice                   string
+	AutopiUnit                   string
+	PairMetaTransactionRequest   string
+	UnpairMetaTransactionRequest string
 }{
-	UserDevice:                 "UserDevice",
-	AutopiUnit:                 "AutopiUnit",
-	PairMetaTransactionRequest: "PairMetaTransactionRequest",
+	UserDevice:                   "UserDevice",
+	AutopiUnit:                   "AutopiUnit",
+	PairMetaTransactionRequest:   "PairMetaTransactionRequest",
+	UnpairMetaTransactionRequest: "UnpairMetaTransactionRequest",
 }
 
 // userDeviceAPIIntegrationR is where relationships are stored.
 type userDeviceAPIIntegrationR struct {
-	UserDevice                 *UserDevice             `boil:"UserDevice" json:"UserDevice" toml:"UserDevice" yaml:"UserDevice"`
-	AutopiUnit                 *AutopiUnit             `boil:"AutopiUnit" json:"AutopiUnit" toml:"AutopiUnit" yaml:"AutopiUnit"`
-	PairMetaTransactionRequest *MetaTransactionRequest `boil:"PairMetaTransactionRequest" json:"PairMetaTransactionRequest" toml:"PairMetaTransactionRequest" yaml:"PairMetaTransactionRequest"`
+	UserDevice                   *UserDevice             `boil:"UserDevice" json:"UserDevice" toml:"UserDevice" yaml:"UserDevice"`
+	AutopiUnit                   *AutopiUnit             `boil:"AutopiUnit" json:"AutopiUnit" toml:"AutopiUnit" yaml:"AutopiUnit"`
+	PairMetaTransactionRequest   *MetaTransactionRequest `boil:"PairMetaTransactionRequest" json:"PairMetaTransactionRequest" toml:"PairMetaTransactionRequest" yaml:"PairMetaTransactionRequest"`
+	UnpairMetaTransactionRequest *MetaTransactionRequest `boil:"UnpairMetaTransactionRequest" json:"UnpairMetaTransactionRequest" toml:"UnpairMetaTransactionRequest" yaml:"UnpairMetaTransactionRequest"`
 }
 
 // NewStruct creates a new relationship struct
@@ -178,13 +188,20 @@ func (r *userDeviceAPIIntegrationR) GetPairMetaTransactionRequest() *MetaTransac
 	return r.PairMetaTransactionRequest
 }
 
+func (r *userDeviceAPIIntegrationR) GetUnpairMetaTransactionRequest() *MetaTransactionRequest {
+	if r == nil {
+		return nil
+	}
+	return r.UnpairMetaTransactionRequest
+}
+
 // userDeviceAPIIntegrationL is where Load methods for each relationship are stored.
 type userDeviceAPIIntegrationL struct{}
 
 var (
-	userDeviceAPIIntegrationAllColumns            = []string{"user_device_id", "integration_id", "status", "access_token", "access_expires_at", "refresh_token", "external_id", "created_at", "updated_at", "metadata", "task_id", "autopi_unit_id", "pair_meta_transaction_request_id"}
+	userDeviceAPIIntegrationAllColumns            = []string{"user_device_id", "integration_id", "status", "access_token", "access_expires_at", "refresh_token", "external_id", "created_at", "updated_at", "metadata", "task_id", "autopi_unit_id", "pair_meta_transaction_request_id", "unpair_meta_transaction_request_id"}
 	userDeviceAPIIntegrationColumnsWithoutDefault = []string{"user_device_id", "integration_id", "status"}
-	userDeviceAPIIntegrationColumnsWithDefault    = []string{"access_token", "access_expires_at", "refresh_token", "external_id", "created_at", "updated_at", "metadata", "task_id", "autopi_unit_id", "pair_meta_transaction_request_id"}
+	userDeviceAPIIntegrationColumnsWithDefault    = []string{"access_token", "access_expires_at", "refresh_token", "external_id", "created_at", "updated_at", "metadata", "task_id", "autopi_unit_id", "pair_meta_transaction_request_id", "unpair_meta_transaction_request_id"}
 	userDeviceAPIIntegrationPrimaryKeyColumns     = []string{"user_device_id", "integration_id"}
 	userDeviceAPIIntegrationGeneratedColumns      = []string{}
 )
@@ -493,6 +510,17 @@ func (o *UserDeviceAPIIntegration) AutopiUnit(mods ...qm.QueryMod) autopiUnitQue
 func (o *UserDeviceAPIIntegration) PairMetaTransactionRequest(mods ...qm.QueryMod) metaTransactionRequestQuery {
 	queryMods := []qm.QueryMod{
 		qm.Where("\"id\" = ?", o.PairMetaTransactionRequestID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	return MetaTransactionRequests(queryMods...)
+}
+
+// UnpairMetaTransactionRequest pointed to by the foreign key.
+func (o *UserDeviceAPIIntegration) UnpairMetaTransactionRequest(mods ...qm.QueryMod) metaTransactionRequestQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"id\" = ?", o.UnpairMetaTransactionRequestID),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -868,6 +896,130 @@ func (userDeviceAPIIntegrationL) LoadPairMetaTransactionRequest(ctx context.Cont
 	return nil
 }
 
+// LoadUnpairMetaTransactionRequest allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (userDeviceAPIIntegrationL) LoadUnpairMetaTransactionRequest(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserDeviceAPIIntegration interface{}, mods queries.Applicator) error {
+	var slice []*UserDeviceAPIIntegration
+	var object *UserDeviceAPIIntegration
+
+	if singular {
+		var ok bool
+		object, ok = maybeUserDeviceAPIIntegration.(*UserDeviceAPIIntegration)
+		if !ok {
+			object = new(UserDeviceAPIIntegration)
+			ok = queries.SetFromEmbeddedStruct(&object, &maybeUserDeviceAPIIntegration)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", object, maybeUserDeviceAPIIntegration))
+			}
+		}
+	} else {
+		s, ok := maybeUserDeviceAPIIntegration.(*[]*UserDeviceAPIIntegration)
+		if ok {
+			slice = *s
+		} else {
+			ok = queries.SetFromEmbeddedStruct(&slice, maybeUserDeviceAPIIntegration)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", slice, maybeUserDeviceAPIIntegration))
+			}
+		}
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &userDeviceAPIIntegrationR{}
+		}
+		if !queries.IsNil(object.UnpairMetaTransactionRequestID) {
+			args = append(args, object.UnpairMetaTransactionRequestID)
+		}
+
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &userDeviceAPIIntegrationR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.UnpairMetaTransactionRequestID) {
+					continue Outer
+				}
+			}
+
+			if !queries.IsNil(obj.UnpairMetaTransactionRequestID) {
+				args = append(args, obj.UnpairMetaTransactionRequestID)
+			}
+
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`devices_api.meta_transaction_requests`),
+		qm.WhereIn(`devices_api.meta_transaction_requests.id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load MetaTransactionRequest")
+	}
+
+	var resultSlice []*MetaTransactionRequest
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice MetaTransactionRequest")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for meta_transaction_requests")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for meta_transaction_requests")
+	}
+
+	if len(userDeviceAPIIntegrationAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.UnpairMetaTransactionRequest = foreign
+		if foreign.R == nil {
+			foreign.R = &metaTransactionRequestR{}
+		}
+		foreign.R.UnpairMetaTransactionRequestUserDeviceAPIIntegration = object
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if queries.Equal(local.UnpairMetaTransactionRequestID, foreign.ID) {
+				local.R.UnpairMetaTransactionRequest = foreign
+				if foreign.R == nil {
+					foreign.R = &metaTransactionRequestR{}
+				}
+				foreign.R.UnpairMetaTransactionRequestUserDeviceAPIIntegration = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // SetUserDevice of the userDeviceAPIIntegration to the related item.
 // Sets o.R.UserDevice to related.
 // Adds o to related.R.UserDeviceAPIIntegrations.
@@ -1061,6 +1213,75 @@ func (o *UserDeviceAPIIntegration) RemovePairMetaTransactionRequest(ctx context.
 	}
 
 	related.R.PairMetaTransactionRequestUserDeviceAPIIntegration = nil
+	return nil
+}
+
+// SetUnpairMetaTransactionRequest of the userDeviceAPIIntegration to the related item.
+// Sets o.R.UnpairMetaTransactionRequest to related.
+// Adds o to related.R.UnpairMetaTransactionRequestUserDeviceAPIIntegration.
+func (o *UserDeviceAPIIntegration) SetUnpairMetaTransactionRequest(ctx context.Context, exec boil.ContextExecutor, insert bool, related *MetaTransactionRequest) error {
+	var err error
+	if insert {
+		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"devices_api\".\"user_device_api_integrations\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 1, []string{"unpair_meta_transaction_request_id"}),
+		strmangle.WhereClause("\"", "\"", 2, userDeviceAPIIntegrationPrimaryKeyColumns),
+	)
+	values := []interface{}{related.ID, o.UserDeviceID, o.IntegrationID}
+
+	if boil.IsDebug(ctx) {
+		writer := boil.DebugWriterFrom(ctx)
+		fmt.Fprintln(writer, updateQuery)
+		fmt.Fprintln(writer, values)
+	}
+	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	queries.Assign(&o.UnpairMetaTransactionRequestID, related.ID)
+	if o.R == nil {
+		o.R = &userDeviceAPIIntegrationR{
+			UnpairMetaTransactionRequest: related,
+		}
+	} else {
+		o.R.UnpairMetaTransactionRequest = related
+	}
+
+	if related.R == nil {
+		related.R = &metaTransactionRequestR{
+			UnpairMetaTransactionRequestUserDeviceAPIIntegration: o,
+		}
+	} else {
+		related.R.UnpairMetaTransactionRequestUserDeviceAPIIntegration = o
+	}
+
+	return nil
+}
+
+// RemoveUnpairMetaTransactionRequest relationship.
+// Sets o.R.UnpairMetaTransactionRequest to nil.
+// Removes o from all passed in related items' relationships struct.
+func (o *UserDeviceAPIIntegration) RemoveUnpairMetaTransactionRequest(ctx context.Context, exec boil.ContextExecutor, related *MetaTransactionRequest) error {
+	var err error
+
+	queries.SetScanner(&o.UnpairMetaTransactionRequestID, nil)
+	if _, err = o.Update(ctx, exec, boil.Whitelist("unpair_meta_transaction_request_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	if o.R != nil {
+		o.R.UnpairMetaTransactionRequest = nil
+	}
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	related.R.UnpairMetaTransactionRequestUserDeviceAPIIntegration = nil
 	return nil
 }
 
