@@ -586,7 +586,7 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 				CreatedAt: req.CreatedAt,
 				UpdatedAt: req.UpdatedAt,
 			}
-			if req.Status != "Unsubmitted" {
+			if req.Status != models.MetaTransactionRequestStatusUnsubmitted {
 				hash := hexutil.Encode(req.Hash.Bytes)
 				claim.Hash = &hash
 			}
@@ -609,7 +609,7 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 					CreatedAt: req.CreatedAt,
 					UpdatedAt: req.UpdatedAt,
 				}
-				if req.Status != "Unsubmitted" {
+				if req.Status != models.MetaTransactionRequestStatusUnsubmitted {
 					hash := hexutil.Encode(req.Hash.Bytes)
 					pair.Hash = &hash
 				}
@@ -621,7 +621,7 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 					CreatedAt: req.CreatedAt,
 					UpdatedAt: req.UpdatedAt,
 				}
-				if req.Status != "Unsubmitted" {
+				if req.Status != models.MetaTransactionRequestStatusUnsubmitted {
 					hash := hexutil.Encode(req.Hash.Bytes)
 					unpair.Hash = &hash
 				}
@@ -865,7 +865,10 @@ func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
 	logger := udc.log.With().Str("userId", userID).Str("unitId", unitID).Logger()
 	logger.Info().Msg("Got AutoPi claim request.")
 
-	unit, err := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, unitID)
+	unit, err := models.AutopiUnits(
+		models.AutopiUnitWhere.AutopiUnitID.EQ(unitID),
+		qm.Load(models.AutopiUnitRels.ClaimMetaTransactionRequest),
+	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			logger.Info().Msg("Unknown unit id.")
@@ -878,6 +881,13 @@ func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
 	if unit.UserID.Valid && unit.UserID.String != userID {
 		logger.Error().Str("existingUserId", unit.UserID.String).Msg("AutoPi already attached to another user.")
 		return fiber.NewError(fiber.StatusForbidden, "AutoPi paired to another user.")
+	}
+
+	if unit.R.ClaimMetaTransactionRequest != nil && unit.R.ClaimMetaTransactionRequest.Status != "Failed" {
+		if unit.R.ClaimMetaTransactionRequest.Status == models.MetaTransactionRequestStatusConfirmed {
+			return fiber.NewError(fiber.StatusConflict, "Device already claimed.")
+		}
+		return fiber.NewError(fiber.StatusConflict, "Claiming transaction in progress.")
 	}
 
 	if unit.TokenID.IsZero() {
@@ -964,7 +974,10 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
 	}
 
-	udai, err := ud.UserDeviceAPIIntegrations(models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(autoPiInt.Id)).One(c.Context(), udc.DBS().Reader)
+	udai, err := ud.UserDeviceAPIIntegrations(
+		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(autoPiInt.Id),
+		qm.Load(models.UserDeviceAPIIntegrationRels.PairMetaTransactionRequest),
+	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fiber.NewError(fiber.StatusConflict, "Device does not have an AutoPi associated.")
@@ -973,8 +986,11 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 		return opaqueInternalError
 	}
 
-	if udai.Status != models.UserDeviceAPIIntegrationStatusActive {
-		return fiber.NewError(fiber.StatusConflict, "Associated AutoPi is not active.")
+	if udai.R.PairMetaTransactionRequest != nil && udai.R.PairMetaTransactionRequest.Status != "Failed" {
+		if udai.R.PairMetaTransactionRequest.Status == models.MetaTransactionRequestStatusConfirmed {
+			return fiber.NewError(fiber.StatusConflict, "AutoPi already paired.")
+		}
+		return fiber.NewError(fiber.StatusConflict, "AutoPi pairing in process.")
 	}
 
 	if !udai.AutopiUnitID.Valid {
@@ -995,6 +1011,10 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 
 	if ud.TokenID.IsZero() {
 		return fiber.NewError(fiber.StatusConflict, "Vehicle not yet minted.")
+	}
+
+	if !autoPiUnit.OwnerAddress.Valid {
+		return fiber.NewError(fiber.StatusConflict, "Device not yet claimed.")
 	}
 
 	apToken := autoPiUnit.TokenID.Int(nil)
@@ -1018,6 +1038,10 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 
 	if user.EthereumAddress == nil {
 		return fiber.NewError(fiber.StatusConflict, "User does not have an Ethereum address.")
+	}
+
+	if common.HexToAddress(*user.EthereumAddress) != common.BytesToAddress(autoPiUnit.OwnerAddress.Bytes) {
+		return fiber.NewError(fiber.StatusConflict, "AutoPi claimed by another user.")
 	}
 
 	client := registry.Client{
@@ -1076,7 +1100,10 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
 	}
 
-	udai, err := ud.UserDeviceAPIIntegrations(models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(autoPiInt.Id)).One(c.Context(), udc.DBS().Reader)
+	udai, err := ud.UserDeviceAPIIntegrations(
+		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(autoPiInt.Id),
+		qm.Load(models.UserDeviceAPIIntegrationRels.PairMetaTransactionRequest),
+	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fiber.NewError(fiber.StatusConflict, "Device does not have an AutoPi associated.")
@@ -1085,8 +1112,11 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 		return opaqueInternalError
 	}
 
-	if udai.Status != models.UserDeviceAPIIntegrationStatusActive {
-		return fiber.NewError(fiber.StatusConflict, "Associated AutoPi is not active.")
+	if udai.R.PairMetaTransactionRequest != nil && udai.R.PairMetaTransactionRequest.Status != "Failed" {
+		if udai.R.PairMetaTransactionRequest.Status == models.MetaTransactionRequestStatusConfirmed {
+			return fiber.NewError(fiber.StatusConflict, "AutoPi already paired.")
+		}
+		return fiber.NewError(fiber.StatusConflict, "AutoPi pairing in process.")
 	}
 
 	if !udai.AutopiUnitID.Valid {
@@ -1107,6 +1137,10 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 
 	if ud.TokenID.IsZero() {
 		return fiber.NewError(fiber.StatusConflict, "Vehicle not yet minted.")
+	}
+
+	if !autoPiUnit.OwnerAddress.Valid {
+		return fiber.NewError(fiber.StatusConflict, "Device not yet claimed.")
 	}
 
 	apToken := autoPiUnit.TokenID.Int(nil)
@@ -1132,6 +1166,10 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusConflict, "User does not have an Ethereum address.")
 	}
 
+	if common.HexToAddress(*user.EthereumAddress) != common.BytesToAddress(autoPiUnit.OwnerAddress.Bytes) {
+		return fiber.NewError(fiber.StatusConflict, "AutoPi claimed by another user.")
+	}
+
 	client := registry.Client{
 		Producer:     udc.producer,
 		RequestTopic: "topic.transaction.request.send",
@@ -1149,7 +1187,10 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 	}
 
 	var pairReq AutoPiPairRequest
-	_ = c.BodyParser(&pairReq)
+	err = c.BodyParser(&pairReq)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Couldn't parse request body.")
+	}
 
 	realAddr := common.HexToAddress(*user.EthereumAddress)
 
@@ -1173,7 +1214,7 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 
 	mtr := models.MetaTransactionRequest{
 		ID:     requestID,
-		Status: "Unsubmitted",
+		Status: models.MetaTransactionRequestStatusUnsubmitted,
 	}
 	err = mtr.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
 	if err != nil {
@@ -1231,10 +1272,6 @@ func (udc *UserDevicesController) UnpairAutoPi(c *fiber.Ctx) error {
 		}
 		logger.Err(err).Msg("Database failure searching for device's AutoPi integration.")
 		return opaqueInternalError
-	}
-
-	if udai.Status != models.UserDeviceAPIIntegrationStatusActive {
-		return fiber.NewError(fiber.StatusConflict, "Associated AutoPi is not active.")
 	}
 
 	if !udai.AutopiUnitID.Valid {
@@ -1297,7 +1334,10 @@ func (udc *UserDevicesController) UnpairAutoPi(c *fiber.Ctx) error {
 	}
 
 	var pairReq AutoPiPairRequest
-	_ = c.BodyParser(&pairReq)
+	err = c.BodyParser(&pairReq)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Couldn't parse request body.")
+	}
 
 	realAddr := common.HexToAddress(*user.EthereumAddress)
 
@@ -1321,7 +1361,7 @@ func (udc *UserDevicesController) UnpairAutoPi(c *fiber.Ctx) error {
 
 	mtr := models.MetaTransactionRequest{
 		ID:     requestID,
-		Status: "Unsubmitted",
+		Status: models.MetaTransactionRequestStatusUnsubmitted,
 	}
 	err = mtr.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
 	if err != nil {
@@ -1379,10 +1419,6 @@ func (udc *UserDevicesController) GetAutoPiUnpairMessage(c *fiber.Ctx) error {
 		}
 		logger.Err(err).Msg("Database failure searching for device's AutoPi integration.")
 		return opaqueInternalError
-	}
-
-	if udai.Status != models.UserDeviceAPIIntegrationStatusActive {
-		return fiber.NewError(fiber.StatusConflict, "Associated AutoPi is not active.")
 	}
 
 	if !udai.AutopiUnitID.Valid {
@@ -1481,7 +1517,10 @@ func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 
 	udc.log.Info().Interface("payload", reqBody).Msg("Got claim request.")
 
-	unit, err := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, unitID)
+	unit, err := models.AutopiUnits(
+		models.AutopiUnitWhere.AutopiUnitID.EQ(unitID),
+		qm.Load(models.AutopiUnitRels.ClaimMetaTransactionRequest),
+	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fiber.NewError(fiber.StatusNotFound, "AutoPi not minted, or unit ID invalid.")
@@ -1495,6 +1534,13 @@ func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 
 	if unit.TokenID.IsZero() || !unit.EthereumAddress.Valid {
 		return fiber.NewError(fiber.StatusNotFound, "AutoPi not minted.")
+	}
+
+	if unit.R.ClaimMetaTransactionRequest != nil && unit.R.ClaimMetaTransactionRequest.Status != "Failed" {
+		if unit.R.ClaimMetaTransactionRequest.Status == models.MetaTransactionRequestStatusConfirmed {
+			return fiber.NewError(fiber.StatusConflict, "Device already claimed.")
+		}
+		return fiber.NewError(fiber.StatusConflict, "Claiming transaction in progress.")
 	}
 
 	apToken := unit.TokenID.Int(nil)
@@ -1577,7 +1623,7 @@ func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 
 	mtr := models.MetaTransactionRequest{
 		ID:     requestID,
-		Status: "Unsubmitted",
+		Status: models.MetaTransactionRequestStatusUnsubmitted,
 	}
 	err = mtr.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
 	if err != nil {
@@ -2170,54 +2216,8 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-type linkVehicleDevice struct {
-	UserDeviceID string `json:"userDeviceId"`
-	AutoPiUnitID string `json:"autoPiUnitId"`
-}
-
 func (udc *UserDevicesController) AdminVehicleDeviceLink(c *fiber.Ctx) error {
-	lvd := linkVehicleDevice{}
-	err := c.BodyParser(&lvd)
-	if err != nil {
-		return err
-	}
-
-	ud, err := models.FindUserDevice(c.Context(), udc.DBS().Reader, lvd.UserDeviceID)
-	if err != nil {
-		return err
-	}
-
-	au, err := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, lvd.AutoPiUnitID)
-	if err != nil {
-		return err
-	}
-
-	ai, err := udc.DeviceDefSvc.GetIntegrationByVendor(c.Context(), "AutoPi")
-	if err != nil {
-		return api.GrpcErrorToFiber(err, "")
-	}
-
-	oldUDAI, err := models.FindUserDeviceAPIIntegration(c.Context(), udc.DBS().Reader, ud.ID, ai.Id)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			return err
-		}
-	} else {
-		_, err = oldUDAI.Delete(c.Context(), udc.DBS().Writer)
-		if err != nil {
-			return err
-		}
-	}
-
-	newUDAI := &models.UserDeviceAPIIntegration{
-		UserDeviceID:  ud.ID,
-		IntegrationID: ai.Id,
-		Status:        models.UserDeviceAPIIntegrationStatusActive,
-		ExternalID:    au.AutopiDeviceID,
-		AutopiUnitID:  null.StringFrom(au.AutopiUnitID),
-	}
-
-	return newUDAI.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
+	return nil
 }
 
 type web3UnpairDevice struct {
