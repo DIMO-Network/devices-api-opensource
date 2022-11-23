@@ -136,6 +136,8 @@ func (p *proc) Handle(ctx context.Context, data *ceData) error {
 				if err != nil {
 					return err
 				}
+
+				return p.ap.Unpair(ctx, out.AftermarketDeviceNode, out.VehicleNode)
 			}
 		}
 	}
