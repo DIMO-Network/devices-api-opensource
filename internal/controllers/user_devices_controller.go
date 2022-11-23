@@ -1779,6 +1779,61 @@ func (udc *UserDevicesController) MintDevice(c *fiber.Ctx) error {
 	return c.JSON(map[string]any{"mintRequestId": mintRequestID})
 }
 
+// UpdateNFTImage godoc
+// @Description Updates NFT image
+// @Tags        user-devices
+// @Param       userDeviceID path string                  true "user device ID"
+// @Param       mintRequest  body controllers.MintRequest true "NFT image data"
+// @Success     204
+// @Security    BearerAuth
+// @Router      /user/devices/{userDeviceID}/commands/update-nft-image [post]
+func (udc *UserDevicesController) UpdateNFTImage(c *fiber.Ctx) error {
+	userDeviceID := c.Params("userDeviceID")
+	userID := api.GetUserID(c)
+
+	userDevice, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		models.UserDeviceWhere.UserID.EQ(userID),
+		qm.Load(models.UserDeviceRels.VehicleNFT),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "No device with that ID found.")
+	}
+
+	if userDevice.R.VehicleNFT == nil || userDevice.R.VehicleNFT.TokenID.IsZero() {
+		return fiber.NewError(fiber.StatusBadRequest, "Vehicle not minted.")
+	}
+
+	mr := new(MintRequest)
+	if err := c.BodyParser(mr); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Couldn't parse request body.")
+	}
+
+	// This may not be there, but if it is we should delete it.
+	imageData := strings.TrimPrefix(mr.ImageData, "data:image/png;base64,")
+
+	image, err := base64.StdEncoding.DecodeString(imageData)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Field imageData not properly base64-encoded.")
+	}
+
+	if len(image) == 0 {
+		return fiber.NewError(fiber.StatusBadRequest, "Empty image field.")
+	}
+
+	_, err = udc.s3.PutObject(c.Context(), &s3.PutObjectInput{
+		Bucket: &udc.Settings.NFTS3Bucket,
+		Key:    aws.String(userDevice.R.VehicleNFT.MintRequestID + ".png"),
+		Body:   bytes.NewReader(image),
+	})
+	if err != nil {
+		udc.log.Err(err).Msg("Failed to save image to S3.")
+		return opaqueInternalError
+	}
+
+	return err
+}
+
 // MintDeviceV2 godoc
 // @Description Sends a mint device request to the blockchain
 // @Tags        user-devices

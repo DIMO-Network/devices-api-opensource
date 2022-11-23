@@ -174,6 +174,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	if settings.Environment != "prod" {
 		v1Auth.Get("/user/devices/:userDeviceID/commands/mint", userDeviceController.GetMintDataToSignV2)
 		v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.MintDeviceV2)
+		v1Auth.Post("/user/devices/:userDeviceID/commands/update-nft-image", userDeviceController.UpdateNFTImage)
 
 		kconf := sarama.NewConfig()
 		kconf.Version = sarama.V2_8_1_0
