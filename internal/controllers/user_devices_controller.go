@@ -1997,8 +1997,7 @@ func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 		Vin:           userDevice.VinIdentifier.String,
 	}
 
-	nft.MintRequestID = requestID
-	_, err = userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer())
+	err = nft.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
 	if err != nil {
 		return err
 	}
