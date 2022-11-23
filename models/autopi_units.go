@@ -36,6 +36,7 @@ type AutopiUnit struct {
 	OwnerAddress                  null.Bytes        `boil:"owner_address" json:"owner_address,omitempty" toml:"owner_address" yaml:"owner_address,omitempty"`
 	PairRequestID                 null.String       `boil:"pair_request_id" json:"pair_request_id,omitempty" toml:"pair_request_id" yaml:"pair_request_id,omitempty"`
 	UnpairRequestID               null.String       `boil:"unpair_request_id" json:"unpair_request_id,omitempty" toml:"unpair_request_id" yaml:"unpair_request_id,omitempty"`
+	VehicleTokenID                types.NullDecimal `boil:"vehicle_token_id" json:"vehicle_token_id,omitempty" toml:"vehicle_token_id" yaml:"vehicle_token_id,omitempty"`
 
 	R *autopiUnitR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L autopiUnitL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -53,6 +54,7 @@ var AutopiUnitColumns = struct {
 	OwnerAddress                  string
 	PairRequestID                 string
 	UnpairRequestID               string
+	VehicleTokenID                string
 }{
 	AutopiUnitID:                  "autopi_unit_id",
 	AutopiDeviceID:                "autopi_device_id",
@@ -65,6 +67,7 @@ var AutopiUnitColumns = struct {
 	OwnerAddress:                  "owner_address",
 	PairRequestID:                 "pair_request_id",
 	UnpairRequestID:               "unpair_request_id",
+	VehicleTokenID:                "vehicle_token_id",
 }
 
 var AutopiUnitTableColumns = struct {
@@ -79,6 +82,7 @@ var AutopiUnitTableColumns = struct {
 	OwnerAddress                  string
 	PairRequestID                 string
 	UnpairRequestID               string
+	VehicleTokenID                string
 }{
 	AutopiUnitID:                  "autopi_units.autopi_unit_id",
 	AutopiDeviceID:                "autopi_units.autopi_device_id",
@@ -91,6 +95,7 @@ var AutopiUnitTableColumns = struct {
 	OwnerAddress:                  "autopi_units.owner_address",
 	PairRequestID:                 "autopi_units.pair_request_id",
 	UnpairRequestID:               "autopi_units.unpair_request_id",
+	VehicleTokenID:                "autopi_units.vehicle_token_id",
 }
 
 // Generated where
@@ -157,6 +162,7 @@ var AutopiUnitWhere = struct {
 	OwnerAddress                  whereHelpernull_Bytes
 	PairRequestID                 whereHelpernull_String
 	UnpairRequestID               whereHelpernull_String
+	VehicleTokenID                whereHelpertypes_NullDecimal
 }{
 	AutopiUnitID:                  whereHelperstring{field: "\"devices_api\".\"autopi_units\".\"autopi_unit_id\""},
 	AutopiDeviceID:                whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"autopi_device_id\""},
@@ -169,6 +175,7 @@ var AutopiUnitWhere = struct {
 	OwnerAddress:                  whereHelpernull_Bytes{field: "\"devices_api\".\"autopi_units\".\"owner_address\""},
 	PairRequestID:                 whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"pair_request_id\""},
 	UnpairRequestID:               whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"unpair_request_id\""},
+	VehicleTokenID:                whereHelpertypes_NullDecimal{field: "\"devices_api\".\"autopi_units\".\"vehicle_token_id\""},
 }
 
 // AutopiUnitRels is where relationship names are stored.
@@ -176,12 +183,14 @@ var AutopiUnitRels = struct {
 	ClaimMetaTransactionRequest string
 	PairRequest                 string
 	UnpairRequest               string
+	VehicleToken                string
 	AutopiJobs                  string
 	UserDeviceAPIIntegrations   string
 }{
 	ClaimMetaTransactionRequest: "ClaimMetaTransactionRequest",
 	PairRequest:                 "PairRequest",
 	UnpairRequest:               "UnpairRequest",
+	VehicleToken:                "VehicleToken",
 	AutopiJobs:                  "AutopiJobs",
 	UserDeviceAPIIntegrations:   "UserDeviceAPIIntegrations",
 }
@@ -191,6 +200,7 @@ type autopiUnitR struct {
 	ClaimMetaTransactionRequest *MetaTransactionRequest       `boil:"ClaimMetaTransactionRequest" json:"ClaimMetaTransactionRequest" toml:"ClaimMetaTransactionRequest" yaml:"ClaimMetaTransactionRequest"`
 	PairRequest                 *MetaTransactionRequest       `boil:"PairRequest" json:"PairRequest" toml:"PairRequest" yaml:"PairRequest"`
 	UnpairRequest               *MetaTransactionRequest       `boil:"UnpairRequest" json:"UnpairRequest" toml:"UnpairRequest" yaml:"UnpairRequest"`
+	VehicleToken                *VehicleNFT                   `boil:"VehicleToken" json:"VehicleToken" toml:"VehicleToken" yaml:"VehicleToken"`
 	AutopiJobs                  AutopiJobSlice                `boil:"AutopiJobs" json:"AutopiJobs" toml:"AutopiJobs" yaml:"AutopiJobs"`
 	UserDeviceAPIIntegrations   UserDeviceAPIIntegrationSlice `boil:"UserDeviceAPIIntegrations" json:"UserDeviceAPIIntegrations" toml:"UserDeviceAPIIntegrations" yaml:"UserDeviceAPIIntegrations"`
 }
@@ -221,6 +231,13 @@ func (r *autopiUnitR) GetUnpairRequest() *MetaTransactionRequest {
 	return r.UnpairRequest
 }
 
+func (r *autopiUnitR) GetVehicleToken() *VehicleNFT {
+	if r == nil {
+		return nil
+	}
+	return r.VehicleToken
+}
+
 func (r *autopiUnitR) GetAutopiJobs() AutopiJobSlice {
 	if r == nil {
 		return nil
@@ -239,9 +256,9 @@ func (r *autopiUnitR) GetUserDeviceAPIIntegrations() UserDeviceAPIIntegrationSli
 type autopiUnitL struct{}
 
 var (
-	autopiUnitAllColumns            = []string{"autopi_unit_id", "autopi_device_id", "user_id", "ethereum_address", "created_at", "updated_at", "token_id", "claim_meta_transaction_request_id", "owner_address", "pair_request_id", "unpair_request_id"}
+	autopiUnitAllColumns            = []string{"autopi_unit_id", "autopi_device_id", "user_id", "ethereum_address", "created_at", "updated_at", "token_id", "claim_meta_transaction_request_id", "owner_address", "pair_request_id", "unpair_request_id", "vehicle_token_id"}
 	autopiUnitColumnsWithoutDefault = []string{"autopi_unit_id"}
-	autopiUnitColumnsWithDefault    = []string{"autopi_device_id", "user_id", "ethereum_address", "created_at", "updated_at", "token_id", "claim_meta_transaction_request_id", "owner_address", "pair_request_id", "unpair_request_id"}
+	autopiUnitColumnsWithDefault    = []string{"autopi_device_id", "user_id", "ethereum_address", "created_at", "updated_at", "token_id", "claim_meta_transaction_request_id", "owner_address", "pair_request_id", "unpair_request_id", "vehicle_token_id"}
 	autopiUnitPrimaryKeyColumns     = []string{"autopi_unit_id"}
 	autopiUnitGeneratedColumns      = []string{}
 )
@@ -555,6 +572,17 @@ func (o *AutopiUnit) UnpairRequest(mods ...qm.QueryMod) metaTransactionRequestQu
 	queryMods = append(queryMods, mods...)
 
 	return MetaTransactionRequests(queryMods...)
+}
+
+// VehicleToken pointed to by the foreign key.
+func (o *AutopiUnit) VehicleToken(mods ...qm.QueryMod) vehicleNFTQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"token_id\" = ?", o.VehicleTokenID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	return VehicleNFTS(queryMods...)
 }
 
 // AutopiJobs retrieves all the autopi_job's AutopiJobs with an executor.
@@ -949,6 +977,130 @@ func (autopiUnitL) LoadUnpairRequest(ctx context.Context, e boil.ContextExecutor
 					foreign.R = &metaTransactionRequestR{}
 				}
 				foreign.R.UnpairRequestAutopiUnit = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadVehicleToken allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (autopiUnitL) LoadVehicleToken(ctx context.Context, e boil.ContextExecutor, singular bool, maybeAutopiUnit interface{}, mods queries.Applicator) error {
+	var slice []*AutopiUnit
+	var object *AutopiUnit
+
+	if singular {
+		var ok bool
+		object, ok = maybeAutopiUnit.(*AutopiUnit)
+		if !ok {
+			object = new(AutopiUnit)
+			ok = queries.SetFromEmbeddedStruct(&object, &maybeAutopiUnit)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", object, maybeAutopiUnit))
+			}
+		}
+	} else {
+		s, ok := maybeAutopiUnit.(*[]*AutopiUnit)
+		if ok {
+			slice = *s
+		} else {
+			ok = queries.SetFromEmbeddedStruct(&slice, maybeAutopiUnit)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", slice, maybeAutopiUnit))
+			}
+		}
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &autopiUnitR{}
+		}
+		if !queries.IsNil(object.VehicleTokenID) {
+			args = append(args, object.VehicleTokenID)
+		}
+
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &autopiUnitR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.VehicleTokenID) {
+					continue Outer
+				}
+			}
+
+			if !queries.IsNil(obj.VehicleTokenID) {
+				args = append(args, obj.VehicleTokenID)
+			}
+
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`devices_api.vehicle_nfts`),
+		qm.WhereIn(`devices_api.vehicle_nfts.token_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load VehicleNFT")
+	}
+
+	var resultSlice []*VehicleNFT
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice VehicleNFT")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for vehicle_nfts")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for vehicle_nfts")
+	}
+
+	if len(autopiUnitAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.VehicleToken = foreign
+		if foreign.R == nil {
+			foreign.R = &vehicleNFTR{}
+		}
+		foreign.R.VehicleTokenAutopiUnit = object
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if queries.Equal(local.VehicleTokenID, foreign.TokenID) {
+				local.R.VehicleToken = foreign
+				if foreign.R == nil {
+					foreign.R = &vehicleNFTR{}
+				}
+				foreign.R.VehicleTokenAutopiUnit = local
 				break
 			}
 		}
@@ -1389,6 +1541,75 @@ func (o *AutopiUnit) RemoveUnpairRequest(ctx context.Context, exec boil.ContextE
 	}
 
 	related.R.UnpairRequestAutopiUnit = nil
+	return nil
+}
+
+// SetVehicleToken of the autopiUnit to the related item.
+// Sets o.R.VehicleToken to related.
+// Adds o to related.R.VehicleTokenAutopiUnit.
+func (o *AutopiUnit) SetVehicleToken(ctx context.Context, exec boil.ContextExecutor, insert bool, related *VehicleNFT) error {
+	var err error
+	if insert {
+		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"devices_api\".\"autopi_units\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 1, []string{"vehicle_token_id"}),
+		strmangle.WhereClause("\"", "\"", 2, autopiUnitPrimaryKeyColumns),
+	)
+	values := []interface{}{related.TokenID, o.AutopiUnitID}
+
+	if boil.IsDebug(ctx) {
+		writer := boil.DebugWriterFrom(ctx)
+		fmt.Fprintln(writer, updateQuery)
+		fmt.Fprintln(writer, values)
+	}
+	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	queries.Assign(&o.VehicleTokenID, related.TokenID)
+	if o.R == nil {
+		o.R = &autopiUnitR{
+			VehicleToken: related,
+		}
+	} else {
+		o.R.VehicleToken = related
+	}
+
+	if related.R == nil {
+		related.R = &vehicleNFTR{
+			VehicleTokenAutopiUnit: o,
+		}
+	} else {
+		related.R.VehicleTokenAutopiUnit = o
+	}
+
+	return nil
+}
+
+// RemoveVehicleToken relationship.
+// Sets o.R.VehicleToken to nil.
+// Removes o from all passed in related items' relationships struct.
+func (o *AutopiUnit) RemoveVehicleToken(ctx context.Context, exec boil.ContextExecutor, related *VehicleNFT) error {
+	var err error
+
+	queries.SetScanner(&o.VehicleTokenID, nil)
+	if _, err = o.Update(ctx, exec, boil.Whitelist("vehicle_token_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	if o.R != nil {
+		o.R.VehicleToken = nil
+	}
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	related.R.VehicleTokenAutopiUnit = nil
 	return nil
 }
 

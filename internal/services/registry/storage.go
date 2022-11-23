@@ -118,6 +118,8 @@ func (p *proc) Handle(ctx context.Context, data *ceData) error {
 					return err
 				}
 
+				mtr.R.PairRequestAutopiUnit.VehicleTokenID = types.NewNullDecimal(new(decimal.Big).SetBigMantScale(out.VehicleNode, 0))
+
 				return p.ap.Pair(ctx, out.AftermarketDeviceNode, out.VehicleNode)
 			}
 		}
