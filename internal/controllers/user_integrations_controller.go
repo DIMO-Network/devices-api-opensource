@@ -1418,19 +1418,7 @@ func (udc *UserDevicesController) UnpairAutoPi(c *fiber.Ctx) error {
 		return err
 	}
 
-	err = client.UnPairAftermarketDeviceSign(requestID, apToken, vehicleToken, sigBytes)
-	if err != nil {
-		return err
-	}
-
-	err = udc.autoPiIngestRegistrar.Deregister(udai.ExternalID.String, udai.UserDeviceID, udai.IntegrationID)
-	if err != nil {
-		udc.log.Err(err).Msgf("unexpected error deregistering autopi device from ingest. userDeviceID: %s", udai.UserDeviceID)
-		return err
-	}
-
-	_, err = udai.Delete(c.Context(), udc.DBS().Writer)
-	return err
+	return client.UnPairAftermarketDeviceSign(requestID, apToken, vehicleToken, sigBytes)
 }
 
 // GetAutoPiUnpairMessage godoc

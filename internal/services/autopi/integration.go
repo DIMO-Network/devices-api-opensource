@@ -2,6 +2,7 @@ package autopi
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"math/big"
 
@@ -229,6 +230,58 @@ func (i *Integration) Pair(ctx context.Context, autoPiTokenID, vehicleTokenID *b
 	}
 
 	_, err = i.apTask.StartQueryAndUpdateVIN(autoPi.ID, autoPi.UnitID, ud.ID)
+
+	return nil
+}
+
+func (i *Integration) Unpair(ctx context.Context, autoPiTokenID, vehicleTokenID *big.Int) error {
+	tx, err := i.db().Writer.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	nft, err := models.VehicleNFTS(
+		models.VehicleNFTWhere.TokenID.EQ(intToDec(vehicleTokenID)),
+		qm.Load(models.VehicleNFTRels.UserDevice),
+	).One(ctx, tx)
+	if err != nil {
+		return err
+	}
+
+	if nft.R.UserDevice == nil {
+		return errors.New("vehicle deleted")
+	}
+
+	ud := nft.R.UserDevice
+
+	autoPiModel, err := models.AutopiUnits(
+		models.AutopiUnitWhere.TokenID.EQ(intToDec(autoPiTokenID)),
+	).One(ctx, tx)
+	if err != nil {
+		return err
+	}
+
+	integ, err := i.defs.GetIntegrationByVendor(ctx, "AutoPi")
+	if err != nil {
+		return err
+	}
+
+	udai, err := models.FindUserDeviceAPIIntegration(ctx, i.db().Writer, ud.ID, integ.Id)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+	} else {
+		_, err = udai.Delete(ctx, i.db().Writer)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = i.apReg.Deregister(autoPiModel.AutopiDeviceID.String, ud.ID, integ.Id)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

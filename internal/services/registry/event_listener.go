@@ -30,7 +30,7 @@ type ceData struct {
 
 type Consumer struct {
 	logger  *zerolog.Logger
-	storage Storage
+	storage StatusProcessor
 }
 
 func (c *Consumer) Setup(sarama.ConsumerGroupSession) error {
@@ -51,7 +51,7 @@ func (c *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim saram
 			if err != nil {
 				c.logger.Err(err).Int32("partition", message.Partition).Int64("offset", message.Offset).Msg("Failed to parse transaction event.")
 			} else {
-				err := c.storage.HandleUpdate(session.Context(), &event.Data)
+				err := c.storage.Handle(session.Context(), &event.Data)
 				if err != nil {
 					c.logger.Err(err).Int32("partition", message.Partition).Int64("offset", message.Offset).Msg("Failed to update transaction status.")
 				}
@@ -64,7 +64,7 @@ func (c *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim saram
 }
 
 // TODO(elffjs): Proper cleanup.
-func RunConsumer(ctx context.Context, client sarama.Client, logger *zerolog.Logger, s Storage) error {
+func RunConsumer(ctx context.Context, client sarama.Client, logger *zerolog.Logger, s StatusProcessor) error {
 	group, err := sarama.NewConsumerGroupFromClient("devices-api-transaction-consumer", client)
 	if err != nil {
 		return err

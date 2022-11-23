@@ -17,19 +17,19 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/types"
 )
 
-type Storage interface {
-	HandleUpdate(ctx context.Context, data *ceData) error
+type StatusProcessor interface {
+	Handle(ctx context.Context, data *ceData) error
 }
 
-type S struct {
+type proc struct {
 	ABI    *abi.ABI
 	DB     func() *database.DBReaderWriter
 	Logger *zerolog.Logger
 	ap     *autopi.Integration
 }
 
-func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
-	logger := s.Logger.With().
+func (p *proc) Handle(ctx context.Context, data *ceData) error {
+	logger := p.Logger.With().
 		Str("requestId", data.RequestID).
 		Str("status", data.Type).
 		Str("hash", data.Transaction.Hash).
@@ -44,7 +44,7 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 		qm.Load(models.MetaTransactionRequestRels.ClaimMetaTransactionRequestAutopiUnit),
 		qm.Load(models.MetaTransactionRequestRels.PairRequestAutopiUnit),
 		qm.Load(models.MetaTransactionRequestRels.UnpairRequestAutopiUnit),
-	).One(context.Background(), s.DB().Reader)
+	).One(context.Background(), p.DB().Reader)
 	if err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 	mtr.Status = data.Type
 	mtr.Hash = null.BytesFrom(common.FromHex(data.Transaction.Hash))
 
-	_, err = mtr.Update(ctx, s.DB().Writer, boil.Infer())
+	_, err = mtr.Update(ctx, p.DB().Writer, boil.Infer())
 	if err != nil {
 		return err
 	}
@@ -61,10 +61,10 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 		return nil
 	}
 
-	vehicleMintedEvent := s.ABI.Events["VehicleNodeMinted"]
-	deviceClaimedEvent := s.ABI.Events["AftermarketDeviceClaimed"]
-	devicePairedEvent := s.ABI.Events["AftermarketDevicePaired"]
-	deviceUnpairedEvent := s.ABI.Events["AftermarketDeviceUnpaired"]
+	vehicleMintedEvent := p.ABI.Events["VehicleNodeMinted"]
+	deviceClaimedEvent := p.ABI.Events["AftermarketDeviceClaimed"]
+	devicePairedEvent := p.ABI.Events["AftermarketDevicePaired"]
+	deviceUnpairedEvent := p.ABI.Events["AftermarketDeviceUnpaired"]
 
 	switch {
 	case mtr.R.MintRequestVehicleNFT != nil:
@@ -72,14 +72,14 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 			l2 := convertLog(&l1)
 			if l2.Topics[0] == vehicleMintedEvent.ID {
 				out := new(RegistryVehicleNodeMinted)
-				err := s.parseLog(out, vehicleMintedEvent, *l2)
+				err := p.parseLog(out, vehicleMintedEvent, *l2)
 				if err != nil {
 					return err
 				}
 
 				mtr.R.MintRequestVehicleNFT.TokenID = types.NewNullDecimal(new(decimal.Big).SetBigMantScale(out.TokenId, 0))
 				mtr.R.MintRequestVehicleNFT.OwnerAddress = null.BytesFrom(out.Owner.Bytes())
-				_, err = mtr.R.MintRequestVehicleNFT.Update(ctx, s.DB().Writer, boil.Infer())
+				_, err = mtr.R.MintRequestVehicleNFT.Update(ctx, p.DB().Writer, boil.Infer())
 				if err != nil {
 					return err
 				}
@@ -94,13 +94,13 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 			l2 := convertLog(&l1)
 			if l2.Topics[0] == deviceClaimedEvent.ID {
 				out := new(RegistryAftermarketDeviceClaimed)
-				err := s.parseLog(out, deviceClaimedEvent, *l2)
+				err := p.parseLog(out, deviceClaimedEvent, *l2)
 				if err != nil {
 					return err
 				}
 
 				mtr.R.ClaimMetaTransactionRequestAutopiUnit.OwnerAddress = null.BytesFrom(out.Owner[:])
-				_, err = mtr.R.ClaimMetaTransactionRequestAutopiUnit.Update(ctx, s.DB().Writer, boil.Infer())
+				_, err = mtr.R.ClaimMetaTransactionRequestAutopiUnit.Update(ctx, p.DB().Writer, boil.Infer())
 				if err != nil {
 					return err
 				}
@@ -113,12 +113,12 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 			l2 := convertLog(&l1)
 			if l2.Topics[0] == devicePairedEvent.ID {
 				out := new(RegistryAftermarketDevicePaired)
-				err := s.parseLog(out, devicePairedEvent, *l2)
+				err := p.parseLog(out, devicePairedEvent, *l2)
 				if err != nil {
 					return err
 				}
 
-				return s.ap.Pair(ctx, out.AftermarketDeviceNode, out.VehicleNode)
+				return p.ap.Pair(ctx, out.AftermarketDeviceNode, out.VehicleNode)
 			}
 		}
 	case mtr.R.UnpairRequestAutopiUnit != nil:
@@ -126,13 +126,13 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 			l2 := convertLog(&l1)
 			if l2.Topics[0] == deviceUnpairedEvent.ID {
 				out := new(RegistryAftermarketDeviceUnpaired)
-				err := s.parseLog(out, deviceUnpairedEvent, *l2)
+				err := p.parseLog(out, deviceUnpairedEvent, *l2)
 				if err != nil {
 					return err
 				}
 
 				mtr.R.UnpairRequestAutopiUnit.PairRequestID = null.String{}
-				_, err = mtr.R.UnpairRequestAutopiUnit.Update(ctx, s.DB().Writer, boil.Infer())
+				_, err = mtr.R.UnpairRequestAutopiUnit.Update(ctx, p.DB().Writer, boil.Infer())
 				if err != nil {
 					return err
 				}
@@ -143,9 +143,9 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 	return nil
 }
 
-func (s *S) parseLog(out any, event abi.Event, log eth_types.Log) error {
+func (p *proc) parseLog(out any, event abi.Event, log eth_types.Log) error {
 	if len(log.Data) > 0 {
-		err := s.ABI.UnpackIntoInterface(out, event.Name, log.Data)
+		err := p.ABI.UnpackIntoInterface(out, event.Name, log.Data)
 		if err != nil {
 			return err
 		}
@@ -180,12 +180,16 @@ func convertLog(logIn *ceLog) *eth_types.Log {
 	}
 }
 
-func NewStorage(db func() *database.DBReaderWriter, logger *zerolog.Logger, ap *autopi.Integration) (Storage, error) {
+func NewProcessor(
+	db func() *database.DBReaderWriter,
+	logger *zerolog.Logger,
+	ap *autopi.Integration,
+) (StatusProcessor, error) {
 	abi, err := RegistryMetaData.GetAbi()
 	if err != nil {
 		return nil, err
 	}
-	return &S{
+	return &proc{
 		ABI:    abi,
 		DB:     db,
 		Logger: logger,
