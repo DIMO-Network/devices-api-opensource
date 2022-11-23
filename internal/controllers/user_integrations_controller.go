@@ -1257,6 +1257,7 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 		return err
 	}
 
+	autoPiUnit.UnpairRequestID = null.String{}
 	autoPiUnit.PairRequestID = null.StringFrom(requestID)
 	_, err = autoPiUnit.Update(c.Context(), udc.DBS().Writer, boil.Infer())
 	if err != nil {

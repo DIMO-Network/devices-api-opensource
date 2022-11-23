@@ -119,6 +119,10 @@ func (p *proc) Handle(ctx context.Context, data *ceData) error {
 				}
 
 				mtr.R.PairRequestAutopiUnit.VehicleTokenID = types.NewNullDecimal(new(decimal.Big).SetBigMantScale(out.VehicleNode, 0))
+				_, err = mtr.R.PairRequestAutopiUnit.Update(ctx, p.DB().Writer, boil.Infer())
+				if err != nil {
+					return err
+				}
 
 				return p.ap.Pair(ctx, out.AftermarketDeviceNode, out.VehicleNode)
 			}
@@ -133,6 +137,7 @@ func (p *proc) Handle(ctx context.Context, data *ceData) error {
 					return err
 				}
 
+				mtr.R.UnpairRequestAutopiUnit.VehicleTokenID = types.NullDecimal{}
 				mtr.R.UnpairRequestAutopiUnit.PairRequestID = null.String{}
 				_, err = mtr.R.UnpairRequestAutopiUnit.Update(ctx, p.DB().Writer, boil.Infer())
 				if err != nil {
