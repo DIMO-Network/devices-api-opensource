@@ -32,7 +32,7 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 	mtr, err := models.MetaTransactionRequests(
 		models.MetaTransactionRequestWhere.ID.EQ(data.RequestID),
 		// This is really ugly. We should probably link back to the type instead of doing this.
-		qm.Load(models.MetaTransactionRequestRels.MintMetaTransactionRequestUserDevice),
+		qm.Load(models.MetaTransactionRequestRels.MintRequestVehicleNFT),
 		qm.Load(models.MetaTransactionRequestRels.ClaimMetaTransactionRequestAutopiUnit),
 		qm.Load(models.MetaTransactionRequestRels.UnpairRequestAutopiUnit),
 	).One(context.Background(), s.DB().Reader)
@@ -57,7 +57,7 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 	deviceUnpairedEvent := s.ABI.Events["AftermarketDeviceUnpaired"]
 
 	switch {
-	case mtr.R.MintMetaTransactionRequestUserDevice != nil:
+	case mtr.R.MintRequestVehicleNFT != nil:
 		for _, l1 := range data.Transaction.Logs {
 			l2 := convertLog(&l1)
 			if l2.Topics[0] == vehicleMintedEvent.ID {
@@ -67,13 +67,14 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 					return err
 				}
 
-				mtr.R.MintMetaTransactionRequestUserDevice.TokenID = types.NewNullDecimal(new(decimal.Big).SetBigMantScale(out.TokenId, 0))
-				_, err = mtr.R.MintMetaTransactionRequestUserDevice.Update(ctx, s.DB().Writer, boil.Infer())
+				mtr.R.MintRequestVehicleNFT.TokenID = types.NewNullDecimal(new(decimal.Big).SetBigMantScale(out.TokenId, 0))
+				mtr.R.MintRequestVehicleNFT.OwnerAddress = null.BytesFrom(out.Owner.Bytes())
+				_, err = mtr.R.MintRequestVehicleNFT.Update(ctx, s.DB().Writer, boil.Infer())
 				if err != nil {
 					return err
 				}
 
-				s.Logger.Info().Str("userDeviceId", mtr.R.MintMetaTransactionRequestUserDevice.ID).Msg("Vehicle minted.")
+				s.Logger.Info().Str("userDeviceId", mtr.R.MintRequestVehicleNFT.UserDeviceID.String).Msg("Vehicle minted.")
 			}
 		}
 		// Other soon.

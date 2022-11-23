@@ -63,7 +63,10 @@ func (nc *NFTController) GetNFTMetadata(c *fiber.Ctx) error {
 	var deviceDefinitionID string
 
 	if nc.Settings.Environment != "prod" {
-		ud, err := models.UserDevices(models.UserDeviceWhere.TokenID.EQ(tid)).One(c.Context(), nc.DBS().Reader)
+		nft, err := models.VehicleNFTS(
+			models.VehicleNFTWhere.TokenID.EQ(tid),
+			qm.Load(models.VehicleNFTRels.UserDevice),
+		).One(c.Context(), nc.DBS().Reader)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
@@ -71,8 +74,13 @@ func (nc *NFTController) GetNFTMetadata(c *fiber.Ctx) error {
 			nc.log.Err(err).Msg("Database error retrieving NFT metadata.")
 			return opaqueInternalError
 		}
-		maybeName = ud.Name
-		deviceDefinitionID = ud.DeviceDefinitionID
+
+		if nft.R.UserDevice == nil {
+			return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
+		}
+
+		maybeName = nft.R.UserDevice.Name
+		deviceDefinitionID = nft.R.UserDevice.DeviceDefinitionID
 	} else {
 		mr, err := models.MintRequests(
 			models.MintRequestWhere.TokenID.EQ(tid),
@@ -146,7 +154,10 @@ func (nc *NFTController) GetNFTImage(c *fiber.Ctx) error {
 	var imageName string
 
 	if nc.Settings.Environment != "prod" {
-		ud, err := models.UserDevices(models.UserDeviceWhere.TokenID.EQ(tid)).One(c.Context(), nc.DBS().Reader)
+		nft, err := models.VehicleNFTS(
+			models.VehicleNFTWhere.TokenID.EQ(tid),
+			qm.Load(models.VehicleNFTRels.UserDevice),
+		).One(c.Context(), nc.DBS().Reader)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
@@ -154,7 +165,12 @@ func (nc *NFTController) GetNFTImage(c *fiber.Ctx) error {
 			nc.log.Err(err).Msg("Database error retrieving NFT metadata.")
 			return opaqueInternalError
 		}
-		imageName = ud.ID
+
+		if nft.R.UserDevice == nil {
+			return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
+		}
+
+		imageName = nft.MintRequestID
 	} else {
 		mr, err := models.MintRequests(
 			models.MintRequestWhere.TokenID.EQ(tid),

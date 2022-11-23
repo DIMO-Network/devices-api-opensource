@@ -10,6 +10,7 @@ import (
 	pb "github.com/DIMO-Network/shared/api/devices"
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"github.com/volatiletech/sqlboiler/v4/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -27,7 +28,10 @@ type userDeviceService struct {
 }
 
 func (s *userDeviceService) GetUserDevice(ctx context.Context, req *pb.GetUserDeviceRequest) (*pb.UserDevice, error) {
-	dbDevice, err := models.FindUserDevice(ctx, s.dbs().Reader, req.Id)
+	dbDevice, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(req.Id),
+		qm.Load(models.UserDeviceRels.VehicleNFT),
+	).One(ctx, s.dbs().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, status.Error(codes.NotFound, "No device with that ID found.")
@@ -36,10 +40,15 @@ func (s *userDeviceService) GetUserDevice(ctx context.Context, req *pb.GetUserDe
 		return nil, status.Error(codes.Internal, "Internal error.")
 	}
 
+	var tokenID types.NullDecimal
+	if dbDevice.R.VehicleNFT != nil {
+		tokenID = dbDevice.R.VehicleNFT.TokenID
+	}
+
 	pbDevice := &pb.UserDevice{
 		Id:        dbDevice.ID,
 		UserId:    dbDevice.UserID,
-		TokenId:   s.toUint64(dbDevice.TokenID),
+		TokenId:   s.toUint64(tokenID),
 		OptedInAt: nullTimeToPB(dbDevice.OptedInAt),
 	}
 
@@ -47,7 +56,10 @@ func (s *userDeviceService) GetUserDevice(ctx context.Context, req *pb.GetUserDe
 }
 
 func (s *userDeviceService) ListUserDevicesForUser(ctx context.Context, req *pb.ListUserDevicesForUserRequest) (*pb.ListUserDevicesForUserResponse, error) {
-	devices, err := models.UserDevices(models.UserDeviceWhere.UserID.EQ(req.UserId)).All(ctx, s.dbs().Reader)
+	devices, err := models.UserDevices(
+		models.UserDeviceWhere.UserID.EQ(req.UserId),
+		qm.Load(models.UserDeviceRels.VehicleNFT),
+	).All(ctx, s.dbs().Reader)
 	if err != nil {
 		s.logger.Err(err).Str("userId", req.UserId).Msg("Database failure retrieving user's devices.")
 		return nil, status.Error(codes.Internal, "Internal error.")
@@ -57,10 +69,15 @@ func (s *userDeviceService) ListUserDevicesForUser(ctx context.Context, req *pb.
 	for i := 0; i < len(devices); i++ {
 		device := devices[i]
 
+		var tokenID types.NullDecimal
+		if device.R.VehicleNFT != nil {
+			tokenID = device.R.VehicleNFT.TokenID
+		}
+
 		devOut[i] = &pb.UserDevice{
 			Id:        device.ID,
 			UserId:    device.UserID,
-			TokenId:   s.toUint64(device.TokenID),
+			TokenId:   s.toUint64(tokenID),
 			OptedInAt: nullTimeToPB(device.OptedInAt),
 		}
 	}

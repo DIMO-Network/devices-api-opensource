@@ -956,7 +956,10 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 		return api.GrpcErrorToFiber(err, "failed to retrieve AutoPi integration.")
 	}
 
-	ud, err := models.FindUserDevice(c.Context(), udc.DBS().Reader, userDeviceID)
+	ud, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		qm.Load(models.UserDeviceRels.VehicleNFT),
+	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
@@ -1022,7 +1025,7 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusConflict, "AutoPi not yet minted.")
 	}
 
-	if ud.TokenID.IsZero() {
+	if ud.R.VehicleNFT == nil || ud.R.VehicleNFT.TokenID.IsZero() {
 		return fiber.NewError(fiber.StatusConflict, "Vehicle not yet minted.")
 	}
 
@@ -1031,7 +1034,7 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 	}
 
 	apToken := autoPiUnit.TokenID.Int(nil)
-	vehicleToken := ud.TokenID.Int(nil)
+	vehicleToken := ud.R.VehicleNFT.TokenID.Int(nil)
 
 	// TODO(elffjs): Really shouldn't be dialing so much.
 	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -1099,7 +1102,10 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 		return api.GrpcErrorToFiber(err, "failed to retrieve AutoPi integration.")
 	}
 
-	ud, err := models.FindUserDevice(c.Context(), udc.DBS().Reader, userDeviceID)
+	ud, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		qm.Load(models.UserDeviceRels.VehicleNFT),
+	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
@@ -1175,7 +1181,7 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusConflict, "AutoPi not yet minted.")
 	}
 
-	if ud.TokenID.IsZero() {
+	if ud.R.VehicleNFT == nil || ud.R.VehicleNFT.TokenID.IsZero() {
 		return fiber.NewError(fiber.StatusConflict, "Vehicle not yet minted.")
 	}
 
@@ -1184,7 +1190,7 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 	}
 
 	apToken := autoPiUnit.TokenID.Int(nil)
-	vehicleToken := ud.TokenID.Int(nil)
+	vehicleToken := ud.R.VehicleNFT.TokenID.Int(nil)
 
 	// TODO(elffjs): Really shouldn't be dialing so much.
 	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -1294,7 +1300,10 @@ func (udc *UserDevicesController) UnpairAutoPi(c *fiber.Ctx) error {
 		return opaqueInternalError
 	}
 
-	ud, err := models.FindUserDevice(c.Context(), udc.DBS().Reader, userDeviceID)
+	ud, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		qm.Load(models.UserDeviceRels.VehicleNFT),
+	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
@@ -1333,12 +1342,12 @@ func (udc *UserDevicesController) UnpairAutoPi(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusConflict, "AutoPi not yet minted.")
 	}
 
-	if ud.TokenID.IsZero() {
+	if ud.R.VehicleNFT == nil || ud.R.VehicleNFT.TokenID.IsZero() {
 		return fiber.NewError(fiber.StatusConflict, "Vehicle not yet minted.")
 	}
 
 	apToken := autoPiUnit.TokenID.Int(nil)
-	vehicleToken := ud.TokenID.Int(nil)
+	vehicleToken := ud.R.VehicleNFT.TokenID.Int(nil)
 
 	// TODO(elffjs): Really shouldn't be dialing so much.
 	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -1453,7 +1462,10 @@ func (udc *UserDevicesController) GetAutoPiUnpairMessage(c *fiber.Ctx) error {
 		return api.GrpcErrorToFiber(err, "failed to retrieve AutoPi integration.")
 	}
 
-	ud, err := models.FindUserDevice(c.Context(), udc.DBS().Reader, userDeviceID)
+	ud, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		qm.Load(models.UserDeviceRels.VehicleNFT),
+	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
@@ -1492,12 +1504,12 @@ func (udc *UserDevicesController) GetAutoPiUnpairMessage(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusConflict, "AutoPi not yet minted.")
 	}
 
-	if ud.TokenID.IsZero() {
+	if ud.R.VehicleNFT == nil || ud.R.VehicleNFT.TokenID.IsZero() {
 		return fiber.NewError(fiber.StatusConflict, "Vehicle not yet minted.")
 	}
 
 	apToken := autoPiUnit.TokenID.Int(nil)
-	vehicleToken := ud.TokenID.Int(nil)
+	vehicleToken := ud.R.VehicleNFT.TokenID.Int(nil)
 
 	// TODO(elffjs): Really shouldn't be dialing so much.
 	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))

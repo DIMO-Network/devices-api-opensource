@@ -134,7 +134,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
 		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations)),
 		qm.Load(models.UserDeviceRels.MintRequest),
-		qm.Load(models.UserDeviceRels.MintMetaTransactionRequest),
+		qm.Load(qm.Rels(models.UserDeviceRels.VehicleNFT, models.VehicleNFTRels.MintRequest)),
 		qm.OrderBy("created_at"),
 	).All(c.Context(), udc.DBS().Reader)
 	if err != nil {
@@ -209,16 +209,17 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 
 		var nft *NFTData
 		if udc.Settings.Environment != "prod" {
-			if mtr := d.R.MintMetaTransactionRequest; mtr != nil {
+			if vnft := d.R.VehicleNFT; nft != nil {
+				nftStatus := vnft.R.MintRequest
 				nft = &NFTData{
-					Status: mtr.Status,
+					Status: nftStatus.Status,
 				}
-				if mtr.Hash.Valid {
-					hash := hexutil.Encode(mtr.Hash.Bytes)
+				if nftStatus.Hash.Valid {
+					hash := hexutil.Encode(nftStatus.Hash.Bytes)
 					nft.TxHash = &hash
 				}
-				if !d.TokenID.IsZero() {
-					nft.TokenID = d.TokenID.Int(nil)
+				if !vnft.TokenID.IsZero() {
+					nft.TokenID = vnft.TokenID.Int(nil)
 					nft.TokenURI = fmt.Sprintf("%s/v1/nfts/%s", udc.Settings.DeploymentBaseURL, nft.TokenID)
 				}
 			}
@@ -1890,7 +1891,7 @@ func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 
 	_, err = udc.s3.PutObject(c.Context(), &s3.PutObjectInput{
 		Bucket: &udc.Settings.NFTS3Bucket,
-		Key:    aws.String(userDeviceID + ".png"),
+		Key:    aws.String(requestID + ".png"),
 		Body:   bytes.NewReader(image),
 	})
 	if err != nil {
@@ -1935,7 +1936,13 @@ func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 		return err
 	}
 
-	userDevice.MintMetaTransactionRequestID = null.StringFrom(requestID)
+	nft := models.VehicleNFT{
+		MintRequestID: requestID,
+		UserDeviceID:  null.StringFrom(userDevice.ID),
+		Vin:           userDevice.VinIdentifier.String,
+	}
+
+	nft.MintRequestID = requestID
 	_, err = userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer())
 	if err != nil {
 		return err
