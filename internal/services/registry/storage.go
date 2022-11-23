@@ -29,13 +29,20 @@ type S struct {
 }
 
 func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
-	s.Logger.Info().Str("requestId", data.RequestID).Str("status", data.Type).Str("hash", data.Transaction.Hash).Msg("Got transaction status.")
+	logger := s.Logger.With().
+		Str("requestId", data.RequestID).
+		Str("status", data.Type).
+		Str("hash", data.Transaction.Hash).
+		Logger()
+
+	logger.Info().Msg("Got transaction status.")
 
 	mtr, err := models.MetaTransactionRequests(
 		models.MetaTransactionRequestWhere.ID.EQ(data.RequestID),
 		// This is really ugly. We should probably link back to the type instead of doing this.
 		qm.Load(models.MetaTransactionRequestRels.MintRequestVehicleNFT),
 		qm.Load(models.MetaTransactionRequestRels.ClaimMetaTransactionRequestAutopiUnit),
+		qm.Load(models.MetaTransactionRequestRels.PairRequestAutopiUnit),
 		qm.Load(models.MetaTransactionRequestRels.UnpairRequestAutopiUnit),
 	).One(context.Background(), s.DB().Reader)
 	if err != nil {
@@ -77,7 +84,7 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 					return err
 				}
 
-				s.Logger.Info().Str("userDeviceId", mtr.R.MintRequestVehicleNFT.UserDeviceID.String).Msg("Vehicle minted.")
+				logger.Info().Str("userDeviceId", mtr.R.MintRequestVehicleNFT.UserDeviceID.String).Msg("Vehicle minted.")
 			}
 		}
 		// Other soon.
@@ -98,7 +105,7 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 					return err
 				}
 
-				s.Logger.Info().Str("autoPiTokenId", mtr.R.ClaimMetaTransactionRequestAutopiUnit.TokenID.String()).Str("owner", out.Owner.String()).Msg("Device claimed.")
+				logger.Info().Str("autoPiTokenId", mtr.R.ClaimMetaTransactionRequestAutopiUnit.TokenID.String()).Str("owner", out.Owner.String()).Msg("Device claimed.")
 			}
 		}
 	case mtr.R.PairRequestAutopiUnit != nil:
