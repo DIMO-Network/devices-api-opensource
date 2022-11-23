@@ -15,6 +15,7 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/controllers"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
+	"github.com/DIMO-Network/devices-api/internal/services/autopi"
 	"github.com/DIMO-Network/devices-api/internal/services/registry"
 	"github.com/DIMO-Network/shared"
 	pb "github.com/DIMO-Network/shared/api/devices"
@@ -184,7 +185,9 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 			logger.Fatal().Err(err).Msg("Failed to create Sarama client")
 		}
 
-		store, err := registry.NewStorage(pdb.DBS, &logger)
+		autoPi := autopi.NewIntegration(pdb.DBS, ddSvc, autoPiSvc, autoPiTaskService, autoPiIngest)
+
+		store, err := registry.NewStorage(pdb.DBS, &logger, autoPi)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Failed to create registry storage client")
 		}

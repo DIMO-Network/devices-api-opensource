@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/DIMO-Network/devices-api/internal/services/autopi"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/ericlagergren/decimal"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -24,6 +25,7 @@ type S struct {
 	ABI    *abi.ABI
 	DB     func() *database.DBReaderWriter
 	Logger *zerolog.Logger
+	ap     *autopi.Integration
 }
 
 func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
@@ -54,6 +56,7 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 
 	vehicleMintedEvent := s.ABI.Events["VehicleNodeMinted"]
 	deviceClaimedEvent := s.ABI.Events["AftermarketDeviceClaimed"]
+	devicePairedEvent := s.ABI.Events["AftermarketDevicePaired"]
 	deviceUnpairedEvent := s.ABI.Events["AftermarketDeviceUnpaired"]
 
 	switch {
@@ -96,6 +99,19 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 				}
 
 				s.Logger.Info().Str("autoPiTokenId", mtr.R.ClaimMetaTransactionRequestAutopiUnit.TokenID.String()).Str("owner", out.Owner.String()).Msg("Device claimed.")
+			}
+		}
+	case mtr.R.PairRequestAutopiUnit != nil:
+		for _, l1 := range data.Transaction.Logs {
+			l2 := convertLog(&l1)
+			if l2.Topics[0] == devicePairedEvent.ID {
+				out := new(RegistryAftermarketDevicePaired)
+				err := s.parseLog(out, devicePairedEvent, *l2)
+				if err != nil {
+					return err
+				}
+
+				return s.ap.Pair(ctx, out.AftermarketDeviceNode, out.VehicleNode)
 			}
 		}
 	case mtr.R.UnpairRequestAutopiUnit != nil:
@@ -157,7 +173,7 @@ func convertLog(logIn *ceLog) *eth_types.Log {
 	}
 }
 
-func NewStorage(db func() *database.DBReaderWriter, logger *zerolog.Logger) (Storage, error) {
+func NewStorage(db func() *database.DBReaderWriter, logger *zerolog.Logger, ap *autopi.Integration) (Storage, error) {
 	abi, err := RegistryMetaData.GetAbi()
 	if err != nil {
 		return nil, err
@@ -166,5 +182,6 @@ func NewStorage(db func() *database.DBReaderWriter, logger *zerolog.Logger) (Sto
 		ABI:    abi,
 		DB:     db,
 		Logger: logger,
+		ap:     ap,
 	}, nil
 }
