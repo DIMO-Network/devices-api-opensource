@@ -2077,7 +2077,7 @@ type UpdateVINReq struct {
 	// 17 characters in length and contain only letters and numbers.
 	VIN *string `json:"vin" example:"4Y1SL65848Z411439"`
 	// ExternalID is the unit ID of the AutoPi that signed the VIN.
-	ExternalID *string `json:"externalId"`
+	ExternalID *string `json:"externalId" example:"febaf3bf-9a59-4fac-9df6-55228e904c28"`
 	// Signature is the hex-encoded result of the AutoPi signing the VIN.
 	Signature *string `json:"signature" example:"16b15f88bbd2e0a22d1d0084b8b7080f2003ea83eab1a00f80d8c18446c9c1b6224f17aa09eaf167717ca4f355bb6dc94356e037edf3adf6735a86fc3741f5231b"`
 }
