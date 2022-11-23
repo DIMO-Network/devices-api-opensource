@@ -324,7 +324,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_controllers.DocumentResponse"
+                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
                             }
                         }
                     }
@@ -379,7 +379,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.DocumentResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
                         }
                     }
                 }
@@ -415,7 +415,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.DocumentResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
                         }
                     }
                 }
@@ -560,7 +560,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp"
                         }
                     },
                     "404": {
@@ -682,7 +682,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Return the EIP-712 payload to be signed for AutoPi device pairing.",
+                "description": "Return the EIP-712 payload to be signed for AutoPi device pairing. The device must\neither already be integrated with the vehicle, or you must provide its unit id\nas a query parameter. In the latter case, the integration process will start\nonce the transaction confirms.",
                 "produces": [
                     "application/json"
                 ],
@@ -703,7 +703,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "EIP-712 message for pairing.",
                         "schema": {
                             "$ref": "#/definitions/apitypes.TypedData"
                         }

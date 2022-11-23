@@ -1525,7 +1525,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.DocumentResponse'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
             type: array
       security:
       - BearerAuth: []
@@ -1562,7 +1562,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_controllers.DocumentResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
       security:
       - BearerAuth: []
       tags:
@@ -1603,7 +1603,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.DocumentResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
       security:
       - BearerAuth: []
       tags:
@@ -1677,7 +1677,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.NFTMetadataResp'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp'
         "404":
           description: Not Found
       tags:
@@ -1749,7 +1749,11 @@ paths:
       - integrations
   /user/devices/:userDeviceID/autopi/commands/pair:
     get:
-      description: Return the EIP-712 payload to be signed for AutoPi device pairing.
+      description: |-
+        Return the EIP-712 payload to be signed for AutoPi device pairing. The device must
+        either already be integrated with the vehicle, or you must provide its unit id
+        as a query parameter. In the latter case, the integration process will start
+        once the transaction confirms.
       parameters:
       - description: Device id
         in: path
@@ -1764,7 +1768,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: EIP-712 message for pairing.
           schema:
             $ref: '#/definitions/apitypes.TypedData'
       security:

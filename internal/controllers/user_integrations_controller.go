@@ -935,11 +935,14 @@ func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
 }
 
 // GetAutoPiPairMessage godoc
-// @Description Return the EIP-712 payload to be signed for AutoPi device pairing.
+// @Description Return the EIP-712 payload to be signed for AutoPi device pairing. The device must
+// @Description either already be integrated with the vehicle, or you must provide its unit id
+// @Description as a query parameter. In the latter case, the integration process will start
+// @Description once the transaction confirms.
 // @Produce json
 // @Param userDeviceID path string true "Device id"
 // @Param external_id query string false "External id, for now AutoPi unit id"
-// @Success 200 {object} signer.TypedData
+// @Success 200 {object} signer.TypedData "EIP-712 message for pairing."
 // @Security BearerAuth
 // @Router /user/devices/:userDeviceID/autopi/commands/pair [get]
 func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
@@ -948,6 +951,7 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 	userDeviceID := c.Params("userDeviceID")
 
 	logger := udc.log.With().Str("userId", userID).Str("userDeviceId", userDeviceID).Logger()
+
 	logger.Info().Msg("Got AutoPi pair request.")
 
 	autoPiInt, err := udc.DeviceDefIntSvc.GetAutoPiIntegration(c.Context())
@@ -958,6 +962,7 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 
 	ud, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		models.UserDeviceWhere.UserID.EQ(userID),
 		qm.Load(models.UserDeviceRels.VehicleNFT),
 	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
@@ -968,15 +973,10 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 		return opaqueInternalError
 	}
 
-	if ud.UserID != userID {
-		// Err on the side of privacy.
-		return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
-	}
-
 	var autoPiUnit *models.AutopiUnit
 
-	if extIDStr := c.Query("external_id"); extIDStr != "" {
-		unitID, err := uuid.Parse(extIDStr)
+	if extID := c.Query("external_id"); extID != "" {
+		unitID, err := uuid.Parse(extID)
 		if err != nil {
 			return err
 		}
@@ -1002,13 +1002,13 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 			return opaqueInternalError
 		}
 	} else {
+		if !udai.AutopiUnitID.Valid {
+			return opaqueInternalError
+		}
+
 		// Conflict with web2 pairing?
 		if autoPiUnit != nil && (!udai.AutopiUnitID.Valid || udai.AutopiUnitID.String != autoPiUnit.AutopiUnitID) {
 			return fiber.NewError(fiber.StatusConflict, "Vehicle already paired with another AutoPi.")
-		}
-
-		if !udai.AutopiUnitID.Valid {
-			return opaqueInternalError
 		}
 
 		autoPiUnit = udai.R.AutopiUnit
@@ -2345,6 +2345,88 @@ func (udc *UserDevicesController) AdminDeviceWeb3Unclaim(c *fiber.Ctx) error {
 	}
 
 	data, err := abi.Pack("unclaimAftermarketDeviceNode", []*big.Int{node})
+	if err != nil {
+		return err
+	}
+
+	addr := common.HexToAddress(udc.Settings.DIMORegistryAddr)
+	event := shared.CloudEvent[requestData]{
+		ID:          ksuid.New().String(),
+		Source:      "devices-api",
+		SpecVersion: "1.0",
+		Subject:     reqID,
+		Time:        time.Now(),
+		Type:        "zone.dimo.transaction.request",
+		Data: requestData{
+			ID:   reqID,
+			To:   hexutil.Encode(addr[:]),
+			Data: hexutil.Encode(data),
+		},
+	}
+
+	eventBytes, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+
+	_, _, err = udc.producer.SendMessage(
+		&sarama.ProducerMessage{
+			Topic: "topic.transaction.request.send",
+			Key:   sarama.StringEncoder(reqID),
+			Value: sarama.ByteEncoder(eventBytes),
+		},
+	)
+
+	return err
+}
+
+func (udc *UserDevicesController) AdminDeviceWeb3Unpair(c *fiber.Ctx) error {
+	wud := web3UnclaimDevice{}
+	err := c.BodyParser(&wud)
+	if err != nil {
+		return err
+	}
+
+	type requestData struct {
+		ID   string `json:"id"`
+		To   string `json:"to"`
+		Data string `json:"data"`
+	}
+
+	reqID := ksuid.New().String()
+
+	node := wud.AftermarketDeviceNode
+
+	var unit *models.AutopiUnit
+
+	if wud.AutoPiUnitID != "" {
+		unit, err = models.FindAutopiUnit(c.Context(), udc.DBS().Reader, wud.AutoPiUnitID)
+		if err != nil {
+			return err
+		}
+
+		node = unit.TokenID.Int(nil)
+	} else {
+		unit, err = models.AutopiUnits(
+			models.AutopiUnitWhere.TokenID.EQ(types.NewNullDecimal(new(decimal.Big).SetBigMantScale(node, 0))),
+		).One(c.Context(), udc.DBS().Reader)
+		if err != nil {
+			return err
+		}
+	}
+
+	unit.PairRequestID = null.String{}
+	_, err = unit.Update(c.Context(), udc.DBS().Reader, boil.Infer())
+	if err != nil {
+		return err
+	}
+
+	abi, err := registry.RegistryMetaData.GetAbi()
+	if err != nil {
+		return err
+	}
+
+	data, err := abi.Pack("unpairAftermarketDeviceByDeviceNode", []*big.Int{node})
 	if err != nil {
 		return err
 	}
