@@ -29,6 +29,7 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
@@ -498,6 +499,8 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 	userDevice.VinIdentifier = null.StringFrom(upperVIN)
 	if udc.Settings.Environment == "dev" {
 		if vinReq.Signature != nil {
+			var autoPi *models.AutopiUnit
+
 			udai, err := models.UserDeviceAPIIntegrations(
 				models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(udi),
 				models.UserDeviceAPIIntegrationWhere.AutopiUnitID.IsNotNull(),
@@ -505,29 +508,43 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 			).One(c.Context(), udc.DBS().Reader)
 			if err != nil {
 				if err == sql.ErrNoRows {
-					return fiber.NewError(fiber.StatusBadRequest, "Signature sent but no AutoPi connected to device.")
+					if vinReq.ExternalID == nil {
+						return fiber.NewError(fiber.StatusBadRequest, "Signature sent but no AutoPi connected to device and no external id provided.")
+					}
+
+					unitID, err := uuid.Parse(*vinReq.ExternalID)
+					if err != nil {
+						return fiber.NewError(fiber.StatusBadRequest, "Invalid unit id provided.")
+					}
+
+					autoPi, err = models.FindAutopiUnit(c.Context(), udc.DBS().Reader, unitID.String())
+					if err != nil {
+						return err
+					}
+				} else {
+					return err
 				}
-				return err
+			} else {
+				autoPi = udai.R.AutopiUnit
 			}
 
-			addr := udai.R.AutopiUnit.EthereumAddress
-			if !addr.Valid {
-				return fiber.NewError(fiber.StatusBadRequest, "Connected AutoPi not minted.")
+			if !autoPi.EthereumAddress.Valid {
+				return fiber.NewError(fiber.StatusBadRequest, "AutoPi not minted.")
 			}
+
+			apAddr := common.BytesToAddress(autoPi.EthereumAddress.Bytes)
 
 			recAddr, err := recoverAddress2(crypto.Keccak256Hash([]byte(*vinReq.VIN)).Bytes(), common.FromHex(*vinReq.Signature))
 			if err != nil {
 				return fiber.NewError(fiber.StatusBadRequest, "Couldn't recover address.")
 			}
 
-			addr2 := common.BytesToAddress(addr.Bytes)
-
-			if addr2 != recAddr {
+			if apAddr != recAddr {
 				return fiber.NewError(fiber.StatusBadRequest, "Signature invalid.")
 			}
-		}
 
-		userDevice.VinConfirmed = true
+			userDevice.VinConfirmed = true
+		}
 	}
 
 	if _, err := userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer()); err != nil {
@@ -2059,6 +2076,8 @@ type UpdateVINReq struct {
 	// VIN is a vehicle identification number. At the very least, it must be
 	// 17 characters in length and contain only letters and numbers.
 	VIN *string `json:"vin" example:"4Y1SL65848Z411439"`
+	// ExternalID is the unit ID of the AutoPi that signed the VIN.
+	ExternalID *string `json:"externalId"`
 	// Signature is the hex-encoded result of the AutoPi signing the VIN.
 	Signature *string `json:"signature" example:"16b15f88bbd2e0a22d1d0084b8b7080f2003ea83eab1a00f80d8c18446c9c1b6224f17aa09eaf167717ca4f355bb6dc94356e037edf3adf6735a86fc3741f5231b"`
 }

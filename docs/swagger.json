@@ -67,7 +67,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo"
+                            "$ref": "#/definitions/internal_controllers.AutoPiDeviceInfo"
                         }
                     }
                 }
@@ -126,7 +126,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiClaimRequest"
+                            "$ref": "#/definitions/internal_controllers.AutoPiClaimRequest"
                         }
                     }
                 ],
@@ -324,7 +324,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
+                                "$ref": "#/definitions/internal_controllers.DocumentResponse"
                             }
                         }
                     }
@@ -379,7 +379,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
+                            "$ref": "#/definitions/internal_controllers.DocumentResponse"
                         }
                     }
                 }
@@ -415,7 +415,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
+                            "$ref": "#/definitions/internal_controllers.DocumentResponse"
                         }
                     }
                 }
@@ -560,7 +560,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp"
+                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
                         }
                     },
                     "404": {
@@ -631,7 +631,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest"
+                            "$ref": "#/definitions/internal_controllers.AutoPiCommandRequest"
                         }
                     }
                 ],
@@ -734,7 +734,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiPairRequest"
+                            "$ref": "#/definitions/internal_controllers.AutoPiPairRequest"
                         }
                     }
                 ],
@@ -794,7 +794,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiPairRequest"
+                            "$ref": "#/definitions/internal_controllers.AutoPiPairRequest"
                         }
                     }
                 ],
@@ -822,7 +822,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest"
+                            "$ref": "#/definitions/internal_controllers.RegisterDeviceIntegrationRequest"
                         }
                     }
                 ],
@@ -1132,7 +1132,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse"
+                            "$ref": "#/definitions/internal_controllers.GetUserDeviceIntegrationResponse"
                         }
                     }
                 }
@@ -1187,7 +1187,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1226,7 +1226,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1265,7 +1265,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1304,7 +1304,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1350,7 +1350,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandRequestStatusResp"
+                            "$ref": "#/definitions/internal_controllers.CommandRequestStatusResp"
                         }
                     }
                 }
@@ -1482,7 +1482,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot"
+                            "$ref": "#/definitions/internal_controllers.DeviceSnapshot"
                         }
                     }
                 }
@@ -2366,6 +2366,10 @@
         "github.com_DIMO-Network_devices-api_internal_controllers.UpdateVINReq": {
             "type": "object",
             "properties": {
+                "externalId": {
+                    "description": "ExternalID is the unit ID of the AutoPi that signed the VIN.",
+                    "type": "string"
+                },
                 "signature": {
                     "description": "Signature is the hex-encoded result of the AutoPi signing the VIN.",
                     "type": "string",
@@ -3141,6 +3145,10 @@
         "internal_controllers.UpdateVINReq": {
             "type": "object",
             "properties": {
+                "externalId": {
+                    "description": "ExternalID is the unit ID of the AutoPi that signed the VIN.",
+                    "type": "string"
+                },
                 "signature": {
                     "description": "Signature is the hex-encoded result of the AutoPi signing the VIN.",
                     "type": "string",
