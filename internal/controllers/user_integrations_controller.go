@@ -1143,8 +1143,6 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 		}
 	}
 
-	var hasWeb2Pair bool
-
 	udai, err := ud.UserDeviceAPIIntegrations(
 		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(autoPiInt.Id),
 		qm.Load(qm.Rels(models.UserDeviceAPIIntegrationRels.AutopiUnit, models.AutopiUnitRels.PairRequest)),
@@ -1156,8 +1154,6 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 			return opaqueInternalError
 		}
 	} else {
-		hasWeb2Pair = true
-
 		// Conflict with web2 pairing?
 		if autoPiUnit != nil && (!udai.AutopiUnitID.Valid || udai.AutopiUnitID.String != autoPiUnit.AutopiUnitID) {
 			return fiber.NewError(fiber.StatusConflict, "Vehicle already paired with another AutoPi.")
@@ -1270,10 +1266,6 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 	err = client.PairAftermarketDeviceSign(requestID, apToken, vehicleToken, sigBytes)
 	if err != nil {
 		return err
-	}
-
-	if !hasWeb2Pair {
-		return udc.registerDeviceIntegrationInner(c, userID, userDeviceID, autoPiInt.Id)
 	}
 
 	return nil
