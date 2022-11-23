@@ -107,6 +107,8 @@ definitions:
     type: object
   github.com_DIMO-Network_devices-api_internal_controllers.AutoPiPairRequest:
     properties:
+      externalId:
+        type: string
       signature:
         type: string
     type: object
@@ -661,6 +663,8 @@ definitions:
     type: object
   internal_controllers.AutoPiPairRequest:
     properties:
+      externalId:
+        type: string
       signature:
         type: string
     type: object
@@ -1752,6 +1756,10 @@ paths:
         name: userDeviceID
         required: true
         type: string
+      - description: External id, for now AutoPi unit id
+        in: query
+        name: external_id
+        type: string
       produces:
       - application/json
       responses:
@@ -2211,7 +2219,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot'
+            $ref: '#/definitions/internal_controllers.DeviceSnapshot'
       security:
       - BearerAuth: []
       tags:
@@ -2282,7 +2290,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.GetGeofence'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence'
             type: array
       security:
       - ApiKeyAuth: []
@@ -2300,7 +2308,7 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.CreateGeofence'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence'
       produces:
       - application/json
       responses:
@@ -2345,7 +2353,7 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.CreateGeofence'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence'
       produces:
       - application/json
       responses:

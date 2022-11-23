@@ -34,6 +34,8 @@ type AutopiUnit struct {
 	TokenID                       types.NullDecimal `boil:"token_id" json:"token_id,omitempty" toml:"token_id" yaml:"token_id,omitempty"`
 	ClaimMetaTransactionRequestID null.String       `boil:"claim_meta_transaction_request_id" json:"claim_meta_transaction_request_id,omitempty" toml:"claim_meta_transaction_request_id" yaml:"claim_meta_transaction_request_id,omitempty"`
 	OwnerAddress                  null.Bytes        `boil:"owner_address" json:"owner_address,omitempty" toml:"owner_address" yaml:"owner_address,omitempty"`
+	PairRequestID                 null.String       `boil:"pair_request_id" json:"pair_request_id,omitempty" toml:"pair_request_id" yaml:"pair_request_id,omitempty"`
+	UnpairRequestID               null.String       `boil:"unpair_request_id" json:"unpair_request_id,omitempty" toml:"unpair_request_id" yaml:"unpair_request_id,omitempty"`
 
 	R *autopiUnitR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L autopiUnitL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -49,6 +51,8 @@ var AutopiUnitColumns = struct {
 	TokenID                       string
 	ClaimMetaTransactionRequestID string
 	OwnerAddress                  string
+	PairRequestID                 string
+	UnpairRequestID               string
 }{
 	AutopiUnitID:                  "autopi_unit_id",
 	AutopiDeviceID:                "autopi_device_id",
@@ -59,6 +63,8 @@ var AutopiUnitColumns = struct {
 	TokenID:                       "token_id",
 	ClaimMetaTransactionRequestID: "claim_meta_transaction_request_id",
 	OwnerAddress:                  "owner_address",
+	PairRequestID:                 "pair_request_id",
+	UnpairRequestID:               "unpair_request_id",
 }
 
 var AutopiUnitTableColumns = struct {
@@ -71,6 +77,8 @@ var AutopiUnitTableColumns = struct {
 	TokenID                       string
 	ClaimMetaTransactionRequestID string
 	OwnerAddress                  string
+	PairRequestID                 string
+	UnpairRequestID               string
 }{
 	AutopiUnitID:                  "autopi_units.autopi_unit_id",
 	AutopiDeviceID:                "autopi_units.autopi_device_id",
@@ -81,6 +89,8 @@ var AutopiUnitTableColumns = struct {
 	TokenID:                       "autopi_units.token_id",
 	ClaimMetaTransactionRequestID: "autopi_units.claim_meta_transaction_request_id",
 	OwnerAddress:                  "autopi_units.owner_address",
+	PairRequestID:                 "autopi_units.pair_request_id",
+	UnpairRequestID:               "autopi_units.unpair_request_id",
 }
 
 // Generated where
@@ -145,6 +155,8 @@ var AutopiUnitWhere = struct {
 	TokenID                       whereHelpertypes_NullDecimal
 	ClaimMetaTransactionRequestID whereHelpernull_String
 	OwnerAddress                  whereHelpernull_Bytes
+	PairRequestID                 whereHelpernull_String
+	UnpairRequestID               whereHelpernull_String
 }{
 	AutopiUnitID:                  whereHelperstring{field: "\"devices_api\".\"autopi_units\".\"autopi_unit_id\""},
 	AutopiDeviceID:                whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"autopi_device_id\""},
@@ -155,15 +167,21 @@ var AutopiUnitWhere = struct {
 	TokenID:                       whereHelpertypes_NullDecimal{field: "\"devices_api\".\"autopi_units\".\"token_id\""},
 	ClaimMetaTransactionRequestID: whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"claim_meta_transaction_request_id\""},
 	OwnerAddress:                  whereHelpernull_Bytes{field: "\"devices_api\".\"autopi_units\".\"owner_address\""},
+	PairRequestID:                 whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"pair_request_id\""},
+	UnpairRequestID:               whereHelpernull_String{field: "\"devices_api\".\"autopi_units\".\"unpair_request_id\""},
 }
 
 // AutopiUnitRels is where relationship names are stored.
 var AutopiUnitRels = struct {
 	ClaimMetaTransactionRequest string
+	PairRequest                 string
+	UnpairRequest               string
 	AutopiJobs                  string
 	UserDeviceAPIIntegrations   string
 }{
 	ClaimMetaTransactionRequest: "ClaimMetaTransactionRequest",
+	PairRequest:                 "PairRequest",
+	UnpairRequest:               "UnpairRequest",
 	AutopiJobs:                  "AutopiJobs",
 	UserDeviceAPIIntegrations:   "UserDeviceAPIIntegrations",
 }
@@ -171,6 +189,8 @@ var AutopiUnitRels = struct {
 // autopiUnitR is where relationships are stored.
 type autopiUnitR struct {
 	ClaimMetaTransactionRequest *MetaTransactionRequest       `boil:"ClaimMetaTransactionRequest" json:"ClaimMetaTransactionRequest" toml:"ClaimMetaTransactionRequest" yaml:"ClaimMetaTransactionRequest"`
+	PairRequest                 *MetaTransactionRequest       `boil:"PairRequest" json:"PairRequest" toml:"PairRequest" yaml:"PairRequest"`
+	UnpairRequest               *MetaTransactionRequest       `boil:"UnpairRequest" json:"UnpairRequest" toml:"UnpairRequest" yaml:"UnpairRequest"`
 	AutopiJobs                  AutopiJobSlice                `boil:"AutopiJobs" json:"AutopiJobs" toml:"AutopiJobs" yaml:"AutopiJobs"`
 	UserDeviceAPIIntegrations   UserDeviceAPIIntegrationSlice `boil:"UserDeviceAPIIntegrations" json:"UserDeviceAPIIntegrations" toml:"UserDeviceAPIIntegrations" yaml:"UserDeviceAPIIntegrations"`
 }
@@ -185,6 +205,20 @@ func (r *autopiUnitR) GetClaimMetaTransactionRequest() *MetaTransactionRequest {
 		return nil
 	}
 	return r.ClaimMetaTransactionRequest
+}
+
+func (r *autopiUnitR) GetPairRequest() *MetaTransactionRequest {
+	if r == nil {
+		return nil
+	}
+	return r.PairRequest
+}
+
+func (r *autopiUnitR) GetUnpairRequest() *MetaTransactionRequest {
+	if r == nil {
+		return nil
+	}
+	return r.UnpairRequest
 }
 
 func (r *autopiUnitR) GetAutopiJobs() AutopiJobSlice {
@@ -205,9 +239,9 @@ func (r *autopiUnitR) GetUserDeviceAPIIntegrations() UserDeviceAPIIntegrationSli
 type autopiUnitL struct{}
 
 var (
-	autopiUnitAllColumns            = []string{"autopi_unit_id", "autopi_device_id", "user_id", "ethereum_address", "created_at", "updated_at", "token_id", "claim_meta_transaction_request_id", "owner_address"}
+	autopiUnitAllColumns            = []string{"autopi_unit_id", "autopi_device_id", "user_id", "ethereum_address", "created_at", "updated_at", "token_id", "claim_meta_transaction_request_id", "owner_address", "pair_request_id", "unpair_request_id"}
 	autopiUnitColumnsWithoutDefault = []string{"autopi_unit_id"}
-	autopiUnitColumnsWithDefault    = []string{"autopi_device_id", "user_id", "ethereum_address", "created_at", "updated_at", "token_id", "claim_meta_transaction_request_id", "owner_address"}
+	autopiUnitColumnsWithDefault    = []string{"autopi_device_id", "user_id", "ethereum_address", "created_at", "updated_at", "token_id", "claim_meta_transaction_request_id", "owner_address", "pair_request_id", "unpair_request_id"}
 	autopiUnitPrimaryKeyColumns     = []string{"autopi_unit_id"}
 	autopiUnitGeneratedColumns      = []string{}
 )
@@ -501,6 +535,28 @@ func (o *AutopiUnit) ClaimMetaTransactionRequest(mods ...qm.QueryMod) metaTransa
 	return MetaTransactionRequests(queryMods...)
 }
 
+// PairRequest pointed to by the foreign key.
+func (o *AutopiUnit) PairRequest(mods ...qm.QueryMod) metaTransactionRequestQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"id\" = ?", o.PairRequestID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	return MetaTransactionRequests(queryMods...)
+}
+
+// UnpairRequest pointed to by the foreign key.
+func (o *AutopiUnit) UnpairRequest(mods ...qm.QueryMod) metaTransactionRequestQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"id\" = ?", o.UnpairRequestID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	return MetaTransactionRequests(queryMods...)
+}
+
 // AutopiJobs retrieves all the autopi_job's AutopiJobs with an executor.
 func (o *AutopiUnit) AutopiJobs(mods ...qm.QueryMod) autopiJobQuery {
 	var queryMods []qm.QueryMod
@@ -645,6 +701,254 @@ func (autopiUnitL) LoadClaimMetaTransactionRequest(ctx context.Context, e boil.C
 					foreign.R = &metaTransactionRequestR{}
 				}
 				foreign.R.ClaimMetaTransactionRequestAutopiUnit = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadPairRequest allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (autopiUnitL) LoadPairRequest(ctx context.Context, e boil.ContextExecutor, singular bool, maybeAutopiUnit interface{}, mods queries.Applicator) error {
+	var slice []*AutopiUnit
+	var object *AutopiUnit
+
+	if singular {
+		var ok bool
+		object, ok = maybeAutopiUnit.(*AutopiUnit)
+		if !ok {
+			object = new(AutopiUnit)
+			ok = queries.SetFromEmbeddedStruct(&object, &maybeAutopiUnit)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", object, maybeAutopiUnit))
+			}
+		}
+	} else {
+		s, ok := maybeAutopiUnit.(*[]*AutopiUnit)
+		if ok {
+			slice = *s
+		} else {
+			ok = queries.SetFromEmbeddedStruct(&slice, maybeAutopiUnit)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", slice, maybeAutopiUnit))
+			}
+		}
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &autopiUnitR{}
+		}
+		if !queries.IsNil(object.PairRequestID) {
+			args = append(args, object.PairRequestID)
+		}
+
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &autopiUnitR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.PairRequestID) {
+					continue Outer
+				}
+			}
+
+			if !queries.IsNil(obj.PairRequestID) {
+				args = append(args, obj.PairRequestID)
+			}
+
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`devices_api.meta_transaction_requests`),
+		qm.WhereIn(`devices_api.meta_transaction_requests.id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load MetaTransactionRequest")
+	}
+
+	var resultSlice []*MetaTransactionRequest
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice MetaTransactionRequest")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for meta_transaction_requests")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for meta_transaction_requests")
+	}
+
+	if len(autopiUnitAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.PairRequest = foreign
+		if foreign.R == nil {
+			foreign.R = &metaTransactionRequestR{}
+		}
+		foreign.R.PairRequestAutopiUnit = object
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if queries.Equal(local.PairRequestID, foreign.ID) {
+				local.R.PairRequest = foreign
+				if foreign.R == nil {
+					foreign.R = &metaTransactionRequestR{}
+				}
+				foreign.R.PairRequestAutopiUnit = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadUnpairRequest allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (autopiUnitL) LoadUnpairRequest(ctx context.Context, e boil.ContextExecutor, singular bool, maybeAutopiUnit interface{}, mods queries.Applicator) error {
+	var slice []*AutopiUnit
+	var object *AutopiUnit
+
+	if singular {
+		var ok bool
+		object, ok = maybeAutopiUnit.(*AutopiUnit)
+		if !ok {
+			object = new(AutopiUnit)
+			ok = queries.SetFromEmbeddedStruct(&object, &maybeAutopiUnit)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", object, maybeAutopiUnit))
+			}
+		}
+	} else {
+		s, ok := maybeAutopiUnit.(*[]*AutopiUnit)
+		if ok {
+			slice = *s
+		} else {
+			ok = queries.SetFromEmbeddedStruct(&slice, maybeAutopiUnit)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", slice, maybeAutopiUnit))
+			}
+		}
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &autopiUnitR{}
+		}
+		if !queries.IsNil(object.UnpairRequestID) {
+			args = append(args, object.UnpairRequestID)
+		}
+
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &autopiUnitR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.UnpairRequestID) {
+					continue Outer
+				}
+			}
+
+			if !queries.IsNil(obj.UnpairRequestID) {
+				args = append(args, obj.UnpairRequestID)
+			}
+
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`devices_api.meta_transaction_requests`),
+		qm.WhereIn(`devices_api.meta_transaction_requests.id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load MetaTransactionRequest")
+	}
+
+	var resultSlice []*MetaTransactionRequest
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice MetaTransactionRequest")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for meta_transaction_requests")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for meta_transaction_requests")
+	}
+
+	if len(autopiUnitAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.UnpairRequest = foreign
+		if foreign.R == nil {
+			foreign.R = &metaTransactionRequestR{}
+		}
+		foreign.R.UnpairRequestAutopiUnit = object
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if queries.Equal(local.UnpairRequestID, foreign.ID) {
+				local.R.UnpairRequest = foreign
+				if foreign.R == nil {
+					foreign.R = &metaTransactionRequestR{}
+				}
+				foreign.R.UnpairRequestAutopiUnit = local
 				break
 			}
 		}
@@ -947,6 +1251,144 @@ func (o *AutopiUnit) RemoveClaimMetaTransactionRequest(ctx context.Context, exec
 	}
 
 	related.R.ClaimMetaTransactionRequestAutopiUnit = nil
+	return nil
+}
+
+// SetPairRequest of the autopiUnit to the related item.
+// Sets o.R.PairRequest to related.
+// Adds o to related.R.PairRequestAutopiUnit.
+func (o *AutopiUnit) SetPairRequest(ctx context.Context, exec boil.ContextExecutor, insert bool, related *MetaTransactionRequest) error {
+	var err error
+	if insert {
+		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"devices_api\".\"autopi_units\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 1, []string{"pair_request_id"}),
+		strmangle.WhereClause("\"", "\"", 2, autopiUnitPrimaryKeyColumns),
+	)
+	values := []interface{}{related.ID, o.AutopiUnitID}
+
+	if boil.IsDebug(ctx) {
+		writer := boil.DebugWriterFrom(ctx)
+		fmt.Fprintln(writer, updateQuery)
+		fmt.Fprintln(writer, values)
+	}
+	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	queries.Assign(&o.PairRequestID, related.ID)
+	if o.R == nil {
+		o.R = &autopiUnitR{
+			PairRequest: related,
+		}
+	} else {
+		o.R.PairRequest = related
+	}
+
+	if related.R == nil {
+		related.R = &metaTransactionRequestR{
+			PairRequestAutopiUnit: o,
+		}
+	} else {
+		related.R.PairRequestAutopiUnit = o
+	}
+
+	return nil
+}
+
+// RemovePairRequest relationship.
+// Sets o.R.PairRequest to nil.
+// Removes o from all passed in related items' relationships struct.
+func (o *AutopiUnit) RemovePairRequest(ctx context.Context, exec boil.ContextExecutor, related *MetaTransactionRequest) error {
+	var err error
+
+	queries.SetScanner(&o.PairRequestID, nil)
+	if _, err = o.Update(ctx, exec, boil.Whitelist("pair_request_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	if o.R != nil {
+		o.R.PairRequest = nil
+	}
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	related.R.PairRequestAutopiUnit = nil
+	return nil
+}
+
+// SetUnpairRequest of the autopiUnit to the related item.
+// Sets o.R.UnpairRequest to related.
+// Adds o to related.R.UnpairRequestAutopiUnit.
+func (o *AutopiUnit) SetUnpairRequest(ctx context.Context, exec boil.ContextExecutor, insert bool, related *MetaTransactionRequest) error {
+	var err error
+	if insert {
+		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"devices_api\".\"autopi_units\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 1, []string{"unpair_request_id"}),
+		strmangle.WhereClause("\"", "\"", 2, autopiUnitPrimaryKeyColumns),
+	)
+	values := []interface{}{related.ID, o.AutopiUnitID}
+
+	if boil.IsDebug(ctx) {
+		writer := boil.DebugWriterFrom(ctx)
+		fmt.Fprintln(writer, updateQuery)
+		fmt.Fprintln(writer, values)
+	}
+	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	queries.Assign(&o.UnpairRequestID, related.ID)
+	if o.R == nil {
+		o.R = &autopiUnitR{
+			UnpairRequest: related,
+		}
+	} else {
+		o.R.UnpairRequest = related
+	}
+
+	if related.R == nil {
+		related.R = &metaTransactionRequestR{
+			UnpairRequestAutopiUnit: o,
+		}
+	} else {
+		related.R.UnpairRequestAutopiUnit = o
+	}
+
+	return nil
+}
+
+// RemoveUnpairRequest relationship.
+// Sets o.R.UnpairRequest to nil.
+// Removes o from all passed in related items' relationships struct.
+func (o *AutopiUnit) RemoveUnpairRequest(ctx context.Context, exec boil.ContextExecutor, related *MetaTransactionRequest) error {
+	var err error
+
+	queries.SetScanner(&o.UnpairRequestID, nil)
+	if _, err = o.Update(ctx, exec, boil.Whitelist("unpair_request_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	if o.R != nil {
+		o.R.UnpairRequest = nil
+	}
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	related.R.UnpairRequestAutopiUnit = nil
 	return nil
 }
 

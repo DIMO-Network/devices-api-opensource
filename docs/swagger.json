@@ -693,6 +693,12 @@
                         "name": "userDeviceID",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "External id, for now AutoPi unit id",
+                        "name": "external_id",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1440,7 +1446,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot"
+                            "$ref": "#/definitions/internal_controllers.DeviceSnapshot"
                         }
                     }
                 }
@@ -1535,7 +1541,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_controllers.GetGeofence"
+                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence"
                             }
                         }
                     }
@@ -1567,7 +1573,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence"
                         }
                     }
                 ],
@@ -1615,7 +1621,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence"
                         }
                     }
                 ],
@@ -1814,6 +1820,9 @@
         "github.com_DIMO-Network_devices-api_internal_controllers.AutoPiPairRequest": {
             "type": "object",
             "properties": {
+                "externalId": {
+                    "type": "string"
+                },
                 "signature": {
                     "type": "string"
                 }
@@ -2586,6 +2595,9 @@
         "internal_controllers.AutoPiPairRequest": {
             "type": "object",
             "properties": {
+                "externalId": {
+                    "type": "string"
+                },
                 "signature": {
                     "type": "string"
                 }

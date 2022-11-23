@@ -34,7 +34,7 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 		// This is really ugly. We should probably link back to the type instead of doing this.
 		qm.Load(models.MetaTransactionRequestRels.MintMetaTransactionRequestUserDevice),
 		qm.Load(models.MetaTransactionRequestRels.ClaimMetaTransactionRequestAutopiUnit),
-		qm.Load(models.MetaTransactionRequestRels.UnpairMetaTransactionRequestUserDeviceAPIIntegration),
+		qm.Load(models.MetaTransactionRequestRels.UnpairRequestAutopiUnit),
 	).One(context.Background(), s.DB().Reader)
 	if err != nil {
 		return err
@@ -97,7 +97,7 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 				s.Logger.Info().Str("autoPiTokenId", mtr.R.ClaimMetaTransactionRequestAutopiUnit.TokenID.String()).Str("owner", out.Owner.String()).Msg("Device claimed.")
 			}
 		}
-	case mtr.R.UnpairMetaTransactionRequestUserDeviceAPIIntegration != nil:
+	case mtr.R.UnpairRequestAutopiUnit != nil:
 		for _, l1 := range data.Transaction.Logs {
 			l2 := convertLog(&l1)
 			if l2.Topics[0] == deviceUnpairedEvent.ID {
@@ -107,8 +107,8 @@ func (s *S) HandleUpdate(ctx context.Context, data *ceData) error {
 					return err
 				}
 
-				mtr.R.UnpairMetaTransactionRequestUserDeviceAPIIntegration.PairMetaTransactionRequestID = null.String{}
-				_, err = mtr.R.UnpairMetaTransactionRequestUserDeviceAPIIntegration.Update(ctx, s.DB().Writer, boil.Infer())
+				mtr.R.UnpairRequestAutopiUnit.PairRequestID = null.String{}
+				_, err = mtr.R.UnpairRequestAutopiUnit.Update(ctx, s.DB().Writer, boil.Infer())
 				if err != nil {
 					return err
 				}

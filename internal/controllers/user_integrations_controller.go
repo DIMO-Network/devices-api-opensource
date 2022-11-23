@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	signer "github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
@@ -562,6 +563,8 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 	dbUnit, err := models.AutopiUnits(
 		models.AutopiUnitWhere.AutopiUnitID.EQ(unitID),
 		qm.Load(models.AutopiUnitRels.ClaimMetaTransactionRequest),
+		qm.Load(models.AutopiUnitRels.PairRequest),
+		qm.Load(models.AutopiUnitRels.UnpairRequest),
 	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		if err != sql.ErrNoRows {
@@ -594,39 +597,29 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 			}
 		}
 
-		// Check for pair
-		udai, err := models.UserDeviceAPIIntegrations(
-			models.UserDeviceAPIIntegrationWhere.AutopiUnitID.EQ(null.StringFrom(unitID)),
-			qm.Load(models.UserDeviceAPIIntegrationRels.PairMetaTransactionRequest),
-			qm.Load(models.UserDeviceAPIIntegrationRels.UnpairMetaTransactionRequest),
-		).One(c.Context(), udc.DBS().Reader)
-		if err != nil {
-			if err != sql.ErrNoRows {
-				return err
+		// Check for pair.
+		if req := dbUnit.R.PairRequest; req != nil {
+			pair = &AutoPiTransactionStatus{
+				Status:    req.Status,
+				CreatedAt: req.CreatedAt,
+				UpdatedAt: req.UpdatedAt,
 			}
-		} else {
-			if req := udai.R.PairMetaTransactionRequest; req != nil {
-				pair = &AutoPiTransactionStatus{
-					Status:    req.Status,
-					CreatedAt: req.CreatedAt,
-					UpdatedAt: req.UpdatedAt,
-				}
-				if req.Status != models.MetaTransactionRequestStatusUnsubmitted {
-					hash := hexutil.Encode(req.Hash.Bytes)
-					pair.Hash = &hash
-				}
+			if req.Status != models.MetaTransactionRequestStatusUnsubmitted {
+				hash := hexutil.Encode(req.Hash.Bytes)
+				pair.Hash = &hash
 			}
+		}
 
-			if req := udai.R.UnpairMetaTransactionRequest; req != nil {
-				unpair = &AutoPiTransactionStatus{
-					Status:    req.Status,
-					CreatedAt: req.CreatedAt,
-					UpdatedAt: req.UpdatedAt,
-				}
-				if req.Status != models.MetaTransactionRequestStatusUnsubmitted {
-					hash := hexutil.Encode(req.Hash.Bytes)
-					unpair.Hash = &hash
-				}
+		// Check for unpair.
+		if req := dbUnit.R.UnpairRequest; req != nil {
+			unpair = &AutoPiTransactionStatus{
+				Status:    req.Status,
+				CreatedAt: req.CreatedAt,
+				UpdatedAt: req.UpdatedAt,
+			}
+			if req.Status != models.MetaTransactionRequestStatusUnsubmitted {
+				hash := hexutil.Encode(req.Hash.Bytes)
+				unpair.Hash = &hash
 			}
 		}
 	}
@@ -945,6 +938,7 @@ func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
 // @Description Return the EIP-712 payload to be signed for AutoPi device pairing.
 // @Produce json
 // @Param userDeviceID path string true "Device id"
+// @Param external_id query string false "External id, for now AutoPi unit id"
 // @Success 200 {object} signer.TypedData
 // @Security BearerAuth
 // @Router /user/devices/:userDeviceID/autopi/commands/pair [get]
@@ -976,35 +970,52 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
 	}
 
-	udai, err := ud.UserDeviceAPIIntegrations(
-		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(autoPiInt.Id),
-		qm.Load(models.UserDeviceAPIIntegrationRels.PairMetaTransactionRequest),
-	).One(c.Context(), udc.DBS().Reader)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusConflict, "Device does not have an AutoPi associated.")
+	var autoPiUnit *models.AutopiUnit
+
+	if extIDStr := c.Query("external_id"); extIDStr != "" {
+		unitID, err := uuid.Parse(extIDStr)
+		if err != nil {
+			return err
 		}
-		logger.Err(err).Msg("Database failure searching for device's AutoPi integration.")
-		return opaqueInternalError
+
+		autoPiUnit, err = models.AutopiUnits(
+			models.AutopiUnitWhere.AutopiUnitID.EQ(unitID.String()),
+			qm.Load(models.AutopiUnitRels.PairRequest),
+			qm.Load(models.AutopiUnitRels.UnpairRequest),
+		).One(c.Context(), udc.DBS().Reader)
+		if err != nil {
+			return err
+		}
 	}
 
-	if udai.R.PairMetaTransactionRequest != nil && udai.R.PairMetaTransactionRequest.Status != "Failed" {
-		if udai.R.PairMetaTransactionRequest.Status == models.MetaTransactionRequestStatusConfirmed {
+	udai, err := ud.UserDeviceAPIIntegrations(
+		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(autoPiInt.Id),
+		qm.Load(qm.Rels(models.UserDeviceAPIIntegrationRels.AutopiUnit, models.AutopiUnitRels.PairRequest)),
+		qm.Load(qm.Rels(models.UserDeviceAPIIntegrationRels.AutopiUnit, models.AutopiUnitRels.UnpairRequest)),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			logger.Err(err).Msg("Database failure searching for device's AutoPi integration.")
+			return opaqueInternalError
+		}
+	} else {
+		// Conflict with web2 pairing?
+		if autoPiUnit != nil && (!udai.AutopiUnitID.Valid || udai.AutopiUnitID.String != autoPiUnit.AutopiUnitID) {
+			return fiber.NewError(fiber.StatusConflict, "Vehicle already paired with another AutoPi.")
+		}
+
+		if !udai.AutopiUnitID.Valid {
+			return opaqueInternalError
+		}
+
+		autoPiUnit = udai.R.AutopiUnit
+	}
+
+	if autoPiUnit.R.PairRequest != nil && autoPiUnit.R.PairRequest.Status != "Failed" {
+		if autoPiUnit.R.PairRequest.Status == models.MetaTransactionRequestStatusConfirmed {
 			return fiber.NewError(fiber.StatusConflict, "AutoPi already paired.")
 		}
 		return fiber.NewError(fiber.StatusConflict, "AutoPi pairing in process.")
-	}
-
-	if !udai.AutopiUnitID.Valid {
-		// This shouldn't happen.
-		logger.Error().Msg("Active AutoPi integration with no associated unit id.")
-		return opaqueInternalError
-	}
-
-	autoPiUnit, err := udai.AutopiUnit().One(c.Context(), udc.DBS().Reader)
-	if err != nil {
-		logger.Error().Msg("Failed to retrieve AutoPi record.")
-		return opaqueInternalError
 	}
 
 	if autoPiUnit.TokenID.IsZero() {
@@ -1082,10 +1093,10 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 	logger := udc.log.With().Str("userId", userID).Str("userDeviceId", userDeviceID).Logger()
 	logger.Info().Msg("Got AutoPi pair request.")
 
-	autoPiInt, err := udc.DeviceDefSvc.GetIntegrationByVendor(c.Context(), constants.AutoPiVendor)
+	autoPiInt, err := udc.DeviceDefIntSvc.GetAutoPiIntegration(c.Context())
 	if err != nil {
 		logger.Err(err).Msg("Failed to retrieve AutoPi integration.")
-		return opaqueInternalError
+		return api.GrpcErrorToFiber(err, "failed to retrieve AutoPi integration.")
 	}
 
 	ud, err := models.FindUserDevice(c.Context(), udc.DBS().Reader, userDeviceID)
@@ -1102,35 +1113,62 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
 	}
 
-	udai, err := ud.UserDeviceAPIIntegrations(
-		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(autoPiInt.Id),
-		qm.Load(models.UserDeviceAPIIntegrationRels.PairMetaTransactionRequest),
-	).One(c.Context(), udc.DBS().Reader)
+	var pairReq AutoPiPairRequest
+	err = c.BodyParser(&pairReq)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusConflict, "Device does not have an AutoPi associated.")
-		}
-		logger.Err(err).Msg("Database failure searching for device's AutoPi integration.")
-		return opaqueInternalError
+		return fiber.NewError(fiber.StatusBadRequest, "Couldn't parse request body.")
 	}
 
-	if udai.R.PairMetaTransactionRequest != nil && udai.R.PairMetaTransactionRequest.Status != "Failed" {
-		if udai.R.PairMetaTransactionRequest.Status == models.MetaTransactionRequestStatusConfirmed {
+	var autoPiUnit *models.AutopiUnit
+
+	if extIDStr := pairReq.ExternalID; extIDStr != "" {
+		unitID, err := uuid.Parse(extIDStr)
+		if err != nil {
+			return err
+		}
+
+		autoPiUnit, err = models.AutopiUnits(
+			models.AutopiUnitWhere.AutopiUnitID.EQ(unitID.String()),
+			qm.Load(models.AutopiUnitRels.PairRequest),
+			qm.Load(models.AutopiUnitRels.UnpairRequest),
+		).One(c.Context(), udc.DBS().Reader)
+		if err != nil {
+			return err
+		}
+	}
+
+	var hasWeb2Pair bool
+
+	udai, err := ud.UserDeviceAPIIntegrations(
+		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(autoPiInt.Id),
+		qm.Load(qm.Rels(models.UserDeviceAPIIntegrationRels.AutopiUnit, models.AutopiUnitRels.PairRequest)),
+		qm.Load(qm.Rels(models.UserDeviceAPIIntegrationRels.AutopiUnit, models.AutopiUnitRels.UnpairRequest)),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			logger.Err(err).Msg("Database failure searching for device's AutoPi integration.")
+			return opaqueInternalError
+		}
+	} else {
+		hasWeb2Pair = true
+
+		// Conflict with web2 pairing?
+		if autoPiUnit != nil && (!udai.AutopiUnitID.Valid || udai.AutopiUnitID.String != autoPiUnit.AutopiUnitID) {
+			return fiber.NewError(fiber.StatusConflict, "Vehicle already paired with another AutoPi.")
+		}
+
+		if !udai.AutopiUnitID.Valid {
+			return opaqueInternalError
+		}
+
+		autoPiUnit = udai.R.AutopiUnit
+	}
+
+	if autoPiUnit.R.PairRequest != nil && autoPiUnit.R.PairRequest.Status != "Failed" {
+		if autoPiUnit.R.PairRequest.Status == models.MetaTransactionRequestStatusConfirmed {
 			return fiber.NewError(fiber.StatusConflict, "AutoPi already paired.")
 		}
 		return fiber.NewError(fiber.StatusConflict, "AutoPi pairing in process.")
-	}
-
-	if !udai.AutopiUnitID.Valid {
-		// This shouldn't happen.
-		logger.Error().Msg("Active AutoPi integration with no associated unit id.")
-		return opaqueInternalError
-	}
-
-	autoPiUnit, err := udai.AutopiUnit().One(c.Context(), udc.DBS().Reader)
-	if err != nil {
-		logger.Error().Msg("Failed to retrieve AutoPi record.")
-		return opaqueInternalError
 	}
 
 	if autoPiUnit.TokenID.IsZero() {
@@ -1188,12 +1226,6 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 		VehicleNode:           vehicleToken,
 	}
 
-	var pairReq AutoPiPairRequest
-	err = c.BodyParser(&pairReq)
-	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "Couldn't parse request body.")
-	}
-
 	realAddr := common.HexToAddress(*user.EthereumAddress)
 
 	hash, err := client.Hash(&pads)
@@ -1223,13 +1255,22 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 		return err
 	}
 
-	udai.PairMetaTransactionRequestID = null.StringFrom(requestID)
-	_, err = udai.Update(c.Context(), udc.DBS().Writer, boil.Infer())
+	autoPiUnit.PairRequestID = null.StringFrom(requestID)
+	_, err = autoPiUnit.Update(c.Context(), udc.DBS().Writer, boil.Infer())
 	if err != nil {
 		return err
 	}
 
-	return client.PairAftermarketDeviceSign(requestID, apToken, vehicleToken, sigBytes)
+	err = client.PairAftermarketDeviceSign(requestID, apToken, vehicleToken, sigBytes)
+	if err != nil {
+		return err
+	}
+
+	if !hasWeb2Pair {
+		return udc.registerDeviceIntegrationInner(c, userID, userDeviceID, autoPiInt.Id)
+	}
+
+	return nil
 }
 
 // UnairAutoPi godoc
@@ -1370,13 +1411,25 @@ func (udc *UserDevicesController) UnpairAutoPi(c *fiber.Ctx) error {
 		return err
 	}
 
-	udai.UnpairMetaTransactionRequestID = null.StringFrom(requestID)
-	_, err = udai.Update(c.Context(), udc.DBS().Writer, boil.Infer())
+	autoPiUnit.UnpairRequestID = null.StringFrom(requestID)
+	_, err = autoPiUnit.Update(c.Context(), udc.DBS().Writer, boil.Infer())
 	if err != nil {
 		return err
 	}
 
-	return client.UnPairAftermarketDeviceSign(requestID, apToken, vehicleToken, sigBytes)
+	err = client.UnPairAftermarketDeviceSign(requestID, apToken, vehicleToken, sigBytes)
+	if err != nil {
+		return err
+	}
+
+	err = udc.autoPiIngestRegistrar.Deregister(udai.ExternalID.String, udai.UserDeviceID, udai.IntegrationID)
+	if err != nil {
+		udc.log.Err(err).Msgf("unexpected error deregistering autopi device from ingest. userDeviceID: %s", udai.UserDeviceID)
+		return err
+	}
+
+	_, err = udai.Delete(c.Context(), udc.DBS().Writer)
+	return err
 }
 
 // GetAutoPiUnpairMessage godoc
@@ -1495,7 +1548,8 @@ type AutoPiClaimRequest struct {
 }
 
 type AutoPiPairRequest struct {
-	Signature string `json:"signature"`
+	ExternalID string `json:"externalId"`
+	Signature  string `json:"signature"`
 }
 
 // ClaimAutoPi godoc
@@ -1641,19 +1695,7 @@ func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 	return client.ClaimAftermarketDeviceSign(requestID, apToken, realUserAddr, userSig, amSig)
 }
 
-// RegisterDeviceIntegration godoc
-// @Description Submit credentials for registering a device with a given integration.
-// @Tags        integrations
-// @Accept      json
-// @Param       userDeviceIntegrationRegistration body controllers.RegisterDeviceIntegrationRequest true "Integration credentials"
-// @Success     204
-// @Security    BearerAuth
-// @Router      /user/devices/:userDeviceID/integrations/:integrationID [post]
-func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error {
-	userID := api.GetUserID(c)
-	userDeviceID := c.Params("userDeviceID")
-	integrationID := c.Params("integrationID")
-
+func (udc *UserDevicesController) registerDeviceIntegrationInner(c *fiber.Ctx, userID, userDeviceID, integrationID string) error {
 	logger := udc.log.With().
 		Str("userId", userID).
 		Str("userDeviceId", userDeviceID).
@@ -1746,6 +1788,22 @@ func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error 
 	udc.runPostRegistration(c.Context(), &logger, userDeviceID, integrationID, deviceInteg)
 
 	return nil
+}
+
+// RegisterDeviceIntegration godoc
+// @Description Submit credentials for registering a device with a given integration.
+// @Tags        integrations
+// @Accept      json
+// @Param       userDeviceIntegrationRegistration body controllers.RegisterDeviceIntegrationRequest true "Integration credentials"
+// @Success     204
+// @Security    BearerAuth
+// @Router      /user/devices/:userDeviceID/integrations/:integrationID [post]
+func (udc *UserDevicesController) RegisterDeviceIntegration(c *fiber.Ctx) error {
+	userID := api.GetUserID(c)
+	userDeviceID := c.Params("userDeviceID")
+	integrationID := c.Params("integrationID")
+
+	return udc.registerDeviceIntegrationInner(c, userID, userDeviceID, integrationID)
 }
 
 /** Refactored / helper methods **/
