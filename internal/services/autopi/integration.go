@@ -166,10 +166,10 @@ func (i *Integration) Pair(ctx context.Context, autoPiTokenID, vehicleTokenID *b
 	profile := services.PatchVehicleProfile{
 		Year: int(def.Type.Year),
 	}
-	if !ud.VinIdentifier.IsZero() {
+	if ud.VinIdentifier.Valid {
 		profile.Vin = ud.VinIdentifier.String
 	}
-	if !ud.Name.IsZero() {
+	if ud.Name.Valid {
 		profile.CallName = ud.Name.String
 	}
 	err = i.ap.PatchVehicleProfile(autoPi.Vehicle.ID, profile)
