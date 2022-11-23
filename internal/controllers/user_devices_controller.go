@@ -29,7 +29,6 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
@@ -499,48 +498,19 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 	userDevice.VinIdentifier = null.StringFrom(upperVIN)
 	if udc.Settings.Environment == "dev" {
 		if vinReq.Signature != nil {
-			var autoPi *models.AutopiUnit
-
-			udai, err := models.UserDeviceAPIIntegrations(
-				models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(udi),
-				models.UserDeviceAPIIntegrationWhere.AutopiUnitID.IsNotNull(),
-				qm.Load(models.UserDeviceAPIIntegrationRels.AutopiUnit),
-			).One(c.Context(), udc.DBS().Reader)
-			if err != nil {
-				if err == sql.ErrNoRows {
-					if vinReq.ExternalID == nil {
-						return fiber.NewError(fiber.StatusBadRequest, "Signature sent but no AutoPi connected to device and no external id provided.")
-					}
-
-					unitID, err := uuid.Parse(*vinReq.ExternalID)
-					if err != nil {
-						return fiber.NewError(fiber.StatusBadRequest, "Invalid unit id provided.")
-					}
-
-					autoPi, err = models.FindAutopiUnit(c.Context(), udc.DBS().Reader, unitID.String())
-					if err != nil {
-						return err
-					}
-				} else {
-					return err
-				}
-			} else {
-				autoPi = udai.R.AutopiUnit
-			}
-
-			if !autoPi.EthereumAddress.Valid {
-				return fiber.NewError(fiber.StatusBadRequest, "AutoPi not minted.")
-			}
-
-			apAddr := common.BytesToAddress(autoPi.EthereumAddress.Bytes)
-
 			recAddr, err := recoverAddress2(crypto.Keccak256Hash([]byte(*vinReq.VIN)).Bytes(), common.FromHex(*vinReq.Signature))
 			if err != nil {
 				return fiber.NewError(fiber.StatusBadRequest, "Couldn't recover address.")
 			}
 
-			if apAddr != recAddr {
-				return fiber.NewError(fiber.StatusBadRequest, "Signature invalid.")
+			found, err := models.AutopiUnits(
+				models.AutopiUnitWhere.EthereumAddress.EQ(null.BytesFrom(recAddr.Bytes())),
+			).Exists(c.Context(), udc.DBS().Reader)
+			if err != nil {
+				return err
+			}
+			if !found {
+				return fiber.NewError(fiber.StatusBadRequest, "VIN not signed by any known AutoPi.")
 			}
 
 			userDevice.VinConfirmed = true
