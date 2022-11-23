@@ -209,7 +209,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 
 		var nft *NFTData
 		if udc.Settings.Environment != "prod" {
-			if vnft := d.R.VehicleNFT; nft != nil {
+			if vnft := d.R.VehicleNFT; vnft != nil {
 				nftStatus := vnft.R.MintRequest
 				nft = &NFTData{
 					Status: nftStatus.Status,
