@@ -145,7 +145,6 @@ var UserDeviceWhere = struct {
 
 // UserDeviceRels is where relationship names are stored.
 var UserDeviceRels = struct {
-	MintRequest               string
 	VehicleNFT                string
 	AutopiJobs                string
 	DeviceCommandRequests     string
@@ -154,7 +153,6 @@ var UserDeviceRels = struct {
 	UserDeviceData            string
 	UserDeviceToGeofences     string
 }{
-	MintRequest:               "MintRequest",
 	VehicleNFT:                "VehicleNFT",
 	AutopiJobs:                "AutopiJobs",
 	DeviceCommandRequests:     "DeviceCommandRequests",
@@ -166,7 +164,6 @@ var UserDeviceRels = struct {
 
 // userDeviceR is where relationships are stored.
 type userDeviceR struct {
-	MintRequest               *MintRequest                  `boil:"MintRequest" json:"MintRequest" toml:"MintRequest" yaml:"MintRequest"`
 	VehicleNFT                *VehicleNFT                   `boil:"VehicleNFT" json:"VehicleNFT" toml:"VehicleNFT" yaml:"VehicleNFT"`
 	AutopiJobs                AutopiJobSlice                `boil:"AutopiJobs" json:"AutopiJobs" toml:"AutopiJobs" yaml:"AutopiJobs"`
 	DeviceCommandRequests     DeviceCommandRequestSlice     `boil:"DeviceCommandRequests" json:"DeviceCommandRequests" toml:"DeviceCommandRequests" yaml:"DeviceCommandRequests"`
@@ -179,13 +176,6 @@ type userDeviceR struct {
 // NewStruct creates a new relationship struct
 func (*userDeviceR) NewStruct() *userDeviceR {
 	return &userDeviceR{}
-}
-
-func (r *userDeviceR) GetMintRequest() *MintRequest {
-	if r == nil {
-		return nil
-	}
-	return r.MintRequest
 }
 
 func (r *userDeviceR) GetVehicleNFT() *VehicleNFT {
@@ -526,17 +516,6 @@ func (q userDeviceQuery) Exists(ctx context.Context, exec boil.ContextExecutor) 
 	return count > 0, nil
 }
 
-// MintRequest pointed to by the foreign key.
-func (o *UserDevice) MintRequest(mods ...qm.QueryMod) mintRequestQuery {
-	queryMods := []qm.QueryMod{
-		qm.Where("\"user_device_id\" = ?", o.ID),
-	}
-
-	queryMods = append(queryMods, mods...)
-
-	return MintRequests(queryMods...)
-}
-
 // VehicleNFT pointed to by the foreign key.
 func (o *UserDevice) VehicleNFT(mods ...qm.QueryMod) vehicleNFTQuery {
 	queryMods := []qm.QueryMod{
@@ -630,123 +609,6 @@ func (o *UserDevice) UserDeviceToGeofences(mods ...qm.QueryMod) userDeviceToGeof
 	)
 
 	return UserDeviceToGeofences(queryMods...)
-}
-
-// LoadMintRequest allows an eager lookup of values, cached into the
-// loaded structs of the objects. This is for a 1-1 relationship.
-func (userDeviceL) LoadMintRequest(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserDevice interface{}, mods queries.Applicator) error {
-	var slice []*UserDevice
-	var object *UserDevice
-
-	if singular {
-		var ok bool
-		object, ok = maybeUserDevice.(*UserDevice)
-		if !ok {
-			object = new(UserDevice)
-			ok = queries.SetFromEmbeddedStruct(&object, &maybeUserDevice)
-			if !ok {
-				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", object, maybeUserDevice))
-			}
-		}
-	} else {
-		s, ok := maybeUserDevice.(*[]*UserDevice)
-		if ok {
-			slice = *s
-		} else {
-			ok = queries.SetFromEmbeddedStruct(&slice, maybeUserDevice)
-			if !ok {
-				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", slice, maybeUserDevice))
-			}
-		}
-	}
-
-	args := make([]interface{}, 0, 1)
-	if singular {
-		if object.R == nil {
-			object.R = &userDeviceR{}
-		}
-		args = append(args, object.ID)
-	} else {
-	Outer:
-		for _, obj := range slice {
-			if obj.R == nil {
-				obj.R = &userDeviceR{}
-			}
-
-			for _, a := range args {
-				if queries.Equal(a, obj.ID) {
-					continue Outer
-				}
-			}
-
-			args = append(args, obj.ID)
-		}
-	}
-
-	if len(args) == 0 {
-		return nil
-	}
-
-	query := NewQuery(
-		qm.From(`devices_api.mint_requests`),
-		qm.WhereIn(`devices_api.mint_requests.user_device_id in ?`, args...),
-	)
-	if mods != nil {
-		mods.Apply(query)
-	}
-
-	results, err := query.QueryContext(ctx, e)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load MintRequest")
-	}
-
-	var resultSlice []*MintRequest
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice MintRequest")
-	}
-
-	if err = results.Close(); err != nil {
-		return errors.Wrap(err, "failed to close results of eager load for mint_requests")
-	}
-	if err = results.Err(); err != nil {
-		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for mint_requests")
-	}
-
-	if len(userDeviceAfterSelectHooks) != 0 {
-		for _, obj := range resultSlice {
-			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
-				return err
-			}
-		}
-	}
-
-	if len(resultSlice) == 0 {
-		return nil
-	}
-
-	if singular {
-		foreign := resultSlice[0]
-		object.R.MintRequest = foreign
-		if foreign.R == nil {
-			foreign.R = &mintRequestR{}
-		}
-		foreign.R.UserDevice = object
-	}
-
-	for _, local := range slice {
-		for _, foreign := range resultSlice {
-			if queries.Equal(local.ID, foreign.UserDeviceID) {
-				local.R.MintRequest = foreign
-				if foreign.R == nil {
-					foreign.R = &mintRequestR{}
-				}
-				foreign.R.UserDevice = local
-				break
-			}
-		}
-	}
-
-	return nil
 }
 
 // LoadVehicleNFT allows an eager lookup of values, cached into the
@@ -1546,80 +1408,6 @@ func (userDeviceL) LoadUserDeviceToGeofences(ctx context.Context, e boil.Context
 			}
 		}
 	}
-
-	return nil
-}
-
-// SetMintRequest of the userDevice to the related item.
-// Sets o.R.MintRequest to related.
-// Adds o to related.R.UserDevice.
-func (o *UserDevice) SetMintRequest(ctx context.Context, exec boil.ContextExecutor, insert bool, related *MintRequest) error {
-	var err error
-
-	if insert {
-		queries.Assign(&related.UserDeviceID, o.ID)
-
-		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
-			return errors.Wrap(err, "failed to insert into foreign table")
-		}
-	} else {
-		updateQuery := fmt.Sprintf(
-			"UPDATE \"devices_api\".\"mint_requests\" SET %s WHERE %s",
-			strmangle.SetParamNames("\"", "\"", 1, []string{"user_device_id"}),
-			strmangle.WhereClause("\"", "\"", 2, mintRequestPrimaryKeyColumns),
-		)
-		values := []interface{}{o.ID, related.ID}
-
-		if boil.IsDebug(ctx) {
-			writer := boil.DebugWriterFrom(ctx)
-			fmt.Fprintln(writer, updateQuery)
-			fmt.Fprintln(writer, values)
-		}
-		if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
-			return errors.Wrap(err, "failed to update foreign table")
-		}
-
-		queries.Assign(&related.UserDeviceID, o.ID)
-	}
-
-	if o.R == nil {
-		o.R = &userDeviceR{
-			MintRequest: related,
-		}
-	} else {
-		o.R.MintRequest = related
-	}
-
-	if related.R == nil {
-		related.R = &mintRequestR{
-			UserDevice: o,
-		}
-	} else {
-		related.R.UserDevice = o
-	}
-	return nil
-}
-
-// RemoveMintRequest relationship.
-// Sets o.R.MintRequest to nil.
-// Removes o from all passed in related items' relationships struct.
-func (o *UserDevice) RemoveMintRequest(ctx context.Context, exec boil.ContextExecutor, related *MintRequest) error {
-	var err error
-
-	queries.SetScanner(&related.UserDeviceID, nil)
-	if _, err = related.Update(ctx, exec, boil.Whitelist("user_device_id")); err != nil {
-		return errors.Wrap(err, "failed to update local table")
-	}
-
-	if o.R != nil {
-		o.R.MintRequest = nil
-	}
-
-	if related == nil || related.R == nil {
-		return nil
-	}
-
-	related.R.UserDevice = nil
 
 	return nil
 }

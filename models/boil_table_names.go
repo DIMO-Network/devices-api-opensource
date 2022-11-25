@@ -10,7 +10,6 @@ var TableNames = struct {
 	ExternalVinData           string
 	Geofences                 string
 	MetaTransactionRequests   string
-	MintRequests              string
 	UserDeviceAPIIntegrations string
 	UserDeviceData            string
 	UserDeviceToGeofence      string
@@ -23,7 +22,6 @@ var TableNames = struct {
 	ExternalVinData:           "external_vin_data",
 	Geofences:                 "geofences",
 	MetaTransactionRequests:   "meta_transaction_requests",
-	MintRequests:              "mint_requests",
 	UserDeviceAPIIntegrations: "user_device_api_integrations",
 	UserDeviceData:            "user_device_data",
 	UserDeviceToGeofence:      "user_device_to_geofence",

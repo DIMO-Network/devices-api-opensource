@@ -98,23 +98,6 @@ func AllMetaTransactionRequestStatus() []string {
 	}
 }
 
-// Enum values for Txstate
-const (
-	TxstateUnstarted string = "Unstarted"
-	TxstateSubmitted string = "Submitted"
-	TxstateMined     string = "Mined"
-	TxstateConfirmed string = "Confirmed"
-)
-
-func AllTxstate() []string {
-	return []string{
-		TxstateUnstarted,
-		TxstateSubmitted,
-		TxstateMined,
-		TxstateConfirmed,
-	}
-}
-
 // Enum values for UserDeviceAPIIntegrationStatus
 const (
 	UserDeviceAPIIntegrationStatusPending               string = "Pending"
