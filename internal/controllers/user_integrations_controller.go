@@ -917,7 +917,7 @@ func (udc *UserDevicesController) GetAutoPiClaimMessage(c *fiber.Ctx) error {
 		Producer:     udc.producer,
 		RequestTopic: "topic.transaction.request.send",
 		Contract: registry.Contract{
-			ChainID: big.NewInt(int64(udc.Settings.NFTChainID)),
+			ChainID: big.NewInt(udc.Settings.DIMORegistryChainID),
 			Address: common.HexToAddress(udc.Settings.DIMORegistryAddr),
 			Name:    "DIMO",
 			Version: "1",
@@ -1064,7 +1064,7 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 		Producer:     udc.producer,
 		RequestTopic: "topic.transaction.request.send",
 		Contract: registry.Contract{
-			ChainID: big.NewInt(int64(udc.Settings.NFTChainID)),
+			ChainID: big.NewInt(udc.Settings.DIMORegistryChainID),
 			Address: common.HexToAddress(udc.Settings.DIMORegistryAddr),
 			Name:    "DIMO",
 			Version: "1",
@@ -1216,7 +1216,7 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 		Producer:     udc.producer,
 		RequestTopic: "topic.transaction.request.send",
 		Contract: registry.Contract{
-			ChainID: big.NewInt(int64(udc.Settings.NFTChainID)),
+			ChainID: big.NewInt(udc.Settings.DIMORegistryChainID),
 			Address: common.HexToAddress(udc.Settings.DIMORegistryAddr),
 			Name:    "DIMO",
 			Version: "1",
@@ -1366,7 +1366,7 @@ func (udc *UserDevicesController) UnpairAutoPi(c *fiber.Ctx) error {
 		Producer:     udc.producer,
 		RequestTopic: "topic.transaction.request.send",
 		Contract: registry.Contract{
-			ChainID: big.NewInt(int64(udc.Settings.NFTChainID)),
+			ChainID: big.NewInt(udc.Settings.DIMORegistryChainID),
 			Address: common.HexToAddress(udc.Settings.DIMORegistryAddr),
 			Name:    "DIMO",
 			Version: "1",
@@ -1516,7 +1516,7 @@ func (udc *UserDevicesController) GetAutoPiUnpairMessage(c *fiber.Ctx) error {
 		Producer:     udc.producer,
 		RequestTopic: "topic.transaction.request.send",
 		Contract: registry.Contract{
-			ChainID: big.NewInt(int64(udc.Settings.NFTChainID)),
+			ChainID: big.NewInt(udc.Settings.DIMORegistryChainID),
 			Address: common.HexToAddress(udc.Settings.DIMORegistryAddr),
 			Name:    "DIMO",
 			Version: "1",
@@ -1617,7 +1617,7 @@ func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 		Producer:     udc.producer,
 		RequestTopic: "topic.transaction.request.send",
 		Contract: registry.Contract{
-			ChainID: big.NewInt(int64(udc.Settings.NFTChainID)),
+			ChainID: big.NewInt(udc.Settings.DIMORegistryChainID),
 			Address: common.HexToAddress(udc.Settings.DIMORegistryAddr),
 			Name:    "DIMO",
 			Version: "1",

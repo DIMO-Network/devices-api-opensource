@@ -56,10 +56,7 @@ env:
   AWS_DOCUMENTS_BUCKET_NAME: dimo-network-documents-dev
   NFT_S3_BUCKET: dimo-network-nfts-dev
   USERS_API_GRPC_ADDR: users-api-dev:8086
-  NFT_CONTRACT_ADDR: '0x2808D309b28840210DF1DC0A3105203d83cBD5c3'
-  NFT_CHAIN_ID: 80001
-  NFT_CONTRACT_NAME: DIMOBetaV1
-  NFT_CONTRACT_VERSION: '1'
+  DIMO_REGISTRY_CHAIN_ID: 80001
   IPFS_NODE_ENDPOINT: http://cluster-ipfs-cluster.web3.svc.cluster.local:9094
   DRIVLY_VIN_API_URL: https://vin-git-fc.dev.driv.ly
   DRIVLY_OFFER_API_URL: https://offers.dev.driv.ly

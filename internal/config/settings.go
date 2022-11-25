@@ -33,12 +33,6 @@ type Settings struct {
 	DeviceStatusTopic                 string `yaml:"DEVICE_STATUS_TOPIC"`
 	PrivacyFenceTopic                 string `yaml:"PRIVACY_FENCE_TOPIC"`
 	TaskRunNowTopic                   string `yaml:"TASK_RUN_NOW_TOPIC"`
-	NFTInputTopic                     string `yaml:"NFT_INPUT_TOPIC"`
-	NFTOutputTopic                    string `yaml:"NFT_OUTPUT_TOPIC"`
-	NFTContractAddr                   string `yaml:"NFT_CONTRACT_ADDR"`
-	NFTChainID                        int    `yaml:"NFT_CHAIN_ID"`
-	NFTContractName                   string `yaml:"NFT_CONTRACT_NAME"`
-	NFTContractVersion                string `yaml:"NFT_CONTRACT_VERSION"`
 	TaskStopTopic                     string `yaml:"TASK_STOP_TOPIC"`
 	TaskCredentialTopic               string `yaml:"TASK_CREDENTIAL_TOPIC"`
 	TaskStatusTopic                   string `yaml:"TASK_STATUS_TOPIC"`
@@ -75,6 +69,7 @@ type Settings struct {
 	ElasticSearchEnrichStatusUsername string `yaml:"ELASTIC_SEARCH_ENRICH_STATUS_USERNAME"`
 	ElasticSearchEnrichStatusPassword string `yaml:"ELASTIC_SEARCH_ENRICH_STATUS_PASSWORD"`
 	DIMORegistryAddr                  string `yaml:"DIMO_REGISTRY_ADDR"`
+	DIMORegistryChainID               int64  `yaml:"DIMO_REGISTRY_CHAIN_ID"`
 }
 
 // GetWriterDSN builds the connection string to the db writer - for now same as reader
