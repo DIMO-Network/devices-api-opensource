@@ -208,34 +208,18 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		}
 
 		var nft *NFTData
-		if udc.Settings.Environment != "prod" {
-			if vnft := d.R.VehicleNFT; vnft != nil {
-				nftStatus := vnft.R.MintRequest
-				nft = &NFTData{
-					Status: nftStatus.Status,
-				}
-				if nftStatus.Hash.Valid {
-					hash := hexutil.Encode(nftStatus.Hash.Bytes)
-					nft.TxHash = &hash
-				}
-				if !vnft.TokenID.IsZero() {
-					nft.TokenID = vnft.TokenID.Int(nil)
-					nft.TokenURI = fmt.Sprintf("%s/v1/nfts/%s", udc.Settings.DeploymentBaseURL, nft.TokenID)
-				}
+		if vnft := d.R.VehicleNFT; vnft != nil {
+			nftStatus := vnft.R.MintRequest
+			nft = &NFTData{
+				Status: nftStatus.Status,
 			}
-		} else {
-			if mr := d.R.MintRequest; mr != nil {
-				nft = &NFTData{
-					Status: mr.TXState,
-				}
-				if mr.TXHash.Valid {
-					txHash := common.BytesToHash(mr.TXHash.Bytes).String()
-					nft.TxHash = &txHash
-				}
-				if !mr.TokenID.IsZero() {
-					nft.TokenID = mr.TokenID.Big.Int(new(big.Int))
-					nft.TokenURI = fmt.Sprintf("%s/v1/nfts/%s", udc.Settings.DeploymentBaseURL, nft.TokenID)
-				}
+			if nftStatus.Hash.Valid {
+				hash := hexutil.Encode(nftStatus.Hash.Bytes)
+				nft.TxHash = &hash
+			}
+			if !vnft.TokenID.IsZero() {
+				nft.TokenID = vnft.TokenID.Int(nil)
+				nft.TokenURI = fmt.Sprintf("%s/v1/nfts/%s", udc.Settings.DeploymentBaseURL, nft.TokenID)
 			}
 		}
 
@@ -496,25 +480,23 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 	}
 
 	userDevice.VinIdentifier = null.StringFrom(upperVIN)
-	if udc.Settings.Environment == "dev" {
-		if vinReq.Signature != nil {
-			recAddr, err := recoverAddress2(crypto.Keccak256Hash([]byte(*vinReq.VIN)).Bytes(), common.FromHex(*vinReq.Signature))
-			if err != nil {
-				return fiber.NewError(fiber.StatusBadRequest, "Couldn't recover address.")
-			}
-
-			found, err := models.AutopiUnits(
-				models.AutopiUnitWhere.EthereumAddress.EQ(null.BytesFrom(recAddr.Bytes())),
-			).Exists(c.Context(), udc.DBS().Reader)
-			if err != nil {
-				return err
-			}
-			if !found {
-				return fiber.NewError(fiber.StatusBadRequest, "VIN not signed by any known AutoPi.")
-			}
-
-			userDevice.VinConfirmed = true
+	if vinReq.Signature != nil {
+		recAddr, err := recoverAddress2(crypto.Keccak256Hash([]byte(*vinReq.VIN)).Bytes(), common.FromHex(*vinReq.Signature))
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "Couldn't recover address.")
 		}
+
+		found, err := models.AutopiUnits(
+			models.AutopiUnitWhere.EthereumAddress.EQ(null.BytesFrom(recAddr.Bytes())),
+		).Exists(c.Context(), udc.DBS().Reader)
+		if err != nil {
+			return err
+		}
+		if !found {
+			return fiber.NewError(fiber.StatusBadRequest, "VIN not signed by any known AutoPi.")
+		}
+
+		userDevice.VinConfirmed = true
 	}
 
 	if _, err := userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer()); err != nil {

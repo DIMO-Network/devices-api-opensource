@@ -62,40 +62,24 @@ func (nc *NFTController) GetNFTMetadata(c *fiber.Ctx) error {
 	var maybeName null.String
 	var deviceDefinitionID string
 
-	if nc.Settings.Environment != "prod" {
-		nft, err := models.VehicleNFTS(
-			models.VehicleNFTWhere.TokenID.EQ(tid),
-			qm.Load(models.VehicleNFTRels.UserDevice),
-		).One(c.Context(), nc.DBS().Reader)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
-			}
-			nc.log.Err(err).Msg("Database error retrieving NFT metadata.")
-			return opaqueInternalError
-		}
-
-		if nft.R.UserDevice == nil {
+	nft, err := models.VehicleNFTS(
+		models.VehicleNFTWhere.TokenID.EQ(tid),
+		qm.Load(models.VehicleNFTRels.UserDevice),
+	).One(c.Context(), nc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
 			return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
 		}
-
-		maybeName = nft.R.UserDevice.Name
-		deviceDefinitionID = nft.R.UserDevice.DeviceDefinitionID
-	} else {
-		mr, err := models.MintRequests(
-			models.MintRequestWhere.TokenID.EQ(tid),
-			qm.Load(models.MintRequestRels.UserDevice),
-		).One(c.Context(), nc.DBS().Writer)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
-			}
-			nc.log.Err(err).Msg("Database error retrieving NFT metadata.")
-			return opaqueInternalError
-		}
-		maybeName = mr.R.UserDevice.Name
-		deviceDefinitionID = mr.R.UserDevice.DeviceDefinitionID
+		nc.log.Err(err).Msg("Database error retrieving NFT metadata.")
+		return opaqueInternalError
 	}
+
+	if nft.R.UserDevice == nil {
+		return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
+	}
+
+	maybeName = nft.R.UserDevice.Name
+	deviceDefinitionID = nft.R.UserDevice.DeviceDefinitionID
 
 	def, err := nc.deviceDefSvc.GetDeviceDefinitionByID(c.Context(), deviceDefinitionID)
 	if err != nil {
@@ -153,38 +137,23 @@ func (nc *NFTController) GetNFTImage(c *fiber.Ctx) error {
 
 	var imageName string
 
-	if nc.Settings.Environment != "prod" {
-		nft, err := models.VehicleNFTS(
-			models.VehicleNFTWhere.TokenID.EQ(tid),
-			qm.Load(models.VehicleNFTRels.UserDevice),
-		).One(c.Context(), nc.DBS().Reader)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
-			}
-			nc.log.Err(err).Msg("Database error retrieving NFT metadata.")
-			return opaqueInternalError
-		}
-
-		if nft.R.UserDevice == nil {
+	nft, err := models.VehicleNFTS(
+		models.VehicleNFTWhere.TokenID.EQ(tid),
+		qm.Load(models.VehicleNFTRels.UserDevice),
+	).One(c.Context(), nc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
 			return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
 		}
-
-		imageName = nft.MintRequestID
-	} else {
-		mr, err := models.MintRequests(
-			models.MintRequestWhere.TokenID.EQ(tid),
-			qm.Load(models.MintRequestRels.UserDevice),
-		).One(c.Context(), nc.DBS().Writer)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
-			}
-			nc.log.Err(err).Msg("Database error retrieving NFT metadata.")
-			return opaqueInternalError
-		}
-		imageName = mr.ID
+		nc.log.Err(err).Msg("Database error retrieving NFT metadata.")
+		return opaqueInternalError
 	}
+
+	if nft.R.UserDevice == nil {
+		return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
+	}
+
+	imageName = nft.MintRequestID
 
 	s3o, err := nc.s3.GetObject(c.Context(), &s3.GetObjectInput{
 		Bucket: aws.String(nc.Settings.NFTS3Bucket),

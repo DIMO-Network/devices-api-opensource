@@ -150,12 +150,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/trunk/open", userDeviceController.OpenTrunk)
 	v1Auth.Post("/user/devices/:userDeviceID/integrations/:integrationID/commands/frunk/open", userDeviceController.OpenFrunk)
 
-	// Device NFT.
-	if settings.Environment == "prod" {
-		v1Auth.Get("/user/devices/:userDeviceID/commands/mint", userDeviceController.GetMintDataToSign)
-		v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.MintDevice)
-	}
-
 	// Data sharing opt-in.
 	// TODO(elffjs): Opt out.
 	v1Auth.Post("/user/devices/:userDeviceID/commands/opt-in", userDeviceController.DeviceOptIn).Name("DeviceOptIn")
@@ -171,43 +165,43 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Post("/autopi/unit/:unitID/update", userDeviceController.StartAutoPiUpdateTask)
 	v1Auth.Get("/autopi/task/:taskID", userDeviceController.GetAutoPiTask)
 
-	// AutoPi NFT pairing.
+	// New-style NFT mint, claim, pair.
+	v1Auth.Get("/user/devices/:userDeviceID/commands/mint", userDeviceController.GetMintDataToSignV2)
+	v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.MintDeviceV2)
+	v1Auth.Post("/user/devices/:userDeviceID/commands/update-nft-image", userDeviceController.UpdateNFTImage)
+
+	kconf := sarama.NewConfig()
+	kconf.Version = sarama.V2_8_1_0
+
+	kclient, err := sarama.NewClient(strings.Split(settings.KafkaBrokers, ","), kconf)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Failed to create Sarama client")
+	}
+
+	autoPi := autopi.NewIntegration(pdb.DBS, ddSvc, autoPiSvc, autoPiTaskService, autoPiIngest)
+
+	store, err := registry.NewProcessor(pdb.DBS, &logger, autoPi)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Failed to create registry storage client")
+	}
+
+	ctx := context.Background()
+	err = registry.RunConsumer(ctx, kclient, &logger, store)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Failed to create transaction listener")
+	}
+
+	v1Auth.Get("/autopi/unit/:unitID/commands/claim", userDeviceController.GetAutoPiClaimMessage)
+	v1Auth.Post("/autopi/unit/:unitID/commands/claim", userDeviceController.ClaimAutoPi)
+
+	v1Auth.Get("/user/devices/:userDeviceID/autopi/commands/pair", userDeviceController.GetAutoPiPairMessage)
+	v1Auth.Post("/user/devices/:userDeviceID/autopi/commands/pair", userDeviceController.PairAutoPi)
+
+	v1Auth.Get("/user/devices/:userDeviceID/autopi/commands/unpair", userDeviceController.GetAutoPiUnpairMessage)
+	v1Auth.Post("/user/devices/:userDeviceID/autopi/commands/unpair", userDeviceController.UnpairAutoPi)
+
+	// Dev-only admin endpoints
 	if settings.Environment != "prod" {
-		v1Auth.Get("/user/devices/:userDeviceID/commands/mint", userDeviceController.GetMintDataToSignV2)
-		v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.MintDeviceV2)
-		v1Auth.Post("/user/devices/:userDeviceID/commands/update-nft-image", userDeviceController.UpdateNFTImage)
-
-		kconf := sarama.NewConfig()
-		kconf.Version = sarama.V2_8_1_0
-
-		kclient, err := sarama.NewClient(strings.Split(settings.KafkaBrokers, ","), kconf)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Failed to create Sarama client")
-		}
-
-		autoPi := autopi.NewIntegration(pdb.DBS, ddSvc, autoPiSvc, autoPiTaskService, autoPiIngest)
-
-		store, err := registry.NewProcessor(pdb.DBS, &logger, autoPi)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Failed to create registry storage client")
-		}
-
-		ctx := context.Background()
-		err = registry.RunConsumer(ctx, kclient, &logger, store)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Failed to create transaction listener")
-		}
-
-		v1Auth.Get("/autopi/unit/:unitID/commands/claim", userDeviceController.GetAutoPiClaimMessage)
-		v1Auth.Post("/autopi/unit/:unitID/commands/claim", userDeviceController.ClaimAutoPi)
-
-		v1Auth.Get("/user/devices/:userDeviceID/autopi/commands/pair", userDeviceController.GetAutoPiPairMessage)
-		v1Auth.Post("/user/devices/:userDeviceID/autopi/commands/pair", userDeviceController.PairAutoPi)
-
-		v1Auth.Get("/user/devices/:userDeviceID/autopi/commands/unpair", userDeviceController.GetAutoPiUnpairMessage)
-		v1Auth.Post("/user/devices/:userDeviceID/autopi/commands/unpair", userDeviceController.UnpairAutoPi)
-
-		v1Auth.Post("/admin/vehicle-device-pair", userDeviceController.AdminVehicleDeviceLink)
 		v1Auth.Post("/admin/web3-device-unclaim", userDeviceController.AdminDeviceWeb3Unclaim)
 		v1Auth.Post("/admin/web3-device-unpair", userDeviceController.AdminDeviceWeb3Unpair)
 
@@ -236,7 +230,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		}
 	}()
 	// start task consumer for autopi
-	ctx := context.Background()
 	autoPiTaskService.StartConsumer(ctx)
 	drivlyTaskService.StartConsumer(ctx)
 	blackbookTaskService.StartConsumer(ctx)
