@@ -132,7 +132,6 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 	devices, err := models.UserDevices(qm.Where("user_id = ?", userID),
 		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
 		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations)),
-		qm.Load(models.UserDeviceRels.MintRequest),
 		qm.Load(qm.Rels(models.UserDeviceRels.VehicleNFT, models.VehicleNFTRels.MintRequest)),
 		qm.OrderBy("created_at"),
 	).All(c.Context(), udc.DBS().Reader)
