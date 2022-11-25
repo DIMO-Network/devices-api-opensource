@@ -1,9 +1,16 @@
 -- +goose Up
 -- +goose StatementBegin
-SELECT 'up SQL query';
+SET search_path = devices_api, public;
+
+DROP TABLE mint_requests;
+
+DROP TYPE txstate;
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-SELECT 'down SQL query';
+SET search_path = devices_api, public;
+
+-- Too much to do.
+
 -- +goose StatementEnd
