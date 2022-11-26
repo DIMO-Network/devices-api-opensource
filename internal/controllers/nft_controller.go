@@ -98,7 +98,7 @@ func (nc *NFTController) GetNFTMetadata(c *fiber.Ctx) error {
 	return c.JSON(NFTMetadataResp{
 		Name:        name,
 		Description: description,
-		Image:       fmt.Sprintf("%s/v1/nfts/%s/image", nc.Settings.DeploymentBaseURL, ti),
+		Image:       fmt.Sprintf("%s/v1/vehicle/%s/image", nc.Settings.DeploymentBaseURL, ti),
 		Attributes: []NFTAttribute{
 			{TraitType: "Make", Value: def.Make.Name},
 			{TraitType: "Model", Value: def.Type.Model},
