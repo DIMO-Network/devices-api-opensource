@@ -295,7 +295,7 @@ func (s *UserDevicesControllerTestSuite) TestVINValidate() {
 	}
 
 	for _, tc := range tests {
-		vinReq := UpdateVINReq{VIN: &tc.vin}
+		vinReq := UpdateVINReq{VIN: tc.vin}
 		err := vinReq.validate()
 		if tc.want == true {
 			assert.NoError(s.T(), err, tc.reason)

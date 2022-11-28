@@ -432,6 +432,10 @@ func (udc *UserDevicesController) DeviceOptIn(c *fiber.Ctx) error {
 	return nil
 }
 
+func validVINChar(r rune) bool {
+	return 'A' <= r && r <= 'Z' || '0' <= r && r <= '9'
+}
+
 // UpdateVIN godoc
 // @Description updates the VIN on the user device record
 // @Tags        user-devices
@@ -446,42 +450,37 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
 	userID := api.GetUserID(c)
 
-	logger := udc.log.With().Str("route", c.Route().Path).Str("userId", userID).Str("userDeviceId", udi).Logger()
+	logger := udc.log.With().Str("route", c.Route().Name).Str("userId", userID).Str("userDeviceId", udi).Logger()
 
-	userDevice, err := models.UserDevices(
-		models.UserDeviceWhere.UserID.EQ(userID),
-		models.UserDeviceWhere.ID.EQ(udi),
-	).One(c.Context(), udc.DBS().Writer)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusNotFound, "Device not found.")
-		}
-		logger.Err(err).Msg("Database error searching for device.")
-		return err
-	}
-
-	if userDevice.VinConfirmed {
-		return fiber.NewError(fiber.StatusBadRequest, "Can't update a VIN that was previously confirmed.")
-	}
-
-	vinReq := &UpdateVINReq{}
-	if err := c.BodyParser(vinReq); err != nil {
+	var req UpdateVINReq
+	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Could not parse request body.")
 	}
-	upperVIN := strings.ToUpper(*vinReq.VIN)
-	vinReq.VIN = &upperVIN
-	if err := vinReq.validate(); err != nil {
-		if vinReq.VIN != nil {
-			logger.Err(err).Str("vin", *vinReq.VIN).Msg("VIN failed validation.")
-		}
-		return fiber.NewError(fiber.StatusBadRequest, "Invalid VIN.")
+
+	req.VIN = strings.TrimSpace(strings.ToUpper(req.VIN))
+	if len(req.VIN) != 17 {
+		return fiber.NewError(fiber.StatusBadRequest, "VIN is not 17 characters long.")
 	}
 
-	userDevice.VinIdentifier = null.StringFrom(upperVIN)
-	if vinReq.Signature != nil {
-		recAddr, err := recoverAddress2(crypto.Keccak256Hash([]byte(*vinReq.VIN)).Bytes(), common.FromHex(*vinReq.Signature))
+	for _, r := range req.VIN {
+		if !validVINChar(r) {
+			return fiber.NewError(fiber.StatusBadRequest, "VIN contains a non-alphanumeric character.")
+		}
+	}
+
+	// If signed, we should be able to set the VIN to validated.
+	if req.Signature != "" {
+		vinByte := []byte(req.VIN)
+		sig := common.FromHex(req.Signature)
+		if len(sig) != 65 {
+			return fiber.NewError(fiber.StatusBadRequest, "Signature is not 65 bytes long.")
+		}
+
+		hash := crypto.Keccak256Hash(vinByte)
+
+		recAddr, err := recoverAddress2(hash.Bytes(), sig)
 		if err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "Couldn't recover address.")
+			return fiber.NewError(fiber.StatusBadRequest, "Couldn't recover signer address.")
 		}
 
 		found, err := models.AutopiUnits(
@@ -491,16 +490,55 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 			return err
 		}
 		if !found {
-			return fiber.NewError(fiber.StatusBadRequest, "VIN not signed by any known AutoPi.")
+			return fiber.NewError(fiber.StatusBadRequest, "Signature does not match any known AutoPi.")
 		}
+	}
 
+	// Don't want phantom reads.
+	tx, err := udc.DBS().GetWriterConn().BeginTx(c.Context(), &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return opaqueInternalError
+	}
+	defer tx.Rollback() //nolint
+
+	userDevice, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(udi),
+		models.UserDeviceWhere.UserID.EQ(userID),
+	).One(c.Context(), tx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, "Vehicle not found.")
+		}
+		return err
+	}
+
+	if userDevice.VinConfirmed {
+		return fiber.NewError(fiber.StatusConflict, "Vehicle already has a confirmed VIN.")
+	}
+
+	if req.Signature != "" {
+		existing, err := models.UserDevices(
+			models.UserDeviceWhere.VinIdentifier.EQ(null.StringFrom(req.VIN)),
+			models.UserDeviceWhere.VinConfirmed.EQ(true),
+		).Exists(c.Context(), tx)
+		if err != nil {
+			return err
+		}
+		if existing {
+			return fiber.NewError(fiber.StatusConflict, "VIN already in use by another vehicle.")
+		}
 		userDevice.VinConfirmed = true
 	}
 
-	if _, err := userDevice.Update(c.Context(), udc.DBS().Writer, boil.Infer()); err != nil {
-		// Okay to dereference here, since we validated the field.
-		logger.Err(err).Msgf("Database error updating VIN to %s.", *vinReq.VIN)
-		return opaqueInternalError
+	userDevice.VinIdentifier = null.StringFrom(req.VIN)
+
+	if _, err := userDevice.Update(c.Context(), tx, boil.Infer()); err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
 	}
 
 	// TODO: Genericize this for more countries.
@@ -1389,13 +1427,13 @@ func recoverAddress(td *signer.TypedData, signature []byte) (addr common.Address
 }
 
 // UpdateNFTImage godoc
-// @Description Updates NFT image
+// @Description Updates a user's NFT image.
 // @Tags        user-devices
-// @Param       userDeviceID path string                   true "user device ID"
-// @Param       mintRequest  body controllers.NFTImageData true "NFT image data"
+// @Param       userDeviceId path string                   true "user device id"
+// @Param       nftIamges body controllers.NFTImageData true "base64-encoded NFT image data"
 // @Success     204
 // @Security    BearerAuth
-// @Router      /user/devices/{userDeviceID}/commands/update-nft-image [post]
+// @Router      /user/devices/{userDeviceId}/commands/update-nft-image [post]
 func (udc *UserDevicesController) UpdateNFTImage(c *fiber.Ctx) error {
 	userDeviceID := c.Params("userDeviceID")
 	userID := api.GetUserID(c)
@@ -1682,7 +1720,7 @@ type MintRequest struct {
 
 type NFTImageData struct {
 	// ImageData contains the base64-encoded NFT PNG image.
-	ImageData string `json:"imageData" validate:"optional"`
+	ImageData string `json:"imageData" validate:"required"`
 	// ImageDataTransparent contains the base64-encoded NFT PNG image
 	// with a transparent background, for use in the app. For compatibility
 	// with older versions it is not required.
@@ -1713,9 +1751,10 @@ type AdminRegisterUserDevice struct {
 type UpdateVINReq struct {
 	// VIN is a vehicle identification number. At the very least, it must be
 	// 17 characters in length and contain only letters and numbers.
-	VIN *string `json:"vin" example:"4Y1SL65848Z411439"`
-	// Signature is the hex-encoded result of the AutoPi signing the VIN.
-	Signature *string `json:"signature" example:"16b15f88bbd2e0a22d1d0084b8b7080f2003ea83eab1a00f80d8c18446c9c1b6224f17aa09eaf167717ca4f355bb6dc94356e037edf3adf6735a86fc3741f5231b"`
+	VIN string `json:"vin" example:"4Y1SL65848Z411439" validate:"required"`
+	// Signature is the hex-encoded result of the AutoPi signing the VIN. It must
+	// be present to verify the VIN.
+	Signature string `json:"signature" example:"16b15f88bbd2e0a22d1d0084b8b7080f2003ea83eab1a00f80d8c18446c9c1b6224f17aa09eaf167717ca4f355bb6dc94356e037edf3adf6735a86fc3741f5231b" validate:"optional"`
 }
 
 type UpdateNameReq struct {

@@ -129,7 +129,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Get("/user/devices/me", userDeviceController.GetUserDevices)
 	v1Auth.Post("/user/devices", userDeviceController.RegisterDeviceForUser)
 	v1Auth.Delete("/user/devices/:userDeviceID", userDeviceController.DeleteUserDevice)
-	v1Auth.Patch("/user/devices/:userDeviceID/vin", userDeviceController.UpdateVIN)
+	v1Auth.Patch("/user/devices/:userDeviceID/vin", userDeviceController.UpdateVIN).Name("UpdateVIN")
 	v1Auth.Patch("/user/devices/:userDeviceID/name", userDeviceController.UpdateName)
 	v1Auth.Patch("/user/devices/:userDeviceID/country-code", userDeviceController.UpdateCountryCode)
 	v1Auth.Patch("/user/devices/:userDeviceID/image", userDeviceController.UpdateImage)

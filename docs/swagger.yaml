@@ -318,6 +318,7 @@ definitions:
         description: Signature is the hex encoding of the EIP-712 signature result.
         type: string
     required:
+    - imageData
     - signature
     type: object
   github.com_DIMO-Network_devices-api_internal_controllers.NFTAttribute:
@@ -360,6 +361,8 @@ definitions:
           with a transparent background, for use in the app. For compatibility
           with older versions it is not required.
         type: string
+    required:
+    - imageData
     type: object
   github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp:
     properties:
@@ -487,8 +490,9 @@ definitions:
   github.com_DIMO-Network_devices-api_internal_controllers.UpdateVINReq:
     properties:
       signature:
-        description: Signature is the hex-encoded result of the AutoPi signing the
-          VIN.
+        description: |-
+          Signature is the hex-encoded result of the AutoPi signing the VIN. It must
+          be present to verify the VIN.
         example: 16b15f88bbd2e0a22d1d0084b8b7080f2003ea83eab1a00f80d8c18446c9c1b6224f17aa09eaf167717ca4f355bb6dc94356e037edf3adf6735a86fc3741f5231b
         type: string
       vin:
@@ -497,6 +501,8 @@ definitions:
           17 characters in length and contain only letters and numbers.
         example: 4Y1SL65848Z411439
         type: string
+    required:
+    - vin
     type: object
   github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceFull:
     properties:
@@ -889,6 +895,7 @@ definitions:
         description: Signature is the hex encoding of the EIP-712 signature result.
         type: string
     required:
+    - imageData
     - signature
     type: object
   internal_controllers.NFTAttribute:
@@ -931,6 +938,8 @@ definitions:
           with a transparent background, for use in the app. For compatibility
           with older versions it is not required.
         type: string
+    required:
+    - imageData
     type: object
   internal_controllers.NFTMetadataResp:
     properties:
@@ -1058,8 +1067,9 @@ definitions:
   internal_controllers.UpdateVINReq:
     properties:
       signature:
-        description: Signature is the hex-encoded result of the AutoPi signing the
-          VIN.
+        description: |-
+          Signature is the hex-encoded result of the AutoPi signing the VIN. It must
+          be present to verify the VIN.
         example: 16b15f88bbd2e0a22d1d0084b8b7080f2003ea83eab1a00f80d8c18446c9c1b6224f17aa09eaf167717ca4f355bb6dc94356e037edf3adf6735a86fc3741f5231b
         type: string
       vin:
@@ -1068,6 +1078,8 @@ definitions:
           17 characters in length and contain only letters and numbers.
         example: 4Y1SL65848Z411439
         type: string
+    required:
+    - vin
     type: object
   internal_controllers.UserDeviceFull:
     properties:
@@ -1933,28 +1945,6 @@ paths:
       - BearerAuth: []
       tags:
       - user-devices
-  /user/devices/{userDeviceID}/commands/update-nft-image:
-    post:
-      description: Updates NFT image
-      parameters:
-      - description: user device ID
-        in: path
-        name: userDeviceID
-        required: true
-        type: string
-      - description: NFT image data
-        in: body
-        name: mintRequest
-        required: true
-        schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTImageData'
-      responses:
-        "204":
-          description: No Content
-      security:
-      - BearerAuth: []
-      tags:
-      - user-devices
   /user/devices/{userDeviceID}/country_code:
     patch:
       consumes:
@@ -2237,7 +2227,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot'
+            $ref: '#/definitions/internal_controllers.DeviceSnapshot'
       security:
       - BearerAuth: []
       tags:
@@ -2275,6 +2265,28 @@ paths:
         type: string
       produces:
       - application/json
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      tags:
+      - user-devices
+  /user/devices/{userDeviceId}/commands/update-nft-image:
+    post:
+      description: Updates a user's NFT image.
+      parameters:
+      - description: user device id
+        in: path
+        name: userDeviceId
+        required: true
+        type: string
+      - description: base64-encoded NFT image data
+        in: body
+        name: nftIamges
+        required: true
+        schema:
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTImageData'
       responses:
         "204":
           description: No Content
@@ -2397,7 +2409,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp'
+            $ref: '#/definitions/internal_controllers.NFTMetadataResp'
         "404":
           description: Not Found
       tags:
