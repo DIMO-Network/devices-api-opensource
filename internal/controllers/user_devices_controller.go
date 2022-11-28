@@ -1440,6 +1440,26 @@ func (udc *UserDevicesController) UpdateNFTImage(c *fiber.Ctx) error {
 		return opaqueInternalError
 	}
 
+	// This may not be there, but if it is we should delete it.
+	imageDataTransp := strings.TrimPrefix(mr.ImageDataTransparent, "data:image/png;base64,")
+
+	imageTransp, err := base64.StdEncoding.DecodeString(imageDataTransp)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Field imageDataTransp not properly base64-encoded.")
+	}
+
+	if len(image) != 0 {
+		_, err = udc.s3.PutObject(c.Context(), &s3.PutObjectInput{
+			Bucket: &udc.Settings.NFTS3Bucket,
+			Key:    aws.String(userDevice.R.VehicleNFT.MintRequestID + ".png"),
+			Body:   bytes.NewReader(imageTransp),
+		})
+		if err != nil {
+			udc.log.Err(err).Msg("Failed to save transparent image to S3.")
+			return opaqueInternalError
+		}
+	}
+
 	return err
 }
 
@@ -1561,6 +1581,26 @@ func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 	if err != nil {
 		logger.Err(err).Msg("Failed to save image to S3.")
 		return opaqueInternalError
+	}
+
+	// This may not be there, but if it is we should delete it.
+	imageDataTransp := strings.TrimPrefix(mr.ImageDataTransparent, "data:image/png;base64,")
+
+	imageTransp, err := base64.StdEncoding.DecodeString(imageDataTransp)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Field imageDataTransp not properly base64-encoded.")
+	}
+
+	if len(image) != 0 {
+		_, err = udc.s3.PutObject(c.Context(), &s3.PutObjectInput{
+			Bucket: &udc.Settings.NFTS3Bucket,
+			Key:    aws.String(requestID + ".png"),
+			Body:   bytes.NewReader(imageTransp),
+		})
+		if err != nil {
+			logger.Err(err).Msg("Failed to save transparent image to S3.")
+			return opaqueInternalError
+		}
 	}
 
 	hash, err := client.Hash(&mvs)
