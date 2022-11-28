@@ -72,92 +72,54 @@ func (udc *UserDevicesController) GetUserDeviceIntegration(c *fiber.Ctx) error {
 	return c.JSON(GetUserDeviceIntegrationResponse{Status: apiIntegration.Status, ExternalID: apiIntegration.ExternalID, CreatedAt: apiIntegration.CreatedAt})
 }
 
-// DeleteUserDeviceIntegration godoc
-// @Description Remove an user device's integration
-// @Tags        integrations
-// @Success     204
-// @Security    BearerAuth
-// @Router      /user/devices/{userDeviceID}/integrations/{integrationID} [delete]
-func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) error {
-	userID := api.GetUserID(c)
-	userDeviceID := c.Params("userDeviceID")
-	integrationID := c.Params("integrationID")
-
-	tx, err := udc.DBS().Writer.BeginTx(c.Context(), nil)
+func (udc *UserDevicesController) deleteDeviceIntegration(ctx context.Context, userID, userDeviceID, integrationID string, dd *ddgrpc.GetDeviceDefinitionItemResponse) error {
+	tx, err := udc.DBS().Writer.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback() //nolint
 
-	// todo grpc get from device-definitions over grpc
-	device, err := models.UserDevices(
-		models.UserDeviceWhere.UserID.EQ(userID),
-		models.UserDeviceWhere.ID.EQ(userDeviceID),
-	).One(c.Context(), tx)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusNotFound, fmt.Sprintf("no user device with ID %s", userDeviceID))
-		}
-		return err
-	}
-
-	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{device.DeviceDefinitionID})
-
-	if err != nil {
-		return api.GrpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+device.DeviceDefinitionID)
-	}
-
-	if len(deviceDefinitionResponse) == 0 {
-		return api.ErrorResponseHandler(c, errors.New("no device definition"), fiber.StatusBadRequest)
-	}
-
-	var dd = deviceDefinitionResponse[0]
-
-	// Probably don't need two queries if you're smart
-	apiIntegration, err := models.UserDeviceAPIIntegrations(
+	apiInt, err := models.UserDeviceAPIIntegrations(
 		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(userDeviceID),
 		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID),
-	).One(c.Context(), tx)
+		qm.Load(models.UserDeviceAPIIntegrationRels.AutopiUnit),
+	).One(ctx, tx)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("user device %s does not have integration %s", userDeviceID, integrationID))
-		}
 		return err
 	}
 
-	integration, err := udc.DeviceDefSvc.GetIntegrationByID(c.Context(), apiIntegration.IntegrationID)
-
+	integ, err := udc.DeviceDefSvc.GetIntegrationByID(ctx, integrationID)
 	if err != nil {
-		return api.GrpcErrorToFiber(err, "deviceDefSvc error getting integration id: "+apiIntegration.IntegrationID)
+		return api.GrpcErrorToFiber(err, "deviceDefSvc error getting integration id: "+integrationID)
 	}
 
-	if integration.Vendor == constants.SmartCarVendor {
-		if apiIntegration.ExternalID.Valid {
-			if apiIntegration.TaskID.Valid {
-				err = udc.smartcarTaskSvc.StopPoll(apiIntegration)
-				if err != nil {
-					return err
-				}
-			}
-			// It was on the webhook and we were never able to create a task for it.
-		}
-	} else if integration.Vendor == "Tesla" {
-		if apiIntegration.ExternalID.Valid {
-			if err := udc.teslaTaskService.StopPoll(apiIntegration); err != nil {
+	switch integ.Vendor {
+	case constants.SmartCarVendor:
+		if apiInt.TaskID.Valid {
+			err = udc.smartcarTaskSvc.StopPoll(apiInt)
+			if err != nil {
 				return err
 			}
 		}
-	} else if integration.Vendor == constants.AutoPiVendor {
-		err = udc.autoPiIngestRegistrar.Deregister(apiIntegration.ExternalID.String, apiIntegration.UserDeviceID, apiIntegration.IntegrationID)
+	case constants.TeslaVendor:
+		if apiInt.TaskID.Valid {
+			err = udc.teslaTaskService.StopPoll(apiInt)
+			if err != nil {
+				return err
+			}
+		}
+	case constants.AutoPiVendor:
+		if unit := apiInt.R.AutopiUnit; unit != nil && unit.PairRequestID.Valid {
+			return fiber.NewError(fiber.StatusConflict, "Must un-pair on-chain before deleting integration.")
+		}
+
+		err = udc.autoPiIngestRegistrar.Deregister(apiInt.ExternalID.String, apiInt.UserDeviceID, apiInt.IntegrationID)
 		if err != nil {
-			udc.log.Err(err).Msgf("unexpected error deregistering autopi device from ingest. userDeviceID: %s", apiIntegration.UserDeviceID)
 			return err
 		}
-	} else {
-		udc.log.Warn().Msgf("Don't know how to deregister integration %s for device %s", apiIntegration.IntegrationID, userDeviceID)
 	}
 
-	_, err = apiIntegration.Delete(c.Context(), tx)
+	_, err = apiInt.Delete(ctx, tx)
 	if err != nil {
 		return err
 	}
@@ -181,15 +143,63 @@ func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) erro
 				Year:  int(dd.Type.Year),
 			},
 			Integration: services.UserDeviceEventIntegration{
-				ID:     integration.Id,
-				Type:   integration.Type,
-				Style:  integration.Style,
-				Vendor: integration.Vendor,
+				ID:     integ.Id,
+				Type:   integ.Type,
+				Style:  integ.Style,
+				Vendor: integ.Vendor,
 			},
 		},
 	})
 	if err != nil {
 		udc.log.Err(err).Msg("Failed to emit integration deletion")
+	}
+
+	return err
+}
+
+// DeleteUserDeviceIntegration godoc
+// @Description Remove an integration from a device.
+// @Tags        integrations
+// @Success     204
+// @Security    BearerAuth
+// @Router      /user/devices/{userDeviceID}/integrations/{integrationID} [delete]
+func (udc *UserDevicesController) DeleteUserDeviceIntegration(c *fiber.Ctx) error {
+	userID := api.GetUserID(c)
+	userDeviceID := c.Params("userDeviceID")
+	integrationID := c.Params("integrationID")
+
+	tx, err := udc.DBS().Writer.BeginTx(c.Context(), nil)
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback() //nolint
+
+	device, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		models.UserDeviceWhere.UserID.EQ(userID),
+		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID)),
+	).One(c.Context(), tx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, "No device with that id.")
+		}
+		return err
+	}
+
+	if len(device.R.UserDeviceAPIIntegrations) == 0 {
+		return fiber.NewError(fiber.StatusNotFound, "Device does presently have that integration.")
+	}
+
+	// Need this for activity log.
+	dd, err := udc.DeviceDefSvc.GetDeviceDefinitionByID(c.Context(), device.DeviceDefinitionID)
+	if err != nil {
+		return api.GrpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+device.DeviceDefinitionID)
+	}
+
+	err = udc.deleteDeviceIntegration(c.Context(), userID, userDeviceID, integrationID, dd)
+	if err != nil {
+		return err
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)

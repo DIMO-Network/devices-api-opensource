@@ -21,7 +21,9 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"golang.org/x/exp/slices"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -119,7 +121,7 @@ func (d *deviceDefinitionService) GetDeviceDefinitionByID(ctx context.Context, i
 	}
 
 	if len(resp) == 0 {
-		return nil, errors.New("no definitions returned")
+		return nil, status.Error(codes.NotFound, "No definition with that id.")
 	}
 
 	return resp[0], nil
