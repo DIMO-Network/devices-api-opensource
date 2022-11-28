@@ -49,7 +49,7 @@ func NewNFTController(settings *config.Settings, dbs func() *database.DBReaderWr
 // @Produce     json
 // @Success     200 {object} controllers.NFTMetadataResp
 // @Failure     404
-// @Router      /nfts/{tokenID} [get]
+// @Router      /vehicle/{tokenID} [get]
 func (nc *NFTController) GetNFTMetadata(c *fiber.Ctx) error {
 	tis := c.Params("tokenID")
 	ti, ok := new(big.Int).SetString(tis, 10)
@@ -125,7 +125,7 @@ type NFTAttribute struct {
 // @Param       tokenID     path  int  true  "NFT token ID"
 // @Param       transparent query bool false "If true, remove the background in the PNG. Defaults to false."
 // @Produce     png
-// @Router      /nfts/:tokenID/image [get]
+// @Router      /vehicle/:tokenID/image [get]
 func (nc *NFTController) GetNFTImage(c *fiber.Ctx) error {
 	tis := c.Params("tokenID")
 	ti, ok := new(big.Int).SetString(tis, 10)
