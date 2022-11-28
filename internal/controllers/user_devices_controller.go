@@ -1451,7 +1451,7 @@ func (udc *UserDevicesController) UpdateNFTImage(c *fiber.Ctx) error {
 	if len(image) != 0 {
 		_, err = udc.s3.PutObject(c.Context(), &s3.PutObjectInput{
 			Bucket: &udc.Settings.NFTS3Bucket,
-			Key:    aws.String(userDevice.R.VehicleNFT.MintRequestID + ".png"),
+			Key:    aws.String(userDevice.R.VehicleNFT.MintRequestID + "_transparent.png"),
 			Body:   bytes.NewReader(imageTransp),
 		})
 		if err != nil {
@@ -1591,10 +1591,10 @@ func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "Field imageDataTransp not properly base64-encoded.")
 	}
 
-	if len(image) != 0 {
+	if len(imageTransp) != 0 {
 		_, err = udc.s3.PutObject(c.Context(), &s3.PutObjectInput{
 			Bucket: &udc.Settings.NFTS3Bucket,
-			Key:    aws.String(requestID + ".png"),
+			Key:    aws.String(requestID + "_transparent.png"),
 			Body:   bytes.NewReader(imageTransp),
 		})
 		if err != nil {
