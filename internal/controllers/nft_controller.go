@@ -133,6 +133,11 @@ func (nc *NFTController) GetNFTImage(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("Couldn't parse token id %q.", tis))
 	}
 
+	var transparent bool
+	if c.Query("transparent") == "true" {
+		transparent = true
+	}
+
 	tid := types.NewNullDecimal(new(decimal.Big).SetBigMantScale(ti, 0))
 
 	var imageName string
@@ -154,10 +159,15 @@ func (nc *NFTController) GetNFTImage(c *fiber.Ctx) error {
 	}
 
 	imageName = nft.MintRequestID
+	suffix := ".png"
+
+	if transparent {
+		suffix = "_transparent.png"
+	}
 
 	s3o, err := nc.s3.GetObject(c.Context(), &s3.GetObjectInput{
 		Bucket: aws.String(nc.Settings.NFTS3Bucket),
-		Key:    aws.String(imageName + ".png"),
+		Key:    aws.String(imageName + suffix),
 	})
 	if err != nil {
 		nc.log.Err(err).Msg("Failure communicating with S3.")
