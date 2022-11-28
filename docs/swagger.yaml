@@ -1555,7 +1555,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
+              $ref: '#/definitions/internal_controllers.DocumentResponse'
             type: array
       security:
       - BearerAuth: []
@@ -1592,7 +1592,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
+            $ref: '#/definitions/internal_controllers.DocumentResponse'
       security:
       - BearerAuth: []
       tags:
@@ -1633,7 +1633,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
+            $ref: '#/definitions/internal_controllers.DocumentResponse'
       security:
       - BearerAuth: []
       tags:
@@ -2308,7 +2308,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.GetGeofence'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence'
             type: array
       security:
       - ApiKeyAuth: []
@@ -2326,7 +2326,7 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.CreateGeofence'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence'
       produces:
       - application/json
       responses:
@@ -2371,7 +2371,7 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/internal_controllers.CreateGeofence'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence'
       produces:
       - application/json
       responses:
@@ -2382,31 +2382,13 @@ paths:
       - BearerAuth: []
       tags:
       - geofence
-  /vehicle/:tokenID/image:
+  /vehicle/{tokenId}:
     get:
       description: retrieves NFT metadata for a given tokenID
       parameters:
-      - description: NFT token ID
+      - description: token id
         in: path
-        name: tokenID
-        required: true
-        type: integer
-      - description: If true, remove the background in the PNG. Defaults to false.
-        in: query
-        name: transparent
-        type: boolean
-      produces:
-      - image/png
-      responses: {}
-      tags:
-      - nfts
-  /vehicle/{tokenID}:
-    get:
-      description: retrieves NFT metadata for a given tokenID
-      parameters:
-      - description: NFT token ID
-        in: path
-        name: tokenID
+        name: tokenId
         required: true
         type: integer
       produces:
@@ -2415,7 +2397,29 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.NFTMetadataResp'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp'
+        "404":
+          description: Not Found
+      tags:
+      - nfts
+  /vehicle/{tokenId}/image:
+    get:
+      description: Returns the image for the given vehicle NFT.
+      parameters:
+      - description: token id
+        in: path
+        name: tokenId
+        required: true
+        type: integer
+      - description: whether to remove the image background
+        in: query
+        name: transparent
+        type: boolean
+      produces:
+      - image/png
+      responses:
+        "200":
+          description: OK
         "404":
           description: Not Found
       tags:

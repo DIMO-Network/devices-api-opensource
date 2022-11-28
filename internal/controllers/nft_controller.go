@@ -45,11 +45,11 @@ func NewNFTController(settings *config.Settings, dbs func() *database.DBReaderWr
 // GetNFTMetadata godoc
 // @Description retrieves NFT metadata for a given tokenID
 // @Tags        nfts
-// @Param       tokenID path int true "NFT token ID"
+// @Param       tokenId path int true "token id"
 // @Produce     json
 // @Success     200 {object} controllers.NFTMetadataResp
 // @Failure     404
-// @Router      /vehicle/{tokenID} [get]
+// @Router      /vehicle/{tokenId} [get]
 func (nc *NFTController) GetNFTMetadata(c *fiber.Ctx) error {
 	tis := c.Params("tokenID")
 	ti, ok := new(big.Int).SetString(tis, 10)
@@ -120,12 +120,14 @@ type NFTAttribute struct {
 }
 
 // GetNFTImage godoc
-// @Description retrieves NFT metadata for a given tokenID
+// @Description Returns the image for the given vehicle NFT.
 // @Tags        nfts
-// @Param       tokenID     path  int  true  "NFT token ID"
-// @Param       transparent query bool false "If true, remove the background in the PNG. Defaults to false."
+// @Param       tokenId     path  int  true  "token id"
+// @Param       transparent query bool false "whether to remove the image background"
 // @Produce     png
-// @Router      /vehicle/:tokenID/image [get]
+// @Success     200
+// @Failure     404
+// @Router      /vehicle/{tokenId}/image [get]
 func (nc *NFTController) GetNFTImage(c *fiber.Ctx) error {
 	tis := c.Params("tokenID")
 	ti, ok := new(big.Int).SetString(tis, 10)

@@ -324,7 +324,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
+                                "$ref": "#/definitions/internal_controllers.DocumentResponse"
                             }
                         }
                     }
@@ -379,7 +379,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
+                            "$ref": "#/definitions/internal_controllers.DocumentResponse"
                         }
                     }
                 }
@@ -415,7 +415,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
+                            "$ref": "#/definitions/internal_controllers.DocumentResponse"
                         }
                     }
                 }
@@ -1519,7 +1519,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_controllers.GetGeofence"
+                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence"
                             }
                         }
                     }
@@ -1551,7 +1551,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence"
                         }
                     }
                 ],
@@ -1599,7 +1599,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence"
                         }
                     }
                 ],
@@ -1638,34 +1638,7 @@
                 }
             }
         },
-        "/vehicle/:tokenID/image": {
-            "get": {
-                "description": "retrieves NFT metadata for a given tokenID",
-                "produces": [
-                    "image/png"
-                ],
-                "tags": [
-                    "nfts"
-                ],
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "NFT token ID",
-                        "name": "tokenID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "If true, remove the background in the PNG. Defaults to false.",
-                        "name": "transparent",
-                        "in": "query"
-                    }
-                ],
-                "responses": {}
-            }
-        },
-        "/vehicle/{tokenID}": {
+        "/vehicle/{tokenId}": {
             "get": {
                 "description": "retrieves NFT metadata for a given tokenID",
                 "produces": [
@@ -1677,8 +1650,8 @@
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "NFT token ID",
-                        "name": "tokenID",
+                        "description": "token id",
+                        "name": "tokenId",
                         "in": "path",
                         "required": true
                     }
@@ -1687,8 +1660,42 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp"
                         }
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            }
+        },
+        "/vehicle/{tokenId}/image": {
+            "get": {
+                "description": "Returns the image for the given vehicle NFT.",
+                "produces": [
+                    "image/png"
+                ],
+                "tags": [
+                    "nfts"
+                ],
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "token id",
+                        "name": "tokenId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "whether to remove the image background",
+                        "name": "transparent",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
                     },
                     "404": {
                         "description": "Not Found"
