@@ -111,6 +111,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	nftController := controllers.NewNFTController(settings, pdb.DBS, &logger, s3NFTServiceClient, ddSvc)
 	v1.Get("/vehicle/:tokenID", nftController.GetNFTMetadata)
 	v1.Get("/vehicle/:tokenID/image", nftController.GetNFTImage)
+	v1.Get("/aftermarket/device/:tokenID", nftController.GetAftermarketDeviceNFTMetadata)
 
 	// webhooks, performs signature validation
 	v1.Post(constants.AutoPiWebhookPath, webhooksController.ProcessCommand)

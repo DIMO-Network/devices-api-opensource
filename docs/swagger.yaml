@@ -1367,6 +1367,26 @@ info:
   title: DIMO Devices API
   version: "1.0"
 paths:
+  /aftermarket/device/{tokenId}:
+    get:
+      description: Retrieves NFT metadata for a given aftermarket device.
+      parameters:
+      - description: token id
+        in: path
+        name: tokenId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp'
+        "404":
+          description: Not Found
+      tags:
+      - nfts
   /autopi/task/:taskID:
     get:
       description: gets the status of an autopi related task. In future could be other
@@ -1567,7 +1587,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.DocumentResponse'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
             type: array
       security:
       - BearerAuth: []
@@ -1604,7 +1624,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_controllers.DocumentResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
       security:
       - BearerAuth: []
       tags:
@@ -1645,7 +1665,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.DocumentResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
       security:
       - BearerAuth: []
       tags:
@@ -1858,7 +1878,7 @@ paths:
     delete:
       description: delete the user device record (hard delete)
       parameters:
-      - description: user id
+      - description: device id
         in: path
         name: userDeviceID
         required: true
@@ -1989,7 +2009,7 @@ paths:
       - user-devices
   /user/devices/{userDeviceID}/integrations/{integrationID}:
     delete:
-      description: Remove an user device's integration
+      description: Remove an integration from a device.
       responses:
         "204":
           description: No Content
@@ -2409,7 +2429,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.NFTMetadataResp'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp'
         "404":
           description: Not Found
       tags:

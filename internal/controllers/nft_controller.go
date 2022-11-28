@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/ericlagergren/decimal"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -108,9 +109,9 @@ func (nc *NFTController) GetNFTMetadata(c *fiber.Ctx) error {
 }
 
 type NFTMetadataResp struct {
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	Image       string         `json:"image"`
+	Name        string         `json:"name,omitempty"`
+	Description string         `json:"description,omitempty"`
+	Image       string         `json:"image,omitempty"`
 	Attributes  []NFTAttribute `json:"attributes"`
 }
 
@@ -178,4 +179,38 @@ func (nc *NFTController) GetNFTImage(c *fiber.Ctx) error {
 
 	c.Set("Content-Type", "image/png")
 	return c.SendStream(s3o.Body)
+}
+
+// GetAftermarketDeviceNFTMetadata godoc
+// @Description Retrieves NFT metadata for a given aftermarket device.
+// @Tags        nfts
+// @Param       tokenId path int true "token id"
+// @Produce     json
+// @Success     200 {object} controllers.NFTMetadataResp
+// @Failure     404
+// @Router      /aftermarket/device/{tokenId} [get]
+func (nc *NFTController) GetAftermarketDeviceNFTMetadata(c *fiber.Ctx) error {
+	tidStr := c.Params("tokenID")
+
+	tid, ok := new(big.Int).SetString(tidStr, 10)
+	if !ok {
+		return fiber.NewError(fiber.StatusBadRequest, "Couldn't parse token id.")
+	}
+
+	unit, err := models.AutopiUnits(
+		models.AutopiUnitWhere.TokenID.EQ(types.NewNullDecimal(new(decimal.Big).SetBigMantScale(tid, 0))),
+	).One(c.Context(), nc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, "No device with that id.")
+		}
+		return err
+	}
+
+	return c.JSON(NFTMetadataResp{
+		Attributes: []NFTAttribute{
+			{TraitType: "Ethereum Address", Value: common.BytesToAddress(unit.EthereumAddress.Bytes).String()},
+			{TraitType: "Serial Number", Value: unit.AutopiUnitID},
+		},
+	})
 }

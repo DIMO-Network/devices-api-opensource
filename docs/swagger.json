@@ -7,6 +7,37 @@
     },
     "basePath": "/v1",
     "paths": {
+        "/aftermarket/device/{tokenId}": {
+            "get": {
+                "description": "Retrieves NFT metadata for a given aftermarket device.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "nfts"
+                ],
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "token id",
+                        "name": "tokenId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            }
+        },
         "/autopi/task/:taskID": {
             "get": {
                 "security": [
@@ -324,7 +355,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_controllers.DocumentResponse"
+                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
                             }
                         }
                     }
@@ -379,7 +410,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.DocumentResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
                         }
                     }
                 }
@@ -415,7 +446,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.DocumentResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
                         }
                     }
                 }
@@ -816,7 +847,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "user id",
+                        "description": "device id",
                         "name": "userDeviceID",
                         "in": "path",
                         "required": true
@@ -1049,7 +1080,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Remove an user device's integration",
+                "description": "Remove an integration from a device.",
                 "tags": [
                     "integrations"
                 ],
@@ -1660,7 +1691,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp"
                         }
                     },
                     "404": {
