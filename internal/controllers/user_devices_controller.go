@@ -1391,8 +1391,8 @@ func recoverAddress(td *signer.TypedData, signature []byte) (addr common.Address
 // UpdateNFTImage godoc
 // @Description Updates NFT image
 // @Tags        user-devices
-// @Param       userDeviceID path string                  true "user device ID"
-// @Param       mintRequest  body controllers.MintRequest true "NFT image data"
+// @Param       userDeviceID path string                   true "user device ID"
+// @Param       mintRequest  body controllers.NFTImageData true "NFT image data"
 // @Success     204
 // @Security    BearerAuth
 // @Router      /user/devices/{userDeviceID}/commands/update-nft-image [post]
@@ -1423,7 +1423,7 @@ func (udc *UserDevicesController) UpdateNFTImage(c *fiber.Ctx) error {
 
 	image, err := base64.StdEncoding.DecodeString(imageData)
 	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "Field imageData not properly base64-encoded.")
+		return fiber.NewError(fiber.StatusBadRequest, "Primary image not properly base64-encoded.")
 	}
 
 	if len(image) == 0 {
@@ -1443,12 +1443,13 @@ func (udc *UserDevicesController) UpdateNFTImage(c *fiber.Ctx) error {
 	// This may not be there, but if it is we should delete it.
 	imageDataTransp := strings.TrimPrefix(mr.ImageDataTransparent, "data:image/png;base64,")
 
+	// Should be okay if empty or not provided.
 	imageTransp, err := base64.StdEncoding.DecodeString(imageDataTransp)
 	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "Field imageDataTransp not properly base64-encoded.")
+		return fiber.NewError(fiber.StatusBadRequest, "Transparent image not properly base64-encoded.")
 	}
 
-	if len(image) != 0 {
+	if len(imageTransp) != 0 {
 		_, err = udc.s3.PutObject(c.Context(), &s3.PutObjectInput{
 			Bucket: &udc.Settings.NFTS3Bucket,
 			Key:    aws.String(userDevice.R.VehicleNFT.MintRequestID + "_transparent.png"),
@@ -1549,7 +1550,7 @@ func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 
 	image, err := base64.StdEncoding.DecodeString(imageData)
 	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "Field imageData not properly base64-encoded.")
+		return fiber.NewError(fiber.StatusBadRequest, "Primary image not properly base64-encoded.")
 	}
 
 	if len(image) == 0 {
@@ -1588,7 +1589,7 @@ func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
 
 	imageTransp, err := base64.StdEncoding.DecodeString(imageDataTransp)
 	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "Field imageDataTransp not properly base64-encoded.")
+		return fiber.NewError(fiber.StatusBadRequest, "Transparent image not properly base64-encoded.")
 	}
 
 	if len(imageTransp) != 0 {
@@ -1674,13 +1675,18 @@ type MintEventData struct {
 // MintRequest contains the user's signature for the mint request as well as the
 // NFT image.
 type MintRequest struct {
+	NFTImageData
 	// Signature is the hex encoding of the EIP-712 signature result.
-	Signature string `json:"signature"`
+	Signature string `json:"signature" validate:"required"`
+}
+
+type NFTImageData struct {
 	// ImageData contains the base64-encoded NFT PNG image.
-	ImageData string `json:"imageData"`
+	ImageData string `json:"imageData" validate:"optional"`
 	// ImageDataTransparent contains the base64-encoded NFT PNG image
-	// with a transparent background, for use in the app.
-	ImageDataTransparent string `json:"imageDataTransparent"`
+	// with a transparent background, for use in the app. For compatibility
+	// with older versions it is not required.
+	ImageDataTransparent string `json:"imageDataTransparent" validate:"optional"`
 }
 
 type RegisterUserDevice struct {

@@ -311,11 +311,14 @@ definitions:
       imageDataTransparent:
         description: |-
           ImageDataTransparent contains the base64-encoded NFT PNG image
-          with a transparent background, for use in the app.
+          with a transparent background, for use in the app. For compatibility
+          with older versions it is not required.
         type: string
       signature:
         description: Signature is the hex encoding of the EIP-712 signature result.
         type: string
+    required:
+    - signature
     type: object
   github.com_DIMO-Network_devices-api_internal_controllers.NFTAttribute:
     properties:
@@ -344,6 +347,18 @@ definitions:
       txHash:
         description: TxHash is the hash of the minting transaction.
         example: 0x30bce3da6985897224b29a0fe064fd2b426bb85a394cc09efe823b5c83326a8e
+        type: string
+    type: object
+  github.com_DIMO-Network_devices-api_internal_controllers.NFTImageData:
+    properties:
+      imageData:
+        description: ImageData contains the base64-encoded NFT PNG image.
+        type: string
+      imageDataTransparent:
+        description: |-
+          ImageDataTransparent contains the base64-encoded NFT PNG image
+          with a transparent background, for use in the app. For compatibility
+          with older versions it is not required.
         type: string
     type: object
   github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp:
@@ -867,11 +882,14 @@ definitions:
       imageDataTransparent:
         description: |-
           ImageDataTransparent contains the base64-encoded NFT PNG image
-          with a transparent background, for use in the app.
+          with a transparent background, for use in the app. For compatibility
+          with older versions it is not required.
         type: string
       signature:
         description: Signature is the hex encoding of the EIP-712 signature result.
         type: string
+    required:
+    - signature
     type: object
   internal_controllers.NFTAttribute:
     properties:
@@ -900,6 +918,18 @@ definitions:
       txHash:
         description: TxHash is the hash of the minting transaction.
         example: 0x30bce3da6985897224b29a0fe064fd2b426bb85a394cc09efe823b5c83326a8e
+        type: string
+    type: object
+  internal_controllers.NFTImageData:
+    properties:
+      imageData:
+        description: ImageData contains the base64-encoded NFT PNG image.
+        type: string
+      imageDataTransparent:
+        description: |-
+          ImageDataTransparent contains the base64-encoded NFT PNG image
+          with a transparent background, for use in the app. For compatibility
+          with older versions it is not required.
         type: string
     type: object
   internal_controllers.NFTMetadataResp:
@@ -1525,7 +1555,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_controllers.DocumentResponse'
+              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
             type: array
       security:
       - BearerAuth: []
@@ -1562,7 +1592,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_controllers.DocumentResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
       security:
       - BearerAuth: []
       tags:
@@ -1603,7 +1633,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.DocumentResponse'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
       security:
       - BearerAuth: []
       tags:
@@ -1677,7 +1707,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp'
+            $ref: '#/definitions/internal_controllers.NFTMetadataResp'
         "404":
           description: Not Found
       tags:
@@ -1955,7 +1985,7 @@ paths:
         name: mintRequest
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.MintRequest'
+          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTImageData'
       responses:
         "204":
           description: No Content
@@ -2316,7 +2346,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence'
+              $ref: '#/definitions/internal_controllers.GetGeofence'
             type: array
       security:
       - ApiKeyAuth: []
@@ -2334,7 +2364,7 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence'
+          $ref: '#/definitions/internal_controllers.CreateGeofence'
       produces:
       - application/json
       responses:
@@ -2379,7 +2409,7 @@ paths:
         name: geofence
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence'
+          $ref: '#/definitions/internal_controllers.CreateGeofence'
       produces:
       - application/json
       responses:
