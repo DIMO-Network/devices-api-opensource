@@ -727,9 +727,10 @@ type ValuationSet struct {
 }
 
 // GetValuations godoc
-// @Description gets valuations for a particular user device
+// @Description gets valuations for a particular user device. Includes only price valuations, not offers. only gets the latest valuation.
 // @Tags        user-devices
 // @Produce     json
+// @Param       userDeviceID path string true "user device id"
 // @Success     200 {object} controllers.DeviceValuation
 // @Security    BearerAuth
 // @Router      /user/devices/{userDeviceID}/valuations [get]
@@ -771,15 +772,20 @@ func (udc *UserDevicesController) GetValuations(c *fiber.Ctx) error {
 		}
 		drivlyJSON := drivlyVinData.PricingMetadata.JSON
 		requestJSON := drivlyVinData.RequestMetadata.JSON
-		requestMileage := gjson.GetBytes(requestJSON, "mileage")
-		if requestMileage.Exists() {
-			drivlyVal.Mileage = int(requestMileage.Int())
+		drivlyMileage := gjson.GetBytes(drivlyJSON, "mileage")
+		if drivlyMileage.Exists() {
+			drivlyVal.Mileage = int(drivlyMileage.Int())
+		} else {
+			requestMileage := gjson.GetBytes(requestJSON, "mileage")
+			if requestMileage.Exists() {
+				drivlyVal.Mileage = int(requestMileage.Int())
+			}
 		}
 		requestZipCode := gjson.GetBytes(requestJSON, "zipCode")
 		if requestZipCode.Exists() {
 			drivlyVal.ZipCode = requestZipCode.String()
 		}
-		// Drivly Trade-In
+		// Drivly Trade-In. case adjusts for different formats
 		switch {
 		case gjson.GetBytes(drivlyJSON, "trade.blackBook.totalAvg").Exists():
 			drivlyVal.TradeInSource = "drivly:blackbook"
@@ -800,7 +806,9 @@ func (udc *UserDevicesController) GetValuations(c *fiber.Ctx) error {
 			drivlyVal.TradeIn = drivlyVal.TradeInAverage
 		case gjson.GetBytes(drivlyJSON, "trade").Exists() && !gjson.GetBytes(drivlyJSON, "trade").IsObject():
 			drivlyVal.TradeInSource = "drivly"
-			drivlyVal.TradeIn = int(gjson.GetBytes(drivlyJSON, "trade").Int())
+			v := gjson.GetBytes(drivlyJSON, "trade").String()
+			vf, _ := strconv.ParseFloat(v, 64)
+			drivlyVal.TradeIn = int(vf)
 		default:
 			logger.Error().Msg("Unexpected structure for driv.ly pricing data trade values")
 		}
@@ -825,7 +833,9 @@ func (udc *UserDevicesController) GetValuations(c *fiber.Ctx) error {
 			drivlyVal.Retail = drivlyVal.RetailAverage
 		case gjson.GetBytes(drivlyJSON, "retail").Exists() && !gjson.GetBytes(drivlyJSON, "retail").IsObject():
 			drivlyVal.RetailSource = "drivly"
-			drivlyVal.Retail = int(gjson.GetBytes(drivlyJSON, "retail").Int())
+			v := gjson.GetBytes(drivlyJSON, "retail").String()
+			vf, _ := strconv.ParseFloat(v, 64)
+			drivlyVal.Retail = int(vf)
 		default:
 			logger.Error().Msg("Unexpected structure for driv.ly pricing data retail values")
 		}

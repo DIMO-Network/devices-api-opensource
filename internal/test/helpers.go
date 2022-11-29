@@ -274,7 +274,10 @@ func SetupCreateExternalVINData(t *testing.T, ddID string, ud *models.UserDevice
 		DeviceDefinitionID: null.StringFrom(ddID),
 		Vin:                ud.VinIdentifier.String,
 		UserDeviceID:       null.StringFrom(ud.ID),
-		RequestMetadata:    null.JSONFrom([]byte(`{"mileage":49957,"zipCode":"48216"}`)),
+		RequestMetadata:    null.JSONFrom([]byte(`{"mileage":49957,"zipCode":"48216"}`)), // default request metadata
+	}
+	if rmd, ok := md["RequestMetadata"]; ok {
+		evd.RequestMetadata = null.JSONFrom(rmd)
 	}
 	if omd, ok := md["OfferMetadata"]; ok {
 		evd.OfferMetadata = null.JSONFrom(omd)
