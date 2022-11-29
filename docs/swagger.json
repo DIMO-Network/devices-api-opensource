@@ -29,7 +29,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp"
+                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
                         }
                     },
                     "404": {
@@ -1432,12 +1432,21 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "gets valuations for a particular user device",
+                "description": "gets valuations for a particular user device. Includes only price valuations, not offers. only gets the latest valuation.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "user-devices"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user device id",
+                        "name": "userDeviceID",
+                        "in": "path",
+                        "required": true
+                    }
                 ],
                 "responses": {
                     "200": {
@@ -1550,7 +1559,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetGeofence"
+                                "$ref": "#/definitions/internal_controllers.GetGeofence"
                             }
                         }
                     }
@@ -1582,7 +1591,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence"
+                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
                         }
                     }
                 ],
@@ -1630,7 +1639,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CreateGeofence"
+                            "$ref": "#/definitions/internal_controllers.CreateGeofence"
                         }
                     }
                 ],
@@ -1691,7 +1700,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp"
+                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
                         }
                     },
                     "404": {
