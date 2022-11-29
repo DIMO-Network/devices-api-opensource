@@ -23,6 +23,9 @@ securityContext:
 cronJob:
   enabled: false
   schedule: 0 0 * * 0
+deployJob:
+  enabled: false
+
 env:
   ENVIRONMENT: dev
   PORT: '8080'
