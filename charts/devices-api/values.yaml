@@ -2,7 +2,7 @@ replicaCount: 1
 image:
   repository: dimozone/devices-api
   pullPolicy: IfNotPresent
-  tag: 77ae8ce
+  tag: c0ce722
 imagePullSecrets: []
 nameOverride: ''
 fullnameOverride: ''
@@ -25,7 +25,6 @@ cronJob:
   schedule: 0 0 * * 0
 deployJob:
   enabled: false
-
 env:
   ENVIRONMENT: dev
   PORT: '8080'
