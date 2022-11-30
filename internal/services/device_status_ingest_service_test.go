@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"math/big"
 	"os"
 	"testing"
 	"time"
@@ -232,6 +233,10 @@ func (t testDeviceDefSvc) UpdateDeviceDefinitionFromNHTSA(ctx context.Context, d
 func (t testDeviceDefSvc) PullDrivlyData(ctx context.Context, userDeviceID, deviceDefinitionID, vin string, forceSetAll bool) (DrivlyDataStatusEnum, error) {
 	//TODO implement me
 	panic("implement me")
+}
+
+func (t testDeviceDefSvc) GetMakeByTokenID(ctx context.Context, tokenID *big.Int) (*ddgrpc.DeviceMake, error) {
+	return nil, nil
 }
 
 func (t testDeviceDefSvc) PullBlackbookData(ctx context.Context, userDeviceID, deviceDefinitionID string, vin string) error {

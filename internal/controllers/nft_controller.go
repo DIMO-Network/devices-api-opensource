@@ -13,6 +13,7 @@ import (
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/ericlagergren/decimal"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gofiber/fiber/v2"
@@ -173,6 +174,12 @@ func (nc *NFTController) GetNFTImage(c *fiber.Ctx) error {
 		Key:    aws.String(imageName + suffix),
 	})
 	if err != nil {
+		if transparent {
+			var nf s3types.NotFound
+			if errors.As(err, &nf) {
+				return fiber.NewError(fiber.StatusNotFound, "Transparent version not set.")
+			}
+		}
 		nc.log.Err(err).Msg("Failure communicating with S3.")
 		return opaqueInternalError
 	}
