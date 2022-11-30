@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"math/big"
+	"time"
 
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/constants"
@@ -20,11 +21,13 @@ import (
 )
 
 type Integration struct {
-	db     func() *database.DBReaderWriter
-	defs   services.DeviceDefinitionService
-	ap     services.AutoPiAPIService
-	apTask services.AutoPiTaskService
-	apReg  services.IngestRegistrar
+	db          func() *database.DBReaderWriter
+	defs        services.DeviceDefinitionService
+	ap          services.AutoPiAPIService
+	apTask      services.AutoPiTaskService
+	apReg       services.IngestRegistrar
+	eventer     services.EventService
+	ddRegistrar services.DeviceDefinitionRegistrar
 }
 
 func NewIntegration(
@@ -33,8 +36,18 @@ func NewIntegration(
 	ap services.AutoPiAPIService,
 	apTask services.AutoPiTaskService,
 	apReg services.IngestRegistrar,
+	eventer services.EventService,
+	ddRegistrar services.DeviceDefinitionRegistrar,
 ) *Integration {
-	return &Integration{db: db, defs: defs, ap: ap, apTask: apTask, apReg: apReg}
+	return &Integration{
+		db:          db,
+		defs:        defs,
+		ap:          ap,
+		apTask:      apTask,
+		apReg:       apReg,
+		eventer:     eventer,
+		ddRegistrar: ddRegistrar,
+	}
 }
 
 func intToDec(x *big.Int) types.NullDecimal {
@@ -230,6 +243,54 @@ func (i *Integration) Pair(ctx context.Context, autoPiTokenID, vehicleTokenID *b
 	}
 
 	_, err = i.apTask.StartQueryAndUpdateVIN(autoPi.ID, autoPi.UnitID, ud.ID)
+	if err != nil {
+		return err
+	}
+
+	_ = i.eventer.Emit(
+		&services.Event{
+			Type:    "com.dimo.zone.device.integration.create",
+			Source:  "devices-api",
+			Subject: ud.ID,
+			Data: services.UserDeviceIntegrationEvent{
+				Timestamp: time.Now(),
+				UserID:    ud.UserID,
+				Device: services.UserDeviceEventDevice{
+					ID:                 ud.ID,
+					DeviceDefinitionID: def.DeviceDefinitionId,
+					Make:               def.Type.Make,
+					Model:              def.Type.Model,
+					Year:               int(def.Type.Year),
+					VIN:                ud.VinIdentifier.String,
+				},
+				Integration: services.UserDeviceEventIntegration{
+					ID:     integ.Id,
+					Type:   integ.Type,
+					Style:  integ.Style,
+					Vendor: integ.Vendor,
+				},
+			},
+		},
+	)
+
+	region := ""
+	if ud.CountryCode.Valid {
+		countryRecord := constants.FindCountry(ud.CountryCode.String)
+		if countryRecord != nil {
+			region = countryRecord.Region
+		}
+	}
+	_ = i.ddRegistrar.Register(services.DeviceDefinitionDTO{
+		IntegrationID:      integ.Id,
+		UserDeviceID:       ud.ID,
+		DeviceDefinitionID: ud.DeviceDefinitionID,
+		Make:               def.Type.Make,
+		Model:              def.Type.Model,
+		Year:               int(def.Type.Year),
+		Region:             region,
+		MakeSlug:           def.Type.MakeSlug,
+		ModelSlug:          def.Type.ModelSlug,
+	})
 
 	return nil
 }
@@ -282,6 +343,33 @@ func (i *Integration) Unpair(ctx context.Context, autoPiTokenID, vehicleTokenID 
 	if err != nil {
 		return err
 	}
+
+	def, err := i.defs.GetDeviceDefinitionByID(ctx, ud.DeviceDefinitionID)
+	if err != nil {
+		return err
+	}
+
+	_ = i.eventer.Emit(&services.Event{
+		Type:    "com.dimo.zone.device.integration.delete",
+		Source:  "devices-api",
+		Subject: ud.ID,
+		Data: services.UserDeviceIntegrationEvent{
+			Timestamp: time.Now(),
+			UserID:    ud.UserID,
+			Device: services.UserDeviceEventDevice{
+				ID:    ud.ID,
+				Make:  def.Make.Name,
+				Model: def.Type.Model,
+				Year:  int(def.Type.Year),
+			},
+			Integration: services.UserDeviceEventIntegration{
+				ID:     integ.Id,
+				Type:   integ.Type,
+				Style:  integ.Style,
+				Vendor: integ.Vendor,
+			},
+		},
+	})
 
 	return nil
 }

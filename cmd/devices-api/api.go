@@ -180,7 +180,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		logger.Fatal().Err(err).Msg("Failed to create Sarama client")
 	}
 
-	autoPi := autopi.NewIntegration(pdb.DBS, ddSvc, autoPiSvc, autoPiTaskService, autoPiIngest)
+	autoPi := autopi.NewIntegration(pdb.DBS, ddSvc, autoPiSvc, autoPiTaskService, autoPiIngest, eventService, deviceDefinitionRegistrar)
 
 	store, err := registry.NewProcessor(pdb.DBS, &logger, autoPi)
 	if err != nil {
