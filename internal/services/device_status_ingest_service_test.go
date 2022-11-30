@@ -229,7 +229,7 @@ func (t testDeviceDefSvc) UpdateDeviceDefinitionFromNHTSA(ctx context.Context, d
 	panic("implement me")
 }
 
-func (t testDeviceDefSvc) PullDrivlyData(ctx context.Context, userDeviceID, deviceDefinitionID string, vin string) error {
+func (t testDeviceDefSvc) PullDrivlyData(ctx context.Context, userDeviceID, deviceDefinitionID, vin string, forceSetAll bool) (DrivlyDataStatusEnum, error) {
 	//TODO implement me
 	panic("implement me")
 }

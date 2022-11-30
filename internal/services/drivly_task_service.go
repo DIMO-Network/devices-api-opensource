@@ -148,7 +148,7 @@ func (dls *drivlyTaskService) ProcessUpdate(ctx context.Context, taskID, deviceD
 		return err
 	}
 
-	err = dls.deviceDefinitionSvc.PullDrivlyData(ctx, userDeviceID, deviceDefinitionID, vin)
+	_, err = dls.deviceDefinitionSvc.PullDrivlyData(ctx, userDeviceID, deviceDefinitionID, vin, false)
 
 	if err != nil {
 		log.Err(err).Msg("Fail to update information")

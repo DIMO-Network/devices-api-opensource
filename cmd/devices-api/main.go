@@ -171,7 +171,11 @@ func main() {
 		logger.Info().Msgf("Successfully started Smartcar task for %s.", userDeviceID)
 	case "drivly-sync-data":
 		logger.Info().Msgf("Sync driv.ly")
-		err = loadUserDeviceDrively(ctx, &logger, &settings, pdb)
+		setAll := false
+		if len(os.Args) > 2 {
+			setAll = os.Args[2] == "--set-all"
+		}
+		err = loadUserDeviceDrively(ctx, &logger, &settings, setAll, pdb)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("error trying to sync driv.ly")
 		}

@@ -33,7 +33,7 @@ type DeviceDefinitionService interface {
 	FindDeviceDefinitionByMMY(ctx context.Context, mk, model string, year int) (*ddgrpc.GetDeviceDefinitionItemResponse, error)
 	CheckAndSetImage(ctx context.Context, dd *ddgrpc.GetDeviceDefinitionItemResponse, overwrite bool) error
 	UpdateDeviceDefinitionFromNHTSA(ctx context.Context, deviceDefinitionID string, vin string) error
-	PullDrivlyData(ctx context.Context, userDeviceID, deviceDefinitionID string, vin string) error
+	PullDrivlyData(ctx context.Context, userDeviceID, deviceDefinitionID, vin string, forceSetAll bool) (DrivlyDataStatusEnum, error)
 	PullBlackbookData(ctx context.Context, userDeviceID, deviceDefinitionID string, vin string) error
 	GetOrCreateMake(ctx context.Context, tx boil.ContextExecutor, makeName string) (*ddgrpc.DeviceMake, error)
 	GetDeviceDefinitionsByIDs(ctx context.Context, ids []string) ([]*ddgrpc.GetDeviceDefinitionItemResponse, error)
@@ -324,43 +324,48 @@ type ValuationRequestData struct {
 	ZipCode *string  `json:"zipCode,omitempty"`
 }
 
+type DrivlyDataStatusEnum string
+
+const (
+	// PulledAllDrivlyStatus means we pulled vin, edmunds, build and valuations
+	PulledAllDrivlyStatus DrivlyDataStatusEnum = "PulledAll"
+	// PulledValuationDrivlyStatus means we only pulled offers and pricing
+	PulledValuationDrivlyStatus DrivlyDataStatusEnum = "PulledAll"
+	SkippedDrivlyStatus         DrivlyDataStatusEnum = "Skipped"
+)
+
 // PullDrivlyData pulls vin info from drivly, and inserts a record with the data.
 // Will only pull if haven't in last 2 weeks. Does not re-pull VIN info, updates DD metadata, sets the device_style_id using the edmunds data pulled.
-func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDeviceID string, deviceDefinitionID string, vin string) error {
+func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDeviceID, deviceDefinitionID, vin string, forceSetVinInfo bool) (DrivlyDataStatusEnum, error) {
 	const repullWindow = time.Hour * 24 * 14
 	if len(vin) != 17 {
-		return errors.Errorf("invalid VIN %s", vin)
+		return "", errors.Errorf("invalid VIN %s", vin)
 	}
 
-	deviceDefinitionResponse, err := d.GetDeviceDefinitionsByIDs(ctx, []string{deviceDefinitionID})
+	deviceDef, err := d.GetDeviceDefinitionByID(ctx, deviceDefinitionID)
 	if err != nil {
-		return err
+		return "", err
 	}
-
-	if len(deviceDefinitionResponse) == 0 {
-		return errors.New("Device definition empty")
-	}
-
-	deviceDef := deviceDefinitionResponse[0]
+	localLog := d.log.With().Str("vin", vin).Str("deviceDefinitionID", deviceDefinitionID).Logger()
 
 	neverPulled := false
 	existingData, err := models.ExternalVinData(
 		models.ExternalVinDatumWhere.Vin.EQ(vin),
-		models.ExternalVinDatumWhere.PricingMetadata.IsNotNull(),
+		models.ExternalVinDatumWhere.PricingMetadata.IsNotNull(), // shouldn't this be VinMetadata
 		qm.OrderBy("updated_at desc"), qm.Limit(1)).
 		One(context.Background(), d.dbs().Writer)
 	if errors.Is(err, sql.ErrNoRows) {
 		neverPulled = true
 	} else if err != nil {
-		return err
+		return "", err
 	}
 	// just return if already pulled recently for this VIN
 	if existingData != nil && existingData.UpdatedAt.Add(repullWindow).After(time.Now()) {
-		return nil
+		return SkippedDrivlyStatus, nil
 	}
 	ud, err := models.FindUserDevice(ctx, d.dbs().Reader, userDeviceID)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// by this point we know we need to insert drivly raw json data
@@ -373,11 +378,11 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 	if neverPulled {
 		vinInfo, err := d.drivlySvc.GetVINInfo(vin)
 		if err != nil {
-			return errors.Wrapf(err, "error getting VIN %s. skipping", vin)
+			return "", errors.Wrapf(err, "error getting VIN %s. skipping", vin)
 		}
 		err = externalVinData.VinMetadata.Marshal(vinInfo)
 		if err != nil {
-			return err
+			return "", err
 		}
 		// extra optional data that only needs to be pulled once.
 		edmunds, err := d.drivlySvc.GetEdmundsByVIN(vin)
@@ -388,83 +393,49 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 		if err == nil {
 			_ = externalVinData.BuildMetadata.Marshal(build)
 		}
-
-		// pull out vehicleInfo useful data to update our device definition over gRPC. Do NOT update if property already has value.
-
-		// TODO: replace seekAttributes with a better solution based on device_types.attributes
-		seekAttributes := map[string]string{
-			// {device attribute, must match device_types.properties}: {vin info from drivly}
-			"mpg_city":               "mpgCity",
-			"mpg_highway":            "mpgHighway",
-			"mpg":                    "mpg",
-			"base_msrp":              "msrpBase",
-			"fuel_tank_capacity_gal": "fuelTankCapacityGal",
-			"fuel_type":              "fuel",
-			"wheelbase":              "wheelbase",
-			"generation":             "generation",
-			"number_of_doors":        "doors",
-			"manufacturer_code":      "manufacturerCode",
-			"driven_wheels":          "drive",
-		}
-
-		addedAttrCount := 0
-		var deviceAttributes []*ddgrpc.DeviceTypeAttributeRequest
-		for _, attr := range deviceDef.DeviceAttributes {
-			deviceAttributes = append(deviceAttributes, &ddgrpc.DeviceTypeAttributeRequest{
-				Name:  attr.Name,
-				Value: attr.Value,
-			})
-			if _, exists := seekAttributes[attr.Name]; exists && attr.Value != "" && attr.Value != "0" {
-				// already set, no longer seeking it
-				delete(seekAttributes, attr.Name)
-			}
-		}
-		for k, attr := range seekAttributes {
-			if v, ok := vinInfo[attr]; ok && v != nil {
-				val := fmt.Sprintf("%v", v)
-				deviceAttributes = append(deviceAttributes, &ddgrpc.DeviceTypeAttributeRequest{
-					Name:  k,
-					Value: val,
-				})
-				addedAttrCount++
-			}
-		}
-		if addedAttrCount == 0 {
-			deviceAttributes = nil
-		}
-
-		definitionsClient, conn, err := d.getDeviceDefsGrpcClient()
-		if err != nil {
-			return err
-		}
-		defer conn.Close()
-
-		_, err = definitionsClient.UpdateDeviceDefinition(ctx, &ddgrpc.UpdateDeviceDefinitionRequest{
-			DeviceDefinitionId: deviceDef.DeviceDefinitionId,
-			DeviceMakeId:       deviceDef.Make.Id,
-			Model:              deviceDef.Type.Model,
-			Year:               deviceDef.Type.Year,
-			DeviceAttributes:   deviceAttributes,
-		})
-		if err != nil {
-			// just log if can't update device-definition
-			d.log.Err(err).Str("vin", vin).Str("deviceDefinitionID", deviceDefinitionID).
-				Msg("failed to update device definition over gRPC")
+		// update the device attributes via gRPC
+		err2 := d.updateDeviceDefAttrs(ctx, deviceDef, vinInfo)
+		if err2 != nil {
+			return "", err2
 		}
 
 		// fill in edmunds style_id in our user_device if it exists and not already set. None of these seen as bad errors so just logs
 		if edmunds != nil && ud.DeviceStyleID.IsZero() {
 			d.setUserDeviceStyleFromEdmunds(ctx, edmunds, ud)
+		} else {
+			localLog.Warn().Msg("could not set edmunds style id")
 		}
 
 		// future: we could pull some specific data from this and persist in the user_device.metadata
 		// future: did MMY from vininfo match the device definition? if not fixup year, or model? but need external_id etc
 	}
 
+	if forceSetVinInfo {
+		// should probably move this up to top as our check for never pulled, then seperate call to get latest pull date for repullWindow check
+		existingVinInfo, err := models.ExternalVinData(
+			models.ExternalVinDatumWhere.UserDeviceID.EQ(null.StringFrom(userDeviceID)),
+			models.ExternalVinDatumWhere.VinMetadata.IsNotNull(),
+			qm.OrderBy("updated_at desc"), qm.Limit(1)).
+			One(context.Background(), d.dbs().Reader)
+		if err != nil {
+			return "", errors.Wrap(err, "unable to get existing vin info to set attributes")
+		}
+		var vinInfo map[string]interface{}
+		err = existingVinInfo.VinMetadata.Unmarshal(&vinInfo)
+		if err != nil {
+			return "", errors.Wrap(err, "unable to unmarshal vin metadata")
+		}
+		// update the device attributes via gRPC
+		err2 := d.updateDeviceDefAttrs(ctx, deviceDef, vinInfo)
+		if err2 != nil {
+			return "", err2
+		}
+	}
+
 	// get mileage for our requests
 	deviceMileage, err := d.getDeviceMileage(userDeviceID, int(deviceDef.Type.Year))
 	if err != nil {
-		return err
+		return "", err
 	}
 	// TODO(zavaboy): get zipcode of this vehicle for better valuations
 
@@ -485,12 +456,96 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 
 	err = externalVinData.Insert(ctx, d.dbs().Writer, boil.Infer())
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	defer appmetrics.DrivlyIngestTotalOps.Inc()
 
+	if neverPulled {
+		return PulledAllDrivlyStatus, nil
+	}
+	return PulledValuationDrivlyStatus, nil
+}
+
+func (d *deviceDefinitionService) updateDeviceDefAttrs(ctx context.Context, deviceDef *ddgrpc.GetDeviceDefinitionItemResponse, vinInfo map[string]any) error {
+	deviceAttributes := buildDeviceAttributes(deviceDef.DeviceAttributes, vinInfo)
+
+	definitionsClient, conn, err := d.getDeviceDefsGrpcClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = definitionsClient.UpdateDeviceDefinition(ctx, &ddgrpc.UpdateDeviceDefinitionRequest{
+		DeviceDefinitionId: deviceDef.DeviceDefinitionId,
+		DeviceMakeId:       deviceDef.Make.Id,
+		Model:              deviceDef.Type.Model,
+		Year:               deviceDef.Type.Year,
+		DeviceAttributes:   deviceAttributes,
+	})
+	if err != nil {
+		return err
+	}
 	return nil
+}
+
+// buildDeviceAttributes returns list of set attributes based on what already exists and vin info pulled from drivly. based on a predetermined list
+func buildDeviceAttributes(existingDeviceAttrs []*ddgrpc.DeviceTypeAttribute, vinInfo map[string]any) []*ddgrpc.DeviceTypeAttributeRequest {
+	// TODO: replace seekAttributes with a better solution based on device_types.attributes
+	seekAttributes := map[string]string{
+		// {device attribute, must match device_types.properties}: {vin info from drivly}
+		"mpg_city":               "mpgCity",
+		"mpg_highway":            "mpgHighway",
+		"mpg":                    "mpg",
+		"base_msrp":              "msrpBase",
+		"fuel_tank_capacity_gal": "fuelTankCapacityGal",
+		"fuel_type":              "fuel",
+		"wheelbase":              "wheelbase",
+		"generation":             "generation",
+		"number_of_doors":        "doors",
+		"manufacturer_code":      "manufacturerCode",
+		"driven_wheels":          "drive",
+	}
+
+	addedAttrCount := 0
+	// build array of already present device_attributes and remove any already set satisfactorily from seekAttributes map
+	var deviceAttributes []*ddgrpc.DeviceTypeAttributeRequest //nolint
+	for _, attr := range existingDeviceAttrs {
+		deviceAttributes = append(deviceAttributes, &ddgrpc.DeviceTypeAttributeRequest{
+			Name:  attr.Name,
+			Value: attr.Value,
+		})
+		if _, exists := seekAttributes[attr.Name]; exists && attr.Value != "" && attr.Value != "0" {
+			// already set, no longer seeking it
+			delete(seekAttributes, attr.Name)
+		}
+	}
+	// iterate over remaining attributes
+	for k, attr := range seekAttributes {
+		if v, ok := vinInfo[attr]; ok && v != nil {
+			val := fmt.Sprintf("%v", v)
+			// lookup the existing device attribute and set it if exists
+			existing := false
+			for _, attribute := range deviceAttributes {
+				if attribute.Name == k {
+					attribute.Value = val
+					existing = true
+					break
+				}
+			}
+			if !existing {
+				deviceAttributes = append(deviceAttributes, &ddgrpc.DeviceTypeAttributeRequest{
+					Name:  k,
+					Value: val,
+				})
+			}
+			addedAttrCount++
+		}
+	}
+	if addedAttrCount == 0 {
+		deviceAttributes = nil
+	}
+	return deviceAttributes
 }
 
 // setUserDeviceStyleFromEdmunds given edmunds json, sets the device style_id in the user_device per what edmunds says.
@@ -520,7 +575,7 @@ func (d *deviceDefinitionService) setUserDeviceStyleFromEdmunds(ctx context.Cont
 			return
 		}
 		ud.DeviceStyleID = null.StringFrom(deviceStyle.Id) // set foreign key
-		_, err = ud.Update(ctx, d.dbs().Writer, boil.Infer())
+		_, err = ud.Update(ctx, d.dbs().Writer, boil.Whitelist("updated_at", "device_style_id"))
 		if err != nil {
 			d.log.Err(err).Msgf("unable to update user_device_id %s with styleID %s", ud.ID, deviceStyle.Id)
 			return

@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	grpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
+	services "github.com/DIMO-Network/devices-api/internal/services"
 	gomock "github.com/golang/mock/gomock"
 	boil "github.com/volatiletech/sqlboiler/v4/boil"
 )
@@ -200,17 +201,18 @@ func (mr *MockDeviceDefinitionServiceMockRecorder) PullBlackbookData(ctx, userDe
 }
 
 // PullDrivlyData mocks base method.
-func (m *MockDeviceDefinitionService) PullDrivlyData(ctx context.Context, userDeviceID, deviceDefinitionID, vin string) error {
+func (m *MockDeviceDefinitionService) PullDrivlyData(ctx context.Context, userDeviceID, deviceDefinitionID, vin string, forceSetAll bool) (services.DrivlyDataStatusEnum, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PullDrivlyData", ctx, userDeviceID, deviceDefinitionID, vin)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret := m.ctrl.Call(m, "PullDrivlyData", ctx, userDeviceID, deviceDefinitionID, vin, forceSetAll)
+	ret0, _ := ret[0].(services.DrivlyDataStatusEnum)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // PullDrivlyData indicates an expected call of PullDrivlyData.
-func (mr *MockDeviceDefinitionServiceMockRecorder) PullDrivlyData(ctx, userDeviceID, deviceDefinitionID, vin interface{}) *gomock.Call {
+func (mr *MockDeviceDefinitionServiceMockRecorder) PullDrivlyData(ctx, userDeviceID, deviceDefinitionID, vin, forceSetAll interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PullDrivlyData", reflect.TypeOf((*MockDeviceDefinitionService)(nil).PullDrivlyData), ctx, userDeviceID, deviceDefinitionID, vin)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PullDrivlyData", reflect.TypeOf((*MockDeviceDefinitionService)(nil).PullDrivlyData), ctx, userDeviceID, deviceDefinitionID, vin, forceSetAll)
 }
 
 // UpdateDeviceDefinitionFromNHTSA mocks base method.
