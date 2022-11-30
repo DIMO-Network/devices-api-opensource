@@ -175,8 +175,8 @@ func (nc *NFTController) GetNFTImage(c *fiber.Ctx) error {
 	})
 	if err != nil {
 		if transparent {
-			var nf s3types.NotFound
-			if errors.As(err, &nf) {
+			var nsk s3types.NoSuchKey
+			if errors.As(err, &nsk) {
 				return fiber.NewError(fiber.StatusNotFound, "Transparent version not set.")
 			}
 		}
