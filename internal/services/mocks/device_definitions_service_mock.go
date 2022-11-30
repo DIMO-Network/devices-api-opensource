@@ -6,6 +6,7 @@ package mock_services
 
 import (
 	context "context"
+	big "math/big"
 	reflect "reflect"
 
 	grpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
@@ -169,6 +170,21 @@ func (m *MockDeviceDefinitionService) GetIntegrations(ctx context.Context) ([]*g
 func (mr *MockDeviceDefinitionServiceMockRecorder) GetIntegrations(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIntegrations", reflect.TypeOf((*MockDeviceDefinitionService)(nil).GetIntegrations), ctx)
+}
+
+// GetMakeByTokenID mocks base method.
+func (m *MockDeviceDefinitionService) GetMakeByTokenID(ctx context.Context, tokenID *big.Int) (*grpc.DeviceMake, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMakeByTokenID", ctx, tokenID)
+	ret0, _ := ret[0].(*grpc.DeviceMake)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetMakeByTokenID indicates an expected call of GetMakeByTokenID.
+func (mr *MockDeviceDefinitionServiceMockRecorder) GetMakeByTokenID(ctx, tokenID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMakeByTokenID", reflect.TypeOf((*MockDeviceDefinitionService)(nil).GetMakeByTokenID), ctx, tokenID)
 }
 
 // GetOrCreateMake mocks base method.

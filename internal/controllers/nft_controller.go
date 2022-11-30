@@ -214,3 +214,30 @@ func (nc *NFTController) GetAftermarketDeviceNFTMetadata(c *fiber.Ctx) error {
 		},
 	})
 }
+
+// GetManufacturerNFTMetadata godoc
+// @Description Retrieves NFT metadata for a given manufacturer.
+// @Tags        nfts
+// @Param       tokenId path int true "token id"
+// @Produce     json
+// @Success     200 {object} controllers.NFTMetadataResp
+// @Failure     404
+// @Router      /manufacturer/{tokenId} [get]
+func (nc *NFTController) GetManufacturerNFTMetadata(c *fiber.Ctx) error {
+	tidStr := c.Params("tokenID")
+
+	tid, ok := new(big.Int).SetString(tidStr, 10)
+	if !ok {
+		return fiber.NewError(fiber.StatusBadRequest, "Couldn't parse token id.")
+	}
+
+	dm, err := nc.deviceDefSvc.GetMakeByTokenID(c.Context(), tid)
+	if err != nil {
+		return api.GrpcErrorToFiber(err, "Couldn't retrieve manufacturer")
+	}
+
+	return c.JSON(NFTMetadataResp{
+		Name:       dm.Name,
+		Attributes: []NFTAttribute{},
+	})
+}
