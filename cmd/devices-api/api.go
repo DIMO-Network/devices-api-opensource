@@ -168,8 +168,8 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Get("/autopi/task/:taskID", userDeviceController.GetAutoPiTask)
 
 	// New-style NFT mint, claim, pair.
-	v1Auth.Get("/user/devices/:userDeviceID/commands/mint", userDeviceController.GetMintDataToSignV2)
-	v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.MintDeviceV2)
+	v1Auth.Get("/user/devices/:userDeviceID/commands/mint", userDeviceController.GetMintDevice)
+	v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.PostMintDevice)
 	v1Auth.Post("/user/devices/:userDeviceID/commands/update-nft-image", userDeviceController.UpdateNFTImage)
 
 	kconf := sarama.NewConfig()

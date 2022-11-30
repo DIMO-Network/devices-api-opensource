@@ -1226,14 +1226,14 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-// GetMintDataToSignV2 godoc
+// GetMintDevice godoc
 // @Description Returns the data the user must sign in order to mint this device.
 // @Tags        user-devices
 // @Param       userDeviceID path     string true "user device ID"
 // @Success     200          {object} signer.TypedData
 // @Security    BearerAuth
 // @Router      /user/devices/{userDeviceID}/commands/mint [get]
-func (udc *UserDevicesController) GetMintDataToSignV2(c *fiber.Ctx) error {
+func (udc *UserDevicesController) GetMintDevice(c *fiber.Ctx) error {
 	userDeviceID := c.Params("userDeviceID")
 	userID := api.GetUserID(c)
 
@@ -1435,7 +1435,7 @@ func (udc *UserDevicesController) UpdateNFTImage(c *fiber.Ctx) error {
 	return err
 }
 
-// MintDeviceV2 godoc
+// PostMintDevice godoc
 // @Description Sends a mint device request to the blockchain
 // @Tags        user-devices
 // @Param       userDeviceID path string                  true "user device ID"
@@ -1443,7 +1443,7 @@ func (udc *UserDevicesController) UpdateNFTImage(c *fiber.Ctx) error {
 // @Success     200
 // @Security    BearerAuth
 // @Router      /user/devices/{userDeviceID}/commands/mint [post]
-func (udc *UserDevicesController) MintDeviceV2(c *fiber.Ctx) error {
+func (udc *UserDevicesController) PostMintDevice(c *fiber.Ctx) error {
 	userDeviceID := c.Params("userDeviceID")
 	userID := api.GetUserID(c)
 
