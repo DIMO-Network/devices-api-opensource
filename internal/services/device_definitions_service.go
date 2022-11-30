@@ -189,7 +189,7 @@ func (d *deviceDefinitionService) GetMakeByTokenID(ctx context.Context, tokenID 
 	}
 	defer conn.Close()
 
-	return client.GetDeviceMakeByTokenId(ctx, &ddgrpc.GetDeviceMakeByTokenIdRequest{TokenId: tokenID.String()})
+	return client.GetDeviceMakeByTokenID(ctx, &ddgrpc.GetDeviceMakeByTokenIdRequest{TokenId: tokenID.String()})
 }
 
 func (d *deviceDefinitionService) GetIntegrationByVendor(ctx context.Context, vendor string) (*ddgrpc.Integration, error) {
