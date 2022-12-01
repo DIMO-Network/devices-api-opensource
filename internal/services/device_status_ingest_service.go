@@ -165,40 +165,26 @@ func (i *DeviceStatusIngestService) processEvent(event *DeviceStatusEvent) error
 
 	i.processOdometer(datum, newOdometer, device, dd, integration.Id)
 
-	switch integration.Vendor {
-	case constants.SmartCarVendor, constants.TeslaVendor:
-		if newOdometer.Valid {
-			datum.Data = null.JSONFrom(event.Data)
-			datum.ErrorData = null.JSON{}
-		} else {
-			datum.ErrorData = null.JSONFrom(event.Data)
-		}
-	// Again, most AutoPis don't have decoded odometer readings, so just let updates through.
-	case constants.AutoPiVendor:
-		// Not every AutoPi update has every signal. Merge the new into the old.
-		compositeData := make(map[string]any)
-		if err := datum.Data.Unmarshal(&compositeData); err != nil {
-			return err
-		}
-
-		// This will preserve any mappings with keys present in datum.Data but not in
-		// event.Data, but mappings in event.Data take precedence.
-		//
-		// For example, if in the database we have {A: 1, B: 2} and the new event has
-		// {B: 4, C: 9} then the result should be {A: 1, B: 4, C: 9}.
-		if err := json.Unmarshal(event.Data, &compositeData); err != nil {
-			return err
-		}
-
-		if err := datum.Data.Marshal(compositeData); err != nil {
-			return err
-		}
-		datum.ErrorData = null.JSON{}
-	default:
-		// Not sure what this is.
-		datum.Data = null.JSONFrom(event.Data)
-		datum.ErrorData = null.JSON{}
+	// Not every update has every signal. Merge the new into the old.
+	compositeData := make(map[string]any)
+	if err := datum.Data.Unmarshal(&compositeData); err != nil {
+		return err
 	}
+
+	// This will preserve any mappings with keys present in datum.Data but not in
+	// event.Data. If a key is present in both maps then the value from event.Data
+	// takes precedence.
+	//
+	// For example, if in the database we have {A: 1, B: 2} and the new event has
+	// {B: 4, C: 9} then the result should be {A: 1, B: 4, C: 9}.
+	if err := json.Unmarshal(event.Data, &compositeData); err != nil {
+		return err
+	}
+
+	if err := datum.Data.Marshal(compositeData); err != nil {
+		return err
+	}
+	datum.ErrorData = null.JSON{}
 
 	if err := datum.Upsert(ctx, tx, true, userDeviceDataPrimaryKeyColumns, boil.Infer(), boil.Infer()); err != nil {
 		return fmt.Errorf("error upserting datum: %w", err)
