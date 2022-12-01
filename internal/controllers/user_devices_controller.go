@@ -513,7 +513,14 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 	}
 
 	if userDevice.VinConfirmed {
-		return fiber.NewError(fiber.StatusConflict, "Vehicle already has a confirmed VIN.")
+		switch {
+		case req.Signature == "":
+			return fiber.NewError(fiber.StatusConflict, "Vehicle already has a confirmed VIN.")
+		case req.VIN != userDevice.VinIdentifier.String:
+			return fiber.NewError(fiber.StatusConflict, "Submitted VIN does not match confirmed VIN.")
+		default:
+			return c.SendStatus(fiber.StatusNoContent)
+		}
 	}
 
 	if req.Signature != "" {
