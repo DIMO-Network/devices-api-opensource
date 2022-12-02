@@ -783,16 +783,24 @@ func (udc *UserDevicesController) StartAutoPiUpdateTask(c *fiber.Ctx) error {
 	deviceID := ""
 
 	// check if unitId has already been assigned to a different user - don't allow querying in this case
-	autopiUnit, _ := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, unitID)
+	autopiUnit, err := models.FindAutopiUnit(c.Context(), udc.DBS().Reader, unitID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+
 	if autopiUnit != nil {
 		if autopiUnit.UserID != null.StringFrom(userID) {
 			return c.SendStatus(fiber.StatusForbidden)
 		}
 		deviceID = autopiUnit.AutopiDeviceID.String
 	}
+
 	// check if device already updated
 	unit, err := udc.autoPiSvc.GetDeviceByUnitID(unitID)
 	if err != nil {
+		if errors.Is(err, services.ErrNotFound) {
+			return fiber.NewError(fiber.StatusNotFound, "Device not found.")
+		}
 		return err
 	}
 	if unit.IsUpdated {
