@@ -1589,6 +1589,10 @@ func (udc *UserDevicesController) PostMintDevice(c *fiber.Ctx) error {
 
 	sigBytes := common.FromHex(mr.Signature)
 
+	if len(sigBytes) != 65 {
+		return fiber.NewError(fiber.StatusBadRequest, "Signature must be 65 bytes.")
+	}
+
 	sigBytesYellowPaper := make([]byte, len(sigBytes))
 	copy(sigBytesYellowPaper, sigBytes)
 	sigBytesYellowPaper[64] -= 27
