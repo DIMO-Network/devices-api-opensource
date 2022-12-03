@@ -405,7 +405,7 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 		if err == nil {
 			_ = externalVinData.BuildMetadata.Marshal(build)
 		}
-		// update the device attributes via gRPC
+		// update the device definition attributes via gRPC (ie. dd metadata)
 		err2 := d.updateDeviceDefAttrs(ctx, deviceDef, vinInfo)
 		if err2 != nil {
 			return "", err2
@@ -414,6 +414,7 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 		// fill in edmunds style_id in our user_device if it exists and not already set. None of these seen as bad errors so just logs
 		if edmunds != nil && ud.DeviceStyleID.IsZero() {
 			d.setUserDeviceStyleFromEdmunds(ctx, edmunds, ud)
+			localLog.Info().Msgf("set device_style_id for ud id %s", ud.ID)
 		} else {
 			localLog.Warn().Msg("could not set edmunds style id")
 		}
@@ -490,9 +491,6 @@ func (d *deviceDefinitionService) updateDeviceDefAttrs(ctx context.Context, devi
 
 	_, err = definitionsClient.UpdateDeviceDefinition(ctx, &ddgrpc.UpdateDeviceDefinitionRequest{
 		DeviceDefinitionId: deviceDef.DeviceDefinitionId,
-		DeviceMakeId:       deviceDef.Make.Id,
-		Model:              deviceDef.Type.Model,
-		Year:               deviceDef.Type.Year,
 		DeviceAttributes:   deviceAttributes,
 	})
 	if err != nil {
