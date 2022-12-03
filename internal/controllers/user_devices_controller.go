@@ -846,7 +846,10 @@ func (udc *UserDevicesController) GetValuations(c *fiber.Ctx) error {
 		default:
 			logger.Error().Msg("Unexpected structure for driv.ly pricing data retail values")
 		}
-		dVal.ValuationSets = append(dVal.ValuationSets, drivlyVal)
+		// often drivly saves valuations with 0 for value, if this is case do not consider it
+		if drivlyVal.Retail > 0 || drivlyVal.TradeIn > 0 {
+			dVal.ValuationSets = append(dVal.ValuationSets, drivlyVal)
+		}
 	}
 
 	// Blackbook latest data
@@ -922,25 +925,28 @@ func (udc *UserDevicesController) GetValuations(c *fiber.Ctx) error {
 		if err != nil {
 			return err
 		}
-		bbval := bbvv.UsedVehicles.UsedVehiclesList[0]
 
 		// Using adjusted values to include regional adjustment if available
-		blackbookVal.TradeInClean = bbval.AdjustedTradeinClean
-		blackbookVal.TradeInAverage = bbval.AdjustedTradeinAvg
-		blackbookVal.TradeInRough = bbval.AdjustedTradeinRough
 		// Conditional prevents us from applying mileage adjustment on top of already mileage adjusted values
-		if blackbookVal.Mileage > 0 && len(bbval.MileageList) > 1 && bbval.MileageTradeinClean == 0 && bbval.MileageTradeinAvg == 0 && bbval.MileageTradeinRough == 0 {
-			for _, v := range bbval.MileageList {
-				if v.RangeBegin <= blackbookVal.Mileage && v.RangeEnd >= blackbookVal.Mileage || v == bbval.MileageList[len(bbval.MileageList)-1] {
-					blackbookVal.TradeInClean += v.Clean
-					blackbookVal.TradeInAverage += v.Avg
-					blackbookVal.TradeInRough += v.Rough
-					break
+		if len(bbvv.UsedVehicles.UsedVehiclesList) > 0 {
+
+			bbval := bbvv.UsedVehicles.UsedVehiclesList[0]
+			blackbookVal.TradeInClean = bbval.AdjustedTradeinClean
+			blackbookVal.TradeInAverage = bbval.AdjustedTradeinAvg
+			blackbookVal.TradeInRough = bbval.AdjustedTradeinRough
+			if blackbookVal.Mileage > 0 && len(bbval.MileageList) > 1 && bbval.MileageTradeinClean == 0 && bbval.MileageTradeinAvg == 0 && bbval.MileageTradeinRough == 0 {
+				for _, v := range bbval.MileageList {
+					if v.RangeBegin <= blackbookVal.Mileage && v.RangeEnd >= blackbookVal.Mileage || v == bbval.MileageList[len(bbval.MileageList)-1] {
+						blackbookVal.TradeInClean += v.Clean
+						blackbookVal.TradeInAverage += v.Avg
+						blackbookVal.TradeInRough += v.Rough
+						break
+					}
 				}
 			}
+			blackbookVal.TradeIn = blackbookVal.TradeInAverage
+			dVal.ValuationSets = append(dVal.ValuationSets, blackbookVal)
 		}
-		blackbookVal.TradeIn = blackbookVal.TradeInAverage
-		dVal.ValuationSets = append(dVal.ValuationSets, blackbookVal)
 	}
 
 	return c.JSON(dVal)
