@@ -27,7 +27,7 @@ func loadUserDeviceDrively(ctx context.Context, logger *zerolog.Logger, settings
 		if err != nil {
 			logger.Err(err).Str("vin", ud.VinIdentifier.String).Msg("error pulling drivly data")
 		} else {
-			logger.Info().Msgf("processed vin: %s", ud.VinIdentifier.String)
+			logger.Info().Msgf("%s vin: %s", status, ud.VinIdentifier.String)
 		}
 		statsAggr[status]++
 	}

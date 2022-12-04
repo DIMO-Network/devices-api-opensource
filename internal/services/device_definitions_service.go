@@ -342,7 +342,7 @@ const (
 	// PulledAllDrivlyStatus means we pulled vin, edmunds, build and valuations
 	PulledAllDrivlyStatus DrivlyDataStatusEnum = "PulledAll"
 	// PulledValuationDrivlyStatus means we only pulled offers and pricing
-	PulledValuationDrivlyStatus DrivlyDataStatusEnum = "PulledAll"
+	PulledValuationDrivlyStatus DrivlyDataStatusEnum = "PulledValuations"
 	SkippedDrivlyStatus         DrivlyDataStatusEnum = "Skipped"
 )
 
@@ -499,7 +499,7 @@ func (d *deviceDefinitionService) updateDeviceDefAttrs(ctx context.Context, devi
 	return nil
 }
 
-// buildDeviceAttributes returns list of set attributes based on what already exists and vin info pulled from drivly. based on a predetermined list
+// buildDeviceAttributes returns list of set attributes based on what already exists and vinInfo pulled from drivly. based on a predetermined list
 func buildDeviceAttributes(existingDeviceAttrs []*ddgrpc.DeviceTypeAttribute, vinInfo map[string]any) []*ddgrpc.DeviceTypeAttributeRequest {
 	// TODO: replace seekAttributes with a better solution based on device_types.attributes
 	seekAttributes := map[string]string{
@@ -525,6 +525,7 @@ func buildDeviceAttributes(existingDeviceAttrs []*ddgrpc.DeviceTypeAttribute, vi
 			Name:  attr.Name,
 			Value: attr.Value,
 		})
+		// todo: 0 value attributes could be decimal form in string eg. 0.00000 . Convert value to int, and then compare to 0 again?
 		if _, exists := seekAttributes[attr.Name]; exists && attr.Value != "" && attr.Value != "0" {
 			// already set, no longer seeking it
 			delete(seekAttributes, attr.Name)
