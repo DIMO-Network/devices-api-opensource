@@ -40,19 +40,19 @@ func (s *userDeviceService) GetUserDevice(ctx context.Context, req *pb.GetUserDe
 		return nil, status.Error(codes.Internal, "Internal error.")
 	}
 
-	var tokenID types.NullDecimal
-	if dbDevice.R.VehicleNFT != nil {
-		tokenID = dbDevice.R.VehicleNFT.TokenID
+	out := pb.UserDevice{
+		Id:     dbDevice.ID,
+		UserId: dbDevice.UserID,
 	}
 
-	pbDevice := &pb.UserDevice{
-		Id:        dbDevice.ID,
-		UserId:    dbDevice.UserID,
-		TokenId:   s.toUint64(tokenID),
-		OptedInAt: nullTimeToPB(dbDevice.OptedInAt),
+	if nft := dbDevice.R.VehicleNFT; nft != nil {
+		out.TokenId = s.toUint64(nft.TokenID)
+		if nft.OwnerAddress.Valid {
+			out.OwnerAddress = nft.OwnerAddress.Bytes
+		}
 	}
 
-	return pbDevice, nil
+	return &out, nil
 }
 
 func (s *userDeviceService) ListUserDevicesForUser(ctx context.Context, req *pb.ListUserDevicesForUserRequest) (*pb.ListUserDevicesForUserResponse, error) {
