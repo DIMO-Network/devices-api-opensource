@@ -883,7 +883,7 @@ func (udc *UserDevicesController) GetValuations(c *fiber.Ctx) error {
 		blackbookVal := ValuationSet{
 			Vendor: "blackbook",
 		}
-		requestJSON := drivlyVinData.RequestMetadata.JSON
+		requestJSON := blackbookVinData.RequestMetadata.JSON
 		if deviceOdometerEvent.Valid {
 			blackbookVal.Updated = deviceOdometerEvent.Time.Format(time.RFC3339)
 			blackbookVal.Mileage = deviceMileage
