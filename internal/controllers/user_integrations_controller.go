@@ -1707,6 +1707,7 @@ func (udc *UserDevicesController) PostClaimAutoPi(c *fiber.Ctx) error {
 		return err
 	}
 
+	unit.UserID = null.StringFrom(userID)
 	unit.ClaimMetaTransactionRequestID = null.StringFrom(requestID)
 	_, err = unit.Update(c.Context(), udc.DBS().Writer, boil.Infer())
 	if err != nil {
