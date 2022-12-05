@@ -165,7 +165,7 @@ func (a *autoPiAPIService) ApplyTemplate(deviceID string, templateID int) error 
 // CommandQueryVIN sends raw command to autopi to get the vin in the webhook response after. only works if device is online.
 func (a *autoPiAPIService) CommandQueryVIN(ctx context.Context, unitID, deviceID, userDeviceID string) (*AutoPiCommandResponse, error) {
 	return a.CommandRaw(ctx, unitID, deviceID,
-		"obd.query vin mode=09 pid=02 header=7DF bytes=20 formula='messages[0].data[3:].decode(\"ascii\")' baudrate=500000 protocol=6 verify=false force=true",
+		"obd.query vin mode=09 pid=02 header=7DF bytes=20 formula='messages[0].data[3:].decode(\"ascii\")' baudrate=500000 protocol=auto verify=false force=true",
 		userDeviceID)
 }
 
