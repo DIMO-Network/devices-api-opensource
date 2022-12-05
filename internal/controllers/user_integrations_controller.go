@@ -546,6 +546,8 @@ func (udc *UserDevicesController) GetAutoPiUnitInfo(c *fiber.Ctx) error {
 	udai, _ := udc.autoPiSvc.GetUserDeviceIntegrationByUnitID(c.Context(), unitID)
 	if udai != nil {
 		if udai.R.UserDevice.UserID != userID {
+			udc.log.Warn().Str("userID", userID).Str("autopiUnitID", unitID).
+				Msg("failed to validate autopi unit belongs to user for get info")
 			return c.SendStatus(fiber.StatusForbidden)
 		}
 	}

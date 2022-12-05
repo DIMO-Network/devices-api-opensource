@@ -56,7 +56,7 @@ func NewAutoPiAPIService(settings *config.Settings, dbs func() *database.DBReade
 }
 
 func (a *autoPiAPIService) GetUserDeviceIntegrationByUnitID(ctx context.Context, unitID string) (*models.UserDeviceAPIIntegration, error) {
-	udai, err := models.UserDeviceAPIIntegrations(qm.Where("metadata ->> 'autoPiUnitId' = $1", unitID),
+	udai, err := models.UserDeviceAPIIntegrations(models.UserDeviceAPIIntegrationWhere.AutopiUnitID.EQ(null.StringFrom(unitID)),
 		qm.Load(models.UserDeviceAPIIntegrationRels.UserDevice)).
 		One(ctx, a.dbs().Reader)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
