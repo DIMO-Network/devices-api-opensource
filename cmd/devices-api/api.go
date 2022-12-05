@@ -268,6 +268,7 @@ func startGRPCServer(settings *config.Settings, dbs func() *database.DBReaderWri
 	logger.Info().Msgf("Starting gRPC server on port %s", settings.GRPCPort)
 	server := grpc.NewServer()
 	pb.RegisterUserDeviceServiceServer(server, api.NewUserDeviceService(dbs, logger))
+	pb.RegisterAftermarketDeviceServiceServer(server, api.NewAftermarketDeviceService(dbs, logger))
 
 	if err := server.Serve(lis); err != nil {
 		logger.Fatal().Err(err).Msg("gRPC server terminated unexpectedly")
