@@ -1099,19 +1099,19 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 	return c.JSON(out)
 }
 
-// PairAutoPi godoc
+// PostPairAutoPi godoc
 // @Description Submit the signature for pairing this device with its attached AutoPi.
 // @Produce json
 // @Param userDeviceID path string true "Device id"
 // @Param userSignature body controllers.AutoPiPairRequest true "User signature."
 // @Security BearerAuth
 // @Router /user/devices/:userDeviceID/autopi/commands/pair [post]
-func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
+func (udc *UserDevicesController) PostPairAutoPi(c *fiber.Ctx) error {
 	userID := api.GetUserID(c)
 
 	userDeviceID := c.Params("userDeviceID")
 
-	logger := udc.log.With().Str("userId", userID).Str("userDeviceId", userDeviceID).Logger()
+	logger := udc.log.With().Str("userId", userID).Str("userDeviceId", userDeviceID).Str("route", c.Route().Name).Logger()
 	logger.Info().Msg("Got AutoPi pair request.")
 
 	autoPiInt, err := udc.DeviceDefIntSvc.GetAutoPiIntegration(c.Context())
@@ -1254,6 +1254,11 @@ func (udc *UserDevicesController) PairAutoPi(c *fiber.Ctx) error {
 	}
 
 	sigBytes := common.FromHex(pairReq.Signature)
+
+	if len(sigBytes) != 65 {
+		logger.Error().Str("rawSignature", pairReq.Signature).Msg("Signature was not 65 bytes.")
+		return fiber.NewError(fiber.StatusBadRequest, "Signature was not 65 bytes long.")
+	}
 
 	recAddr, err := recoverAddress2(hash[:], sigBytes)
 	if err != nil {
@@ -1563,7 +1568,7 @@ type AutoPiPairRequest struct {
 	Signature  string `json:"signature"`
 }
 
-// ClaimAutoPi godoc
+// PostClaimAutoPi godoc
 // @Description Return the EIP-712 payload to be signed for AutoPi device claiming.
 // @Produce json
 // @Param unitID path string true "AutoPi unit id"
@@ -1571,10 +1576,11 @@ type AutoPiPairRequest struct {
 // @Success 204
 // @Security BearerAuth
 // @Router /autopi/unit/:unitID/commands/claim [post]
-func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
+func (udc *UserDevicesController) PostClaimAutoPi(c *fiber.Ctx) error {
 	userID := api.GetUserID(c)
-
 	unitID := c.Params("unitID")
+
+	logger := udc.log.With().Str("userId", userID).Str("autoPiUnitId", unitID).Str("route", c.Route().Name).Logger()
 
 	reqBody := AutoPiClaimRequest{}
 	err := c.BodyParser(&reqBody)
@@ -1657,6 +1663,7 @@ func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 	userSig := common.FromHex(reqBody.UserSignature)
 
 	if len(userSig) != 65 {
+		logger.Error().Str("rawSignature", reqBody.UserSignature).Msg("User signature was not 65 bytes.")
 		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("User signature has invalid length %d.", len(userSig)))
 	}
 
@@ -1672,6 +1679,7 @@ func (udc *UserDevicesController) ClaimAutoPi(c *fiber.Ctx) error {
 	amSig := common.FromHex(reqBody.AftermarketDeviceSignature)
 
 	if len(amSig) != 65 {
+		logger.Error().Str("rawSignature", reqBody.AftermarketDeviceSignature).Msg("Device signature was not 65 bytes.")
 		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("Device signature has invalid length %d.", len(amSig)))
 	}
 

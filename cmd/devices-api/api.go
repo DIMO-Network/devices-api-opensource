@@ -169,7 +169,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 
 	// New-style NFT mint, claim, pair.
 	v1Auth.Get("/user/devices/:userDeviceID/commands/mint", userDeviceController.GetMintDevice)
-	v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.PostMintDevice)
+	v1Auth.Post("/user/devices/:userDeviceID/commands/mint", userDeviceController.PostMintDevice).Name("PostMintDevice")
 	v1Auth.Post("/user/devices/:userDeviceID/commands/update-nft-image", userDeviceController.UpdateNFTImage)
 
 	kconf := sarama.NewConfig()
@@ -194,10 +194,10 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	}
 
 	v1Auth.Get("/autopi/unit/:unitID/commands/claim", userDeviceController.GetAutoPiClaimMessage)
-	v1Auth.Post("/autopi/unit/:unitID/commands/claim", userDeviceController.ClaimAutoPi)
+	v1Auth.Post("/autopi/unit/:unitID/commands/claim", userDeviceController.PostClaimAutoPi).Name("PostClaimAutoPi")
 
 	v1Auth.Get("/user/devices/:userDeviceID/autopi/commands/pair", userDeviceController.GetAutoPiPairMessage)
-	v1Auth.Post("/user/devices/:userDeviceID/autopi/commands/pair", userDeviceController.PairAutoPi)
+	v1Auth.Post("/user/devices/:userDeviceID/autopi/commands/pair", userDeviceController.PostPairAutoPi).Name("PostPairAutoPi")
 
 	v1Auth.Get("/user/devices/:userDeviceID/autopi/commands/unpair", userDeviceController.GetAutoPiUnpairMessage)
 	v1Auth.Post("/user/devices/:userDeviceID/autopi/commands/unpair", userDeviceController.UnpairAutoPi)

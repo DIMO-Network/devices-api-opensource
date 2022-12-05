@@ -473,6 +473,7 @@ func (udc *UserDevicesController) UpdateVIN(c *fiber.Ctx) error {
 		vinByte := []byte(req.VIN)
 		sig := common.FromHex(req.Signature)
 		if len(sig) != 65 {
+			logger.Error().Str("rawSignature", req.Signature).Msg("Signature was not 65 bytes.")
 			return fiber.NewError(fiber.StatusBadRequest, "Signature is not 65 bytes long.")
 		}
 
@@ -1460,6 +1461,12 @@ func (udc *UserDevicesController) PostMintDevice(c *fiber.Ctx) error {
 	userDeviceID := c.Params("userDeviceID")
 	userID := api.GetUserID(c)
 
+	logger := udc.log.With().
+		Str("userId", userID).
+		Str("userDeviceId", userDeviceID).
+		Str("route", c.Route().Name).
+		Logger()
+
 	userDevice, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
 		models.UserDeviceWhere.UserID.EQ(userID),
@@ -1543,14 +1550,6 @@ func (udc *UserDevicesController) PostMintDevice(c *fiber.Ctx) error {
 
 	requestID := ksuid.New().String()
 
-	logger := udc.log.With().
-		Str("userId", userID).
-		Str("userDeviceId", userDeviceID).
-		Str("requestId", requestID).
-		Str("handler", "MintDevice").
-		Str("feature", "identity").
-		Logger()
-
 	logger.Info().
 		Interface("httpRequestBody", mr).
 		Interface("client", client).
@@ -1596,6 +1595,7 @@ func (udc *UserDevicesController) PostMintDevice(c *fiber.Ctx) error {
 	sigBytes := common.FromHex(mr.Signature)
 
 	if len(sigBytes) != 65 {
+		logger.Error().Str("rawSignature", mr.Signature).Msg("Signature was not 65 bytes.")
 		return fiber.NewError(fiber.StatusBadRequest, "Signature must be 65 bytes.")
 	}
 
