@@ -30,7 +30,7 @@ type userDeviceService struct {
 func (s *userDeviceService) GetUserDevice(ctx context.Context, req *pb.GetUserDeviceRequest) (*pb.UserDevice, error) {
 	dbDevice, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(req.Id),
-		qm.Load(models.UserDeviceRels.VehicleNFT),
+		qm.Load(qm.Rels(models.UserDeviceRels.VehicleNFT, models.VehicleNFTRels.VehicleTokenAutopiUnit)),
 	).One(ctx, s.dbs().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -40,50 +40,47 @@ func (s *userDeviceService) GetUserDevice(ctx context.Context, req *pb.GetUserDe
 		return nil, status.Error(codes.Internal, "Internal error.")
 	}
 
-	out := pb.UserDevice{
-		Id:     dbDevice.ID,
-		UserId: dbDevice.UserID,
-	}
-
-	if nft := dbDevice.R.VehicleNFT; nft != nil {
-		out.TokenId = s.toUint64(nft.TokenID)
-		if nft.OwnerAddress.Valid {
-			out.OwnerAddress = nft.OwnerAddress.Bytes
-		}
-	}
-
-	return &out, nil
+	return s.deviceModelToAPI(dbDevice), nil
 }
 
 func (s *userDeviceService) ListUserDevicesForUser(ctx context.Context, req *pb.ListUserDevicesForUserRequest) (*pb.ListUserDevicesForUserResponse, error) {
 	devices, err := models.UserDevices(
 		models.UserDeviceWhere.UserID.EQ(req.UserId),
-		qm.Load(models.UserDeviceRels.VehicleNFT),
+		qm.Load(qm.Rels(models.UserDeviceRels.VehicleNFT, models.VehicleNFTRels.VehicleTokenAutopiUnit)),
 	).All(ctx, s.dbs().Reader)
 	if err != nil {
 		s.logger.Err(err).Str("userId", req.UserId).Msg("Database failure retrieving user's devices.")
 		return nil, status.Error(codes.Internal, "Internal error.")
 	}
 
-	devOut := make([]*pb.UserDevice, len(devices))
-	for i := 0; i < len(devices); i++ {
-		device := devices[i]
+	out := make([]*pb.UserDevice, len(devices))
 
-		var tokenID types.NullDecimal
-		if device.R.VehicleNFT != nil {
-			tokenID = device.R.VehicleNFT.TokenID
+	for i := 0; i < len(devices); i++ {
+		out[i] = s.deviceModelToAPI(devices[i])
+	}
+
+	return &pb.ListUserDevicesForUserResponse{UserDevices: out}, nil
+}
+
+func (s *userDeviceService) deviceModelToAPI(device *models.UserDevice) *pb.UserDevice {
+	out := &pb.UserDevice{
+		Id:        device.ID,
+		UserId:    device.UserID,
+		OptedInAt: nullTimeToPB(device.OptedInAt),
+	}
+
+	if vnft := device.R.VehicleNFT; vnft != nil {
+		out.TokenId = s.toUint64(vnft.TokenID)
+		if vnft.OwnerAddress.Valid {
+			out.OwnerAddress = vnft.OwnerAddress.Bytes
 		}
 
-		devOut[i] = &pb.UserDevice{
-			Id:        device.ID,
-			UserId:    device.UserID,
-			TokenId:   s.toUint64(tokenID),
-			OptedInAt: nullTimeToPB(device.OptedInAt),
+		if amnft := vnft.R.VehicleTokenAutopiUnit; amnft != nil {
+			out.AftermarketDeviceTokenId = s.toUint64(amnft.TokenID)
 		}
 	}
 
-	list := &pb.ListUserDevicesForUserResponse{UserDevices: devOut}
-	return list, nil
+	return out
 }
 
 // toUint64 takes a nullable decimal and returns nil if there is no value, or
