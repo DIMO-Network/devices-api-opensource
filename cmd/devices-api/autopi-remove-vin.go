@@ -27,6 +27,11 @@ func processRemoveVINFromAutopi(ctx context.Context, logger *zerolog.Logger, set
 		autoPiDevice, err := autoPiSvc.GetDeviceByUnitID(unit.AutopiUnitID)
 		if err != nil {
 			innerLogger.Err(err).Msg("failed to call autopi api to get autoPiDevice")
+			continue
+		}
+		if autoPiDevice == nil {
+			innerLogger.Info().Msg("skipped due to nil")
+			continue
 		}
 		// call api svc to update profile, setting vin = ""
 		err = autoPiSvc.PatchVehicleProfile(autoPiDevice.Vehicle.ID, services.PatchVehicleProfile{
