@@ -29,7 +29,7 @@ func processRemoveVINFromAutopi(ctx context.Context, logger *zerolog.Logger, set
 			innerLogger.Err(err).Msg("failed to call autopi api to get autoPiDevice")
 			continue
 		}
-		if autoPiDevice == nil {
+		if autoPiDevice == nil c {
 			innerLogger.Info().Msg("skipped due to nil")
 			continue
 		}
