@@ -360,21 +360,18 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 	}
 	localLog := d.log.With().Str("vin", vin).Str("deviceDefinitionID", deviceDefinitionID).Logger()
 
-	neverPulled := false
-	existingData, err := models.ExternalVinData(
+	neverPulledVIN := false
+	existingVINData, err := models.ExternalVinData(
 		models.ExternalVinDatumWhere.Vin.EQ(vin),
-		models.ExternalVinDatumWhere.PricingMetadata.IsNotNull(), // shouldn't this be VinMetadata
+		models.ExternalVinDatumWhere.VinMetadata.IsNotNull(),
 		qm.OrderBy("updated_at desc"), qm.Limit(1)).
 		One(context.Background(), d.dbs().Writer)
 	if errors.Is(err, sql.ErrNoRows) {
-		neverPulled = true
+		neverPulledVIN = true
 	} else if err != nil {
 		return "", err
 	}
-	// just return if already pulled recently for this VIN
-	if existingData != nil && existingData.UpdatedAt.Add(repullWindow).After(time.Now()) {
-		return SkippedDrivlyStatus, nil
-	}
+	// make sure userdevice exists
 	ud, err := models.FindUserDevice(ctx, d.dbs().Reader, userDeviceID)
 	if err != nil {
 		return "", err
@@ -387,7 +384,7 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 		Vin:                vin,
 		UserDeviceID:       null.StringFrom(userDeviceID),
 	}
-	if neverPulled {
+	if neverPulledVIN {
 		vinInfo, err := d.drivlySvc.GetVINInfo(vin)
 		if err != nil {
 			return "", errors.Wrapf(err, "error getting VIN %s. skipping", vin)
@@ -408,7 +405,7 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 		// update the device definition attributes via gRPC (ie. dd metadata)
 		err2 := d.updateDeviceDefAttrs(ctx, deviceDef, vinInfo)
 		if err2 != nil {
-			return "", err2
+			localLog.Err(err).Msg("could not updateDeviceDefAttrs from drivly vin info")
 		}
 
 		// fill in edmunds style_id in our user_device if it exists and not already set. None of these seen as bad errors so just logs
@@ -418,34 +415,43 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 		} else {
 			localLog.Warn().Msg("could not set edmunds style id")
 		}
-
 		// future: we could pull some specific data from this and persist in the user_device.metadata
 		// future: did MMY from vininfo match the device definition? if not fixup year, or model? but need external_id etc
 	}
 
-	if forceSetVinInfo {
+	if forceSetVinInfo && !neverPulledVIN {
 		// should probably move this up to top as our check for never pulled, then seperate call to get latest pull date for repullWindow check
-		existingVinInfo, err := models.ExternalVinData(
-			models.ExternalVinDatumWhere.UserDeviceID.EQ(null.StringFrom(userDeviceID)),
-			models.ExternalVinDatumWhere.VinMetadata.IsNotNull(),
-			qm.OrderBy("updated_at desc"), qm.Limit(1)).
-			One(context.Background(), d.dbs().Reader)
-		if err != nil {
-			return "", errors.Wrap(err, "unable to get existing vin info to set attributes")
-		}
-		var vinInfo map[string]interface{}
-		err = existingVinInfo.VinMetadata.Unmarshal(&vinInfo)
-		if err != nil {
-			return "", errors.Wrap(err, "unable to unmarshal vin metadata")
-		}
-		// update the device attributes via gRPC
-		err2 := d.updateDeviceDefAttrs(ctx, deviceDef, vinInfo)
-		if err2 != nil {
-			return "", err2
+		if existingVINData != nil && existingVINData.VinMetadata.Valid {
+			var vinInfo map[string]interface{}
+			err = existingVINData.VinMetadata.Unmarshal(&vinInfo)
+			if err != nil {
+				return "", errors.Wrap(err, "unable to unmarshal vin metadata")
+			}
+			// update the device attributes via gRPC
+			err2 := d.updateDeviceDefAttrs(ctx, deviceDef, vinInfo)
+			if err2 != nil {
+				return "", err2
+			}
 		}
 	}
+	// determine if want to pull pricing data
+	existingPricingData, _ := models.ExternalVinData(
+		models.ExternalVinDatumWhere.Vin.EQ(vin),
+		models.ExternalVinDatumWhere.PricingMetadata.IsNotNull(),
+		qm.OrderBy("updated_at desc"), qm.Limit(1)).
+		One(context.Background(), d.dbs().Writer)
+	// just return if already pulled recently for this VIN, but still need to insert never pulled vin - should be uncommon scenario
+	if existingPricingData != nil && existingPricingData.UpdatedAt.Add(repullWindow).After(time.Now()) {
+		if neverPulledVIN {
+			err = externalVinData.Insert(ctx, d.dbs().Writer, boil.Infer())
+			if err != nil {
+				return "", err
+			}
+		}
+		return SkippedDrivlyStatus, nil
+	}
 
-	// get mileage for our requests
+	// get mileage for the drivly request
 	deviceMileage, err := d.getDeviceMileage(userDeviceID, int(deviceDef.Type.Year))
 	if err != nil {
 		return "", err
@@ -474,7 +480,7 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 
 	defer appmetrics.DrivlyIngestTotalOps.Inc()
 
-	if neverPulled {
+	if neverPulledVIN {
 		return PulledAllDrivlyStatus, nil
 	}
 	return PulledValuationDrivlyStatus, nil

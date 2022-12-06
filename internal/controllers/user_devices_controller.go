@@ -818,7 +818,7 @@ func (udc *UserDevicesController) GetValuations(c *fiber.Ctx) error {
 			vf, _ := strconv.ParseFloat(v, 64)
 			drivlyVal.TradeIn = int(vf)
 		default:
-			logger.Error().Msg("Unexpected structure for driv.ly pricing data trade values")
+			logger.Warn().Msg("Unexpected structure for driv.ly pricing data trade-in values")
 		}
 		// Drivly Retail
 		switch {
@@ -845,7 +845,7 @@ func (udc *UserDevicesController) GetValuations(c *fiber.Ctx) error {
 			vf, _ := strconv.ParseFloat(v, 64)
 			drivlyVal.Retail = int(vf)
 		default:
-			logger.Error().Msg("Unexpected structure for driv.ly pricing data retail values")
+			logger.Warn().Msg("Unexpected structure for driv.ly pricing data retail values")
 		}
 		// often drivly saves valuations with 0 for value, if this is case do not consider it
 		if drivlyVal.Retail > 0 || drivlyVal.TradeIn > 0 {
