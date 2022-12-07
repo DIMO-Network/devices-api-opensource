@@ -185,13 +185,6 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("error trying to sync blackbook")
 		}
-	case "autopi-vin-remover":
-		// Delete this after run the script once and confirm all ok
-		logger.Info().Msgf("Iterating over our known autopis and setting vin to blank on their end")
-		processRemoveVINFromAutopi(ctx, &logger, &settings, pdb)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("error trying to sync blackbook")
-		}
 	default:
 		startMonitoringServer(logger)
 		eventService := services.NewEventService(&logger, &settings, deps.getKafkaProducer())
