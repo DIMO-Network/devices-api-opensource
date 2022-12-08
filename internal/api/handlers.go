@@ -1,6 +1,8 @@
 package api
 
 import (
+	"encoding/json"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/pkg/errors"
@@ -10,6 +12,18 @@ import (
 
 	"strconv"
 )
+
+type VehicleTokenClaims struct {
+	VehicleTokenID string
+	UserEthAddress string
+	Privileges     []int64
+}
+
+type VehicleTokenClaimsResponseRaw struct {
+	Sub        string
+	UserID     string
+	Privileges []int64
+}
 
 // ErrorResponseHandler is deprecated. it doesn't log. We prefer to return an err and have the ErrorHandler in api.go handle stuff.
 func ErrorResponseHandler(c *fiber.Ctx, err error, status int) error {
@@ -27,6 +41,28 @@ func GetUserID(c *fiber.Ctx) string {
 	claims := token.Claims.(jwt.MapClaims)
 	userID := claims["sub"].(string)
 	return userID
+}
+
+func GetVehicleTokenClaims(c *fiber.Ctx) (VehicleTokenClaims, error) {
+	token := c.Locals("user").(*jwt.Token)
+	claims := token.Claims.(jwt.MapClaims)
+
+	jsonbody, err := json.Marshal(claims)
+	if err != nil {
+		return VehicleTokenClaims{}, err
+	}
+
+	p := VehicleTokenClaimsResponseRaw{}
+
+	if err := json.Unmarshal(jsonbody, &p); err != nil {
+		return VehicleTokenClaims{}, err
+	}
+
+	return VehicleTokenClaims{
+		VehicleTokenID: p.Sub,
+		UserEthAddress: p.UserID,
+		Privileges:     p.Privileges,
+	}, nil
 }
 
 // CreateResponse is a generic response with an ID of the created entity

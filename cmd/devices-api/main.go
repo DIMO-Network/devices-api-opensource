@@ -220,7 +220,7 @@ func main() {
 
 		logger.Info().Msg("Pairing success.")
 	default:
-		startMonitoringServer(logger)
+		startMonitoringServer(logger, &settings)
 		eventService := services.NewEventService(&logger, &settings, deps.getKafkaProducer())
 		startDeviceStatusConsumer(logger, &settings, pdb, eventService)
 		startCredentialConsumer(logger, &settings, pdb)
@@ -347,20 +347,19 @@ func startTaskStatusConsumer(logger zerolog.Logger, settings *config.Settings, p
 	logger.Info().Msg("Task status consumer started")
 }
 
-func startMonitoringServer(logger zerolog.Logger) {
+func startMonitoringServer(logger zerolog.Logger, config *config.Settings) {
 	monApp := fiber.New(fiber.Config{DisableStartupMessage: true})
 
 	monApp.Get("/metrics", adaptor.HTTPHandler(promhttp.Handler()))
 	monApp.Put("/loglevel", changeLogLevel)
 
 	go func() {
-		// TODO(elffjs): Make the port a setting.
-		if err := monApp.Listen(":8888"); err != nil {
-			logger.Fatal().Err(err).Str("port", "8888").Msg("Failed to start monitoring web server.")
+		if err := monApp.Listen(":" + config.MonitoringServerPort); err != nil {
+			logger.Fatal().Err(err).Str("port", config.MonitoringServerPort).Msg("Failed to start monitoring web server.")
 		}
 	}()
 
-	logger.Info().Str("port", "8888").Msg("Started monitoring web server.")
+	logger.Info().Str("port", config.MonitoringServerPort).Msg("Started monitoring web server.")
 }
 
 // dependencyContainer way to hold different dependencies we need for our app. We could put all our deps and follow this pattern for everything.

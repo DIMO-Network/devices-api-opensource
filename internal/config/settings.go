@@ -1,6 +1,8 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // Settings contains the application config
 type Settings struct {
@@ -70,6 +72,9 @@ type Settings struct {
 	ElasticSearchEnrichStatusPassword string `yaml:"ELASTIC_SEARCH_ENRICH_STATUS_PASSWORD"`
 	DIMORegistryAddr                  string `yaml:"DIMO_REGISTRY_ADDR"`
 	DIMORegistryChainID               int64  `yaml:"DIMO_REGISTRY_CHAIN_ID"`
+	MonitoringServerPort              string `yaml:"MONITORING_SERVER_PORT"`
+	TokenExchangeJWTKeySetURL         string `yaml:"TOKEN_EXCHANGE_JWK_KEY_SET_URL"`
+	EnablePrivileges                  bool   `yaml:"ENABLE_PRIVILEGES"`
 }
 
 // GetWriterDSN builds the connection string to the db writer - for now same as reader

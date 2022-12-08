@@ -125,8 +125,21 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		KeyRefreshInterval:   &keyRefreshInterval,
 		KeyRefreshUnknownKID: &keyRefreshUnknownKID,
 	})
-	v1Auth := app.Group("/v1", jwtAuth)
 
+	v1Auth := app.Group("/v1")
+
+	if settings.EnablePrivileges {
+		privilegeAuth := jwtware.New(jwtware.Config{
+			KeySetURL:            settings.TokenExchangeJWTKeySetURL,
+			KeyRefreshInterval:   &keyRefreshInterval,
+			KeyRefreshUnknownKID: &keyRefreshUnknownKID,
+		})
+
+		// vehicle command privileges
+		v1Auth.Post("/vehicles/:tokenID/commands/unlock", privilegeAuth, userDeviceController.TestDeviceCommand)
+	}
+
+	v1Auth.Use(jwtAuth)
 	// user's devices
 	v1Auth.Get("/user/devices/me", userDeviceController.GetUserDevices)
 	v1Auth.Post("/user/devices", userDeviceController.RegisterDeviceForUser)
