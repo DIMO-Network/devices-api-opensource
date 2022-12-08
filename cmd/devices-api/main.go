@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"os"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 	es "github.com/DIMO-Network/devices-api/internal/elasticsearch"
 	"github.com/DIMO-Network/devices-api/internal/kafka"
 	"github.com/DIMO-Network/devices-api/internal/services"
+	"github.com/DIMO-Network/devices-api/internal/services/autopi"
 	"github.com/DIMO-Network/shared"
 	"github.com/Shopify/sarama"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -185,6 +187,38 @@ func main() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("error trying to sync blackbook")
 		}
+	case "web2-pair":
+		if len(os.Args[2:]) != 2 {
+			logger.Fatal().Msg("Requires aftermarket_token_id vehicle_token_id")
+		}
+
+		amToken, ok := new(big.Int).SetString(os.Args[2], 10)
+		if !ok {
+			logger.Fatal().Msgf("Couldn't parse aftermarket_token_id %q", os.Args[2])
+		}
+
+		vToken, ok := new(big.Int).SetString(os.Args[3], 10)
+		if !ok {
+			logger.Fatal().Msgf("Couldn't parse vehicle_token_id %q", os.Args[3])
+		}
+
+		logger.Info().Msgf("Attempting to web2 pair am device %s to vehicle %s.", amToken, vToken)
+
+		autoPiSvc := services.NewAutoPiAPIService(&settings, pdb.DBS)
+		producer := deps.getKafkaProducer()
+		autoPiTaskService := services.NewAutoPiTaskService(&settings, autoPiSvc, pdb.DBS, logger)
+		autoPiIngest := services.NewIngestRegistrar(services.AutoPi, producer)
+		eventService := services.NewEventService(&logger, &settings, deps.getKafkaProducer())
+		deviceDefinitionRegistrar := services.NewDeviceDefinitionRegistrar(producer, &settings)
+
+		i := autopi.NewIntegration(pdb.DBS, ddSvc, autoPiSvc, autoPiTaskService, autoPiIngest, eventService, deviceDefinitionRegistrar)
+
+		err := i.Pair(ctx, amToken, vToken)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Pairing failure.")
+		}
+
+		logger.Info().Msg("Pairing success.")
 	default:
 		startMonitoringServer(logger)
 		eventService := services.NewEventService(&logger, &settings, deps.getKafkaProducer())
