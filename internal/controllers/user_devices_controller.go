@@ -1749,9 +1749,9 @@ func (u *UpdateVINReq) validate() error {
 func (u *UpdateNameReq) validate() error {
 
 	return validation.ValidateStruct(u,
-		// name must be between 1 and 16 alphanumeric characters in length (spaces are not allowed)
+		// name must be between 1 and 40 alphanumeric characters in length
 		// NOTE: this captures characters in the latin/ chinese/ cyrillic alphabet but doesn't work as well for thai or arabic
-		validation.Field(&u.Name, validation.Required, validation.Match(regexp.MustCompile(`^[\p{L}\p{N}\p{M}# ,’.@!$'":_-]{1,25}$`))),
+		validation.Field(&u.Name, validation.Required, validation.Match(regexp.MustCompile(`^[\p{L}\p{N}\p{M}# ,’.@!$'":_/()+-]{1,40}$`))),
 		// cannot start with space
 		validation.Field(&u.Name, validation.Required, validation.Match(regexp.MustCompile(`^[^\s]`))),
 		// cannot end with space

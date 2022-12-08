@@ -331,8 +331,11 @@ func (s *UserDevicesControllerTestSuite) TestNameValidate() {
 		{name: " Invalid Name", want: false, reason: "starts with space"},
 		{name: "My Car!!!", want: true, reason: "valid name with !"},
 		{name: "", want: false, reason: "empty name"},
-		{name: "ThisNameIsTooLong--CanOnlyBe25CharactersInLength", want: false, reason: "too long"},
+		{name: "ThisNameIsTooLong--CanOnlyBe40CharactersInLengthxdd", want: false, reason: "too long"},
+		{name: "Audi E-tron Sportback Atanas", want: true, reason: "up to 40 characters"},
 		{name: "no\nNewLine", want: false, reason: "no new lines allowed"},
+		{name: "RC Kia eNiro 4+", want: true, reason: "+ is okay"},
+		{name: "Tesla (Alaska)", want: true, reason: "Parentheses allowed"},
 	}
 
 	for _, tc := range tests {
