@@ -1153,13 +1153,23 @@ func (udc *UserDevicesController) PostPairAutoPi(c *fiber.Ctx) error {
 			return err
 		}
 
+		logger = logger.With().Str("autoPiUnitId", unitID.String()).Logger()
+
 		autoPiUnit, err = models.AutopiUnits(
 			models.AutopiUnitWhere.AutopiUnitID.EQ(unitID.String()),
 			qm.Load(models.AutopiUnitRels.PairRequest),
 			qm.Load(models.AutopiUnitRels.UnpairRequest),
+			qm.Load(models.AutopiUnitRels.UserDeviceAPIIntegrations),
 		).One(c.Context(), udc.DBS().Reader)
 		if err != nil {
 			return err
+		}
+
+		for _, udai := range autoPiUnit.R.UserDeviceAPIIntegrations {
+			if udai.UserDeviceID != userDeviceID {
+				logger.Error().Str("existingUserDeviceId", udai.UserDeviceID).Msg("AutoPi already web2-paired with another vehicle.")
+				return fiber.NewError(fiber.StatusConflict, "AutoPi connected to another vehicle.")
+			}
 		}
 	}
 
