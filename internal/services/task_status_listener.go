@@ -20,6 +20,7 @@ import (
 )
 
 const (
+	teslaStatusEventType    = "zone.dimo.task.tesla.poll.status.update"
 	smartcarStatusEventType = "zone.dimo.task.smartcar.poll.status.update"
 	commandStatusEventType  = "zone.dimo.task.device.integration.command.status"
 )
@@ -72,6 +73,8 @@ func (i *TaskStatusListener) processEvent(event *shared.CloudEvent[TaskStatusDat
 	switch event.Type {
 	case smartcarStatusEventType:
 		return i.processSmartcarPollStatusEvent(event)
+	case teslaStatusEventType:
+		return i.processTeslaPollStatusEvent(event)
 	case commandStatusEventType:
 		return i.processCommandStatusEvent(event)
 	default:
@@ -139,6 +142,66 @@ func (i *TaskStatusListener) processSmartcarPollStatusEvent(event *shared.CloudE
 	}
 
 	if err := i.cio.Track(userDevice.UserID, "smartcar.Reauth.Required", data); err != nil {
+		i.log.Err(err).Str("userId", userDevice.UserID).Str("userDeviceId", userDeviceID).Msg("Failed to emit reauthentication Customer.io event.")
+	}
+
+	return nil
+}
+
+func (i *TaskStatusListener) processTeslaPollStatusEvent(event *shared.CloudEvent[TaskStatusData]) error {
+	var (
+		ctx          = context.Background()
+		userDeviceID = event.Subject
+	)
+
+	// Should we use data.integrationId instead?
+	if !strings.HasPrefix(event.Source, sourcePrefix) {
+		return fmt.Errorf("unexpected event source format: %s", event.Source)
+	}
+	integrationID := strings.TrimPrefix(event.Source, sourcePrefix)
+
+	// Just one case for now.
+	if event.Data.Status != models.UserDeviceAPIIntegrationStatusAuthenticationFailure {
+		return fmt.Errorf("unexpected task status %s", event.Data.Status)
+	}
+
+	udai, err := models.UserDeviceAPIIntegrations(
+		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(userDeviceID),
+		models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(integrationID),
+		qm.Load(models.UserDeviceAPIIntegrationRels.UserDevice),
+	).One(ctx, i.db().Writer)
+	if err != nil {
+		return fmt.Errorf("couldn't find device integration for device %s and integration %s: %w", userDeviceID, integrationID, err)
+	}
+
+	userDevice := udai.R.UserDevice
+
+	i.log.Info().Str("userDeviceId", userDeviceID).Msg("Setting Tesla integration to failed because credentials have changed.")
+
+	if udai.TaskID.Valid && udai.TaskID.String == event.Data.TaskID {
+		// Maybe you've restarted the task with new credentials already.
+		// TODO: Delete credentials entry?
+		udai.TaskID = null.String{}
+	}
+	udai.Status = models.UserDeviceAPIIntegrationStatusAuthenticationFailure
+	if _, err := udai.Update(context.Background(), i.db().Writer, boil.Infer()); err != nil {
+		return err
+	}
+
+	dd, err := i.DeviceDefSvc.GetDeviceDefinitionByID(ctx, userDevice.DeviceDefinitionID)
+	if err != nil {
+		return api.GrpcErrorToFiber(err, fmt.Sprintf("error querying for device definition id: %s ", userDevice.DeviceDefinitionID))
+	}
+
+	data := map[string]interface{}{
+		"deviceId":     userDeviceID,
+		"make_name":    dd.Make.Name,
+		"model_name":   dd.Type.Model,
+		"model_year":   dd.Type.Year,
+		"country_code": userDevice.CountryCode.String,
+	}
+
+	if err := i.cio.Track(userDevice.UserID, "tesla.Reauth.Required", data); err != nil {
 		i.log.Err(err).Str("userId", userDevice.UserID).Str("userDeviceId", userDeviceID).Msg("Failed to emit reauthentication Customer.io event.")
 	}
 
