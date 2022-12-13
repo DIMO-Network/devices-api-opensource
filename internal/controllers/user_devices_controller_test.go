@@ -386,16 +386,12 @@ var testDrivlyPricingJSON string
 //go:embed test_drivly_pricing2.json
 var testDrivlyPricing2JSON string
 
-//go:embed test_blackbook_by_vin.json
-var testBlackbookJSON string
-
 func (s *UserDevicesControllerTestSuite) TestGetDeviceValuations_Format1() {
 	// arrange db, insert some user_devices
 	ddID := ksuid.New().String()
 	ud := test.SetupCreateUserDevice(s.T(), s.testUserID, ddID, nil, s.pdb)
 	_ = test.SetupCreateExternalVINData(s.T(), ddID, &ud, map[string][]byte{
-		"PricingMetadata":   []byte(testDrivlyPricingJSON),
-		"BlackbookMetadata": []byte(testBlackbookJSON),
+		"PricingMetadata": []byte(testDrivlyPricingJSON),
 	}, s.pdb)
 
 	request := test.BuildRequest("GET", fmt.Sprintf("/user/devices/%s/valuations", ud.ID), "")
@@ -404,15 +400,12 @@ func (s *UserDevicesControllerTestSuite) TestGetDeviceValuations_Format1() {
 
 	assert.Equal(s.T(), fiber.StatusOK, response.StatusCode)
 
-	assert.Equal(s.T(), 2, int(gjson.GetBytes(body, "valuationSets.#").Int()))
+	assert.Equal(s.T(), 1, int(gjson.GetBytes(body, "valuationSets.#").Int()))
 	assert.Equal(s.T(), 49957, int(gjson.GetBytes(body, "valuationSets.#(vendor=drivly).mileage").Int()))
-	assert.Equal(s.T(), 49040, int(gjson.GetBytes(body, "valuationSets.#(vendor=drivly).tradeIn").Int()))
-	assert.Equal(s.T(), 49040, int(gjson.GetBytes(body, "valuationSets.#(vendor=drivly).tradeInAverage").Int()))
 	assert.Equal(s.T(), 54123, int(gjson.GetBytes(body, "valuationSets.#(vendor=drivly).retail").Int()))
-	assert.Equal(s.T(), 49957, int(gjson.GetBytes(body, "valuationSets.#(vendor=blackbook).mileage").Int()))
-	assert.Equal(s.T(), 42915+1225, int(gjson.GetBytes(body, "valuationSets.#(vendor=blackbook).tradeIn").Int()))
-	assert.Equal(s.T(), 42915+1225, int(gjson.GetBytes(body, "valuationSets.#(vendor=blackbook).tradeInAverage").Int()))
-	assert.False(s.T(), gjson.GetBytes(body, "valuationSets.#(vendor=blackbook).retail").Exists())
+	// 49040 + 52173 + 49241 / 3 = 50151
+	assert.Equal(s.T(), 50151, int(gjson.GetBytes(body, "valuationSets.#(vendor=drivly).tradeIn").Int()))
+	assert.Equal(s.T(), 50151, int(gjson.GetBytes(body, "valuationSets.#(vendor=drivly).tradeInAverage").Int()))
 }
 
 func (s *UserDevicesControllerTestSuite) TestGetDeviceValuations_Format2() {
@@ -435,7 +428,6 @@ func (s *UserDevicesControllerTestSuite) TestGetDeviceValuations_Format2() {
 	assert.Equal(s.T(), 50702, int(gjson.GetBytes(body, "valuationSets.#(vendor=drivly).mileage").Int()))
 	assert.Equal(s.T(), 40611, int(gjson.GetBytes(body, "valuationSets.#(vendor=drivly).tradeIn").Int()))
 	assert.Equal(s.T(), 50803, int(gjson.GetBytes(body, "valuationSets.#(vendor=drivly).retail").Int()))
-	fmt.Println("respone body" + string(body))
 }
 
 //go:embed test_drivly_offers_by_vin.json
