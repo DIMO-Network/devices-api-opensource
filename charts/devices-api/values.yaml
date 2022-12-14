@@ -69,6 +69,8 @@ env:
   ELASTIC_DEVICE_STATUS_INDEX: device-status-dev-*
   DIMO_REGISTRY_ADDR: '0x4De1bCf2B7E851E31216fC07989caA902A604784'
   MONITORING_SERVER_PORT: 8888
+  ENABLE_PRIVILEGES: true
+  TOKEN_EXCHANGE_JWK_KEY_SET_URL: https://auth-roles-rights.dev.dimo.zone/keys
 service:
   type: ClusterIP
   ports:
