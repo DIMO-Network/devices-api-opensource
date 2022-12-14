@@ -413,7 +413,7 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 			d.setUserDeviceStyleFromEdmunds(ctx, edmunds, ud)
 			localLog.Info().Msgf("set device_style_id for ud id %s", ud.ID)
 		} else {
-			localLog.Warn().Msg("could not set edmunds style id")
+			localLog.Warn().Msgf("could not set edmunds style id. edmunds data exists: %b. ud style_id already set: ", edmunds != nil, !ud.DeviceStyleID.IsZero())
 		}
 		// future: we could pull some specific data from this and persist in the user_device.metadata
 		// future: did MMY from vininfo match the device definition? if not fixup year, or model? but need external_id etc

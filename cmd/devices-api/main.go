@@ -172,7 +172,7 @@ func main() {
 		}
 		logger.Info().Msgf("Successfully started Smartcar task for %s.", userDeviceID)
 	case "drivly-sync-data":
-		logger.Info().Msgf("Sync driv.ly")
+		logger.Info().Msgf("Pull VIN info, valuations and pricing from driv.ly")
 		setAll := false
 		if len(os.Args) > 2 {
 			setAll = os.Args[2] == "--set-all"
@@ -180,12 +180,6 @@ func main() {
 		err = loadUserDeviceDrively(ctx, &logger, &settings, setAll, pdb)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("error trying to sync driv.ly")
-		}
-	case "blackbook-sync-data":
-		logger.Info().Msgf("Sync blackbook")
-		err = loadUserDeviceBlackbook(ctx, &logger, &settings, pdb)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("error trying to sync blackbook")
 		}
 	case "web2-pair":
 		if len(os.Args[2:]) != 2 {
