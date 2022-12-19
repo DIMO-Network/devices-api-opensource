@@ -31,7 +31,10 @@ func startSmartcarFromRefresh(ctx context.Context, logger *zerolog.Logger, setti
 		return fmt.Errorf("couldn't find a Smartcar integration for %s: %w", userDeviceID, err)
 	}
 
-	authClient := smartcar.NewClient().NewAuth(&smartcar.AuthParams{
+	officialClient := smartcar.NewClient()
+	officialClient.SetAPIVersion("2.0")
+
+	authClient := officialClient.NewAuth(&smartcar.AuthParams{
 		ClientID:     settings.SmartcarClientID,
 		ClientSecret: settings.SmartcarClientSecret,
 		// Don't need anything else.

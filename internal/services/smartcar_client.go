@@ -26,9 +26,11 @@ type smartcarClient struct {
 }
 
 func NewSmartcarClient(settings *config.Settings) SmartcarClient {
+	scClient := smartcar.NewClient()
+	scClient.SetAPIVersion("2.0")
 	return &smartcarClient{
 		settings:       settings,
-		officialClient: smartcar.NewClient(),
+		officialClient: scClient,
 	}
 }
 
@@ -62,19 +64,17 @@ var scopeToEndpoints = map[string][]string{
 }
 
 func (s *smartcarClient) ExchangeCode(ctx context.Context, code, redirectURI string) (*smartcar.Token, error) {
-	client := smartcar.NewClient()
 	params := &smartcar.AuthParams{
 		ClientID:     s.settings.SmartcarClientID,
 		ClientSecret: s.settings.SmartcarClientSecret,
 		RedirectURI:  redirectURI,
 		Scope:        smartcarScopes,
 	}
-	return client.NewAuth(params).ExchangeCode(ctx, &smartcar.ExchangeCodeParams{Code: code})
+	return s.officialClient.NewAuth(params).ExchangeCode(ctx, &smartcar.ExchangeCodeParams{Code: code})
 }
 
 func (s *smartcarClient) GetUserID(ctx context.Context, accessToken string) (string, error) {
-	client := smartcar.NewClient()
-	id, err := client.GetUserID(ctx, &smartcar.UserIDParams{Access: accessToken})
+	id, err := s.officialClient.GetUserID(ctx, &smartcar.UserIDParams{Access: accessToken})
 	if err != nil {
 		return "", err
 	}
@@ -85,8 +85,7 @@ func (s *smartcarClient) GetUserID(ctx context.Context, accessToken string) (str
 }
 
 func (s *smartcarClient) GetExternalID(ctx context.Context, accessToken string) (string, error) {
-	client := smartcar.NewClient()
-	ids, err := client.GetVehicleIDs(ctx, &smartcar.VehicleIDsParams{Access: accessToken})
+	ids, err := s.officialClient.GetVehicleIDs(ctx, &smartcar.VehicleIDsParams{Access: accessToken})
 	if err != nil {
 		return "", err
 	}
@@ -98,8 +97,7 @@ func (s *smartcarClient) GetExternalID(ctx context.Context, accessToken string) 
 
 // GetEndpoints returns the Smartcar read endpoints granted to the access token.
 func (s *smartcarClient) GetEndpoints(ctx context.Context, accessToken string, id string) ([]string, error) {
-	client := smartcar.NewClient()
-	v := client.NewVehicle(&smartcar.VehicleParams{
+	v := s.officialClient.NewVehicle(&smartcar.VehicleParams{
 		ID:          id,
 		AccessToken: accessToken,
 		UnitSystem:  smartcar.Metric,
@@ -128,8 +126,7 @@ func (s *smartcarClient) GetEndpoints(ctx context.Context, accessToken string, i
 // HasDoorControl returns true if the access token can open and close doors.
 // TODO(elffjs): Probably silly to have both this and GetEndpoints.
 func (s *smartcarClient) HasDoorControl(ctx context.Context, accessToken string, id string) (bool, error) {
-	client := smartcar.NewClient()
-	v := client.NewVehicle(&smartcar.VehicleParams{
+	v := s.officialClient.NewVehicle(&smartcar.VehicleParams{
 		ID:          id,
 		AccessToken: accessToken,
 		UnitSystem:  smartcar.Metric,
@@ -152,8 +149,7 @@ func (s *smartcarClient) HasDoorControl(ctx context.Context, accessToken string,
 }
 
 func (s *smartcarClient) GetVIN(ctx context.Context, accessToken string, id string) (string, error) {
-	client := smartcar.NewClient()
-	v := client.NewVehicle(&smartcar.VehicleParams{
+	v := s.officialClient.NewVehicle(&smartcar.VehicleParams{
 		ID:          id,
 		AccessToken: accessToken,
 		UnitSystem:  smartcar.Metric,
@@ -169,8 +165,7 @@ func (s *smartcarClient) GetVIN(ctx context.Context, accessToken string, id stri
 }
 
 func (s *smartcarClient) GetYear(ctx context.Context, accessToken string, id string) (int, error) {
-	client := smartcar.NewClient()
-	v := client.NewVehicle(&smartcar.VehicleParams{
+	v := s.officialClient.NewVehicle(&smartcar.VehicleParams{
 		ID:          id,
 		AccessToken: accessToken,
 		UnitSystem:  smartcar.Metric,
