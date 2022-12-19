@@ -1053,6 +1053,10 @@ func (udc *UserDevicesController) GetAutoPiPairMessage(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusConflict, "Device not yet claimed.")
 	}
 
+	if common.BytesToAddress(autoPiUnit.OwnerAddress.Bytes) != common.BytesToAddress(ud.R.VehicleNFT.OwnerAddress.Bytes) {
+		return fiber.NewError(fiber.StatusConflict, "AutoPi and vehicle have different owners.")
+	}
+
 	apToken := autoPiUnit.TokenID.Int(nil)
 	vehicleToken := ud.R.VehicleNFT.TokenID.Int(nil)
 
