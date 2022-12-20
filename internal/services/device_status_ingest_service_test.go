@@ -215,6 +215,11 @@ func (t testDeviceDefSvc) GetDeviceDefinitionByID(ctx context.Context, id string
 	return dd[0], err
 }
 
+func (t testDeviceDefSvc) DecodeVIN(ctx context.Context, vin string) (*ddgrpc.DecodeVinResponse, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (t testDeviceDefSvc) FindDeviceDefinitionByMMY(ctx context.Context, mk, model string, year int) (*ddgrpc.GetDeviceDefinitionItemResponse, error) {
 	//TODO implement me
 	panic("implement me")

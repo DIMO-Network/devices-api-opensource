@@ -143,6 +143,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	// user's devices
 	v1Auth.Get("/user/devices/me", userDeviceController.GetUserDevices)
 	v1Auth.Post("/user/devices", userDeviceController.RegisterDeviceForUser)
+	v1Auth.Post("/user/device/fromvin", userDeviceController.RegisterDeviceForUserFromVIN)
 	v1Auth.Delete("/user/devices/:userDeviceID", userDeviceController.DeleteUserDevice)
 	v1Auth.Patch("/user/devices/:userDeviceID/vin", userDeviceController.UpdateVIN).Name("UpdateVIN")
 	v1Auth.Patch("/user/devices/:userDeviceID/name", userDeviceController.UpdateName)

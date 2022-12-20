@@ -295,20 +295,73 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 	if err := reg.Validate(); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
-	tx, err := udc.DBS().Writer.DB.BeginTx(c.Context(), nil)
-	defer tx.Rollback() //nolint
+
+	udFull, err := udc.createUserDevice(c.Context(), *reg.DeviceDefinitionID, reg.CountryCode, userID, nil)
 	if err != nil {
 		return err
 	}
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"userDevice": udFull,
+	})
+}
+
+var opaqueInternalError = fiber.NewError(fiber.StatusInternalServerError, "Internal error.")
+
+// RegisterDeviceForUserFromVIN godoc
+// @Description adds a device to a user by decoding a VIN. If cannot decode returns 424 or 500 if error
+// @Tags        user-devices
+// @Produce     json
+// @Accept      json
+// @Param       user_device body controllers.RegisterUserDeviceVIN true "add device to user. VIN is required and so is country"
+// @Security    ApiKeyAuth
+// @Failure		400 "validation failure"
+// @Failure		424 "unable to decode VIN"
+// @Failure		500 "server error, dependency error"
+// @Success     201 {object} controllers.RegisterUserDeviceResponse
+// @Security    BearerAuth
+// @Router      /user/devices/fromvin [post]
+func (udc *UserDevicesController) RegisterDeviceForUserFromVIN(c *fiber.Ctx) error {
+	userID := api.GetUserID(c)
+	reg := &RegisterUserDeviceVIN{}
+	if err := c.BodyParser(reg); err != nil {
+		// Return status 400 and error message.
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	if err := reg.Validate(); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	// decode VIN with grpc call
+	decodeVIN, err := udc.DeviceDefSvc.DecodeVIN(c.Context(), reg.VIN)
+	if err != nil {
+		return errors.Wrapf(err, "could not decode vin %s for country %s", reg.VIN, reg.CountryCode)
+	}
+	if len(decodeVIN.DeviceDefinitionId) == 0 {
+		udc.log.Warn().Str("vin", reg.VIN).Str("user_id", userID).
+			Msg("unable to decode vin for customer request to create vehicle")
+		return fiber.NewError(fiber.StatusFailedDependency, "unable to decode vin")
+	}
 	// attach device def to user
+	udFull, err := udc.createUserDevice(c.Context(), decodeVIN.DeviceDefinitionId, reg.CountryCode, userID, &reg.VIN)
+	if err != nil {
+		return err
+	}
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"userDevice": udFull,
+	})
+}
 
-	deviceDefinitionResponse, err2 := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{*reg.DeviceDefinitionID})
-
+func (udc *UserDevicesController) createUserDevice(ctx context.Context, deviceDefID, countryCode, userID string, vin *string) (*UserDeviceFull, error) {
+	// attach device def to user
+	dd, err2 := udc.DeviceDefSvc.GetDeviceDefinitionByID(ctx, deviceDefID)
 	if err2 != nil {
-		return api.GrpcErrorToFiber(err2, fmt.Sprintf("error querying for device definition id: %s ", *reg.DeviceDefinitionID))
+		return nil, api.GrpcErrorToFiber(err2, fmt.Sprintf("error querying for device definition id: %s ", deviceDefID))
 	}
 
-	dd := deviceDefinitionResponse[0]
+	tx, err := udc.DBS().Writer.DB.BeginTx(ctx, nil)
+	defer tx.Rollback() //nolint
+	if err != nil {
+		return nil, err
+	}
 
 	userDeviceID := ksuid.New().String()
 	// register device for the user
@@ -316,25 +369,23 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 		ID:                 userDeviceID,
 		UserID:             userID,
 		DeviceDefinitionID: dd.DeviceDefinitionId,
-		CountryCode:        null.StringFrom(reg.CountryCode),
+		CountryCode:        null.StringFrom(countryCode),
+		VinIdentifier:      null.StringFromPtr(vin),
 	}
-	err = ud.Insert(c.Context(), tx, boil.Infer())
+	err = ud.Insert(ctx, tx, boil.Infer())
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "could not create user device for def_id: "+dd.DeviceDefinitionId)
+		return nil, fiber.NewError(fiber.StatusInternalServerError, "could not create user device for def_id: "+dd.DeviceDefinitionId)
 	}
-	//region := ""
-	//if countryRecord := services.FindCountry(reg.CountryCode); countryRecord != nil {
-	//	region = countryRecord.Region
-	//}
+
 	err = tx.Commit() // commmit the transaction
 	if err != nil {
-		return errors.Wrapf(err, "error commiting transaction to create geofence")
+		return nil, errors.Wrapf(err, "error commiting transaction to create geofence")
 	}
 
 	// don't block, as image fetch could take a while
 	go func() {
 		// todo grpc update this service to call device-defintions over grpc to update the image
-		err := udc.DeviceDefSvc.CheckAndSetImage(c.Context(), dd, false)
+		err := udc.DeviceDefSvc.CheckAndSetImage(ctx, dd, false)
 		if err != nil {
 			udc.log.Error().Err(err).Msg("error getting device image upon user_device registration")
 			return
@@ -361,29 +412,25 @@ func (udc *UserDevicesController) RegisterDeviceForUser(c *fiber.Ctx) error {
 
 	ddNice, err := NewDeviceDefinitionFromGRPC(dd)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Baby the frontend.
 	for i := range ddNice.CompatibleIntegrations {
-		ddNice.CompatibleIntegrations[i].Country = reg.CountryCode
+		ddNice.CompatibleIntegrations[i].Country = countryCode
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"userDevice": UserDeviceFull{
-			ID:               ud.ID,
-			VIN:              ud.VinIdentifier.Ptr(),
-			VINConfirmed:     ud.VinConfirmed,
-			Name:             ud.Name.Ptr(),
-			CustomImageURL:   ud.CustomImageURL.Ptr(),
-			DeviceDefinition: ddNice,
-			CountryCode:      ud.CountryCode.Ptr(),
-			Integrations:     nil, // userDevice just created, there would never be any integrations setup
-		},
-	})
+	return &UserDeviceFull{
+		ID:               ud.ID,
+		VIN:              ud.VinIdentifier.Ptr(),
+		VINConfirmed:     ud.VinConfirmed,
+		Name:             ud.Name.Ptr(),
+		CustomImageURL:   ud.CustomImageURL.Ptr(),
+		DeviceDefinition: ddNice,
+		CountryCode:      ud.CountryCode.Ptr(),
+		Integrations:     nil, // userDevice just created, there would never be any integrations setup
+	}, nil
 }
-
-var opaqueInternalError = fiber.NewError(fiber.StatusInternalServerError, "Internal error.")
 
 // DeviceOptIn godoc
 // @Description Opts the device into data-sharing, and hence rewards.
@@ -1574,6 +1621,11 @@ type RegisterUserDeviceResponse struct {
 	IntegrationCapabilities []services.DeviceCompatibility `json:"integrationCapabilities"`
 }
 
+type RegisterUserDeviceVIN struct {
+	VIN         string `json:"vin"`
+	CountryCode string `json:"countryCode"`
+}
+
 type AdminRegisterUserDevice struct {
 	RegisterUserDevice
 	ID          string  `json:"id"`          // KSUID from client,
@@ -1608,6 +1660,13 @@ type UpdateImageURLReq struct {
 func (reg *RegisterUserDevice) Validate() error {
 	return validation.ValidateStruct(reg,
 		validation.Field(&reg.DeviceDefinitionID, validation.Required),
+		validation.Field(&reg.CountryCode, validation.Required, validation.Length(3, 3)),
+	)
+}
+
+func (reg *RegisterUserDeviceVIN) Validate() error {
+	return validation.ValidateStruct(reg,
+		validation.Field(&reg.VIN, validation.Required, validation.Length(17, 17)),
 		validation.Field(&reg.CountryCode, validation.Required, validation.Length(3, 3)),
 	)
 }

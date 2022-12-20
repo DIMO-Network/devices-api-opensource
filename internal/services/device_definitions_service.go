@@ -45,6 +45,7 @@ type DeviceDefinitionService interface {
 	GetIntegrationByVendor(ctx context.Context, vendor string) (*ddgrpc.Integration, error)
 	GetIntegrationByFilter(ctx context.Context, integrationType string, vendor string, style string) (*ddgrpc.Integration, error)
 	CreateIntegration(ctx context.Context, integrationType string, vendor string, style string) (*ddgrpc.Integration, error)
+	DecodeVIN(ctx context.Context, vin string) (*ddgrpc.DecodeVinResponse, error)
 }
 
 type deviceDefinitionService struct {
@@ -113,6 +114,28 @@ func (d *deviceDefinitionService) GetDeviceDefinitionsByIDs(ctx context.Context,
 	}
 
 	return definitions.GetDeviceDefinitions(), nil
+}
+
+func (d *deviceDefinitionService) DecodeVIN(ctx context.Context, vin string) (*ddgrpc.DecodeVinResponse, error) {
+	if len(vin) != 17 {
+		return nil, errors.New("VIN must be 17 chars")
+	}
+
+	client, conn, err := d.getVINDecodeGrpcClient()
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	resp, err2 := client.DecodeVin(ctx, &ddgrpc.DecodeVinRequest{
+		Vin: vin, // todo we probably wanna send country for European VINs to send to other provider
+	})
+
+	if err2 != nil {
+		return nil, err2
+	}
+
+	return resp, nil
 }
 
 // GetDeviceDefinitionByID is a helper for calling GetDeviceDefinitionsByIDs with one id.
@@ -413,7 +436,7 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 			d.setUserDeviceStyleFromEdmunds(ctx, edmunds, ud)
 			localLog.Info().Msgf("set device_style_id for ud id %s", ud.ID)
 		} else {
-			localLog.Warn().Msgf("could not set edmunds style id. edmunds data exists: %b. ud style_id already set: ", edmunds != nil, !ud.DeviceStyleID.IsZero())
+			localLog.Warn().Msgf("could not set edmunds style id. edmunds data exists: %v. ud style_id already set: %v", edmunds != nil, !ud.DeviceStyleID.IsZero())
 		}
 		// future: we could pull some specific data from this and persist in the user_device.metadata
 		// future: did MMY from vininfo match the device definition? if not fixup year, or model? but need external_id etc
@@ -679,6 +702,16 @@ func (d *deviceDefinitionService) getDeviceDefsGrpcClient() (ddgrpc.DeviceDefini
 	}
 	definitionsClient := ddgrpc.NewDeviceDefinitionServiceClient(conn)
 	return definitionsClient, conn, nil
+}
+
+func (d *deviceDefinitionService) getVINDecodeGrpcClient() (ddgrpc.VinDecoderServiceClient, *grpc.ClientConn, error) {
+	// we may need to increase timeout for this request
+	conn, err := grpc.Dial(d.definitionsGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, conn, err
+	}
+	client := ddgrpc.NewVinDecoderServiceClient(conn)
+	return client, conn, nil
 }
 
 func (d *deviceDefinitionService) getDeviceMileage(udID string, modelYear int) (mileage *float64, err error) {

@@ -29,7 +29,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp"
                         }
                     },
                     "404": {
@@ -98,7 +98,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiDeviceInfo"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo"
                         }
                     }
                 }
@@ -157,7 +157,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiClaimRequest"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiClaimRequest"
                         }
                     }
                 ],
@@ -564,7 +564,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp"
                         }
                     },
                     "404": {
@@ -600,7 +600,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDevice"
+                            "$ref": "#/definitions/internal_controllers.RegisterUserDevice"
                         }
                     }
                 ],
@@ -608,7 +608,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDeviceResponse"
+                            "$ref": "#/definitions/internal_controllers.RegisterUserDeviceResponse"
                         }
                     }
                 }
@@ -635,7 +635,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiCommandRequest"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest"
                         }
                     }
                 ],
@@ -738,7 +738,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiPairRequest"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiPairRequest"
                         }
                     }
                 ],
@@ -798,7 +798,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiPairRequest"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiPairRequest"
                         }
                     }
                 ],
@@ -826,13 +826,63 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.RegisterDeviceIntegrationRequest"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest"
                         }
                     }
                 ],
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/user/devices/fromvin": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "adds a device to a user by decoding a VIN. If cannot decode returns 424 or 500 if error",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user-devices"
+                ],
+                "parameters": [
+                    {
+                        "description": "add device to user. VIN is required and so is country",
+                        "name": "user_device",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.RegisterUserDeviceVIN"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.RegisterUserDeviceResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "validation failure"
+                    },
+                    "424": {
+                        "description": "unable to decode VIN"
+                    },
+                    "500": {
+                        "description": "server error, dependency error"
                     }
                 }
             }
@@ -857,7 +907,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UserDeviceFull"
+                                "$ref": "#/definitions/internal_controllers.UserDeviceFull"
                             }
                         }
                     }
@@ -944,7 +994,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.MintRequest"
+                            "$ref": "#/definitions/internal_controllers.MintRequest"
                         }
                     }
                 ],
@@ -1039,7 +1089,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateCountryCodeReq"
+                            "$ref": "#/definitions/internal_controllers.UpdateCountryCodeReq"
                         }
                     }
                 ],
@@ -1074,7 +1124,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateImageURLReq"
+                            "$ref": "#/definitions/internal_controllers.UpdateImageURLReq"
                         }
                     }
                 ],
@@ -1100,7 +1150,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.GetUserDeviceIntegrationResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse"
                         }
                     }
                 }
@@ -1155,7 +1205,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1194,7 +1244,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1233,7 +1283,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1272,7 +1322,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1318,7 +1368,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandRequestStatusResp"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandRequestStatusResp"
                         }
                     }
                 }
@@ -1348,7 +1398,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateNameReq"
+                            "$ref": "#/definitions/internal_controllers.UpdateNameReq"
                         }
                     },
                     {
@@ -1384,7 +1434,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceOffer"
+                            "$ref": "#/definitions/internal_controllers.DeviceOffer"
                         }
                     }
                 }
@@ -1417,7 +1467,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceRange"
+                            "$ref": "#/definitions/internal_controllers.DeviceRange"
                         }
                     }
                 }
@@ -1450,7 +1500,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot"
+                            "$ref": "#/definitions/internal_controllers.DeviceSnapshot"
                         }
                     }
                 }
@@ -1483,7 +1533,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceValuation"
+                            "$ref": "#/definitions/internal_controllers.DeviceValuation"
                         }
                     }
                 }
@@ -1513,7 +1563,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.UpdateVINReq"
+                            "$ref": "#/definitions/internal_controllers.UpdateVINReq"
                         }
                     },
                     {
@@ -1556,7 +1606,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTImageData"
+                            "$ref": "#/definitions/internal_controllers.NFTImageData"
                         }
                     }
                 ],
@@ -1731,7 +1781,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
+                            "$ref": "#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp"
                         }
                     },
                     "404": {
@@ -2433,6 +2483,17 @@
                     }
                 },
                 "userDeviceId": {
+                    "type": "string"
+                }
+            }
+        },
+        "github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDeviceVIN": {
+            "type": "object",
+            "properties": {
+                "countryCode": {
+                    "type": "string"
+                },
+                "vin": {
                     "type": "string"
                 }
             }
@@ -3231,6 +3292,17 @@
                     }
                 },
                 "userDeviceId": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_controllers.RegisterUserDeviceVIN": {
+            "type": "object",
+            "properties": {
+                "countryCode": {
+                    "type": "string"
+                },
+                "vin": {
                     "type": "string"
                 }
             }
