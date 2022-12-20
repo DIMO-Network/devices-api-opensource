@@ -350,6 +350,70 @@ func (udc *UserDevicesController) RegisterDeviceForUserFromVIN(c *fiber.Ctx) err
 	})
 }
 
+// RegisterDeviceForUserFromSmartcar godoc
+// @Description adds a device to a user by decoding VIN from Smartcar. If cannot decode returns 424 or 500 if error
+// @Tags        user-devices
+// @Produce     json
+// @Accept      json
+// @Param       user_device body controllers.RegisterUserDeviceSmartcar true "add device to user. all fields required"
+// @Security    ApiKeyAuth
+// @Failure		400 "validation failure"
+// @Failure		424 "unable to decode VIN"
+// @Failure		500 "server error, dependency error"
+// @Success     201 {object} controllers.RegisterUserDeviceSmartcar
+// @Security    BearerAuth
+// @Router      /user/devices/fromsmartcar [post]
+func (udc *UserDevicesController) RegisterDeviceForUserFromSmartcar(c *fiber.Ctx) error {
+	userID := api.GetUserID(c)
+	reg := &RegisterUserDeviceSmartcar{}
+	if err := c.BodyParser(reg); err != nil {
+		// Return status 400 and error message.
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	if err := reg.Validate(); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	localLog := udc.log.With().Str("user_id", userID).Logger()
+
+	// call SC api with stuff and get VIN
+	token, err := udc.smartcarClient.ExchangeCode(c.Context(), reg.Code, reg.RedirectURI)
+	if err != nil {
+		localLog.Err(err).Msg("Failed to exchange authorization code with Smartcar.")
+		// This may not be the user's fault, but 400 for now.
+		return fiber.NewError(fiber.StatusBadRequest, "Failed to exchange authorization code with Smartcar.")
+	}
+	externalID, err := udc.smartcarClient.GetExternalID(c.Context(), token.Access)
+	if err != nil {
+		localLog.Err(err).Msg("Failed to retrieve vehicle ID from Smartcar.")
+		return smartcarCallErr
+	}
+	vin, err := udc.smartcarClient.GetVIN(c.Context(), token.Access, externalID)
+	if err != nil {
+		localLog.Err(err).Msg("Failed to retrieve VIN from Smartcar.")
+		return smartcarCallErr
+	}
+
+	// decode VIN with grpc call
+	decodeVIN, err := udc.DeviceDefSvc.DecodeVIN(c.Context(), vin)
+	if err != nil {
+		return errors.Wrapf(err, "could not decode vin %s for country %s", vin, reg.CountryCode)
+	}
+	if len(decodeVIN.DeviceDefinitionId) == 0 {
+		localLog.Warn().Str("vin", vin).
+			Msg("unable to decode vin for customer request to create vehicle")
+		return fiber.NewError(fiber.StatusFailedDependency, "unable to decode vin")
+	}
+	// attach device def to user
+	udFull, err := udc.createUserDevice(c.Context(), decodeVIN.DeviceDefinitionId, reg.CountryCode, userID, &vin)
+	if err != nil {
+		return err
+	}
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"userDevice": udFull,
+	})
+}
+
 func (udc *UserDevicesController) createUserDevice(ctx context.Context, deviceDefID, countryCode, userID string, vin *string) (*UserDeviceFull, error) {
 	// attach device def to user
 	dd, err2 := udc.DeviceDefSvc.GetDeviceDefinitionByID(ctx, deviceDefID)
@@ -1626,6 +1690,13 @@ type RegisterUserDeviceVIN struct {
 	CountryCode string `json:"countryCode"`
 }
 
+type RegisterUserDeviceSmartcar struct {
+	// Code refers to the auth code provided by smartcar when user logs in
+	Code        string `json:"code"`
+	RedirectURI string `json:"redirectURI"`
+	CountryCode string `json:"countryCode"`
+}
+
 type AdminRegisterUserDevice struct {
 	RegisterUserDevice
 	ID          string  `json:"id"`          // KSUID from client,
@@ -1667,6 +1738,14 @@ func (reg *RegisterUserDevice) Validate() error {
 func (reg *RegisterUserDeviceVIN) Validate() error {
 	return validation.ValidateStruct(reg,
 		validation.Field(&reg.VIN, validation.Required, validation.Length(17, 17)),
+		validation.Field(&reg.CountryCode, validation.Required, validation.Length(3, 3)),
+	)
+}
+
+func (reg *RegisterUserDeviceSmartcar) Validate() error {
+	return validation.ValidateStruct(reg,
+		validation.Field(&reg.Code, validation.Required),
+		validation.Field(&reg.RedirectURI, validation.Required),
 		validation.Field(&reg.CountryCode, validation.Required, validation.Length(3, 3)),
 	)
 }

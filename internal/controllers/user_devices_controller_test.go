@@ -24,6 +24,7 @@ import (
 	"github.com/golang/mock/gomock"
 	_ "github.com/lib/pq"
 	"github.com/segmentio/ksuid"
+	smartcar "github.com/smartcar/go-sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -56,6 +57,7 @@ type UserDevicesControllerTestSuite struct {
 	nhtsaService     *mock_services.MockINHTSAService
 	drivlyTaskSvc    *mock_services.MockDrivlyTaskService
 	blackbookTaskSvc *mock_services.MockBlackbookTaskService
+	scClient         *mock_services.MockSmartcarClient
 }
 
 // SetupSuite starts container db
@@ -67,7 +69,7 @@ func (s *UserDevicesControllerTestSuite) SetupSuite() {
 	s.mockCtrl = mockCtrl
 
 	s.deviceDefSvc = mock_services.NewMockDeviceDefinitionService(mockCtrl)
-	scClient := mock_services.NewMockSmartcarClient(mockCtrl)
+	s.scClient = mock_services.NewMockSmartcarClient(mockCtrl)
 	s.scTaskSvc = mock_services.NewMockSmartcarTaskService(mockCtrl)
 	teslaSvc := mock_services.NewMockTeslaService(mockCtrl)
 	teslaTaskService := mock_services.NewMockTeslaTaskService(mockCtrl)
@@ -79,11 +81,12 @@ func (s *UserDevicesControllerTestSuite) SetupSuite() {
 	s.testUserID = "123123"
 	testUserID2 := "3232451"
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, logger, s.deviceDefSvc, s.deviceDefIntSvc,
-		&fakeEventService{}, scClient, s.scTaskSvc, teslaSvc, teslaTaskService, nil, nil,
+		&fakeEventService{}, s.scClient, s.scTaskSvc, teslaSvc, teslaTaskService, nil, nil,
 		s.nhtsaService, autoPiIngest, deviceDefinitionIngest, autoPiTaskSvc, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc)
 	app := test.SetupAppFiber(*logger)
 	app.Post("/user/devices", test.AuthInjectorTestHandler(s.testUserID), c.RegisterDeviceForUser)
 	app.Post("/user/devices/fromvin", test.AuthInjectorTestHandler(s.testUserID), c.RegisterDeviceForUserFromVIN)
+	app.Post("/user/devices/fromsmartcar", test.AuthInjectorTestHandler(s.testUserID), c.RegisterDeviceForUserFromSmartcar)
 	app.Post("/user/devices/second", test.AuthInjectorTestHandler(testUserID2), c.RegisterDeviceForUser) // for different test user
 	app.Get("/user/devices/me", test.AuthInjectorTestHandler(s.testUserID), c.GetUserDevices)
 	app.Patch("/user/devices/:userDeviceID/vin", test.AuthInjectorTestHandler(s.testUserID), c.UpdateVIN)
@@ -117,6 +120,61 @@ func TestUserDevicesControllerTestSuite(t *testing.T) {
 }
 
 /* Actual Tests */
+func (s *UserDevicesControllerTestSuite) TestPostUserDeviceFromSmartcar() {
+	// arrange DB
+	integration := test.BuildIntegrationGRPC(constants.AutoPiVendor, 10, 0)
+	dd := test.BuildDeviceDefinitionGRPC(ksuid.New().String(), "Ford", "F150", 2020, integration)
+	// act request
+	const vinny = "4T3R6RFVXMU023395"
+	reg := RegisterUserDeviceSmartcar{Code: "XX", RedirectURI: "https://mobile-app", CountryCode: "USA"}
+	j, _ := json.Marshal(reg)
+
+	s.scClient.EXPECT().ExchangeCode(gomock.Any(), reg.Code, reg.RedirectURI).Times(1).Return(&smartcar.Token{
+		Access:        "AA",
+		AccessExpiry:  time.Now().Add(time.Hour),
+		Refresh:       "RR",
+		RefreshExpiry: time.Now().Add(time.Hour),
+		ExpiresIn:     3600,
+	}, nil)
+	s.scClient.EXPECT().GetExternalID(gomock.Any(), "AA").Times(1).Return("123", nil)
+	s.scClient.EXPECT().GetVIN(gomock.Any(), "AA", "123").Times(1).Return(vinny, nil)
+
+	s.deviceDefSvc.EXPECT().DecodeVIN(gomock.Any(), vinny).Times(1).Return(&grpc.DecodeVinResponse{
+		DeviceMakeId:       dd[0].Make.Id,
+		DeviceDefinitionId: dd[0].DeviceDefinitionId,
+		DeviceStyleId:      "",
+		Year:               dd[0].Type.Year,
+	}, nil)
+	s.deviceDefSvc.EXPECT().GetDeviceDefinitionByID(gomock.Any(), dd[0].DeviceDefinitionId).Times(1).Return(dd[0], nil)
+	s.deviceDefSvc.EXPECT().CheckAndSetImage(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(nil)
+	request := test.BuildRequest("POST", "/user/devices/fromsmartcar", string(j))
+	response, responseError := s.app.Test(request)
+	fmt.Println(responseError)
+	body, _ := io.ReadAll(response.Body)
+	// assert
+	if assert.Equal(s.T(), fiber.StatusCreated, response.StatusCode) == false {
+		fmt.Println("message: " + string(body))
+	}
+	regUserResp := UserDeviceFull{}
+	jsonUD := gjson.Get(string(body), "userDevice")
+	_ = json.Unmarshal([]byte(jsonUD.String()), &regUserResp)
+
+	assert.Len(s.T(), regUserResp.ID, 27)
+	assert.Equal(s.T(), dd[0].DeviceDefinitionId, regUserResp.DeviceDefinition.DeviceDefinitionID)
+	if assert.Len(s.T(), regUserResp.DeviceDefinition.CompatibleIntegrations, 2) == false {
+		fmt.Println("resp body: " + string(body))
+	}
+	assert.Equal(s.T(), integration.Vendor, regUserResp.DeviceDefinition.CompatibleIntegrations[0].Vendor)
+	assert.Equal(s.T(), integration.Type, regUserResp.DeviceDefinition.CompatibleIntegrations[0].Type)
+	assert.Equal(s.T(), integration.Id, regUserResp.DeviceDefinition.CompatibleIntegrations[0].ID)
+
+	userDevice, err := models.UserDevices().One(s.ctx, s.pdb.DBS().Reader)
+	require.NoError(s.T(), err)
+	assert.NotNilf(s.T(), userDevice, "expected a user device in the database to exist")
+	assert.Equal(s.T(), s.testUserID, userDevice.UserID)
+	assert.Equal(s.T(), vinny, userDevice.VinIdentifier.String)
+}
+
 func (s *UserDevicesControllerTestSuite) TestPostUserDeviceFromVIN() {
 	// arrange DB
 	integration := test.BuildIntegrationGRPC(constants.AutoPiVendor, 10, 0)

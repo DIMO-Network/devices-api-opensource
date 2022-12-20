@@ -472,6 +472,17 @@ definitions:
       userDeviceId:
         type: string
     type: object
+  github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDeviceSmartcar:
+    properties:
+      code:
+        description: Code refers to the auth code provided by smartcar when user logs
+          in
+        type: string
+      countryCode:
+        type: string
+      redirectURI:
+        type: string
+    type: object
   github.com_DIMO-Network_devices-api_internal_controllers.RegisterUserDeviceVIN:
     properties:
       countryCode:
@@ -1056,6 +1067,17 @@ definitions:
       userDeviceId:
         type: string
     type: object
+  internal_controllers.RegisterUserDeviceSmartcar:
+    properties:
+      code:
+        description: Code refers to the auth code provided by smartcar when user logs
+          in
+        type: string
+      countryCode:
+        type: string
+      redirectURI:
+        type: string
+    type: object
   internal_controllers.RegisterUserDeviceVIN:
     properties:
       countryCode:
@@ -1437,7 +1459,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo'
+            $ref: '#/definitions/internal_controllers.AutoPiDeviceInfo'
       security:
       - BearerAuth: []
       tags:
@@ -1473,7 +1495,7 @@ paths:
         name: claimRequest
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiClaimRequest'
+          $ref: '#/definitions/internal_controllers.AutoPiClaimRequest'
       produces:
       - application/json
       responses:
@@ -1601,7 +1623,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
+              $ref: '#/definitions/internal_controllers.DocumentResponse'
             type: array
       security:
       - BearerAuth: []
@@ -1638,7 +1660,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
+            $ref: '#/definitions/internal_controllers.DocumentResponse'
       security:
       - BearerAuth: []
       tags:
@@ -1679,7 +1701,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DocumentResponse'
+            $ref: '#/definitions/internal_controllers.DocumentResponse'
       security:
       - BearerAuth: []
       tags:
@@ -1777,7 +1799,7 @@ paths:
         name: AutoPiCommandRequest
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest'
+          $ref: '#/definitions/internal_controllers.AutoPiCommandRequest'
       responses:
         "200":
           description: OK
@@ -1845,7 +1867,7 @@ paths:
         name: userSignature
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiPairRequest'
+          $ref: '#/definitions/internal_controllers.AutoPiPairRequest'
       produces:
       - application/json
       responses: {}
@@ -1883,7 +1905,7 @@ paths:
         name: userSignature
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.AutoPiPairRequest'
+          $ref: '#/definitions/internal_controllers.AutoPiPairRequest'
       produces:
       - application/json
       responses: {}
@@ -1900,7 +1922,7 @@ paths:
         name: userDeviceIntegrationRegistration
         required: true
         schema:
-          $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest'
+          $ref: '#/definitions/internal_controllers.RegisterDeviceIntegrationRequest'
       responses:
         "204":
           description: No Content
@@ -2057,7 +2079,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse'
+            $ref: '#/definitions/internal_controllers.GetUserDeviceIntegrationResponse'
       security:
       - BearerAuth: []
       tags:
@@ -2088,7 +2110,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandRequestStatusResp'
+            $ref: '#/definitions/internal_controllers.CommandRequestStatusResp'
       summary: Get the status of a submitted command.
       tags:
       - device
@@ -2115,7 +2137,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse'
+            $ref: '#/definitions/internal_controllers.CommandResponse'
       summary: Lock the device's doors
       tags:
       - device
@@ -2142,7 +2164,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse'
+            $ref: '#/definitions/internal_controllers.CommandResponse'
       summary: Unlock the device's doors
       tags:
       - device
@@ -2170,7 +2192,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse'
+            $ref: '#/definitions/internal_controllers.CommandResponse'
       summary: Open the device's front trunk
       tags:
       - device
@@ -2198,7 +2220,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.CommandResponse'
+            $ref: '#/definitions/internal_controllers.CommandResponse'
       summary: Open the device's rear trunk
       tags:
       - device
@@ -2281,7 +2303,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.DeviceSnapshot'
+            $ref: '#/definitions/github.com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot'
       security:
       - BearerAuth: []
       tags:
@@ -2352,6 +2374,37 @@ paths:
         "204":
           description: No Content
       security:
+      - BearerAuth: []
+      tags:
+      - user-devices
+  /user/devices/fromsmartcar:
+    post:
+      consumes:
+      - application/json
+      description: adds a device to a user by decoding VIN from Smartcar. If cannot
+        decode returns 424 or 500 if error
+      parameters:
+      - description: add device to user. all fields required
+        in: body
+        name: user_device
+        required: true
+        schema:
+          $ref: '#/definitions/internal_controllers.RegisterUserDeviceSmartcar'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/internal_controllers.RegisterUserDeviceSmartcar'
+        "400":
+          description: validation failure
+        "424":
+          description: unable to decode VIN
+        "500":
+          description: server error, dependency error
+      security:
+      - ApiKeyAuth: []
       - BearerAuth: []
       tags:
       - user-devices
