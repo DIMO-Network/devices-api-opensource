@@ -180,9 +180,7 @@ func (i *Integration) Pair(ctx context.Context, autoPiTokenID, vehicleTokenID *b
 	profile := services.PatchVehicleProfile{
 		Year: int(def.Type.Year),
 	}
-	if ud.VinIdentifier.Valid {
-		profile.Vin = ud.VinIdentifier.String
-	}
+
 	if ud.Name.Valid {
 		profile.CallName = ud.Name.String
 	}
