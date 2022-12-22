@@ -111,6 +111,11 @@ func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 				bv := batteryVoltage.Float()
 				ds.BatteryVoltage = &bv
 			}
+			ambientTemp := gjson.GetBytes(datum.Data.JSON, "ambientTemp")
+			if ambientTemp.Exists() {
+				at := ambientTemp.Float()
+				ds.AmbientTemp = &at
+			}
 			// TirePressure
 			tires := gjson.GetBytes(datum.Data.JSON, "tires")
 			if tires.Exists() {
@@ -199,4 +204,5 @@ type DeviceSnapshot struct {
 	RecordCreatedAt      *time.Time             `json:"recordCreatedAt,omitempty"`
 	TirePressure         *smartcar.TirePressure `json:"tirePressure,omitempty"`
 	BatteryVoltage       *float64               `json:"batteryVoltage,omitempty"`
+	AmbientTemp          *float64               `json:"ambientTemp,omitempty"`
 }
