@@ -76,16 +76,16 @@ func NewAutoPiTaskService(settings *config.Settings, autoPiSvc AutoPiAPIService,
 		Handler: func(ctx context.Context, taskID, deviceID, userID, unitID string) error {
 			return ats.processUpdate(ctx, taskID, deviceID, userID, unitID)
 		},
-		RetryLimit: 5,
-		MinBackoff: time.Second * 30,
-		MaxBackoff: time.Minute,
+		RetryLimit: 1,
+		MinBackoff: time.Minute * 2,
+		MaxBackoff: time.Minute * 2,
 	})
 	vinTask := taskq.RegisterTask(&taskq.TaskOptions{
 		Name: queryAndUpdateVINTask,
 		Handler: func(ctx context.Context, taskID, deviceID, unitID, userDeviceID string) error {
 			return ats.queryAndUpdateVIN(ctx, taskID, deviceID, unitID, userDeviceID)
 		},
-		RetryLimit: 5,
+		RetryLimit: 1,
 		MinBackoff: time.Second * 5,
 		MaxBackoff: time.Second * 30,
 	})

@@ -240,11 +240,6 @@ func (i *Integration) Pair(ctx context.Context, autoPiTokenID, vehicleTokenID *b
 		return err
 	}
 
-	_, err = i.apTask.StartQueryAndUpdateVIN(autoPi.ID, autoPi.UnitID, ud.ID)
-	if err != nil {
-		return err
-	}
-
 	_ = i.eventer.Emit(
 		&services.Event{
 			Type:    "com.dimo.zone.device.integration.create",
