@@ -14,6 +14,7 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/controllers"
 	"github.com/DIMO-Network/devices-api/internal/database"
+	tk "github.com/DIMO-Network/devices-api/internal/middleware/token_exchange"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/internal/services/autopi"
 	"github.com/DIMO-Network/devices-api/internal/services/registry"
@@ -130,14 +131,21 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth := app.Group("/v1")
 
 	if settings.EnablePrivileges {
+		veh := v1Auth.Group("/vehicles/:tokenID")
 		privilegeAuth := jwtware.New(jwtware.Config{
 			KeySetURL:            settings.TokenExchangeJWTKeySetURL,
 			KeyRefreshInterval:   &keyRefreshInterval,
 			KeyRefreshUnknownKID: &keyRefreshUnknownKID,
 		})
+		veh.Use(privilegeAuth)
+
+		tkExchange := tk.New(tk.PrivilegeHandler{
+			Log: &logger,
+			DBS: pdb.DBS,
+		})
 
 		// vehicle command privileges
-		v1Auth.Post("/vehicles/:tokenID/commands/unlock", privilegeAuth, userDeviceController.TestDeviceCommand)
+		veh.Post("/commands/unlock", tkExchange.HasTokenPrivilege(1), userDeviceController.TestDeviceCommand)
 	}
 
 	v1Auth.Use(jwtAuth)

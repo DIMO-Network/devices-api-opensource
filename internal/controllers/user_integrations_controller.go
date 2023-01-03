@@ -2438,50 +2438,12 @@ const (
 )
 
 func (udc *UserDevicesController) TestDeviceCommand(c *fiber.Ctx) error {
-	claims, err := api.GetVehicleTokenClaims(c)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-	tkID := c.Params("tokenID")
+	claims := c.Locals("vehicleTokenClaims").(api.VehicleTokenClaims)
 
-	if tkID != claims.VehicleTokenID {
-		udc.log.Debug().Str("VehicleTokenID In Request", tkID).Str("VehicleTokenID in bearer token", claims.VehicleTokenID).Msg("Invalid vehicle token")
-		return fiber.NewError(fiber.StatusUnauthorized, "Unauthorized! Wrong vehicle token provided")
-	}
-
-	ti, ok := new(big.Int).SetString(tkID, 10)
-	if !ok {
-		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("Couldn't parse token id %q.", tkID))
-	}
-
-	tid := types.NewNullDecimal(new(decimal.Big).SetBigMantScale(ti, 0))
-
-	// Verify vehicle exists for tokenID
-	nft, err := models.VehicleNFTS(
-		models.VehicleNFTWhere.TokenID.EQ(tid),
-		qm.Load(models.VehicleNFTRels.UserDevice),
-	).One(c.Context(), udc.DBS().Reader)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusNotFound, "Vehicle not found!")
-		}
-		udc.log.Err(err).Msg("Database error retrieving Vehicle metadata.")
-		return opaqueInternalError
-	}
-
-	if nft.R.UserDevice == nil {
-		return fiber.NewError(fiber.StatusNotFound, "Vehicle not found!")
-	}
-
-	// Verify privilege is correct
-	privilegeFound := slices.Contains(claims.Privileges, DoorsPrivilege)
-
-	if !privilegeFound {
-		udc.log.Debug().Interface("Privilege In Request", claims.Privileges).Msg("Invalid privilege requested")
-		return fiber.NewError(fiber.StatusUnauthorized, "Unauthorized! Token does not contain privilege 1.")
-	}
-
-	udc.log.Info().Interface("claims", claims).Interface("TokenID", tid).Msg("Got command.")
+	udc.log.Info().
+		Interface("claims", claims).
+		Interface("TokenID", claims.VehicleTokenID).
+		Msg("Got command.")
 	return c.JSON("Device command success!")
 }
 
