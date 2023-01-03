@@ -204,8 +204,9 @@ func main() {
 		autoPiIngest := services.NewIngestRegistrar(services.AutoPi, producer)
 		eventService := services.NewEventService(&logger, &settings, deps.getKafkaProducer())
 		deviceDefinitionRegistrar := services.NewDeviceDefinitionRegistrar(producer, &settings)
+		hardwareTemplateService := autopi.NewHardwareTemplateService()
 
-		i := autopi.NewIntegration(pdb.DBS, ddSvc, autoPiSvc, autoPiTaskService, autoPiIngest, eventService, deviceDefinitionRegistrar)
+		i := autopi.NewIntegration(pdb.DBS, ddSvc, autoPiSvc, autoPiTaskService, autoPiIngest, eventService, deviceDefinitionRegistrar, hardwareTemplateService)
 
 		err := i.Pair(ctx, amToken, vToken)
 		if err != nil {

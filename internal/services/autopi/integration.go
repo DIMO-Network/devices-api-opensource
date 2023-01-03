@@ -3,8 +3,8 @@ package autopi
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"math/big"
+	"strconv"
 	"time"
 
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
@@ -21,13 +21,14 @@ import (
 )
 
 type Integration struct {
-	db          func() *database.DBReaderWriter
-	defs        services.DeviceDefinitionService
-	ap          services.AutoPiAPIService
-	apTask      services.AutoPiTaskService
-	apReg       services.IngestRegistrar
-	eventer     services.EventService
-	ddRegistrar services.DeviceDefinitionRegistrar
+	db                      func() *database.DBReaderWriter
+	defs                    services.DeviceDefinitionService
+	ap                      services.AutoPiAPIService
+	apTask                  services.AutoPiTaskService
+	apReg                   services.IngestRegistrar
+	eventer                 services.EventService
+	ddRegistrar             services.DeviceDefinitionRegistrar
+	hardwareTemplateService HardwareTemplateService
 }
 
 func NewIntegration(
@@ -38,15 +39,17 @@ func NewIntegration(
 	apReg services.IngestRegistrar,
 	eventer services.EventService,
 	ddRegistrar services.DeviceDefinitionRegistrar,
+	hardwareTemplateService HardwareTemplateService,
 ) *Integration {
 	return &Integration{
-		db:          db,
-		defs:        defs,
-		ap:          ap,
-		apTask:      apTask,
-		apReg:       apReg,
-		eventer:     eventer,
-		ddRegistrar: ddRegistrar,
+		db:                      db,
+		defs:                    defs,
+		ap:                      ap,
+		apTask:                  apTask,
+		apReg:                   apReg,
+		eventer:                 eventer,
+		ddRegistrar:             ddRegistrar,
+		hardwareTemplateService: hardwareTemplateService,
 	}
 }
 
@@ -123,20 +126,13 @@ func (i *Integration) Pair(ctx context.Context, autoPiTokenID, vehicleTokenID *b
 		return err
 	}
 
-	if integ.AutoPiDefaultTemplateId == 0 {
-		return fmt.Errorf("integration lacks a default template")
+	hardwareTemplate, err := i.hardwareTemplateService.GetTemplateID(ud, def, integ)
+
+	if err != nil {
+		return err
 	}
 
-	templateID := int(integ.AutoPiDefaultTemplateId)
-
-	if integ.AutoPiPowertrainTemplate != nil {
-		udMd := services.UserDeviceMetadata{}
-		err = ud.Metadata.Unmarshal(&udMd)
-		if err != nil {
-			return err
-		}
-		templateID = int(powertrainToTemplate(udMd.PowertrainType, integ))
-	}
+	templateID, _ := strconv.Atoi(hardwareTemplate)
 
 	udMetadata := services.UserDeviceAPIIntegrationsMetadata{
 		AutoPiUnitID:          &autoPi.UnitID,

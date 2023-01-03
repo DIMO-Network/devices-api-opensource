@@ -64,6 +64,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	autoPiTaskService := services.NewAutoPiTaskService(settings, autoPiSvc, pdb.DBS, logger)
 	drivlyTaskService := services.NewDrivlyTaskService(settings, ddSvc, logger)
 	blackbookTaskService := services.NewBlackbookTaskService(settings, ddSvc, logger)
+	hardwareTemplateService := autopi.NewHardwareTemplateService()
 
 	// controllers
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc, ddIntSvc)
@@ -196,7 +197,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		logger.Fatal().Err(err).Msg("Failed to create Sarama client")
 	}
 
-	autoPi := autopi.NewIntegration(pdb.DBS, ddSvc, autoPiSvc, autoPiTaskService, autoPiIngest, eventService, deviceDefinitionRegistrar)
+	autoPi := autopi.NewIntegration(pdb.DBS, ddSvc, autoPiSvc, autoPiTaskService, autoPiIngest, eventService, deviceDefinitionRegistrar, hardwareTemplateService)
 
 	store, err := registry.NewProcessor(pdb.DBS, &logger, autoPi)
 	if err != nil {

@@ -4,11 +4,16 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"math/big"
 	"net/http"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ericlagergren/decimal"
+	"github.com/volatiletech/sqlboiler/v4/types"
 
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/api"
@@ -213,6 +218,37 @@ func SetupCreateAutoPiUnit(t *testing.T, userID, unitID string, deviceID *string
 	err := au.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
 	assert.NoError(t, err)
 	return &au
+}
+
+func SetupCreateAutoPiUnitWithToken(t *testing.T, userID, unitID string, tokenID *big.Int, deviceID *string, pdb database.DbStore) *models.AutopiUnit {
+	au := models.AutopiUnit{
+		AutopiUnitID:   unitID,
+		UserID:         null.StringFrom(userID),
+		AutopiDeviceID: null.StringFromPtr(deviceID),
+		TokenID:        types.NewNullDecimal(new(decimal.Big).SetBigMantScale(tokenID, 0)),
+	}
+	err := au.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
+	assert.NoError(t, err)
+	return &au
+}
+
+func SetupCreateVehicleNFT(t *testing.T, userDeviceID, vin string, tokenID *big.Int, pdb database.DbStore) *models.VehicleNFT {
+
+	mint := models.MetaTransactionRequest{
+		ID: ksuid.New().String(),
+	}
+	err := mint.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
+	assert.NoError(t, err)
+
+	vehicle := models.VehicleNFT{
+		Vin:           vin,
+		MintRequestID: mint.ID,
+		UserDeviceID:  null.StringFrom(userDeviceID),
+		TokenID:       types.NewNullDecimal(new(decimal.Big).SetBigMantScale(tokenID, 0)),
+	}
+	err = vehicle.Insert(context.Background(), pdb.DBS().Writer, boil.Infer())
+	assert.NoError(t, err)
+	return &vehicle
 }
 
 // SetupCreateUserDeviceAPIIntegration status set to Active, autoPiUnitId is optional
