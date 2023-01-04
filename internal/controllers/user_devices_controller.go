@@ -20,6 +20,7 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
+	"github.com/DIMO-Network/devices-api/internal/services/autopi"
 	"github.com/DIMO-Network/devices-api/internal/services/registry"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
@@ -68,6 +69,7 @@ type UserDevicesController struct {
 	s3                        *s3.Client
 	producer                  sarama.SyncProducer
 	deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
+	autoPiIntegration         *autopi.Integration
 }
 
 // NewUserDevicesController constructor
@@ -92,6 +94,7 @@ func NewUserDevicesController(
 	s3NFTClient *s3.Client,
 	drivlyTaskService services.DrivlyTaskService,
 	blackbookTaskService services.BlackbookTaskService,
+	autoPi *autopi.Integration,
 ) UserDevicesController {
 	return UserDevicesController{
 		Settings:                  settings,
@@ -114,6 +117,7 @@ func NewUserDevicesController(
 		drivlyTaskService:         drivlyTaskService,
 		blackbookTaskService:      blackbookTaskService,
 		deviceDefinitionRegistrar: deviceDefinitionRegistrar,
+		autoPiIntegration:         autoPi,
 	}
 }
 

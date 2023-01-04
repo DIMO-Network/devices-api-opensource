@@ -66,10 +66,11 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	drivlyTaskService := services.NewDrivlyTaskService(settings, ddSvc, logger)
 	blackbookTaskService := services.NewBlackbookTaskService(settings, ddSvc, logger)
 	hardwareTemplateService := autopi.NewHardwareTemplateService()
+	autoPi := autopi.NewIntegration(pdb.DBS, ddSvc, autoPiSvc, autoPiTaskService, autoPiIngest, eventService, deviceDefinitionRegistrar, hardwareTemplateService)
 
 	// controllers
 	deviceControllers := controllers.NewDevicesController(settings, pdb.DBS, &logger, nhtsaSvc, ddSvc, ddIntSvc)
-	userDeviceController := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, ddIntSvc, eventService, smartcarClient, scTaskSvc, teslaSvc, teslaTaskService, cipher, autoPiSvc, services.NewNHTSAService(), autoPiIngest, deviceDefinitionRegistrar, autoPiTaskService, producer, s3NFTServiceClient, drivlyTaskService, blackbookTaskService)
+	userDeviceController := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, ddIntSvc, eventService, smartcarClient, scTaskSvc, teslaSvc, teslaTaskService, cipher, autoPiSvc, services.NewNHTSAService(), autoPiIngest, deviceDefinitionRegistrar, autoPiTaskService, producer, s3NFTServiceClient, drivlyTaskService, blackbookTaskService, autoPi)
 	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer, ddSvc)
 	webhooksController := controllers.NewWebhooksController(settings, pdb.DBS, &logger, autoPiSvc, ddIntSvc)
 	documentsController := controllers.NewDocumentsController(settings, s3ServiceClient, pdb.DBS)
@@ -205,8 +206,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 		logger.Fatal().Err(err).Msg("Failed to create Sarama client")
 	}
 
-	autoPi := autopi.NewIntegration(pdb.DBS, ddSvc, autoPiSvc, autoPiTaskService, autoPiIngest, eventService, deviceDefinitionRegistrar, hardwareTemplateService)
-
 	store, err := registry.NewProcessor(pdb.DBS, &logger, autoPi)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Failed to create registry storage client")
@@ -227,11 +226,12 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Get("/user/devices/:userDeviceID/autopi/commands/unpair", userDeviceController.GetAutoPiUnpairMessage)
 	v1Auth.Post("/user/devices/:userDeviceID/autopi/commands/unpair", userDeviceController.UnpairAutoPi)
 
+	v1Auth.Post("/user/devices/:userDeviceID/autopi/commands/cloud-repair", userDeviceController.CloudRepairAutoPi)
+
 	// Dev-only admin endpoints
 	if settings.Environment != "prod" {
 		v1Auth.Post("/admin/web3-device-unclaim", userDeviceController.AdminDeviceWeb3Unclaim)
 		v1Auth.Post("/admin/web3-device-unpair", userDeviceController.AdminDeviceWeb3Unpair)
-
 	}
 
 	// geofence

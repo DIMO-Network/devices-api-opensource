@@ -115,10 +115,17 @@ func (i *Integration) Pair(ctx context.Context, autoPiTokenID, vehicleTokenID *b
 
 	ud := nft.R.UserDevice
 
-	// There are some old units that were paired off-chain but not on.
-	already, err := models.UserDeviceAPIIntegrationExists(ctx, tx, ud.ID, integ.Id)
-	if err != nil || already {
-		return err
+	oldInt, err := models.FindUserDeviceAPIIntegration(ctx, tx, ud.ID, integ.Id)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+	} else {
+		// We might be using this function to "repair" a connection. Just kill the old row.
+		_, err = oldInt.Delete(ctx, tx)
+		if err != nil {
+			return err
+		}
 	}
 
 	def, err := i.defs.GetDeviceDefinitionByID(ctx, ud.DeviceDefinitionID)

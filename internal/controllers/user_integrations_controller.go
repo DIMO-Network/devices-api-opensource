@@ -1315,6 +1315,53 @@ func (udc *UserDevicesController) PostPairAutoPi(c *fiber.Ctx) error {
 	return nil
 }
 
+// CloudRepairAutoPi godoc
+// @Description Re-apply AutoPi cloud actions in an attempt to get the device transmitting data again.
+// @Produce json
+// @Param userDeviceID path string true "Device id"
+// @Success 204
+// @Security BearerAuth
+// @Router /user/devices/:userDeviceID/autopi/commands/cloud-repair [post]
+func (udc *UserDevicesController) CloudRepairAutoPi(c *fiber.Ctx) error {
+	userID := api.GetUserID(c)
+
+	userDeviceID := c.Params("userDeviceID")
+
+	logger := udc.log.With().Str("userId", userID).Str("userDeviceId", userDeviceID).Logger()
+	logger.Info().Msg("Got AutoPi pair request.")
+
+	ud, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		models.UserDeviceWhere.UserID.EQ(userID),
+		qm.Load(qm.Rels(models.UserDeviceRels.VehicleNFT, models.VehicleNFTRels.VehicleTokenAutopiUnit)),
+	).One(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
+		}
+		logger.Err(err).Msg("Database failure searching for device.")
+		return opaqueInternalError
+	}
+
+	if ud.R.VehicleNFT == nil || ud.R.VehicleNFT.TokenID.IsZero() {
+		return fiber.NewError(fiber.StatusConflict, "Vehicle not yet minted.")
+	}
+
+	if ud.R.VehicleNFT.R.VehicleTokenAutopiUnit == nil {
+		return fiber.NewError(fiber.StatusConflict, "Vehicle not paired on-chain with any AutoPi.")
+	}
+
+	vehicleID := ud.R.VehicleNFT.TokenID.Int(nil)
+	autoPiID := ud.R.VehicleNFT.R.VehicleTokenAutopiUnit.TokenID.Int(nil)
+
+	err = udc.autoPiIntegration.Pair(c.Context(), autoPiID, vehicleID)
+	if err != nil {
+		return err
+	}
+
+	return c.SendStatus(204)
+}
+
 // UnairAutoPi godoc
 // @Description Submit the signature for unpairing this device from its attached AutoPi.
 // @Produce json
@@ -1338,6 +1385,7 @@ func (udc *UserDevicesController) UnpairAutoPi(c *fiber.Ctx) error {
 
 	ud, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		models.UserDeviceWhere.UserID.EQ(userID),
 		qm.Load(models.UserDeviceRels.VehicleNFT),
 	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
@@ -1346,11 +1394,6 @@ func (udc *UserDevicesController) UnpairAutoPi(c *fiber.Ctx) error {
 		}
 		logger.Err(err).Msg("Database failure searching for device.")
 		return opaqueInternalError
-	}
-
-	if ud.UserID != userID {
-		// Err on the side of privacy.
-		return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
 	}
 
 	udai, err := ud.UserDeviceAPIIntegrations(models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(autoPiInt.Id)).One(c.Context(), udc.DBS().Reader)
