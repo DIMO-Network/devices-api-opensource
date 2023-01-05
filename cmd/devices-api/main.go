@@ -277,7 +277,7 @@ func startDeviceStatusConsumer(logger zerolog.Logger, settings *config.Settings,
 
 	group := goka.DefineGroup("devices-vin-fraud",
 		goka.Input(goka.Stream(settings.DeviceStatusTopic), new(shared.JSONCodec[services.DeviceStatusEvent]), ingestSvc.ProcessDeviceStatusMessages),
-		goka.Persist(new(shared.JSONCodec[shared.CloudEvent[services.RegisteredVIN]])),
+		// goka.Persist(new(shared.JSONCodec[shared.CloudEvent[services.RegisteredVIN]])),
 	)
 
 	processor, err := goka.NewProcessor(strings.Split(settings.KafkaBrokers, ","),
