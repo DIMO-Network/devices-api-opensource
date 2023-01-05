@@ -28,6 +28,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/jarcoal/httpmock v1.1.0
 	github.com/lib/pq v1.10.7
+	github.com/lovoo/goka v1.1.7
 	github.com/pkg/errors v0.9.1
 	github.com/pressly/goose/v3 v3.7.0
 	github.com/prometheus/client_golang v1.13.0
@@ -55,7 +56,6 @@ require (
 	github.com/go-ole/go-ole v1.2.1 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
-	github.com/lovoo/goka v1.1.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/rjeczalik/notify v0.9.1 // indirect

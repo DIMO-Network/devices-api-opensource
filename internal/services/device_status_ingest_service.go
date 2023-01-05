@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -13,10 +14,12 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
-	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/DIMO-Network/shared"
 	"github.com/gofiber/fiber/v2"
+	"github.com/lovoo/goka"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/segmentio/ksuid"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -51,23 +54,13 @@ func NewDeviceStatusIngestService(db func() *database.DBReaderWriter, log *zerol
 }
 
 // ProcessDeviceStatusMessages works on channel stream of messages from watermill kafka consumer
-func (i *DeviceStatusIngestService) ProcessDeviceStatusMessages(messages <-chan *message.Message) {
-	for msg := range messages {
-		if err := i.processMessage(msg); err != nil {
-			i.log.Err(err).Str("statusUpdateMsg", string(msg.Payload)).Msg("Error processing device status message.")
-		}
+func (i *DeviceStatusIngestService) ProcessDeviceStatusMessages(ctx goka.Context, msg interface{}) {
+	if err := i.processMessage(ctx, msg.(*DeviceStatusEvent)); err != nil {
+		i.log.Err(err).Msg("Error processing device status message.")
 	}
 }
 
-func (i *DeviceStatusIngestService) processMessage(msg *message.Message) error {
-	// Keep the pipeline moving no matter what.
-	defer func() { msg.Ack() }()
-
-	event := new(DeviceStatusEvent)
-	if err := json.Unmarshal(msg.Payload, event); err != nil {
-		return errors.Wrap(err, "error parsing device event payload")
-	}
-
+func (i *DeviceStatusIngestService) processMessage(ctx goka.Context, event *DeviceStatusEvent) error {
 	if event.Type != deviceStatusEventType {
 		return fmt.Errorf("received vehicle status event with unexpected type %s", event.Type)
 	}
@@ -84,13 +77,13 @@ func (i *DeviceStatusIngestService) processMessage(msg *message.Message) error {
 		defer appmetrics.AutoPiIngestTotalOps.Inc()
 	}
 
-	return i.processEvent(event)
+	return i.processEvent(ctx, event)
 }
 
 var userDeviceDataPrimaryKeyColumns = []string{models.UserDeviceDatumColumns.UserDeviceID, models.UserDeviceDatumColumns.IntegrationID}
 
-func (i *DeviceStatusIngestService) processEvent(event *DeviceStatusEvent) error {
-	ctx := context.Background() // should this be passed in so can cancel if application shutting down?
+func (i *DeviceStatusIngestService) processEvent(ctxGk goka.Context, event *DeviceStatusEvent) error {
+	ctx := context.Background()
 	userDeviceID := event.Subject
 
 	integration, err := i.getIntegrationFromEvent(event)
@@ -118,6 +111,8 @@ func (i *DeviceStatusIngestService) processEvent(event *DeviceStatusEvent) error
 	if err != nil {
 		return fmt.Errorf("failed to find device: %w", err)
 	}
+
+	i.vinFraudMonitor(ctxGk, event, device)
 
 	if len(device.R.UserDeviceAPIIntegrations) == 0 {
 		return fmt.Errorf("can't find API integration for device %s and integration %s", userDeviceID, integration.Id)
@@ -268,6 +263,35 @@ func extractOdometer(data []byte) (float64, error) {
 	return *partialData.Odometer, nil
 }
 
+var basicVINExp = regexp.MustCompile(`^[A-Z0-9]{17}$`)
+
+// extractVIN extracts the vin field from a status update's data object.
+// If this field is not present or fails basic validation, an error is returned.
+// The function does clean up the input slightly.
+func extractVIN(data []byte) (string, error) {
+	partialData := new(struct {
+		VIN *string `json:"vin"`
+	})
+
+	if err := json.Unmarshal(data, partialData); err != nil {
+		return "", fmt.Errorf("failed parsing data field: %w", err)
+	}
+
+	if partialData.VIN == nil {
+		return "", errors.New("data payload did not have a VIN reading")
+	}
+
+	// Minor cleaning.
+	vin := strings.ToUpper(strings.ReplaceAll(*partialData.VIN, " ", ""))
+
+	// We have seen crazy VINs like "\u000" before.
+	if !basicVINExp.MatchString(vin) {
+		return "", errors.New("invalid VIN")
+	}
+
+	return vin, nil
+}
+
 func (i *DeviceStatusIngestService) getIntegrationFromEvent(event *DeviceStatusEvent) (*grpc.Integration, error) {
 	for _, integration := range i.integrations {
 		if strings.HasSuffix(event.Source, integration.Id) {
@@ -275,6 +299,41 @@ func (i *DeviceStatusIngestService) getIntegrationFromEvent(event *DeviceStatusE
 		}
 	}
 	return nil, fmt.Errorf("no matching integration found in DB for event source: %s", event.Source)
+}
+
+func (i *DeviceStatusIngestService) vinFraudMonitor(ctx goka.Context, event *DeviceStatusEvent, device *models.UserDevice) {
+	if !device.VinConfirmed {
+		// Nothing to compare with.
+		return
+	}
+
+	storedVIN := device.VinIdentifier.String
+
+	observedVIN, err := extractVIN(event.Data)
+	if err != nil {
+		// This could get noisy. Even for vehicles that do transmit VIN, it may not be in every record.
+		i.log.Err(err).Str("userDeviceId", event.Subject).Msg("Couldn't extract a valid VIN from the status update.")
+		return
+	}
+
+	// Check the group table for this vehicle. Its presence indicates that we've already logged a warning.
+	if val := ctx.Value(); val != nil {
+		return
+	}
+
+	if observedVIN != storedVIN {
+		record := &shared.CloudEvent[RegisteredVIN]{
+			ID:      ksuid.New().String(),
+			Time:    time.Now(),
+			Subject: event.Subject,
+			Type:    "zone.dimo.device.vin.validation",
+			Data:    RegisteredVIN{},
+		}
+
+		i.log.Info().Str("userDeviceId", event.Subject).Str("observedVin", observedVIN).Str("storedVin", storedVIN).Msg("Detected potential VIN fraud.")
+
+		ctx.SetValue(record)
+	}
 }
 
 type odometerEventDevice struct {
@@ -299,4 +358,8 @@ type DeviceStatusEvent struct {
 	Time        time.Time       `json:"time"`
 	Type        string          `json:"type"`
 	Data        json.RawMessage `json:"data"`
+}
+
+type RegisteredVIN struct {
+	// The body serves no purpose at the moment.
 }

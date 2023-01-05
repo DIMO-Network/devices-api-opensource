@@ -27,6 +27,7 @@ import (
 	"github.com/gofiber/adaptor/v2"
 	"github.com/gofiber/fiber/v2"
 	_ "github.com/lib/pq"
+	"github.com/lovoo/goka"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 	_ "go.uber.org/automaxprocs"
@@ -266,26 +267,30 @@ func changeLogLevel(c *fiber.Ctx) error {
 }
 
 func startDeviceStatusConsumer(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore, eventService services.EventService) {
-	clusterConfig := sarama.NewConfig()
-	clusterConfig.Version = sarama.V2_8_1_0
-	clusterConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
-
-	cfg := &kafka.Config{
-		ClusterConfig:   clusterConfig,
-		BrokerAddresses: strings.Split(settings.KafkaBrokers, ","),
-		Topic:           settings.DeviceStatusTopic,
-		GroupID:         "user-devices",
-		MaxInFlight:     int64(5),
-	}
-	consumer, err := kafka.NewConsumer(cfg, &logger)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Could not start device status update consumer")
-	}
 	nhtsaSvc := services.NewNHTSAService()
 	ddSvc := services.NewDeviceDefinitionService(pdb.DBS, &logger, nhtsaSvc, settings)
 	ingestSvc := services.NewDeviceStatusIngestService(pdb.DBS, &logger, eventService, ddSvc)
-	consumer.Start(context.Background(), ingestSvc.ProcessDeviceStatusMessages)
 
+	sc := goka.DefaultConfig()
+	sc.Version = sarama.V2_8_1_0
+	goka.ReplaceGlobalConfig(sc)
+
+	group := goka.DefineGroup("devices-vin-fraud",
+		goka.Input(goka.Stream(settings.DeviceStatusTopic), new(shared.JSONCodec[services.DeviceStatusEvent]), ingestSvc.ProcessDeviceStatusMessages),
+		goka.Persist(new(shared.JSONCodec[shared.CloudEvent[services.RegisteredVIN]])),
+	)
+
+	processor, err := goka.NewProcessor(strings.Split(settings.KafkaBrokers, ","),
+		group,
+		goka.WithHasher(kafkautil.MurmurHasher),
+	)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Could not start device status processor")
+	}
+	err = processor.Run(context.Background())
+	if err != nil {
+		logger.Fatal().Err(err).Msg("could not run device status processor")
+	}
 	logger.Info().Msg("Device status update consumer started")
 }
 

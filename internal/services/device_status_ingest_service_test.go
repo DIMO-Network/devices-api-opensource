@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"log"
 	"math/big"
 	"os"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/lovoo/goka"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
@@ -29,6 +31,43 @@ func (e *testEventService) Emit(event *Event) error {
 }
 
 const migrationsDirRelPath = "../../migrations"
+
+func TestVinValidation(t *testing.T) {
+
+	testCases := []struct {
+		Name           string
+		Data           null.JSON
+		ExpectedResult string
+	}{
+		{
+			Name:           "Valid vin",
+			Data:           null.JSONFrom([]byte(`{"vin": "JH4DB7560SS004122"}`)),
+			ExpectedResult: "pass",
+		},
+		{
+			Name:           "Vin is too short",
+			Data:           null.JSONFrom([]byte(`{"vin": "JH4DB7560SS004"}`)),
+			ExpectedResult: "",
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.Name, func(t *testing.T) {
+
+			if _, err := extractVIN(c.Data.JSON); err != nil {
+				if c.ExpectedResult != "pass" {
+					return
+				}
+				log.Fatalf("expected test to pass but instead saw an error: %v", err)
+			} else {
+				if c.ExpectedResult == "pass" {
+					return
+				}
+				log.Fatal("expected test to fail but it passed")
+			}
+		})
+	}
+}
 
 func TestIngestDeviceStatus(t *testing.T) {
 	mes := &testEventService{
@@ -123,7 +162,8 @@ func TestIngestDeviceStatus(t *testing.T) {
 				Data:        c.NewData.JSON,
 			}
 
-			if err := ingest.processEvent(input); err != nil {
+			var ctxGk goka.Context
+			if err := ingest.processEvent(ctxGk, input); err != nil {
 				t.Fatalf("Got an unexpected error processing status update: %v", err)
 			}
 			if c.ExpectedEvent.Valid {
@@ -198,7 +238,8 @@ func TestAutoPiStatusMerge(t *testing.T) {
 		Data:        []byte(`{"latitude": 2.0, "longitude": 3.0}`),
 	}
 
-	err = ingest.processEvent(input)
+	var ctxGk goka.Context
+	err = ingest.processEvent(ctxGk, input)
 	require.NoError(t, err)
 
 	err = dat1.Reload(ctx, tx)
