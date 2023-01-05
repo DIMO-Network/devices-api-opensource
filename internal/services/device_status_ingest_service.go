@@ -112,7 +112,7 @@ func (i *DeviceStatusIngestService) processEvent(ctxGk goka.Context, event *Devi
 		return fmt.Errorf("failed to find device: %w", err)
 	}
 
-	// i.vinFraudMonitor(ctxGk, event, device)
+	i.vinFraudMonitor(ctxGk, event, device)
 
 	if len(device.R.UserDeviceAPIIntegrations) == 0 {
 		return fmt.Errorf("can't find API integration for device %s and integration %s", userDeviceID, integration.Id)
