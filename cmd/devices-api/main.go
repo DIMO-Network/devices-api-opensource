@@ -287,10 +287,14 @@ func startDeviceStatusConsumer(logger zerolog.Logger, settings *config.Settings,
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Could not start device status processor")
 	}
-	err = processor.Run(context.Background())
-	if err != nil {
-		logger.Fatal().Err(err).Msg("could not run device status processor")
-	}
+
+	go func() {
+		err = processor.Run(context.Background())
+		if err != nil {
+			logger.Fatal().Err(err).Msg("could not run device status processor")
+		}
+	}()
+
 	logger.Info().Msg("Device status update consumer started")
 }
 
