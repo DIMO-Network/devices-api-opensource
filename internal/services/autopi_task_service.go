@@ -167,8 +167,15 @@ func (ats *autoPiTaskService) GetTaskStatus(ctx context.Context, taskID string) 
 	return apTask, nil
 }
 
+var disableAutoPiUpdate = true
+
 // processUpdate handles the autopi update task when consumed
 func (ats *autoPiTaskService) processUpdate(ctx context.Context, taskID, deviceID, userID, unitID string) error {
+	if disableAutoPiUpdate {
+		_ = ats.updateTaskState(taskID, "autopi update skipped", Success, 200, nil)
+		ats.log.Str("unitId", unitID).Msg("Skipping update")	
+	}
+	
 	// check for ctx.Done in channel etc but in non-blocking way? to then return err if so to retry on next app reboot
 
 	log := ats.log.With().Str("handler", updateAutoPiTask+"_ProcessUpdate").
