@@ -4,15 +4,16 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/DIMO-Network/shared/db"
+
 	"github.com/DIMO-Network/devices-api/internal/config"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/rs/zerolog"
 )
 
 // loadUserDeviceDrively iterates over user_devices with vin verified and tries pulling data from drivly
-func loadUserDeviceDrively(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, forceSetAll bool, pdb database.DbStore) error {
+func loadUserDeviceDrively(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, forceSetAll bool, pdb db.Store) error {
 	// get all devices from DB.
 	all, err := models.UserDevices(models.UserDeviceWhere.VinConfirmed.EQ(true)).All(ctx, pdb.DBS().Reader)
 	if err != nil {

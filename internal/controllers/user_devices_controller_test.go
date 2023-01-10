@@ -9,10 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DIMO-Network/shared/db"
+
 	"github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/constants"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	mock_services "github.com/DIMO-Network/devices-api/internal/services/mocks"
 	"github.com/DIMO-Network/devices-api/internal/test"
@@ -45,7 +46,7 @@ func (f *fakeEventService) Emit(event *services.Event) error {
 
 type UserDevicesControllerTestSuite struct {
 	suite.Suite
-	pdb              database.DbStore
+	pdb              db.Store
 	container        testcontainers.Container
 	ctx              context.Context
 	mockCtrl         *gomock.Controller

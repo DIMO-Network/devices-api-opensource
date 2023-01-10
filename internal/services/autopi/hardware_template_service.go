@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/DIMO-Network/devices-api/internal/database"
 	pb "github.com/DIMO-Network/shared/api/devices"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -13,6 +12,7 @@ import (
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared/db"
 )
 
 type HardwareTemplateService interface {
@@ -21,7 +21,7 @@ type HardwareTemplateService interface {
 }
 
 type hardwareTemplateService struct {
-	dbs func() *database.DBReaderWriter
+	dbs func() *db.ReaderWriter
 	ap  services.AutoPiAPIService
 }
 

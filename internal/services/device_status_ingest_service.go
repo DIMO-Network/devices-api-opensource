@@ -12,9 +12,9 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/appmetrics"
 	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/gofiber/fiber/v2"
 	"github.com/lovoo/goka"
 	"github.com/pkg/errors"
@@ -31,14 +31,14 @@ const (
 )
 
 type DeviceStatusIngestService struct {
-	db           func() *database.DBReaderWriter
+	db           func() *db.ReaderWriter
 	log          *zerolog.Logger
 	eventService EventService
 	deviceDefSvc DeviceDefinitionService
 	integrations []*grpc.Integration
 }
 
-func NewDeviceStatusIngestService(db func() *database.DBReaderWriter, log *zerolog.Logger, eventService EventService, ddSvc DeviceDefinitionService) *DeviceStatusIngestService {
+func NewDeviceStatusIngestService(db func() *db.ReaderWriter, log *zerolog.Logger, eventService EventService, ddSvc DeviceDefinitionService) *DeviceStatusIngestService {
 	// Cache the list of integrations.
 	integrations, err := ddSvc.GetIntegrations(context.Background())
 	if err != nil {

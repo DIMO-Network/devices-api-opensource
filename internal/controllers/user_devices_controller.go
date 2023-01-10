@@ -18,13 +18,13 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/internal/services/autopi"
 	"github.com/DIMO-Network/devices-api/internal/services/registry"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
 	pb "github.com/DIMO-Network/shared/api/users"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/Shopify/sarama"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
@@ -50,7 +50,7 @@ import (
 
 type UserDevicesController struct {
 	Settings                  *config.Settings
-	DBS                       func() *database.DBReaderWriter
+	DBS                       func() *db.ReaderWriter
 	DeviceDefSvc              services.DeviceDefinitionService
 	DeviceDefIntSvc           services.DeviceDefinitionIntegrationService
 	log                       *zerolog.Logger
@@ -75,7 +75,7 @@ type UserDevicesController struct {
 // NewUserDevicesController constructor
 func NewUserDevicesController(
 	settings *config.Settings,
-	dbs func() *database.DBReaderWriter,
+	dbs func() *db.ReaderWriter,
 	logger *zerolog.Logger,
 	ddSvc services.DeviceDefinitionService,
 	ddIntSvc services.DeviceDefinitionIntegrationService,

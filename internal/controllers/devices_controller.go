@@ -7,8 +7,8 @@ import (
 	"github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -17,7 +17,7 @@ import (
 
 type DevicesController struct {
 	settings        *config.Settings
-	dbs             func() *database.DBReaderWriter
+	dbs             func() *db.ReaderWriter
 	nhtsaSvc        services.INHTSAService
 	edmundsSvc      services.EdmundsService
 	deviceDefSvc    services.DeviceDefinitionService
@@ -26,7 +26,7 @@ type DevicesController struct {
 }
 
 // NewDevicesController constructor
-func NewDevicesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, nhtsaSvc services.INHTSAService, ddSvc services.DeviceDefinitionService, ddIntSvc services.DeviceDefinitionIntegrationService) DevicesController {
+func NewDevicesController(settings *config.Settings, dbs func() *db.ReaderWriter, logger *zerolog.Logger, nhtsaSvc services.INHTSAService, ddSvc services.DeviceDefinitionService, ddIntSvc services.DeviceDefinitionIntegrationService) DevicesController {
 	edmundsSvc := services.NewEdmundsService(settings.TorProxyURL, logger)
 
 	return DevicesController{

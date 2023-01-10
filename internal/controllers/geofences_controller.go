@@ -10,10 +10,10 @@ import (
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/Shopify/sarama"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/gofiber/fiber/v2"
@@ -30,14 +30,14 @@ const maxFenceTiles = 12
 
 type GeofencesController struct {
 	Settings     *config.Settings
-	DBS          func() *database.DBReaderWriter
+	DBS          func() *db.ReaderWriter
 	log          *zerolog.Logger
 	producer     sarama.SyncProducer
 	deviceDefSvc services.DeviceDefinitionService
 }
 
 // NewGeofencesController constructor
-func NewGeofencesController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, producer sarama.SyncProducer, deviceDefSvc services.DeviceDefinitionService) GeofencesController {
+func NewGeofencesController(settings *config.Settings, dbs func() *db.ReaderWriter, logger *zerolog.Logger, producer sarama.SyncProducer, deviceDefSvc services.DeviceDefinitionService) GeofencesController {
 	return GeofencesController{
 		Settings:     settings,
 		DBS:          dbs,

@@ -8,9 +8,9 @@ import (
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -26,14 +26,14 @@ import (
 
 type NFTController struct {
 	Settings     *config.Settings
-	DBS          func() *database.DBReaderWriter
+	DBS          func() *db.ReaderWriter
 	s3           *s3.Client
 	log          *zerolog.Logger
 	deviceDefSvc services.DeviceDefinitionService
 }
 
 // NewNFTController constructor
-func NewNFTController(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger, s3 *s3.Client,
+func NewNFTController(settings *config.Settings, dbs func() *db.ReaderWriter, logger *zerolog.Logger, s3 *s3.Client,
 	deviceDefSvc services.DeviceDefinitionService) NFTController {
 	return NFTController{
 		Settings:     settings,

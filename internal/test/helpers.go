@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-
 	"math/big"
 	"net/http"
 	"os"
@@ -16,8 +15,8 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/docker/go-connections/nat"
 	"github.com/ericlagergren/decimal"
 	"github.com/gofiber/fiber/v2"
@@ -37,15 +36,15 @@ import (
 const testDbName = "devices_api"
 
 // StartContainerDatabase starts postgres container with default test settings, and migrates the db. Caller must terminate container.
-func StartContainerDatabase(ctx context.Context, t *testing.T, migrationsDirRelPath string) (database.DbStore, testcontainers.Container) {
+func StartContainerDatabase(ctx context.Context, t *testing.T, migrationsDirRelPath string) (db.Store, testcontainers.Container) {
 	settings := getTestDbSettings()
 	pgPort := "5432/tcp"
 	dbURL := func(port nat.Port) string {
-		return fmt.Sprintf("postgres://%s:%s@localhost:%s/%s?sslmode=disable", settings.DBUser, settings.DBPassword, port.Port(), settings.DBName)
+		return fmt.Sprintf("postgres://%s:%s@localhost:%s/%s?sslmode=disable", settings.DB.User, settings.DB.Password, port.Port(), settings.DB.Name)
 	}
 	cr := testcontainers.ContainerRequest{
 		Image:        "postgres:12.9-alpine",
-		Env:          map[string]string{"POSTGRES_USER": settings.DBUser, "POSTGRES_PASSWORD": settings.DBPassword, "POSTGRES_DB": settings.DBName},
+		Env:          map[string]string{"POSTGRES_USER": settings.DB.User, "POSTGRES_PASSWORD": settings.DB.Password, "POSTGRES_DB": settings.DB.Name},
 		ExposedPorts: []string{pgPort},
 		Cmd:          []string{"postgres", "-c", "fsync=off"},
 		WaitingFor:   wait.ForSQL(nat.Port(pgPort), "postgres", dbURL).Timeout(time.Second * 15),
@@ -65,8 +64,8 @@ func StartContainerDatabase(ctx context.Context, t *testing.T, migrationsDirRelP
 	fmt.Printf("postgres container session %s ready and running at port: %s \n", pgContainer.SessionID(), mappedPort)
 	//defer pgContainer.Terminate(ctx) // this should be done by the caller
 
-	settings.DBPort = mappedPort.Port()
-	pdb := database.NewDbConnectionForTest(ctx, settings, false)
+	settings.DB.Port = mappedPort.Port()
+	pdb := db.NewDbConnectionForTest(ctx, &settings.DB, false)
 	for !pdb.IsReady() {
 		time.Sleep(500 * time.Millisecond)
 	}
@@ -109,7 +108,7 @@ $$ LANGUAGE plpgsql;
 	return pdb, pgContainer
 }
 
-func handleContainerStartErr(ctx context.Context, err error, container testcontainers.Container, t *testing.T) (database.DbStore, testcontainers.Container) {
+func handleContainerStartErr(ctx context.Context, err error, container testcontainers.Container, t *testing.T) (db.Store, testcontainers.Container) {
 	if err != nil {
 		fmt.Println("start container error: " + err.Error())
 		if container != nil {
@@ -117,21 +116,24 @@ func handleContainerStartErr(ctx context.Context, err error, container testconta
 		}
 		t.Fatal(err)
 	}
-	return database.DbStore{}, container
+	return db.Store{}, container
 }
 
 // getTestDbSettings builds test db config.settings object
 func getTestDbSettings() config.Settings {
+	dbSettings := db.Settings{
+		Name:               testDbName,
+		Host:               "localhost",
+		Port:               "6669",
+		User:               "postgres",
+		Password:           "postgres",
+		MaxOpenConnections: 2,
+		MaxIdleConnections: 2,
+	}
 	settings := config.Settings{
-		LogLevel:             "info",
-		DBName:               testDbName,
-		DBHost:               "localhost",
-		DBPort:               "6669",
-		DBUser:               "postgres",
-		DBPassword:           "postgres",
-		DBMaxOpenConnections: 2,
-		DBMaxIdleConnections: 2,
-		ServiceName:          "devices-api",
+		LogLevel:    "info",
+		DB:          dbSettings,
+		ServiceName: "devices-api",
 	}
 	return settings
 }
@@ -189,7 +191,7 @@ func Logger() *zerolog.Logger {
 	return &l
 }
 
-func SetupCreateUserDevice(t *testing.T, testUserID string, ddID string, metadata *[]byte, pdb database.DbStore) models.UserDevice {
+func SetupCreateUserDevice(t *testing.T, testUserID string, ddID string, metadata *[]byte, pdb db.Store) models.UserDevice {
 	ud := models.UserDevice{
 		ID:                 ksuid.New().String(),
 		UserID:             testUserID,
@@ -208,7 +210,7 @@ func SetupCreateUserDevice(t *testing.T, testUserID string, ddID string, metadat
 	return ud
 }
 
-func SetupCreateAutoPiUnit(t *testing.T, userID, unitID string, deviceID *string, pdb database.DbStore) *models.AutopiUnit {
+func SetupCreateAutoPiUnit(t *testing.T, userID, unitID string, deviceID *string, pdb db.Store) *models.AutopiUnit {
 	au := models.AutopiUnit{
 		AutopiUnitID:   unitID,
 		UserID:         null.StringFrom(userID),
@@ -219,7 +221,7 @@ func SetupCreateAutoPiUnit(t *testing.T, userID, unitID string, deviceID *string
 	return &au
 }
 
-func SetupCreateAutoPiUnitWithToken(t *testing.T, userID, unitID string, tokenID *big.Int, deviceID *string, pdb database.DbStore) *models.AutopiUnit {
+func SetupCreateAutoPiUnitWithToken(t *testing.T, userID, unitID string, tokenID *big.Int, deviceID *string, pdb db.Store) *models.AutopiUnit {
 	au := models.AutopiUnit{
 		AutopiUnitID:   unitID,
 		UserID:         null.StringFrom(userID),
@@ -231,7 +233,7 @@ func SetupCreateAutoPiUnitWithToken(t *testing.T, userID, unitID string, tokenID
 	return &au
 }
 
-func SetupCreateVehicleNFT(t *testing.T, userDeviceID, vin string, tokenID *big.Int, pdb database.DbStore) *models.VehicleNFT {
+func SetupCreateVehicleNFT(t *testing.T, userDeviceID, vin string, tokenID *big.Int, pdb db.Store) *models.VehicleNFT {
 
 	mint := models.MetaTransactionRequest{
 		ID: ksuid.New().String(),
@@ -251,7 +253,7 @@ func SetupCreateVehicleNFT(t *testing.T, userDeviceID, vin string, tokenID *big.
 }
 
 // SetupCreateUserDeviceAPIIntegration status set to Active, autoPiUnitId is optional
-func SetupCreateUserDeviceAPIIntegration(t *testing.T, autoPiUnitID, externalID, userDeviceID, integrationID string, pdb database.DbStore) models.UserDeviceAPIIntegration {
+func SetupCreateUserDeviceAPIIntegration(t *testing.T, autoPiUnitID, externalID, userDeviceID, integrationID string, pdb db.Store) models.UserDeviceAPIIntegration {
 	udapiInt := models.UserDeviceAPIIntegration{
 		UserDeviceID:  userDeviceID,
 		IntegrationID: integrationID,
@@ -268,7 +270,7 @@ func SetupCreateUserDeviceAPIIntegration(t *testing.T, autoPiUnitID, externalID,
 	return udapiInt
 }
 
-func SetupCreateAutoPiJob(t *testing.T, jobID, deviceID, cmd, userDeviceID string, pdb database.DbStore) *models.AutopiJob {
+func SetupCreateAutoPiJob(t *testing.T, jobID, deviceID, cmd, userDeviceID string, pdb db.Store) *models.AutopiJob {
 	autopiJob := models.AutopiJob{
 		ID:             jobID,
 		AutopiDeviceID: deviceID,
@@ -281,7 +283,7 @@ func SetupCreateAutoPiJob(t *testing.T, jobID, deviceID, cmd, userDeviceID strin
 	return &autopiJob
 }
 
-func SetupCreateGeofence(t *testing.T, userID, name string, ud *models.UserDevice, pdb database.DbStore) *models.Geofence {
+func SetupCreateGeofence(t *testing.T, userID, name string, ud *models.UserDevice, pdb db.Store) *models.Geofence {
 	gf := models.Geofence{
 		ID:     ksuid.New().String(),
 		UserID: userID,
@@ -303,7 +305,7 @@ func SetupCreateGeofence(t *testing.T, userID, name string, ud *models.UserDevic
 	return &gf
 }
 
-func SetupCreateExternalVINData(t *testing.T, ddID string, ud *models.UserDevice, md map[string][]byte, pdb database.DbStore) *models.ExternalVinDatum {
+func SetupCreateExternalVINData(t *testing.T, ddID string, ud *models.UserDevice, md map[string][]byte, pdb db.Store) *models.ExternalVinDatum {
 	evd := models.ExternalVinDatum{
 		ID:                 ksuid.New().String(),
 		DeviceDefinitionID: null.StringFrom(ddID),

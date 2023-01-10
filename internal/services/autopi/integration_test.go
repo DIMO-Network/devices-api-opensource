@@ -11,20 +11,19 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	mock_services "github.com/DIMO-Network/devices-api/internal/services/mocks"
-
 	"github.com/DIMO-Network/devices-api/internal/test"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 )
 
 type IntegrationTestSuite struct {
 	suite.Suite
-	pdb       database.DbStore
+	pdb       db.Store
 	container testcontainers.Container
 	ctx       context.Context
 

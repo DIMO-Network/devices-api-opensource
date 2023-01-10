@@ -10,9 +10,9 @@ import (
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/constants"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/pkg/errors"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
@@ -39,12 +39,12 @@ type AutoPiAPIService interface {
 type autoPiAPIService struct {
 	Settings   *config.Settings
 	httpClient shared.HTTPClientWrapper
-	dbs        func() *database.DBReaderWriter
+	dbs        func() *db.ReaderWriter
 }
 
 var ErrNotFound = errors.New("not found")
 
-func NewAutoPiAPIService(settings *config.Settings, dbs func() *database.DBReaderWriter) AutoPiAPIService {
+func NewAutoPiAPIService(settings *config.Settings, dbs func() *db.ReaderWriter) AutoPiAPIService {
 	h := map[string]string{"Authorization": "APIToken " + settings.AutoPiAPIToken}
 	hcw, _ := shared.NewHTTPClientWrapper(settings.AutoPiAPIURL, "", 10*time.Second, h, true) // ok to ignore err since only used for tor check
 

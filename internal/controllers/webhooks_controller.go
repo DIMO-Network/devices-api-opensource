@@ -8,9 +8,9 @@ import (
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/constants"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog"
 	"github.com/tidwall/gjson"
@@ -20,14 +20,14 @@ import (
 )
 
 type WebhooksController struct {
-	dbs             func() *database.DBReaderWriter
+	dbs             func() *db.ReaderWriter
 	settings        *config.Settings
 	log             *zerolog.Logger
 	autoPiSvc       services.AutoPiAPIService
 	deviceDefIntSvc services.DeviceDefinitionIntegrationService
 }
 
-func NewWebhooksController(settings *config.Settings, dbs func() *database.DBReaderWriter, log *zerolog.Logger, autoPiSvc services.AutoPiAPIService, deviceDefIntSvc services.DeviceDefinitionIntegrationService) WebhooksController {
+func NewWebhooksController(settings *config.Settings, dbs func() *db.ReaderWriter, log *zerolog.Logger, autoPiSvc services.AutoPiAPIService, deviceDefIntSvc services.DeviceDefinitionIntegrationService) WebhooksController {
 	return WebhooksController{
 		dbs:             dbs,
 		settings:        settings,

@@ -9,9 +9,9 @@ import (
 
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/constants"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/ericlagergren/decimal"
 	"github.com/pkg/errors"
 	"github.com/volatiletech/null/v8"
@@ -21,7 +21,7 @@ import (
 )
 
 type Integration struct {
-	db                      func() *database.DBReaderWriter
+	db                      func() *db.ReaderWriter
 	defs                    services.DeviceDefinitionService
 	ap                      services.AutoPiAPIService
 	apTask                  services.AutoPiTaskService
@@ -32,7 +32,7 @@ type Integration struct {
 }
 
 func NewIntegration(
-	db func() *database.DBReaderWriter,
+	db func() *db.ReaderWriter,
 	defs services.DeviceDefinitionService,
 	ap services.AutoPiAPIService,
 	apTask services.AutoPiTaskService,

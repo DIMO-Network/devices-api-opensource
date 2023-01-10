@@ -12,10 +12,10 @@ import (
 	"github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/constants"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	mock_services "github.com/DIMO-Network/devices-api/internal/services/mocks"
 	"github.com/DIMO-Network/devices-api/internal/test"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/mock/gomock"
 	_ "github.com/lib/pq"
@@ -29,7 +29,7 @@ import (
 
 type DevicesControllerTestSuite struct {
 	suite.Suite
-	pdb             database.DbStore
+	pdb             db.Store
 	container       testcontainers.Container
 	ctx             context.Context
 	mockCtrl        *gomock.Controller

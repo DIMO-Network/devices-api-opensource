@@ -9,8 +9,8 @@ import (
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -22,14 +22,14 @@ import (
 type DocumentsController struct {
 	settings *config.Settings
 	s3Client *s3.Client
-	DBS      func() *database.DBReaderWriter
+	DBS      func() *db.ReaderWriter
 }
 
 // NewDocumentsController constructor
 func NewDocumentsController(
 	settings *config.Settings,
 	s3Client *s3.Client,
-	dbs func() *database.DBReaderWriter) DocumentsController {
+	dbs func() *db.ReaderWriter) DocumentsController {
 	return DocumentsController{settings: settings, s3Client: s3Client, DBS: dbs}
 }
 

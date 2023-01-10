@@ -3,22 +3,22 @@ package api
 import (
 	"context"
 
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	pb "github.com/DIMO-Network/shared/api/devices"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/null/v8"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-func NewAftermarketDeviceService(dbs func() *database.DBReaderWriter, logger *zerolog.Logger) pb.AftermarketDeviceServiceServer {
+func NewAftermarketDeviceService(dbs func() *db.ReaderWriter, logger *zerolog.Logger) pb.AftermarketDeviceServiceServer {
 	return &aftermarketDeviceService{dbs: dbs, logger: logger}
 }
 
 type aftermarketDeviceService struct {
 	pb.UnimplementedAftermarketDeviceServiceServer
-	dbs    func() *database.DBReaderWriter
+	dbs    func() *db.ReaderWriter
 	logger *zerolog.Logger
 }
 

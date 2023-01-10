@@ -3,9 +3,9 @@ package registry
 import (
 	"context"
 
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services/autopi"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/ericlagergren/decimal"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -23,7 +23,7 @@ type StatusProcessor interface {
 
 type proc struct {
 	ABI    *abi.ABI
-	DB     func() *database.DBReaderWriter
+	DB     func() *db.ReaderWriter
 	Logger *zerolog.Logger
 	ap     *autopi.Integration
 }
@@ -190,7 +190,7 @@ func convertLog(logIn *ceLog) *eth_types.Log {
 }
 
 func NewProcessor(
-	db func() *database.DBReaderWriter,
+	db func() *db.ReaderWriter,
 	logger *zerolog.Logger,
 	ap *autopi.Integration,
 ) (StatusProcessor, error) {

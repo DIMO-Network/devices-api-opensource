@@ -9,13 +9,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/DIMO-Network/shared/db"
+
 	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
 
 	"github.com/DIMO-Network/devices-api/internal/api"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/controllers"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	tk "github.com/DIMO-Network/devices-api/internal/middleware/token_exchange"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/internal/services/autopi"
@@ -35,7 +36,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore, eventService services.EventService, producer sarama.SyncProducer, s3ServiceClient *s3.Client, s3NFTServiceClient *s3.Client) {
+func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb db.Store, eventService services.EventService, producer sarama.SyncProducer, s3ServiceClient *s3.Client, s3NFTServiceClient *s3.Client) {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return helpers.ErrorHandler(c, err, logger, settings.Environment)
@@ -286,7 +287,7 @@ func healthCheck(c *fiber.Ctx) error {
 	return nil
 }
 
-func startGRPCServer(settings *config.Settings, dbs func() *database.DBReaderWriter, hardwareTemplateService autopi.HardwareTemplateService, logger *zerolog.Logger) {
+func startGRPCServer(settings *config.Settings, dbs func() *db.ReaderWriter, hardwareTemplateService autopi.HardwareTemplateService, logger *zerolog.Logger) {
 	lis, err := net.Listen("tcp", ":"+settings.GRPCPort)
 	if err != nil {
 		logger.Fatal().Err(err).Msgf("Couldn't listen on gRPC port %s", settings.GRPCPort)

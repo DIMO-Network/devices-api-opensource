@@ -11,19 +11,19 @@ import (
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/constants"
-	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 
 type SmartCarService struct {
 	baseURL      string
-	DBS          func() *database.DBReaderWriter
+	DBS          func() *db.ReaderWriter
 	log          zerolog.Logger // can't remember if best practice with this logger is to use *
 	deviceDefSvc DeviceDefinitionService
 }
 
-func NewSmartCarService(dbs func() *database.DBReaderWriter, logger zerolog.Logger, settings *config.Settings) SmartCarService {
+func NewSmartCarService(dbs func() *db.ReaderWriter, logger zerolog.Logger, settings *config.Settings) SmartCarService {
 	return SmartCarService{
 		baseURL:      "https://api.smartcar.com/v2.0/",
 		DBS:          dbs,

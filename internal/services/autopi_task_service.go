@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/go-redis/redis/v8"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -34,7 +34,7 @@ const (
 	queryAndUpdateVINTask = "queryAndUpdateVINTask"
 )
 
-func NewAutoPiTaskService(settings *config.Settings, autoPiSvc AutoPiAPIService, dbs func() *database.DBReaderWriter, logger zerolog.Logger) AutoPiTaskService {
+func NewAutoPiTaskService(settings *config.Settings, autoPiSvc AutoPiAPIService, dbs func() *db.ReaderWriter, logger zerolog.Logger) AutoPiTaskService {
 	// setup redis connection
 	var tlsConfig *tls.Config
 	if settings.RedisTLS {
@@ -103,7 +103,7 @@ type autoPiTaskService struct {
 	getAndSetVinTask *taskq.Task
 	redis            StandardRedis
 	autoPiSvc        AutoPiAPIService
-	dbs              func() *database.DBReaderWriter
+	dbs              func() *db.ReaderWriter
 	log              zerolog.Logger
 }
 

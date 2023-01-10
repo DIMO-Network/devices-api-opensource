@@ -10,12 +10,12 @@ import (
 
 	_ "github.com/DIMO-Network/devices-api/docs"
 	"github.com/DIMO-Network/devices-api/internal/config"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	es "github.com/DIMO-Network/devices-api/internal/elasticsearch"
 	"github.com/DIMO-Network/devices-api/internal/kafka"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/internal/services/autopi"
 	"github.com/DIMO-Network/shared"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/Shopify/sarama"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
@@ -62,7 +62,7 @@ func main() {
 
 	deps := newDependencyContainer(&settings, logger)
 
-	pdb := database.NewDbConnectionFromSettings(ctx, &settings, true)
+	pdb := db.NewDbConnectionFromSettings(ctx, &settings.DB, true)
 	// check db ready, this is not ideal btw, the db connection handler would be nicer if it did this.
 	totalTime := 0
 	for !pdb.IsReady() {
@@ -266,7 +266,7 @@ func changeLogLevel(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).SendString("log level set to: " + level.String())
 }
 
-func startDeviceStatusConsumer(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore, eventService services.EventService) {
+func startDeviceStatusConsumer(logger zerolog.Logger, settings *config.Settings, pdb db.Store, eventService services.EventService) {
 	nhtsaSvc := services.NewNHTSAService()
 	ddSvc := services.NewDeviceDefinitionService(pdb.DBS, &logger, nhtsaSvc, settings)
 	ingestSvc := services.NewDeviceStatusIngestService(pdb.DBS, &logger, eventService, ddSvc)
@@ -298,7 +298,7 @@ func startDeviceStatusConsumer(logger zerolog.Logger, settings *config.Settings,
 	logger.Info().Msg("Device status update consumer started")
 }
 
-func startCredentialConsumer(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) {
+func startCredentialConsumer(logger zerolog.Logger, settings *config.Settings, pdb db.Store) {
 	clusterConfig := sarama.NewConfig()
 	clusterConfig.Version = sarama.V2_8_1_0
 	clusterConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
@@ -320,7 +320,7 @@ func startCredentialConsumer(logger zerolog.Logger, settings *config.Settings, p
 	logger.Info().Msg("Credential update consumer started")
 }
 
-func startTaskStatusConsumer(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore) {
+func startTaskStatusConsumer(logger zerolog.Logger, settings *config.Settings, pdb db.Store) {
 	clusterConfig := sarama.NewConfig()
 	clusterConfig.Version = sarama.V2_8_1_0
 	clusterConfig.Consumer.Offsets.Initial = sarama.OffsetNewest

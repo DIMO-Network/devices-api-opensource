@@ -8,8 +8,8 @@ import (
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/constants"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/volatiletech/sqlboiler/v4/boil"
@@ -30,11 +30,11 @@ type DeviceDefinitionIntegrationService interface {
 }
 
 type deviceDefinitionIntegrationService struct {
-	dbs                 func() *database.DBReaderWriter
+	dbs                 func() *db.ReaderWriter
 	definitionsGRPCAddr string
 }
 
-func NewDeviceDefinitionIntegrationService(DBS func() *database.DBReaderWriter, settings *config.Settings) DeviceDefinitionIntegrationService {
+func NewDeviceDefinitionIntegrationService(DBS func() *db.ReaderWriter, settings *config.Settings) DeviceDefinitionIntegrationService {
 	return &deviceDefinitionIntegrationService{
 		dbs:                 DBS,
 		definitionsGRPCAddr: settings.DefinitionsGRPCAddr,

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -17,7 +17,7 @@ import (
 )
 
 type CredentialListener struct {
-	db  func() *database.DBReaderWriter
+	db  func() *db.ReaderWriter
 	log *zerolog.Logger
 }
 
@@ -35,7 +35,7 @@ type TeslaCredentialsV1V2 struct {
 	RefreshToken              string    `json:"refreshToken"`
 }
 
-func NewCredentialListener(db func() *database.DBReaderWriter, log *zerolog.Logger) *CredentialListener {
+func NewCredentialListener(db func() *db.ReaderWriter, log *zerolog.Logger) *CredentialListener {
 	return &CredentialListener{db: db, log: log}
 }
 

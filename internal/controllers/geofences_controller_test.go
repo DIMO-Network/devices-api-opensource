@@ -8,8 +8,9 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/DIMO-Network/shared/db"
+
 	"github.com/DIMO-Network/devices-api/internal/config"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	mock_services "github.com/DIMO-Network/devices-api/internal/services/mocks"
 	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
@@ -73,7 +74,7 @@ func checkForDeviceAndH3(userDeviceID string, h3Indexes []string) func(*sarama.P
 
 type GeofencesControllerTestSuite struct {
 	suite.Suite
-	pdb          database.DbStore
+	pdb          db.Store
 	container    testcontainers.Container
 	ctx          context.Context
 	logger       *zerolog.Logger

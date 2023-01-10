@@ -3,16 +3,17 @@ package main
 import (
 	"context"
 
+	"github.com/DIMO-Network/shared/db"
+
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/controllers"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 
-func generateEvents(logger zerolog.Logger, pdb database.DbStore, eventService services.EventService, ddSvc services.DeviceDefinitionService) {
+func generateEvents(logger zerolog.Logger, pdb db.Store, eventService services.EventService, ddSvc services.DeviceDefinitionService) {
 	ctx := context.Background()
 	tx, err := pdb.DBS().Reader.BeginTx(ctx, nil)
 	if err != nil {

@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/DIMO-Network/shared/db"
+
 	"github.com/DIMO-Network/devices-api/internal/constants"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/Shopify/sarama"
@@ -14,7 +15,7 @@ import (
 )
 
 // remakeAutoPiTopic re-populates the autopi ingest registrar topic based on data we have in user_device_api_integrations
-func remakeAutoPiTopic(ctx context.Context, pdb database.DbStore, producer sarama.SyncProducer, ddSvc services.DeviceDefinitionService) error {
+func remakeAutoPiTopic(ctx context.Context, pdb db.Store, producer sarama.SyncProducer, ddSvc services.DeviceDefinitionService) error {
 	reg := services.NewIngestRegistrar(services.AutoPi, producer)
 	db := pdb.DBS().Reader
 

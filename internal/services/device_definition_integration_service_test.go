@@ -3,18 +3,17 @@ package services
 import (
 	"context"
 	"fmt"
-
 	"testing"
 
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/test"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
 )
 
 type DeviceDefinitionIntegrationTestSuite struct {
 	suite.Suite
-	pdb       database.DbStore
+	pdb       db.Store
 	container testcontainers.Container
 	ctx       context.Context
 }

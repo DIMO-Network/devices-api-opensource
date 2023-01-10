@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/shared"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/pkg/errors"
 )
 
@@ -46,10 +46,10 @@ type BlackbookAPIService interface {
 type blackbookAPIService struct {
 	settings      *config.Settings
 	httpClientVIN shared.HTTPClientWrapper
-	dbs           func() *database.DBReaderWriter
+	dbs           func() *db.ReaderWriter
 }
 
-func NewBlackbookAPIService(settings *config.Settings, dbs func() *database.DBReaderWriter) BlackbookAPIService {
+func NewBlackbookAPIService(settings *config.Settings, dbs func() *db.ReaderWriter) BlackbookAPIService {
 	if settings.Environment != "local" && (settings.BlackbookAPIURL == "" || settings.BlackbookAPIUser == "" || settings.BlackbookAPIPassword == "") {
 		log.Fatal("Blackbook configuration not set")
 	}

@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/DIMO-Network/shared/db"
+
 	"github.com/DIMO-Network/devices-api/internal/constants"
 	mock_services "github.com/DIMO-Network/devices-api/internal/services/mocks"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
@@ -26,7 +27,7 @@ import (
 
 type WebHooksControllerTestSuite struct {
 	suite.Suite
-	pdb         database.DbStore
+	pdb         db.Store
 	container   testcontainers.Container
 	ctx         context.Context
 	mockCtrl    *gomock.Controller

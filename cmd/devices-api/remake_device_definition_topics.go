@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/DIMO-Network/shared/db"
+
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/constants"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
@@ -17,7 +18,7 @@ import (
 
 // remakeDeviceDefinitionTopics invokes [services.DeviceDefinitionRegistrar] for each user device
 // with an integration.
-func remakeDeviceDefinitionTopics(ctx context.Context, settings *config.Settings, pdb database.DbStore, producer sarama.SyncProducer, logger *zerolog.Logger, ddSvc services.DeviceDefinitionService) error {
+func remakeDeviceDefinitionTopics(ctx context.Context, settings *config.Settings, pdb db.Store, producer sarama.SyncProducer, logger *zerolog.Logger, ddSvc services.DeviceDefinitionService) error {
 	reg := services.NewDeviceDefinitionRegistrar(producer, settings)
 	db := pdb.DBS().Reader
 

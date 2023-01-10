@@ -12,7 +12,7 @@ import (
 func migrateDatabase(logger zerolog.Logger, settings *config.Settings, command string) {
 	var db *sql.DB
 	// setup database
-	db, err := sql.Open("postgres", settings.GetWriterDSN(true))
+	db, err := sql.Open("postgres", settings.DB.BuildConnectionString(true))
 	defer func() {
 		if err := db.Close(); err != nil {
 			logger.Fatal().Msgf("goose: failed to close DB: %v\n", err)

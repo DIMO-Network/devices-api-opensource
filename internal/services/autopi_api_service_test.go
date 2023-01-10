@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/test"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/golang/mock/gomock"
 	"github.com/jarcoal/httpmock"
 	"github.com/segmentio/ksuid"
@@ -23,7 +23,7 @@ import (
 
 type AutoPiAPIServiceTestSuite struct {
 	suite.Suite
-	pdb       database.DbStore
+	pdb       db.Store
 	container testcontainers.Container
 	ctx       context.Context
 }

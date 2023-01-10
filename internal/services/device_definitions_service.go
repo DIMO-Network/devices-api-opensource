@@ -11,8 +11,8 @@ import (
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/appmetrics"
 	"github.com/DIMO-Network/devices-api/internal/config"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/segmentio/ksuid"
@@ -49,7 +49,7 @@ type DeviceDefinitionService interface {
 }
 
 type deviceDefinitionService struct {
-	dbs                 func() *database.DBReaderWriter
+	dbs                 func() *db.ReaderWriter
 	edmundsSvc          EdmundsService
 	drivlySvc           DrivlyAPIService
 	blackbookSvc        BlackbookAPIService
@@ -58,7 +58,7 @@ type deviceDefinitionService struct {
 	definitionsGRPCAddr string
 }
 
-func NewDeviceDefinitionService(DBS func() *database.DBReaderWriter, log *zerolog.Logger, nhtsaService INHTSAService, settings *config.Settings) DeviceDefinitionService {
+func NewDeviceDefinitionService(DBS func() *db.ReaderWriter, log *zerolog.Logger, nhtsaService INHTSAService, settings *config.Settings) DeviceDefinitionService {
 	return &deviceDefinitionService{
 		dbs:                 DBS,
 		log:                 log,

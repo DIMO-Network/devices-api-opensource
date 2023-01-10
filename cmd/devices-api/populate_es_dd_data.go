@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/DIMO-Network/shared/db"
+
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/config"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	es "github.com/DIMO-Network/devices-api/internal/elasticsearch"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
@@ -16,7 +17,7 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
-func populateESDDData(ctx context.Context, settings *config.Settings, e es.ElasticSearch, pdb database.DbStore, logger *zerolog.Logger, ddSvc services.DeviceDefinitionService) error {
+func populateESDDData(ctx context.Context, settings *config.Settings, e es.ElasticSearch, pdb db.Store, logger *zerolog.Logger, ddSvc services.DeviceDefinitionService) error {
 	db := pdb.DBS().Reader
 
 	apiInts, err := models.UserDeviceAPIIntegrations(

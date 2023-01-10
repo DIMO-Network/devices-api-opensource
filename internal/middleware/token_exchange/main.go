@@ -7,8 +7,8 @@ import (
 	"math/big"
 
 	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/ericlagergren/decimal"
 	"github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog"
@@ -19,7 +19,7 @@ import (
 
 type PrivilegeHandler struct {
 	Log *zerolog.Logger
-	DBS func() *database.DBReaderWriter
+	DBS func() *db.ReaderWriter
 }
 
 func New(cfg PrivilegeHandler) PrivilegeHandler {

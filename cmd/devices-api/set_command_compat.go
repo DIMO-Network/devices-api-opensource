@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/DIMO-Network/shared/db"
+
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/constants"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/pkg/errors"
@@ -20,7 +21,7 @@ import (
 
 var teslaEnabledCommands = []string{"doors/lock", "doors/unlock", "trunk/open", "frunk/open", "charge/limit"}
 
-func setCommandCompatibility(ctx context.Context, settings *config.Settings, pdb database.DbStore, ddSvc services.DeviceDefinitionService) error {
+func setCommandCompatibility(ctx context.Context, settings *config.Settings, pdb db.Store, ddSvc services.DeviceDefinitionService) error {
 
 	if err := setCommandCompatTesla(ctx, pdb, ddSvc); err != nil {
 		return err
@@ -32,7 +33,7 @@ func setCommandCompatibility(ctx context.Context, settings *config.Settings, pdb
 	return nil
 }
 
-func setCommandCompatTesla(ctx context.Context, pdb database.DbStore, ddSvc services.DeviceDefinitionService) error {
+func setCommandCompatTesla(ctx context.Context, pdb db.Store, ddSvc services.DeviceDefinitionService) error {
 	teslaInt, err := ddSvc.GetIntegrationByVendor(ctx, constants.TeslaVendor)
 	if err != nil {
 		return err
@@ -66,7 +67,7 @@ func setCommandCompatTesla(ctx context.Context, pdb database.DbStore, ddSvc serv
 	return nil
 }
 
-func setCommandCompatSmartcar(ctx context.Context, settings *config.Settings, pdb database.DbStore, ddSvc services.DeviceDefinitionService) error {
+func setCommandCompatSmartcar(ctx context.Context, settings *config.Settings, pdb db.Store, ddSvc services.DeviceDefinitionService) error {
 	scInt, err := ddSvc.GetIntegrationByVendor(ctx, constants.SmartCarVendor)
 	if err != nil {
 		return err

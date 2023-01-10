@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services/autopi"
 	"github.com/DIMO-Network/devices-api/models"
 	pb "github.com/DIMO-Network/shared/api/devices"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -18,13 +18,13 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func NewUserDeviceService(dbs func() *database.DBReaderWriter, hardwareTemplateService autopi.HardwareTemplateService, logger *zerolog.Logger) pb.UserDeviceServiceServer {
+func NewUserDeviceService(dbs func() *db.ReaderWriter, hardwareTemplateService autopi.HardwareTemplateService, logger *zerolog.Logger) pb.UserDeviceServiceServer {
 	return &userDeviceService{dbs: dbs, logger: logger, hardwareTemplateService: hardwareTemplateService}
 }
 
 type userDeviceService struct {
 	pb.UnimplementedUserDeviceServiceServer
-	dbs                     func() *database.DBReaderWriter
+	dbs                     func() *db.ReaderWriter
 	hardwareTemplateService autopi.HardwareTemplateService
 	logger                  *zerolog.Logger
 }

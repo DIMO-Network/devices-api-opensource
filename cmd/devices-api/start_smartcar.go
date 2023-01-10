@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/DIMO-Network/shared/db"
+
 	"github.com/DIMO-Network/devices-api/internal/config"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
@@ -16,7 +17,7 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
-func startSmartcarFromRefresh(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb database.DbStore, cipher shared.Cipher, userDeviceID string, scClient services.SmartcarClient, scTask services.SmartcarTaskService, ddSvc services.DeviceDefinitionService) error {
+func startSmartcarFromRefresh(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb db.Store, cipher shared.Cipher, userDeviceID string, scClient services.SmartcarClient, scTask services.SmartcarTaskService, ddSvc services.DeviceDefinitionService) error {
 	db := pdb.DBS().Writer
 	scInt, err := ddSvc.GetIntegrationByVendor(ctx, "SmartCar")
 	if err != nil {

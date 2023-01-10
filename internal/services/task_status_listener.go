@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
+	"github.com/DIMO-Network/shared/db"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
@@ -26,7 +26,7 @@ const (
 )
 
 type TaskStatusListener struct {
-	db           func() *database.DBReaderWriter
+	db           func() *db.ReaderWriter
 	log          *zerolog.Logger
 	DeviceDefSvc DeviceDefinitionService
 	cio          CIOClient
@@ -44,7 +44,7 @@ type TaskStatusData struct {
 	Status        string `json:"status"`
 }
 
-func NewTaskStatusListener(db func() *database.DBReaderWriter, log *zerolog.Logger, cio CIOClient, ddSvc DeviceDefinitionService) *TaskStatusListener {
+func NewTaskStatusListener(db func() *db.ReaderWriter, log *zerolog.Logger, cio CIOClient, ddSvc DeviceDefinitionService) *TaskStatusListener {
 	return &TaskStatusListener{db: db, log: log, cio: cio, DeviceDefSvc: ddSvc}
 }
 

@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/DIMO-Network/shared/db"
+
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/controllers"
-	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
 	"github.com/Shopify/sarama"
@@ -15,7 +16,7 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
-func remakeFenceTopic(settings *config.Settings, pdb database.DbStore, producer sarama.SyncProducer) error {
+func remakeFenceTopic(settings *config.Settings, pdb db.Store, producer sarama.SyncProducer) error {
 	ctx := context.Background()
 
 	rels, err := models.UserDeviceToGeofences(
