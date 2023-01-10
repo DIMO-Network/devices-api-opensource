@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/DIMO-Network/devices-api/internal/api"
+	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
@@ -125,7 +125,7 @@ func (i *TaskStatusListener) processSmartcarPollStatusEvent(event *shared.CloudE
 	deviceDefinitionResponse, err := i.DeviceDefSvc.GetDeviceDefinitionsByIDs(ctx, []string{userDevice.DeviceDefinitionID})
 
 	if err != nil {
-		return api.GrpcErrorToFiber(err, fmt.Sprintf("error querying for device definition id: %s ", userDevice.DeviceDefinitionID))
+		return helpers.GrpcErrorToFiber(err, fmt.Sprintf("error querying for device definition id: %s ", userDevice.DeviceDefinitionID))
 	}
 
 	if len(deviceDefinitionResponse) == 0 {
@@ -190,7 +190,7 @@ func (i *TaskStatusListener) processTeslaPollStatusEvent(event *shared.CloudEven
 
 	dd, err := i.DeviceDefSvc.GetDeviceDefinitionByID(ctx, userDevice.DeviceDefinitionID)
 	if err != nil {
-		return api.GrpcErrorToFiber(err, fmt.Sprintf("error querying for device definition id: %s ", userDevice.DeviceDefinitionID))
+		return helpers.GrpcErrorToFiber(err, fmt.Sprintf("error querying for device definition id: %s ", userDevice.DeviceDefinitionID))
 	}
 
 	data := map[string]interface{}{

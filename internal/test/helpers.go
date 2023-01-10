@@ -12,16 +12,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ericlagergren/decimal"
-	"github.com/volatiletech/sqlboiler/v4/types"
-
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
-	"github.com/DIMO-Network/devices-api/internal/api"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/constants"
+	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/docker/go-connections/nat"
+	"github.com/ericlagergren/decimal"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/pkg/errors"
@@ -33,6 +31,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/types"
 )
 
 const testDbName = "devices_api"
@@ -141,7 +140,7 @@ func getTestDbSettings() config.Settings {
 func SetupAppFiber(logger zerolog.Logger) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			return api.ErrorHandler(c, err, logger, "test")
+			return helpers.ErrorHandler(c, err, logger, "test")
 		},
 	})
 	return app

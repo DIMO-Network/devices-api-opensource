@@ -1,7 +1,8 @@
-package api
+package helpers
 
 import (
 	"encoding/json"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
@@ -9,21 +10,7 @@ import (
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	"strconv"
 )
-
-type VehicleTokenClaims struct {
-	VehicleTokenID string
-	UserEthAddress string
-	Privileges     []int64
-}
-
-type VehicleTokenClaimsResponseRaw struct {
-	Sub        string
-	UserID     string
-	Privileges []int64
-}
 
 // ErrorResponseHandler is deprecated. it doesn't log. We prefer to return an err and have the ErrorHandler in api.go handle stuff.
 func ErrorResponseHandler(c *fiber.Ctx, err error, status int) error {
@@ -41,6 +28,18 @@ func GetUserID(c *fiber.Ctx) string {
 	claims := token.Claims.(jwt.MapClaims)
 	userID := claims["sub"].(string)
 	return userID
+}
+
+type VehicleTokenClaims struct {
+	VehicleTokenID string
+	UserEthAddress string
+	Privileges     []int64
+}
+
+type VehicleTokenClaimsResponseRaw struct {
+	Sub        string
+	UserID     string
+	Privileges []int64
 }
 
 func GetVehicleTokenClaims(c *fiber.Ctx) (VehicleTokenClaims, error) {

@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
+
 	"github.com/DIMO-Network/devices-api/internal/api"
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/constants"
@@ -36,7 +38,7 @@ import (
 func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.DbStore, eventService services.EventService, producer sarama.SyncProducer, s3ServiceClient *s3.Client, s3NFTServiceClient *s3.Client) {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			return api.ErrorHandler(c, err, logger, settings.Environment)
+			return helpers.ErrorHandler(c, err, logger, settings.Environment)
 		},
 		DisableStartupMessage: true,
 		ReadBufferSize:        16000,
@@ -247,7 +249,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb database.
 	v1Auth.Delete("/documents/:id", documentsController.DeleteDocument)
 	v1Auth.Get("/documents/:id/download", documentsController.DownloadDocument)
 
-	go startGRPCServer(settings, pdb.DBS, &logger)
+	go startGRPCServer(settings, pdb.DBS, hardwareTemplateService, &logger)
 
 	logger.Info().Msg("Server started on port " + settings.Port)
 	// Start Server from a different go routine
@@ -284,7 +286,7 @@ func healthCheck(c *fiber.Ctx) error {
 	return nil
 }
 
-func startGRPCServer(settings *config.Settings, dbs func() *database.DBReaderWriter, logger *zerolog.Logger) {
+func startGRPCServer(settings *config.Settings, dbs func() *database.DBReaderWriter, hardwareTemplateService autopi.HardwareTemplateService, logger *zerolog.Logger) {
 	lis, err := net.Listen("tcp", ":"+settings.GRPCPort)
 	if err != nil {
 		logger.Fatal().Err(err).Msgf("Couldn't listen on gRPC port %s", settings.GRPCPort)
@@ -292,7 +294,7 @@ func startGRPCServer(settings *config.Settings, dbs func() *database.DBReaderWri
 
 	logger.Info().Msgf("Starting gRPC server on port %s", settings.GRPCPort)
 	server := grpc.NewServer()
-	pb.RegisterUserDeviceServiceServer(server, api.NewUserDeviceService(dbs, logger))
+	pb.RegisterUserDeviceServiceServer(server, api.NewUserDeviceService(dbs, hardwareTemplateService, logger))
 	pb.RegisterAftermarketDeviceServiceServer(server, api.NewAftermarketDeviceService(dbs, logger))
 
 	if err := server.Serve(lis); err != nil {

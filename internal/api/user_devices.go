@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/DIMO-Network/devices-api/internal/database"
+	"github.com/DIMO-Network/devices-api/internal/services/autopi"
 	"github.com/DIMO-Network/devices-api/models"
 	pb "github.com/DIMO-Network/shared/api/devices"
 	"github.com/rs/zerolog"
@@ -17,14 +18,15 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func NewUserDeviceService(dbs func() *database.DBReaderWriter, logger *zerolog.Logger) pb.UserDeviceServiceServer {
-	return &userDeviceService{dbs: dbs, logger: logger}
+func NewUserDeviceService(dbs func() *database.DBReaderWriter, hardwareTemplateService autopi.HardwareTemplateService, logger *zerolog.Logger) pb.UserDeviceServiceServer {
+	return &userDeviceService{dbs: dbs, logger: logger, hardwareTemplateService: hardwareTemplateService}
 }
 
 type userDeviceService struct {
 	pb.UnimplementedUserDeviceServiceServer
-	dbs    func() *database.DBReaderWriter
-	logger *zerolog.Logger
+	dbs                     func() *database.DBReaderWriter
+	hardwareTemplateService autopi.HardwareTemplateService
+	logger                  *zerolog.Logger
 }
 
 func (s *userDeviceService) GetUserDevice(ctx context.Context, req *pb.GetUserDeviceRequest) (*pb.UserDevice, error) {
@@ -60,6 +62,10 @@ func (s *userDeviceService) ListUserDevicesForUser(ctx context.Context, req *pb.
 	}
 
 	return &pb.ListUserDevicesForUserResponse{UserDevices: out}, nil
+}
+
+func (s *userDeviceService) ApplyHardwareTemplate(ctx context.Context, req *pb.ApplyHardwareTemplateRequest) (*pb.ApplyHardwareTemplateResponse, error) {
+	return s.hardwareTemplateService.ApplyHardwareTemplate(ctx, req)
 }
 
 func (s *userDeviceService) deviceModelToAPI(device *models.UserDevice) *pb.UserDevice {

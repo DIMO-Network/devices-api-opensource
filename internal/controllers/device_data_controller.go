@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/DIMO-Network/devices-api/internal/api"
 	"github.com/DIMO-Network/devices-api/internal/constants"
+	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
@@ -25,7 +25,7 @@ import (
 // @Router      /user/devices/{userDeviceID}/status [get]
 func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
-	userID := api.GetUserID(c)
+	userID := helpers.GetUserID(c)
 	userDevice, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(udi),
 		models.UserDeviceWhere.UserID.EQ(userID),
@@ -142,7 +142,7 @@ func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 // @Router      /user/devices/{userDeviceID}/commands/refresh [post]
 func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
 	udi := c.Params("userDeviceID")
-	userID := api.GetUserID(c)
+	userID := helpers.GetUserID(c)
 	// We could probably do a smarter join here, but it's unclear to me how to handle that
 	// in SQLBoiler.
 	ud, err := models.UserDevices(
@@ -159,7 +159,7 @@ func (udc *UserDevicesController) RefreshUserDeviceStatus(c *fiber.Ctx) error {
 	}
 	smartCarInteg, err := udc.DeviceDefSvc.GetIntegrationByVendor(c.Context(), constants.SmartCarVendor)
 	if err != nil {
-		return api.GrpcErrorToFiber(err, "failed to get smartcar integration")
+		return helpers.GrpcErrorToFiber(err, "failed to get smartcar integration")
 	}
 
 	for _, deviceDatum := range ud.R.UserDeviceData {

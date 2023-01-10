@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"github.com/DIMO-Network/device-definitions-api/pkg/grpc"
-	"github.com/DIMO-Network/devices-api/internal/api"
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/gofiber/fiber/v2"
@@ -56,7 +56,7 @@ func (d *DevicesController) GetDeviceDefinitionByID(c *fiber.Ctx) error {
 	}
 	deviceDefinitionResponse, err := d.deviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{id})
 	if err != nil {
-		return api.GrpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+id)
+		return helpers.GrpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+id)
 	}
 
 	if len(deviceDefinitionResponse) == 0 {
@@ -93,7 +93,7 @@ func (d *DevicesController) GetDeviceIntegrationsByID(c *fiber.Ctx) error {
 	deviceDefinitionResponse, err := d.deviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{id})
 
 	if err != nil {
-		return api.GrpcErrorToFiber(err, "failed to get definition id: "+id)
+		return helpers.GrpcErrorToFiber(err, "failed to get definition id: "+id)
 	}
 
 	dd := deviceDefinitionResponse[0]
@@ -128,21 +128,21 @@ func (d *DevicesController) GetDeviceDefinitionByMMY(c *fiber.Ctx) error {
 	model := c.Query("model")
 	year := c.Query("year")
 	if mk == "" || model == "" || year == "" {
-		return api.ErrorResponseHandler(c, errors.New("make, model, and year are required"), fiber.StatusBadRequest)
+		return helpers.ErrorResponseHandler(c, errors.New("make, model, and year are required"), fiber.StatusBadRequest)
 	}
 	yrInt, err := strconv.Atoi(year)
 	if err != nil {
-		return api.ErrorResponseHandler(c, err, fiber.StatusBadRequest)
+		return helpers.ErrorResponseHandler(c, err, fiber.StatusBadRequest)
 	}
 	dd, err := d.deviceDefSvc.FindDeviceDefinitionByMMY(c.Context(), mk, model, yrInt)
 
 	if err != nil {
-		return api.GrpcErrorToFiber(err, fmt.Sprintf("device with %s %s %s failed", mk, model, year))
+		return helpers.GrpcErrorToFiber(err, fmt.Sprintf("device with %s %s %s failed", mk, model, year))
 	}
 
 	// sometimes dd can empty nil.
 	if dd == nil {
-		return api.ErrorResponseHandler(c, errors.Wrapf(err, "device with %s %s %s not found", mk, model, year), fiber.StatusNotFound)
+		return helpers.ErrorResponseHandler(c, errors.Wrapf(err, "device with %s %s %s not found", mk, model, year), fiber.StatusNotFound)
 	}
 
 	rp, err := NewDeviceDefinitionFromGRPC(dd)

@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/DIMO-Network/device-definitions-api/pkg/grpc"
-	"github.com/DIMO-Network/devices-api/internal/api"
 	"github.com/DIMO-Network/devices-api/internal/appmetrics"
 	"github.com/DIMO-Network/devices-api/internal/constants"
+	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared"
@@ -120,7 +120,7 @@ func (i *DeviceStatusIngestService) processEvent(ctxGk goka.Context, event *Devi
 
 	deviceDefinitionResponse, err := i.deviceDefSvc.GetDeviceDefinitionsByIDs(ctx, []string{device.DeviceDefinitionID})
 	if err != nil {
-		return api.GrpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+device.DeviceDefinitionID)
+		return helpers.GrpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+device.DeviceDefinitionID)
 	}
 
 	if len(deviceDefinitionResponse) == 0 {

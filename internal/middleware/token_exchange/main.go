@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/DIMO-Network/devices-api/internal/api"
+	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/ericlagergren/decimal"
@@ -36,7 +36,7 @@ func (p *PrivilegeHandler) HasTokenPrivilege(privilegeID int64) fiber.Handler {
 }
 
 func (p *PrivilegeHandler) checkPrivilege(c *fiber.Ctx, privilegeID int64) error {
-	claims, err := api.GetVehicleTokenClaims(c)
+	claims, err := helpers.GetVehicleTokenClaims(c)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -80,7 +80,7 @@ func (p *PrivilegeHandler) checkPrivilege(c *fiber.Ctx, privilegeID int64) error
 	}
 
 	// Verify privilege is correct
-	c.Locals("vehicleTokenClaims", api.VehicleTokenClaims{
+	c.Locals("vehicleTokenClaims", helpers.VehicleTokenClaims{
 		VehicleTokenID: claims.VehicleTokenID,
 		UserEthAddress: claims.UserEthAddress,
 		Privileges:     claims.Privileges,

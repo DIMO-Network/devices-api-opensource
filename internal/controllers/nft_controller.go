@@ -6,8 +6,8 @@ import (
 	"math/big"
 	"strconv"
 
-	"github.com/DIMO-Network/devices-api/internal/api"
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
 	"github.com/DIMO-Network/devices-api/internal/database"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
@@ -85,7 +85,7 @@ func (nc *NFTController) GetNFTMetadata(c *fiber.Ctx) error {
 
 	def, err := nc.deviceDefSvc.GetDeviceDefinitionByID(c.Context(), deviceDefinitionID)
 	if err != nil {
-		return api.GrpcErrorToFiber(err, "failed to get device definition")
+		return helpers.GrpcErrorToFiber(err, "failed to get device definition")
 	}
 
 	description := fmt.Sprintf("%s %s %d", def.Make.Name, def.Type.Model, def.Type.Year)
@@ -240,7 +240,7 @@ func (nc *NFTController) GetManufacturerNFTMetadata(c *fiber.Ctx) error {
 
 	dm, err := nc.deviceDefSvc.GetMakeByTokenID(c.Context(), tid)
 	if err != nil {
-		return api.GrpcErrorToFiber(err, "Couldn't retrieve manufacturer")
+		return helpers.GrpcErrorToFiber(err, "Couldn't retrieve manufacturer")
 	}
 
 	return c.JSON(NFTMetadataResp{
