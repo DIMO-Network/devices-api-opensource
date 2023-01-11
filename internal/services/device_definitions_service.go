@@ -491,15 +491,20 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 
 	if udMD.PostalCode == nil {
 		lat, long := d.getDeviceLatLong(userDeviceID)
+		localLog.Info().Msgf("lat long found: %f, %f", lat, long)
 		if lat > 0 && long > 0 {
 			gl, err := GeoDecodeLatLong(lat, long, d.googleMapsAPIKey)
 			if err != nil {
+				localLog.Err(err).Msgf("failed to GeoDecode lat long %f, %f", lat, long)
+			}
+			if gl != nil {
 				// update UD, ignore if fails doesn't matter
 				udMD.PostalCode = &gl.PostalCode
 				udMD.GeoDecodedCountry = &gl.Country
 				udMD.GeoDecodedStateProv = &gl.AdminAreaLevel1
 				_ = ud.Metadata.Marshal(udMD)
 				_, _ = ud.Update(ctx, d.dbs().Writer, boil.Whitelist("metadata", "update_at"))
+				localLog.Info().Msgf("GeoDecoded a lat long: %+v", gl)
 			}
 		}
 	}
