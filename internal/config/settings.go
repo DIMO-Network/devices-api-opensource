@@ -69,4 +69,5 @@ type Settings struct {
 	MonitoringServerPort              string      `yaml:"MONITORING_SERVER_PORT"`
 	TokenExchangeJWTKeySetURL         string      `yaml:"TOKEN_EXCHANGE_JWK_KEY_SET_URL"`
 	EnablePrivileges                  bool        `yaml:"ENABLE_PRIVILEGES"`
+	GoogleMapsAPIKey                  string      `yaml:"GOOGLE_MAPS_API_KEY"`
 }

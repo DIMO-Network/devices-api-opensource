@@ -56,6 +56,7 @@ type deviceDefinitionService struct {
 	log                 *zerolog.Logger
 	nhtsaSvc            INHTSAService
 	definitionsGRPCAddr string
+	googleMapsAPIKey    string
 }
 
 func NewDeviceDefinitionService(DBS func() *db.ReaderWriter, log *zerolog.Logger, nhtsaService INHTSAService, settings *config.Settings) DeviceDefinitionService {
@@ -67,6 +68,7 @@ func NewDeviceDefinitionService(DBS func() *db.ReaderWriter, log *zerolog.Logger
 		drivlySvc:           NewDrivlyAPIService(settings, DBS),
 		blackbookSvc:        NewBlackbookAPIService(settings, DBS),
 		definitionsGRPCAddr: settings.DefinitionsGRPCAddr,
+		googleMapsAPIKey:    settings.GoogleMapsAPIKey,
 	}
 }
 
@@ -479,10 +481,31 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 	if err != nil {
 		return "", err
 	}
-	// TODO(zavaboy): get zipcode of this vehicle for better valuations
 
 	reqData := ValuationRequestData{
 		Mileage: deviceMileage,
+	}
+
+	udMD := new(UserDeviceMetadata)
+	_ = ud.Metadata.Unmarshal(udMD)
+
+	if udMD.PostalCode == nil {
+		lat, long := d.getDeviceLatLong(userDeviceID)
+		if lat > 0 && long > 0 {
+			gl, err := GeoDecodeLatLong(lat, long, d.googleMapsAPIKey)
+			if err != nil {
+				// update UD, ignore if fails doesn't matter
+				udMD.PostalCode = &gl.PostalCode
+				udMD.GeoDecodedCountry = &gl.Country
+				udMD.GeoDecodedStateProv = &gl.AdminAreaLevel1
+				_ = ud.Metadata.Marshal(udMD)
+				_, _ = ud.Update(ctx, d.dbs().Writer, boil.Whitelist("metadata", "update_at"))
+			}
+		}
+	}
+
+	if udMD.PostalCode != nil {
+		reqData.ZipCode = udMD.PostalCode
 	}
 	_ = externalVinData.RequestMetadata.Marshal(reqData)
 
@@ -753,4 +776,26 @@ func (d *deviceDefinitionService) getDeviceMileage(udID string, modelYear int) (
 	}
 
 	return deviceMileage, nil
+}
+
+func (d *deviceDefinitionService) getDeviceLatLong(userDeviceID string) (lat, long float64) {
+	deviceData, err := models.UserDeviceData(
+		models.UserDeviceDatumWhere.UserDeviceID.EQ(userDeviceID),
+		models.UserDeviceDatumWhere.Data.IsNotNull(),
+		qm.OrderBy("updated_at desc"),
+		qm.Limit(1)).One(context.Background(), d.dbs().Writer)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return
+		}
+	} else {
+		latitude := gjson.GetBytes(deviceData.Data.JSON, "latitude")
+		longitude := gjson.GetBytes(deviceData.Data.JSON, "longitude")
+		if latitude.Exists() && longitude.Exists() {
+			lat = latitude.Float()
+			long = longitude.Float()
+			return
+		}
+	}
+	return
 }

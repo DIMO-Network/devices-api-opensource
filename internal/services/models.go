@@ -156,6 +156,9 @@ type UserDeviceMetadata struct {
 	PowertrainType          *PowertrainType `json:"powertrainType,omitempty"`
 	ElasticDefinitionSynced bool            `json:"elasticDefinitionSynced,omitempty"`
 	ElasticRegionSynced     bool            `json:"elasticRegionSynced,omitempty"`
+	PostalCode              *string         `json:"postal_code"`
+	GeoDecodedCountry       *string         `json:"geoDecodedCountry"`
+	GeoDecodedStateProv     *string         `json:"geoDecodedStateProv"`
 }
 
 // todo: consider moving below to controllers and have service just return db object
