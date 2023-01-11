@@ -503,7 +503,10 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 				udMD.GeoDecodedCountry = &gl.Country
 				udMD.GeoDecodedStateProv = &gl.AdminAreaLevel1
 				_ = ud.Metadata.Marshal(udMD)
-				_, _ = ud.Update(ctx, d.dbs().Writer, boil.Whitelist("metadata", "update_at"))
+				_, err = ud.Update(ctx, d.dbs().Writer, boil.Whitelist(models.UserDeviceColumns.Metadata, models.UserDeviceColumns.UpdatedAt))
+				if err != nil {
+					localLog.Err(err).Msg("failed to update user_device.metadata with geodecode info")
+				}
 				localLog.Info().Msgf("GeoDecoded a lat long: %+v", gl)
 			}
 		}
