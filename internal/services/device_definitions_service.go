@@ -492,7 +492,7 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 	if udMD.PostalCode == nil {
 		lat, long := d.getDeviceLatLong(userDeviceID)
 		localLog.Info().Msgf("lat long found: %f, %f", lat, long)
-		if lat > 0 && long > 0 {
+		if lat != 0 && long != 0 {
 			gl, err := GeoDecodeLatLong(lat, long, d.googleMapsAPIKey)
 			if err != nil {
 				localLog.Err(err).Msgf("failed to GeoDecode lat long %f, %f", lat, long)
