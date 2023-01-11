@@ -312,7 +312,7 @@ func (i *DeviceStatusIngestService) vinFraudMonitor(ctx goka.Context, event *Dev
 	observedVIN, err := extractVIN(event.Data)
 	if err != nil {
 		// This could get noisy. Even for vehicles that do transmit VIN, it may not be in every record.
-		i.log.Err(err).Str("userDeviceId", event.Subject).Msg("Couldn't extract a valid VIN from the status update.")
+		i.log.Debug().Err(err).Str("userDeviceId", event.Subject).Msg("Couldn't extract a valid VIN from the status update.")
 		return
 	}
 
