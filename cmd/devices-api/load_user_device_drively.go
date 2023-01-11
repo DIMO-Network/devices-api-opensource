@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/volatiletech/null/v8"
+
 	"github.com/DIMO-Network/shared/db"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
@@ -12,14 +14,17 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// loadUserDeviceDrively iterates over user_devices with vin verified and tries pulling data from drivly
-func loadUserDeviceDrively(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, forceSetAll bool, pdb db.Store) error {
+// loadUserDeviceDrivly iterates over user_devices with vin verified in USA and tries pulling data from drivly
+func loadUserDeviceDrivly(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, forceSetAll bool, pdb db.Store) error {
 	// get all devices from DB.
-	all, err := models.UserDevices(models.UserDeviceWhere.VinConfirmed.EQ(true)).All(ctx, pdb.DBS().Reader)
+	all, err := models.UserDevices(
+		models.UserDeviceWhere.VinConfirmed.EQ(true),
+		models.UserDeviceWhere.CountryCode.EQ(null.StringFrom("USA"))).
+		All(ctx, pdb.DBS().Reader)
 	if err != nil {
 		return err
 	}
-	logger.Info().Msgf("processing %d user_devices with verified VINs", len(all))
+	logger.Info().Msgf("processing %d user_devices with verified VINs in the USA only", len(all))
 
 	deviceDefinitionSvc := services.NewDeviceDefinitionService(pdb.DBS, logger, nil, settings)
 	statsAggr := map[services.DrivlyDataStatusEnum]int{}

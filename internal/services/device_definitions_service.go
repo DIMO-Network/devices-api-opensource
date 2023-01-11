@@ -401,6 +401,10 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 	if err != nil {
 		return "", err
 	}
+	// only pull for USA
+	if ud.CountryCode.String != "USA" {
+		return SkippedDrivlyStatus, nil
+	}
 
 	// by this point we know we need to insert drivly raw json data
 	externalVinData := &models.ExternalVinDatum{
@@ -418,11 +422,7 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 		if err != nil {
 			return "", err
 		}
-		// extra optional data that only needs to be pulled once.
-		edmunds, err := d.drivlySvc.GetEdmundsByVIN(vin)
-		if err == nil {
-			_ = externalVinData.EdmundsMetadata.Marshal(edmunds)
-		}
+
 		build, err := d.drivlySvc.GetBuildByVIN(vin)
 		if err == nil {
 			_ = externalVinData.BuildMetadata.Marshal(build)
@@ -431,14 +431,6 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 		err2 := d.updateDeviceDefAttrs(ctx, deviceDef, vinInfo)
 		if err2 != nil {
 			localLog.Err(err).Msg("could not updateDeviceDefAttrs from drivly vin info")
-		}
-
-		// fill in edmunds style_id in our user_device if it exists and not already set. None of these seen as bad errors so just logs
-		if edmunds != nil && ud.DeviceStyleID.IsZero() {
-			d.setUserDeviceStyleFromEdmunds(ctx, edmunds, ud)
-			localLog.Info().Msgf("set device_style_id for ud id %s", ud.ID)
-		} else {
-			localLog.Warn().Msgf("could not set edmunds style id. edmunds data exists: %v. ud style_id already set: %v", edmunds != nil, !ud.DeviceStyleID.IsZero())
 		}
 		// future: we could pull some specific data from this and persist in the user_device.metadata
 		// future: did MMY from vininfo match the device definition? if not fixup year, or model? but need external_id etc
@@ -525,6 +517,24 @@ func (d *deviceDefinitionService) PullDrivlyData(ctx context.Context, userDevice
 	pricing, err := d.drivlySvc.GetVINPricing(vin, &reqData)
 	if err == nil {
 		_ = externalVinData.PricingMetadata.Marshal(pricing)
+	}
+
+	// check on edmunds data so we can get the style id
+	edmundsExists, _ := models.ExternalVinData(models.ExternalVinDatumWhere.UserDeviceID.EQ(null.StringFrom(ud.ID)),
+		models.ExternalVinDatumWhere.EdmundsMetadata.IsNotNull()).Exists(ctx, d.dbs().Reader)
+	if !edmundsExists {
+		// extra optional data that only needs to be pulled once.
+		edmunds, err := d.drivlySvc.GetEdmundsByVIN(vin) // this is source data that will only be available after pulling vin + pricing
+		if err == nil {
+			_ = externalVinData.EdmundsMetadata.Marshal(edmunds)
+		}
+		// fill in edmunds style_id in our user_device if it exists and not already set. None of these seen as bad errors so just logs
+		if edmunds != nil && ud.DeviceStyleID.IsZero() {
+			d.setUserDeviceStyleFromEdmunds(ctx, edmunds, ud)
+			localLog.Info().Msgf("set device_style_id for ud id %s", ud.ID)
+		} else {
+			localLog.Warn().Msgf("could not set edmunds style id. edmunds data exists: %v. ud style_id already set: %v", edmunds != nil, !ud.DeviceStyleID.IsZero())
+		}
 	}
 
 	err = externalVinData.Insert(ctx, d.dbs().Writer, boil.Infer())
