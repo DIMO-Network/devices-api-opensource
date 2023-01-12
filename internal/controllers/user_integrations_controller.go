@@ -1969,6 +1969,7 @@ func (udc *UserDevicesController) runPostRegistration(ctx context.Context, logge
 var smartcarCallErr = fiber.NewError(fiber.StatusInternalServerError, "Error communicating with Smartcar.")
 
 func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logger *zerolog.Logger, tx *sql.Tx, integ *ddgrpc.Integration, ud *models.UserDevice) error {
+
 	reqBody := new(RegisterDeviceIntegrationRequest)
 	if err := c.BodyParser(reqBody); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Couldn't parse request JSON body.")
@@ -2106,20 +2107,21 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 	logger.Info().Msg("Finished Smartcar device registration.")
 
 	// fire off task to get drivly data
-	taskID, err = udc.drivlyTaskService.StartDrivlyUpdate(ud.DeviceDefinitionID, ud.ID, vin)
-	if err != nil {
-		logger.Err(err).Msg("Failed to emit task drivly event task.")
-	}
-
-	logger.Info().Msgf("drivly update task ID = %s", taskID)
-
-	// fire off task to get blackbook data
-	taskID, err = udc.blackbookTaskService.StartBlackbookUpdate(ud.DeviceDefinitionID, ud.ID, vin)
-	if err != nil {
-		logger.Err(err).Msg("Failed to emit task blackbook event task.")
-	}
-
-	logger.Info().Msgf("blackbook update task ID = %s", taskID)
+	// todo: commenting this out to see if helps with toilet
+	//taskID, err = udc.drivlyTaskService.StartDrivlyUpdate(ud.DeviceDefinitionID, ud.ID, vin)
+	//if err != nil {
+	//	logger.Err(err).Msg("Failed to emit task drivly event task.")
+	//}
+	//
+	//logger.Info().Msgf("drivly update task ID = %s", taskID)
+	//
+	//// fire off task to get blackbook data
+	//taskID, err = udc.blackbookTaskService.StartBlackbookUpdate(ud.DeviceDefinitionID, ud.ID, vin)
+	//if err != nil {
+	//	logger.Err(err).Msg("Failed to emit task blackbook event task.")
+	//}
+	//
+	//logger.Info().Msgf("blackbook update task ID = %s", taskID)
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
