@@ -26,6 +26,7 @@ import (
 	"github.com/customerio/go-customerio/v3"
 	"github.com/gofiber/adaptor/v2"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/pprof"
 	_ "github.com/lib/pq"
 	"github.com/lovoo/goka"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -353,6 +354,8 @@ func startTaskStatusConsumer(logger zerolog.Logger, settings *config.Settings, p
 
 func startMonitoringServer(logger zerolog.Logger, config *config.Settings) {
 	monApp := fiber.New(fiber.Config{DisableStartupMessage: true})
+
+	monApp.Use(pprof.New())
 
 	monApp.Get("/metrics", adaptor.HTTPHandler(promhttp.Handler()))
 	monApp.Put("/loglevel", changeLogLevel)
