@@ -30,6 +30,23 @@ func NewHardwareTemplateService() HardwareTemplateService {
 }
 
 func (a *hardwareTemplateService) GetTemplateID(ud *models.UserDevice, dd *ddgrpc.GetDeviceDefinitionItemResponse, integ *ddgrpc.Integration) (string, error) {
+	// todo this method needs a unit test for desired outomces.
+	// temporarily moving this up here from below to get past error
+	if integ.AutoPiDefaultTemplateId > 0 {
+		if integ.AutoPiPowertrainTemplate != nil {
+			udMd := services.UserDeviceMetadata{}
+			err := ud.Metadata.Unmarshal(&udMd)
+			if err != nil {
+				return "", err
+			}
+
+			powertrainToTemplateID := powertrainToTemplate(udMd.PowertrainType, integ)
+
+			return strconv.Itoa(int(powertrainToTemplateID)), nil
+		}
+		return strconv.Itoa(int(integ.AutoPiDefaultTemplateId)), nil
+	}
+	// todo set return hw tmpl id to a variable then check at end if greater than 0, otherwise use above code
 
 	if ud.DeviceStyleID.Valid {
 		if len(dd.DeviceStyles) > 0 {
@@ -55,23 +72,6 @@ func (a *hardwareTemplateService) GetTemplateID(ud *models.UserDevice, dd *ddgrp
 
 	if len(dd.Make.HardwareTemplateId) > 0 {
 		return dd.Make.HardwareTemplateId, nil
-	}
-
-	if integ.AutoPiDefaultTemplateId > 0 {
-
-		if integ.AutoPiPowertrainTemplate != nil {
-			udMd := services.UserDeviceMetadata{}
-			err := ud.Metadata.Unmarshal(&udMd)
-			if err != nil {
-				return "", err
-			}
-
-			powertrainToTemplateID := powertrainToTemplate(udMd.PowertrainType, integ)
-
-			return strconv.Itoa(int(powertrainToTemplateID)), nil
-		}
-
-		return strconv.Itoa(int(integ.AutoPiDefaultTemplateId)), nil
 	}
 
 	return "", fmt.Errorf("integration lacks a default template")
