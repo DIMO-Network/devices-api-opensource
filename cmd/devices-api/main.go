@@ -176,10 +176,18 @@ func main() {
 	case "drivly-sync-data":
 		logger.Info().Msgf("Pull VIN info, valuations and pricing from driv.ly")
 		setAll := false
+		wmi := ""
 		if len(os.Args) > 2 {
 			setAll = os.Args[2] == "--set-all"
+			// parse out vin WMI code to filter on
+			for i, a := range os.Args {
+				if a == "--wmi" {
+					wmi = os.Args[i+1]
+					break
+				}
+			}
 		}
-		err = loadUserDeviceDrivly(ctx, &logger, &settings, setAll, pdb)
+		err = loadUserDeviceDrivly(ctx, &logger, &settings, setAll, wmi, pdb)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("error trying to sync driv.ly")
 		}

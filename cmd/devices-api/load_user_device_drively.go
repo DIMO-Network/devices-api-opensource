@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/volatiletech/null/v8"
 
@@ -15,7 +16,7 @@ import (
 )
 
 // loadUserDeviceDrivly iterates over user_devices with vin verified in USA and tries pulling data from drivly
-func loadUserDeviceDrivly(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, forceSetAll bool, pdb db.Store) error {
+func loadUserDeviceDrivly(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, forceSetAll bool, wmi string, pdb db.Store) error {
 	// get all devices from DB.
 	all, err := models.UserDevices(
 		models.UserDeviceWhere.VinConfirmed.EQ(true),
@@ -23,6 +24,17 @@ func loadUserDeviceDrivly(ctx context.Context, logger *zerolog.Logger, settings 
 		All(ctx, pdb.DBS().Reader)
 	if err != nil {
 		return err
+	}
+	if len(wmi) == 3 {
+		wmi = strings.ToUpper(wmi)
+		logger.Info().Msgf("WMI filter set: %s", wmi)
+		filtered := models.UserDeviceSlice{}
+		for _, device := range all {
+			if device.VinIdentifier.String[:3] == wmi {
+				filtered = append(filtered, device)
+			}
+		}
+		all = filtered
 	}
 	logger.Info().Msgf("processing %d user_devices with verified VINs in the USA only", len(all))
 
