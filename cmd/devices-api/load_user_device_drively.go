@@ -30,7 +30,7 @@ func loadUserDeviceDrivly(ctx context.Context, logger *zerolog.Logger, settings 
 		logger.Info().Msgf("WMI filter set: %s", wmi)
 		filtered := models.UserDeviceSlice{}
 		for _, device := range all {
-			if device.VinIdentifier.String[:3] == wmi {
+			if len(device.VinIdentifier.String) > 3 && device.VinIdentifier.String[:3] == wmi {
 				filtered = append(filtered, device)
 			}
 		}
