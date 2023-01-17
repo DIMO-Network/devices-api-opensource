@@ -4,13 +4,26 @@ import (
 	"encoding/json"
 	"strconv"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	//d "github.com/dexidp/dex/api/v2"
 )
+
+type CustomClaims struct {
+	ContractAddress common.Address `json:"contract_address"`
+	TokenID         string         `json:"token_id"`
+	PrivilegeIDs    []int64        `json:"privilege_ids"`
+}
+
+type Token struct {
+	jwt.RegisteredClaims
+	CustomClaims
+}
 
 // ErrorResponseHandler is deprecated. it doesn't log. We prefer to return an err and have the ErrorHandler in api.go handle stuff.
 func ErrorResponseHandler(c *fiber.Ctx, err error, status int) error {
@@ -62,6 +75,24 @@ func GetVehicleTokenClaims(c *fiber.Ctx) (VehicleTokenClaims, error) {
 		UserEthAddress: p.UserID,
 		Privileges:     p.Privileges,
 	}, nil
+}
+
+func GetPrivilegeTokenClaims(c *fiber.Ctx) (Token, error) {
+	token := c.Locals("user").(*jwt.Token)
+	claims := token.Claims.(jwt.MapClaims)
+
+	jsonbody, err := json.Marshal(claims)
+	if err != nil {
+		return Token{}, err
+	}
+
+	var t Token
+	err = json.Unmarshal(jsonbody, &t)
+	if err != nil {
+		return Token{}, err
+	}
+
+	return t, nil
 }
 
 // CreateResponse is a generic response with an ID of the created entity

@@ -248,3 +248,51 @@ func (nc *NFTController) GetManufacturerNFTMetadata(c *fiber.Ctx) error {
 		Attributes: []NFTAttribute{},
 	})
 }
+
+// GetVehicleStatus godoc
+// @Description Returns the latest status update for the vehicle with a given token id.
+// @Tags        permission
+// @Param       tokenId path int true "token id"
+// @Produce     json
+// @Success     200 {object} controllers.DeviceSnapshot
+// @Failure     404
+// @Router      /vehicle/{tokenId}/status [get]
+func (nc *NFTController) GetVehicleStatus(c *fiber.Ctx) error {
+	tis := c.Params("tokenID")
+
+	ti, ok := new(big.Int).SetString(tis, 10)
+	if !ok {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("Couldn't parse token id %q.", tis))
+	}
+
+	tid := types.NewNullDecimal(new(decimal.Big).SetBigMantScale(ti, 0))
+	nft, err := models.VehicleNFTS(
+		models.VehicleNFTWhere.TokenID.EQ(tid),
+		qm.Load(models.VehicleNFTRels.UserDevice),
+	).One(c.Context(), nc.DBS().Reader)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
+		}
+		nc.log.Err(err).Msg("Database error retrieving NFT metadata.")
+		return opaqueInternalError
+	}
+
+	if nft.R.UserDevice == nil {
+		return fiber.NewError(fiber.StatusNotFound, "NFT not found.")
+	}
+
+	deviceData, err := models.UserDeviceData(models.UserDeviceDatumWhere.UserDeviceID.EQ(nft.R.UserDevice.ID),
+		qm.OrderBy("updated_at asc")).All(c.Context(), nc.DBS().Reader)
+	if errors.Is(err, sql.ErrNoRows) || len(deviceData) == 0 || !deviceData[0].Data.Valid {
+		return fiber.NewError(fiber.StatusNotFound, "no status updates yet")
+	}
+	if err != nil {
+		return err
+	}
+
+	ds := PrepareDeviceStatusInformation(deviceData)
+
+	return c.JSON(ds)
+}

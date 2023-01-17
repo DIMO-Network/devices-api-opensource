@@ -17,12 +17,12 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/controllers"
-	tk "github.com/DIMO-Network/devices-api/internal/middleware/token_exchange"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/internal/services/autopi"
 	"github.com/DIMO-Network/devices-api/internal/services/registry"
 	"github.com/DIMO-Network/shared"
 	pb "github.com/DIMO-Network/shared/api/devices"
+	pr "github.com/DIMO-Network/shared/middleware/privilegetoken"
 	"github.com/DIMO-Network/zflogger"
 	"github.com/Shopify/sarama"
 	swagger "github.com/arsmn/fiber-swagger/v2"
@@ -117,6 +117,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb db.Store,
 	nftController := controllers.NewNFTController(settings, pdb.DBS, &logger, s3NFTServiceClient, ddSvc)
 	v1.Get("/vehicle/:tokenID", nftController.GetNFTMetadata)
 	v1.Get("/vehicle/:tokenID/image", nftController.GetNFTImage)
+
 	v1.Get("/aftermarket/device/:tokenID", nftController.GetAftermarketDeviceNFTMetadata)
 	v1.Get("/manufacturer/:tokenID", nftController.GetManufacturerNFTMetadata)
 
@@ -143,13 +144,13 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb db.Store,
 		})
 		veh.Use(privilegeAuth)
 
-		tkExchange := tk.New(tk.PrivilegeHandler{
+		tk := pr.New(pr.Config{
 			Log: &logger,
-			DBS: pdb.DBS,
 		})
 
 		// vehicle command privileges
-		veh.Post("/commands/unlock", tkExchange.HasTokenPrivilege(1), userDeviceController.TestDeviceCommand)
+		veh.Get("/status", tk.OneOf(1), nftController.GetVehicleStatus)
+		veh.Post("/commands/unlock", tk.OneOf(1), userDeviceController.TestDeviceCommand)
 	}
 
 	v1Auth.Use(jwtAuth)

@@ -14,38 +14,9 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
-// GetUserDeviceStatus godoc
-// @Description Returns the latest status update for the device. May return 404 if the
-// @Description user does not have a device with the ID, or if no status updates have come
-// @Tags        user-devices
-// @Produce     json
-// @Param       user_device_id path     string true "user device ID"
-// @Success     200            {object} controllers.DeviceSnapshot
-// @Security    BearerAuth
-// @Router      /user/devices/{userDeviceID}/status [get]
-func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
-	udi := c.Params("userDeviceID")
-	userID := helpers.GetUserID(c)
-	userDevice, err := models.UserDevices(
-		models.UserDeviceWhere.ID.EQ(udi),
-		models.UserDeviceWhere.UserID.EQ(userID),
-	).One(c.Context(), udc.DBS().Writer)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusNotFound, err.Error())
-		}
-		return err
-	}
-	deviceData, err := models.UserDeviceData(models.UserDeviceDatumWhere.UserDeviceID.EQ(userDevice.ID),
-		qm.OrderBy("updated_at asc")).All(c.Context(), udc.DBS().Reader)
-	if errors.Is(err, sql.ErrNoRows) || len(deviceData) == 0 || !deviceData[0].Data.Valid {
-		return fiber.NewError(fiber.StatusNotFound, "no status updates yet")
-	}
-	if err != nil {
-		return err
-	}
-	// how should we handle the errorData, if at all?
+func PrepareDeviceStatusInformation(deviceData models.UserDeviceDatumSlice) DeviceSnapshot {
 	ds := DeviceSnapshot{}
+
 	// merging data: foreach order by updatedAt desc, only set property if it exists in json data
 	for _, datum := range deviceData {
 		if datum.Data.Valid {
@@ -129,6 +100,43 @@ func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 			}
 		}
 	}
+
+	return ds
+}
+
+// GetUserDeviceStatus godoc
+// @Description Returns the latest status update for the device. May return 404 if the
+// @Description user does not have a device with the ID, or if no status updates have come
+// @Tags        user-devices
+// @Produce     json
+// @Param       user_device_id path     string true "user device ID"
+// @Success     200            {object} controllers.DeviceSnapshot
+// @Security    BearerAuth
+// @Router      /user/devices/{userDeviceID}/status [get]
+func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
+	udi := c.Params("userDeviceID")
+	userID := helpers.GetUserID(c)
+	userDevice, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(udi),
+		models.UserDeviceWhere.UserID.EQ(userID),
+	).One(c.Context(), udc.DBS().Writer)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+		}
+		return err
+	}
+	deviceData, err := models.UserDeviceData(models.UserDeviceDatumWhere.UserDeviceID.EQ(userDevice.ID),
+		qm.OrderBy("updated_at asc")).All(c.Context(), udc.DBS().Reader)
+	if errors.Is(err, sql.ErrNoRows) || len(deviceData) == 0 || !deviceData[0].Data.Valid {
+		return fiber.NewError(fiber.StatusNotFound, "no status updates yet")
+	}
+	if err != nil {
+		return err
+	}
+	// how should we handle the errorData, if at all?
+	ds := PrepareDeviceStatusInformation(deviceData)
+
 	return c.JSON(ds)
 }
 
