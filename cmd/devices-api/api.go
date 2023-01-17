@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/DIMO-Network/shared/db"
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
 
@@ -148,9 +149,11 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb db.Store,
 			Log: &logger,
 		})
 
+		vehicleAddr := common.HexToAddress(settings.VehicleNFTAddress)
+
 		// vehicle command privileges
-		veh.Get("/status", tk.OneOf(1), nftController.GetVehicleStatus)
-		veh.Post("/commands/unlock", tk.OneOf(1), userDeviceController.TestDeviceCommand)
+		veh.Get("/status", tk.OneOf(vehicleAddr, []int64{1, 3, 4}), nftController.GetVehicleStatus)
+		veh.Post("/commands/unlock", tk.OneOf(vehicleAddr, []int64{2}), userDeviceController.TestDeviceCommand)
 	}
 
 	v1Auth.Use(jwtAuth)

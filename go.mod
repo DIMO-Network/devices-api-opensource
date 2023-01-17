@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/DIMO-Network/device-definitions-api v0.7.1
-	github.com/DIMO-Network/shared v0.7.0
+	github.com/DIMO-Network/shared v0.7.2
 	github.com/DIMO-Network/zflogger v1.0.0-beta
 	github.com/Shopify/sarama v1.33.0
 	github.com/ThreeDotsLabs/watermill v1.1.1
