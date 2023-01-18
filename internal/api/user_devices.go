@@ -9,6 +9,7 @@ import (
 	"github.com/DIMO-Network/devices-api/models"
 	pb "github.com/DIMO-Network/shared/api/devices"
 	"github.com/DIMO-Network/shared/db"
+	"github.com/ericlagergren/decimal"
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -43,6 +44,30 @@ func (s *userDeviceService) GetUserDevice(ctx context.Context, req *pb.GetUserDe
 	}
 
 	return s.deviceModelToAPI(dbDevice), nil
+}
+
+func (s *userDeviceService) GetUserDeviceByTokenId(ctx context.Context, req *pb.GetUserDeviceByTokenIdRequest) (*pb.UserDevice, error) { //nolint
+
+	tknID := types.NewNullDecimal(decimal.New(req.TokenId, 0))
+
+	nft, err := models.VehicleNFTS(
+		models.VehicleNFTWhere.TokenID.EQ(tknID),
+	).One(ctx, s.dbs().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, status.Error(codes.NotFound, "No device with that token ID found.")
+		}
+		s.logger.Err(err).Int64("tokenID", req.TokenId).Msg("Database failure retrieving device.")
+		return nil, status.Error(codes.Internal, "Internal error.")
+	}
+
+	out := &pb.UserDevice{
+		Id:           nft.UserDeviceID.String,
+		TokenId:      s.toUint64(nft.TokenID),
+		OwnerAddress: nft.OwnerAddress.Bytes,
+	}
+
+	return out, nil
 }
 
 func (s *userDeviceService) ListUserDevicesForUser(ctx context.Context, req *pb.ListUserDevicesForUserRequest) (*pb.ListUserDevicesForUserResponse, error) {
