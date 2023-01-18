@@ -211,7 +211,6 @@ func (s *UserIntegrationsControllerTestSuite) TestPostSmartCar() {
 	// return a different year than original to fix up device definition id
 	s.scClient.EXPECT().GetYear(gomock.Any(), "myAccess", "smartcar-idx").Return(2022, nil)
 	s.drivlyTaskSvc.EXPECT().StartDrivlyUpdate(dd[0].DeviceDefinitionId, ud.ID, "CARVIN").Return("task-id-123", nil)
-	s.blackbookTaskSvc.EXPECT().StartBlackbookUpdate(dd[0].DeviceDefinitionId, ud.ID, "CARVIN").Return("task-id-123", nil)
 
 	oUdai := &models.UserDeviceAPIIntegration{}
 	s.scTaskSvc.EXPECT().StartPoll(gomock.AssignableToTypeOf(oUdai)).DoAndReturn(
