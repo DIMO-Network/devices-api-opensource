@@ -152,8 +152,8 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb db.Store,
 		vehicleAddr := common.HexToAddress(settings.VehicleNFTAddress)
 
 		// vehicle command privileges
-		veh.Get("/status", tk.OneOf(vehicleAddr, []int64{1, 3, 4}), nftController.GetVehicleStatus)
-		veh.Post("/commands/unlock", tk.OneOf(vehicleAddr, []int64{2}), userDeviceController.TestDeviceCommand)
+		veh.Get("/status", tk.OneOf(vehicleAddr, []int64{controllers.NonLocationData, controllers.CurrentLocation, controllers.AllTimeLocation}), nftController.GetVehicleStatus)
+		veh.Post("/commands/unlock", tk.OneOf(vehicleAddr, []int64{controllers.Commands}), userDeviceController.TestDeviceCommand)
 	}
 
 	v1Auth.Use(jwtAuth)

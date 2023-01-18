@@ -11,6 +11,7 @@ import (
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
 	"github.com/DIMO-Network/shared/db"
+	pr "github.com/DIMO-Network/shared/middleware/privilegetoken"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -43,6 +44,13 @@ func NewNFTController(settings *config.Settings, dbs func() *db.ReaderWriter, lo
 		deviceDefSvc: deviceDefSvc,
 	}
 }
+
+const (
+	NonLocationData int64 = 1
+	Commands        int64 = 2
+	CurrentLocation int64 = 3
+	AllTimeLocation int64 = 4
+)
 
 // GetNFTMetadata godoc
 // @Description retrieves NFT metadata for a given tokenID
@@ -259,6 +267,9 @@ func (nc *NFTController) GetManufacturerNFTMetadata(c *fiber.Ctx) error {
 // @Router      /vehicle/{tokenId}/status [get]
 func (nc *NFTController) GetVehicleStatus(c *fiber.Ctx) error {
 	tis := c.Params("tokenID")
+	claims := c.Locals("tokenClaims").(pr.CustomClaims)
+
+	privileges := claims.PrivilegeIDs
 
 	ti, ok := new(big.Int).SetString(tis, 10)
 	if !ok {
@@ -292,7 +303,7 @@ func (nc *NFTController) GetVehicleStatus(c *fiber.Ctx) error {
 		return err
 	}
 
-	ds := PrepareDeviceStatusInformation(deviceData)
+	ds := PrepareDeviceStatusInformation(deviceData, privileges)
 
 	return c.JSON(ds)
 }

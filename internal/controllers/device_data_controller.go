@@ -12,9 +12,10 @@ import (
 	smartcar "github.com/smartcar/go-sdk"
 	"github.com/tidwall/gjson"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+	"golang.org/x/exp/slices"
 )
 
-func PrepareDeviceStatusInformation(deviceData models.UserDeviceDatumSlice) DeviceSnapshot {
+func PrepareDeviceStatusInformation(deviceData models.UserDeviceDatumSlice, privilegeIDs []int64) DeviceSnapshot {
 	ds := DeviceSnapshot{}
 
 	// merging data: foreach order by updatedAt desc, only set property if it exists in json data
@@ -27,77 +28,83 @@ func PrepareDeviceStatusInformation(deviceData models.UserDeviceDatumSlice) Devi
 
 			// note we are assuming json property names are same accross smartcar, tesla, autopi, AND same types eg. int / float / string
 			// we could use reflection and just have single line assuming json name in struct matches what is in data
-			charging := gjson.GetBytes(datum.Data.JSON, "charging")
-			if charging.Exists() {
-				c := charging.Bool()
-				ds.Charging = &c
+			if slices.Contains(privilegeIDs, NonLocationData) {
+				charging := gjson.GetBytes(datum.Data.JSON, "charging")
+				if charging.Exists() {
+					c := charging.Bool()
+					ds.Charging = &c
+				}
+				fuelPercentRemaining := gjson.GetBytes(datum.Data.JSON, "fuelPercentRemaining")
+				if fuelPercentRemaining.Exists() {
+					f := fuelPercentRemaining.Float()
+					ds.FuelPercentRemaining = &f
+				}
+				batteryCapacity := gjson.GetBytes(datum.Data.JSON, "batteryCapacity")
+				if batteryCapacity.Exists() {
+					b := batteryCapacity.Int()
+					ds.BatteryCapacity = &b
+				}
+				oilLevel := gjson.GetBytes(datum.Data.JSON, "oil")
+				if oilLevel.Exists() {
+					o := oilLevel.Float()
+					ds.OilLevel = &o
+				}
+				stateOfCharge := gjson.GetBytes(datum.Data.JSON, "soc")
+				if stateOfCharge.Exists() {
+					o := stateOfCharge.Float()
+					ds.StateOfCharge = &o
+				}
+				chargeLimit := gjson.GetBytes(datum.Data.JSON, "chargeLimit")
+				if chargeLimit.Exists() {
+					o := chargeLimit.Float()
+					ds.ChargeLimit = &o
+				}
+				odometer := gjson.GetBytes(datum.Data.JSON, "odometer")
+				if odometer.Exists() {
+					o := odometer.Float()
+					ds.Odometer = &o
+				}
+				rangeG := gjson.GetBytes(datum.Data.JSON, "range")
+				if rangeG.Exists() {
+					r := rangeG.Float()
+					ds.Range = &r
+				}
+				batteryVoltage := gjson.GetBytes(datum.Data.JSON, "batteryVoltage")
+				if batteryVoltage.Exists() {
+					bv := batteryVoltage.Float()
+					ds.BatteryVoltage = &bv
+				}
+				ambientTemp := gjson.GetBytes(datum.Data.JSON, "ambientTemp")
+				if ambientTemp.Exists() {
+					at := ambientTemp.Float()
+					ds.AmbientTemp = &at
+				}
+				// TirePressure
+				tires := gjson.GetBytes(datum.Data.JSON, "tires")
+				if tires.Exists() {
+					// weird thing here is in example payloads these are all ints, but the smartcar lib has as floats
+					ds.TirePressure = &smartcar.TirePressure{
+						FrontLeft:  tires.Get("frontLeft").Float(),
+						FrontRight: tires.Get("frontRight").Float(),
+						BackLeft:   tires.Get("backLeft").Float(),
+						BackRight:  tires.Get("backRight").Float(),
+					}
+				}
+
 			}
-			fuelPercentRemaining := gjson.GetBytes(datum.Data.JSON, "fuelPercentRemaining")
-			if fuelPercentRemaining.Exists() {
-				f := fuelPercentRemaining.Float()
-				ds.FuelPercentRemaining = &f
-			}
-			batteryCapacity := gjson.GetBytes(datum.Data.JSON, "batteryCapacity")
-			if batteryCapacity.Exists() {
-				b := batteryCapacity.Int()
-				ds.BatteryCapacity = &b
-			}
-			oilLevel := gjson.GetBytes(datum.Data.JSON, "oil")
-			if oilLevel.Exists() {
-				o := oilLevel.Float()
-				ds.OilLevel = &o
-			}
-			stateOfCharge := gjson.GetBytes(datum.Data.JSON, "soc")
-			if stateOfCharge.Exists() {
-				o := stateOfCharge.Float()
-				ds.StateOfCharge = &o
-			}
-			chargeLimit := gjson.GetBytes(datum.Data.JSON, "chargeLimit")
-			if chargeLimit.Exists() {
-				o := chargeLimit.Float()
-				ds.ChargeLimit = &o
-			}
-			odometer := gjson.GetBytes(datum.Data.JSON, "odometer")
-			if odometer.Exists() {
-				o := odometer.Float()
-				ds.Odometer = &o
-			}
-			latitude := gjson.GetBytes(datum.Data.JSON, "latitude")
-			if latitude.Exists() {
-				l := latitude.Float()
-				ds.Latitude = &l
-			}
-			longitude := gjson.GetBytes(datum.Data.JSON, "longitude")
-			if longitude.Exists() {
-				l := longitude.Float()
-				ds.Longitude = &l
-			}
-			rangeG := gjson.GetBytes(datum.Data.JSON, "range")
-			if rangeG.Exists() {
-				r := rangeG.Float()
-				ds.Range = &r
-			}
-			batteryVoltage := gjson.GetBytes(datum.Data.JSON, "batteryVoltage")
-			if batteryVoltage.Exists() {
-				bv := batteryVoltage.Float()
-				ds.BatteryVoltage = &bv
-			}
-			ambientTemp := gjson.GetBytes(datum.Data.JSON, "ambientTemp")
-			if ambientTemp.Exists() {
-				at := ambientTemp.Float()
-				ds.AmbientTemp = &at
-			}
-			// TirePressure
-			tires := gjson.GetBytes(datum.Data.JSON, "tires")
-			if tires.Exists() {
-				// weird thing here is in example payloads these are all ints, but the smartcar lib has as floats
-				ds.TirePressure = &smartcar.TirePressure{
-					FrontLeft:  tires.Get("frontLeft").Float(),
-					FrontRight: tires.Get("frontRight").Float(),
-					BackLeft:   tires.Get("backLeft").Float(),
-					BackRight:  tires.Get("backRight").Float(),
+			if slices.Contains(privilegeIDs, CurrentLocation) || slices.Contains(privilegeIDs, AllTimeLocation) {
+				latitude := gjson.GetBytes(datum.Data.JSON, "latitude")
+				if latitude.Exists() {
+					l := latitude.Float()
+					ds.Latitude = &l
+				}
+				longitude := gjson.GetBytes(datum.Data.JSON, "longitude")
+				if longitude.Exists() {
+					l := longitude.Float()
+					ds.Longitude = &l
 				}
 			}
+
 		}
 	}
 
@@ -135,7 +142,7 @@ func (udc *UserDevicesController) GetUserDeviceStatus(c *fiber.Ctx) error {
 		return err
 	}
 	// how should we handle the errorData, if at all?
-	ds := PrepareDeviceStatusInformation(deviceData)
+	ds := PrepareDeviceStatusInformation(deviceData, []int64{NonLocationData, CurrentLocation, AllTimeLocation})
 
 	return c.JSON(ds)
 }
