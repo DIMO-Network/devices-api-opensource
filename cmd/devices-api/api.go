@@ -137,13 +137,13 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb db.Store,
 	v1Auth := app.Group("/v1")
 
 	if settings.EnablePrivileges {
-		veh := v1Auth.Group("/vehicles/:tokenID")
 		privilegeAuth := jwtware.New(jwtware.Config{
 			KeySetURL:            settings.TokenExchangeJWTKeySetURL,
 			KeyRefreshInterval:   &keyRefreshInterval,
 			KeyRefreshUnknownKID: &keyRefreshUnknownKID,
 		})
-		veh.Use(privilegeAuth)
+
+		vPriv := app.Group("/v1/vehicle/:tokenID", privilegeAuth)
 
 		tk := pr.New(pr.Config{
 			Log: &logger,
@@ -152,8 +152,8 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb db.Store,
 		vehicleAddr := common.HexToAddress(settings.VehicleNFTAddress)
 
 		// vehicle command privileges
-		veh.Get("/status", tk.OneOf(vehicleAddr, []int64{controllers.NonLocationData, controllers.CurrentLocation, controllers.AllTimeLocation}), nftController.GetVehicleStatus)
-		veh.Post("/commands/unlock", tk.OneOf(vehicleAddr, []int64{controllers.Commands}), userDeviceController.TestDeviceCommand)
+		vPriv.Get("/status", tk.OneOf(vehicleAddr, []int64{controllers.NonLocationData, controllers.CurrentLocation, controllers.AllTimeLocation}), nftController.GetVehicleStatus)
+		vPriv.Post("/commands/unlock", tk.OneOf(vehicleAddr, []int64{controllers.Commands}), userDeviceController.TestDeviceCommand)
 	}
 
 	v1Auth.Use(jwtAuth)
