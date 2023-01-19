@@ -71,6 +71,7 @@ env:
   MONITORING_SERVER_PORT: 8888
   ENABLE_PRIVILEGES: true
   TOKEN_EXCHANGE_JWK_KEY_SET_URL: https://auth-roles-rights.dev.dimo.zone/keys
+  CONTRACT_EVENT_TOPIC: topic.contract.event
 service:
   type: ClusterIP
   ports:
