@@ -225,6 +225,9 @@ func main() {
 
 		logger.Info().Msg("Pairing success.")
 	default:
+		if settings.EnablePrivileges {
+			startContractEventsConsumer(logger, &settings, pdb)
+		}
 		startMonitoringServer(logger, &settings)
 		eventService := services.NewEventService(&logger, &settings, deps.getKafkaProducer())
 		startDeviceStatusConsumer(logger, &settings, pdb, eventService)
@@ -358,6 +361,29 @@ func startTaskStatusConsumer(logger zerolog.Logger, settings *config.Settings, p
 	consumer.Start(context.Background(), taskStatusService.ProcessTaskUpdates)
 
 	logger.Info().Msg("Task status consumer started")
+}
+
+func startContractEventsConsumer(logger zerolog.Logger, settings *config.Settings, pdb db.Store) {
+	clusterConfig := sarama.NewConfig()
+	clusterConfig.Version = sarama.V2_8_1_0
+	clusterConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
+
+	cfg := &kafka.Config{
+		ClusterConfig:   clusterConfig,
+		BrokerAddresses: strings.Split(settings.KafkaBrokers, ","),
+		Topic:           settings.ContractsEventTopic,
+		GroupID:         "user-devices",
+		MaxInFlight:     int64(5), // TODO(elffjs): Probably need to bump this up.
+	}
+	consumer, err := kafka.NewConsumer(cfg, &logger)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Could not start contract event consumer")
+	}
+
+	cevConsumer := services.NewContractsEventsConsumer(pdb, &logger)
+	consumer.Start(context.Background(), cevConsumer.ProcessContractsEventsMessages)
+
+	logger.Info().Msg("Contracts events consumer started")
 }
 
 func startMonitoringServer(logger zerolog.Logger, config *config.Settings) {

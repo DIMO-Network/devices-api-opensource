@@ -71,4 +71,5 @@ type Settings struct {
 	EnablePrivileges                  bool        `yaml:"ENABLE_PRIVILEGES"`
 	GoogleMapsAPIKey                  string      `yaml:"GOOGLE_MAPS_API_KEY"`
 	VehicleNFTAddress                 string      `yaml:"VEHICLE_NFT_ADDRESS"`
+	ContractsEventTopic               string      `yaml:"CONTRACT_EVENT_TOPIC"`
 }

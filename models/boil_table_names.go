@@ -10,11 +10,13 @@ var TableNames = struct {
 	ExternalVinData           string
 	Geofences                 string
 	MetaTransactionRequests   string
+	NFTPrivileges             string
 	UserDeviceAPIIntegrations string
 	UserDeviceData            string
 	UserDeviceToGeofence      string
 	UserDevices               string
 	VehicleNFTS               string
+	VehiclePrivileges         string
 }{
 	AutopiJobs:                "autopi_jobs",
 	AutopiUnits:               "autopi_units",
@@ -22,9 +24,11 @@ var TableNames = struct {
 	ExternalVinData:           "external_vin_data",
 	Geofences:                 "geofences",
 	MetaTransactionRequests:   "meta_transaction_requests",
+	NFTPrivileges:             "nft_privileges",
 	UserDeviceAPIIntegrations: "user_device_api_integrations",
 	UserDeviceData:            "user_device_data",
 	UserDeviceToGeofence:      "user_device_to_geofence",
 	UserDevices:               "user_devices",
 	VehicleNFTS:               "vehicle_nfts",
+	VehiclePrivileges:         "vehicle_privileges",
 }
