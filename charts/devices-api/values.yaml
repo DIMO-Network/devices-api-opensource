@@ -72,6 +72,7 @@ env:
   ENABLE_PRIVILEGES: true
   TOKEN_EXCHANGE_JWK_KEY_SET_URL: https://auth-roles-rights.dev.dimo.zone/keys
   CONTRACT_EVENT_TOPIC: topic.contract.event
+  VEHICLE_NFT_ADDRESS: '0x90c4d6113ec88dd4bdf12f26db2b3998fd13a144'
 service:
   type: ClusterIP
   ports:
