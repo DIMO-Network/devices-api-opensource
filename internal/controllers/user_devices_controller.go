@@ -26,6 +26,7 @@ import (
 	pb "github.com/DIMO-Network/shared/api/users"
 	"github.com/DIMO-Network/shared/db"
 	"github.com/Shopify/sarama"
+	"github.com/ericlagergren/decimal"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/gofiber/fiber/v2"
@@ -261,11 +262,18 @@ func (udc *UserDevicesController) SharedVehiclesTemp(c *fiber.Ctx) error {
 		PrivilegedUsers []User   `json:"privilegedUsers"`
 	}
 
-	type Resp struct {
-		VehiclesSharedByMe []Vehicle `json:"vehiclesSharedByMe"`
+	type VehicleWithMe struct {
+		TokenID      *big.Int       `json:"tokenId"`
+		OwnerAddress common.Address `json:"ownerAddress"`
+		MyPrivileges []Privilege    `json:"myPrivileges"`
 	}
 
-	resp := Resp{VehiclesSharedByMe: []Vehicle{}}
+	type Resp struct {
+		VehiclesSharedByMe   []Vehicle       `json:"sharedByMe"`
+		VehiclesSharedWithMe []VehicleWithMe `json:"sharedWithMe"`
+	}
+
+	resp := Resp{VehiclesSharedByMe: []Vehicle{}, VehiclesSharedWithMe: []VehicleWithMe{}}
 
 	userID := helpers.GetUserID(c)
 
@@ -304,6 +312,61 @@ func (udc *UserDevicesController) SharedVehiclesTemp(c *fiber.Ctx) error {
 		v := Vehicle{TokenID: ud.R.VehicleNFT.TokenID.Int(nil), PrivilegedUsers: users}
 
 		resp.VehiclesSharedByMe = append(resp.VehiclesSharedByMe, v)
+	}
+
+	// TODO(elffjs): Really shouldn't be dialing so much.
+	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		udc.log.Err(err).Msg("Failed to create users API client.")
+		return opaqueInternalError
+	}
+	defer conn.Close()
+
+	usersClient := pb.NewUserServiceClient(conn)
+
+	user, err := usersClient.GetUser(c.Context(), &pb.GetUserRequest{Id: userID})
+	if err != nil {
+		udc.log.Err(err).Msg("Couldn't retrieve user record.")
+		return opaqueInternalError
+	}
+
+	if user.EthereumAddress != nil {
+		// We should always get here if we've minted stuff.
+
+		userAddr := common.HexToAddress(*user.EthereumAddress)
+
+		privs, err := models.NFTPrivileges(
+			models.NFTPrivilegeWhere.ContractAddress.EQ(common.FromHex(udc.Settings.VehicleNFTAddress)),
+			models.NFTPrivilegeWhere.UserAddress.EQ(userAddr.Bytes()),
+			models.NFTPrivilegeWhere.Expiry.GTE(time.Now()),
+		).All(c.Context(), udc.DBS().Reader)
+		if err != nil {
+			return err
+		}
+
+		vAcc := make(map[int64][]Privilege)
+
+		for _, p := range privs {
+			tok, _ := p.TokenID.Int64()
+			vAcc[tok] = append(vAcc[tok], Privilege{ID: p.Privilege, ExpiresAt: p.Expiry})
+		}
+
+		for vTok, vPrivs := range vAcc {
+			v, err := models.VehicleNFTS(
+				models.VehicleNFTWhere.TokenID.EQ(types.NewNullDecimal(decimal.New(vTok, 0))),
+			).One(c.Context(), udc.DBS().Reader)
+			if err != nil {
+				return err
+			}
+
+			withMee := VehicleWithMe{
+				TokenID:      big.NewInt(vTok),
+				OwnerAddress: common.BytesToAddress(v.OwnerAddress.Bytes),
+				MyPrivileges: vPrivs,
+			}
+
+			resp.VehiclesSharedWithMe = append(resp.VehiclesSharedWithMe, withMee)
+		}
 	}
 
 	return c.JSON(resp)
