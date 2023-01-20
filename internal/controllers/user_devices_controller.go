@@ -36,6 +36,7 @@ import (
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -242,6 +243,70 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"userDevices": rp,
 	})
+}
+
+func (udc *UserDevicesController) SharedVehiclesTemp(c *fiber.Ctx) error {
+	type Privilege struct {
+		ID        int64     `json:"id"`
+		ExpiresAt time.Time `json:"expiry"`
+	}
+
+	type User struct {
+		Address    common.Address `json:"address"`
+		Privileges []Privilege
+	}
+
+	type Vehicle struct {
+		TokenID         *big.Int `json:"tokenId"`
+		PrivilegedUsers []User
+	}
+
+	type Resp struct {
+		VehiclesSharedByMe []Vehicle `json:"vehiclesSharedByMe"`
+	}
+
+	resp := Resp{VehiclesSharedByMe: []Vehicle{}}
+
+	userID := helpers.GetUserID(c)
+
+	uds, err := models.UserDevices(
+		models.UserDeviceWhere.UserID.EQ(userID),
+		qm.Load(models.UserDeviceRels.VehicleNFT, models.VehicleNFTWhere.TokenID.IsNotNull()),
+	).All(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		return err
+	}
+
+	for _, ud := range uds {
+		if ud.R.VehicleNFT == nil {
+			continue
+		}
+
+		privs, err := models.NFTPrivileges(
+			models.NFTPrivilegeWhere.ContractAddress.EQ(common.FromHex(udc.Settings.VehicleNFTAddress)),
+			models.NFTPrivilegeWhere.TokenID.EQ(types.Decimal(types.NewNullDecimal(ud.R.VehicleNFT.TokenID.Big))),
+			models.NFTPrivilegeWhere.Expiry.GTE(time.Now()),
+		).All(c.Context(), udc.DBS().Reader)
+		if err != nil {
+			return err
+		}
+
+		userAcc := make(map[common.Address][]Privilege)
+		for _, p := range privs {
+			userAcc[common.BytesToAddress(p.UserAddress)] = append(userAcc[common.BytesToAddress(p.UserAddress)], Privilege{ID: p.Privilege, ExpiresAt: p.Expiry})
+		}
+
+		users := []User{}
+		for a, ps := range userAcc {
+			users = append(users, User{Address: a, Privileges: ps})
+		}
+
+		v := Vehicle{TokenID: ud.R.VehicleNFT.TokenID.Int(nil), PrivilegedUsers: users}
+
+		resp.VehiclesSharedByMe = append(resp.VehiclesSharedByMe, v)
+	}
+
+	return c.JSON(resp)
 }
 
 func NewUserDeviceIntegrationStatusesFromDatabase(udis []*models.UserDeviceAPIIntegration, integrations []*ddgrpc.Integration) []UserDeviceIntegrationStatus {
