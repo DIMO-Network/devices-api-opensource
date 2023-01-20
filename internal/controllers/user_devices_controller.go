@@ -264,6 +264,7 @@ func (udc *UserDevicesController) SharedVehiclesTemp(c *fiber.Ctx) error {
 
 	type VehicleWithMe struct {
 		TokenID      *big.Int       `json:"tokenId"`
+		Type         string         `json:"type"`
 		OwnerAddress common.Address `json:"ownerAddress"`
 		MyPrivileges []Privilege    `json:"myPrivileges"`
 	}
@@ -354,13 +355,21 @@ func (udc *UserDevicesController) SharedVehiclesTemp(c *fiber.Ctx) error {
 		for vTok, vPrivs := range vAcc {
 			v, err := models.VehicleNFTS(
 				models.VehicleNFTWhere.TokenID.EQ(types.NewNullDecimal(decimal.New(vTok, 0))),
+				models.VehicleNFTWhere.UserDeviceID.IsNotNull(),
+				qm.Load(models.VehicleNFTRels.UserDevice),
 			).One(c.Context(), udc.DBS().Reader)
+			if err != nil {
+				return err
+			}
+
+			dd, err := udc.DeviceDefSvc.GetDeviceDefinitionByID(c.Context(), v.R.UserDevice.DeviceDefinitionID)
 			if err != nil {
 				return err
 			}
 
 			withMee := VehicleWithMe{
 				TokenID:      big.NewInt(vTok),
+				Type:         fmt.Sprintf("%s %s %d", dd.Type.Make, dd.Type.Model, dd.Type.Year),
 				OwnerAddress: common.BytesToAddress(v.OwnerAddress.Bytes),
 				MyPrivileges: vPrivs,
 			}
