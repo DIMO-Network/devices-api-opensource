@@ -253,12 +253,12 @@ func (udc *UserDevicesController) SharedVehiclesTemp(c *fiber.Ctx) error {
 
 	type User struct {
 		Address    common.Address `json:"address"`
-		Privileges []Privilege
+		Privileges []Privilege    `json:"privileges"`
 	}
 
 	type Vehicle struct {
 		TokenID         *big.Int `json:"tokenId"`
-		PrivilegedUsers []User
+		PrivilegedUsers []User   `json:"privilegedUsers"`
 	}
 
 	type Resp struct {
