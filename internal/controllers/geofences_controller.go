@@ -55,7 +55,7 @@ const PrivacyFenceEventType = "zone.dimo.device.privacyfence.update"
 // @Produce     json
 // @Accept      json
 // @Param       geofence body     controllers.CreateGeofence true "add geofence to user."
-// @Success     201      {object} api.CreateResponse
+// @Success     201      {object} helpers.CreateResponse
 // @Security    ApiKeyAuth
 // @Security    BearerAuth
 // @Router      /user/geofences [post]

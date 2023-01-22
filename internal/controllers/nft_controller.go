@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
+	"github.com/DIMO-Network/devices-api/internal/constants"
 	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
@@ -21,27 +22,39 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"github.com/volatiletech/sqlboiler/v4/types"
+	"golang.org/x/exp/slices"
 )
 
 type NFTController struct {
-	Settings     *config.Settings
-	DBS          func() *db.ReaderWriter
-	s3           *s3.Client
-	log          *zerolog.Logger
-	deviceDefSvc services.DeviceDefinitionService
+	Settings         *config.Settings
+	DBS              func() *db.ReaderWriter
+	s3               *s3.Client
+	log              *zerolog.Logger
+	deviceDefSvc     services.DeviceDefinitionService
+	integSvc         services.DeviceDefinitionIntegrationService
+	smartcarTaskSvc  services.SmartcarTaskService
+	teslaTaskService services.TeslaTaskService
 }
 
 // NewNFTController constructor
 func NewNFTController(settings *config.Settings, dbs func() *db.ReaderWriter, logger *zerolog.Logger, s3 *s3.Client,
-	deviceDefSvc services.DeviceDefinitionService) NFTController {
+	deviceDefSvc services.DeviceDefinitionService,
+	smartcarTaskSvc services.SmartcarTaskService,
+	teslaTaskService services.TeslaTaskService,
+	integSvc services.DeviceDefinitionIntegrationService,
+) NFTController {
 	return NFTController{
-		Settings:     settings,
-		DBS:          dbs,
-		log:          logger,
-		s3:           s3,
-		deviceDefSvc: deviceDefSvc,
+		Settings:         settings,
+		DBS:              dbs,
+		log:              logger,
+		s3:               s3,
+		deviceDefSvc:     deviceDefSvc,
+		smartcarTaskSvc:  smartcarTaskSvc,
+		teslaTaskService: teslaTaskService,
+		integSvc:         integSvc,
 	}
 }
 
@@ -306,4 +319,172 @@ func (nc *NFTController) GetVehicleStatus(c *fiber.Ctx) error {
 	ds := PrepareDeviceStatusInformation(deviceData, privileges)
 
 	return c.JSON(ds)
+}
+
+// UnlockDoors godoc
+// @Summary     Unlock the device's doors
+// @Description Unlock the device's doors.
+// @Tags        device,integration,command
+// @Success 200 {object} controllers.CommandResponse
+// @Produce     json
+// @Param       tokenID  path string true "Token ID"
+// @Router      /vehicle/{tokenID}/commands/doors/unlock [post]
+func (nc *NFTController) UnlockDoors(c *fiber.Ctx) error {
+	return nc.handleEnqueueCommand(c, "doors/unlock")
+}
+
+// LockDoors godoc
+// @Summary     Lock the device's doors
+// @Description Lock the device's doors.
+// @Tags        device,integration,command
+// @Success 200 {object} controllers.CommandResponse
+// @Produce     json
+// @Param       tokenID  path string true "Token ID"
+// @Router      /vehicle/{tokenID}/commands/doors/lock [post]
+func (nc *NFTController) LockDoors(c *fiber.Ctx) error {
+	return nc.handleEnqueueCommand(c, "doors/lock")
+}
+
+// OpenTrunk godoc
+// @Summary     Open the device's rear trunk
+// @Description Open the device's front trunk. Currently, this only works for Teslas connected through Tesla.
+// @Tags        device,integration,command
+// @Success 200 {object} controllers.CommandResponse
+// @Produce     json
+// @Param       tokenID  path string true "Token ID"
+// @Router      /vehicle/{tokenID}/commands/trunk/open [post]
+func (nc *NFTController) OpenTrunk(c *fiber.Ctx) error {
+	return nc.handleEnqueueCommand(c, "trunk/open")
+}
+
+// OpenFrunk godoc
+// @Summary     Open the device's front trunk
+// @Description Open the device's front trunk. Currently, this only works for Teslas connected through Tesla.
+// @Tags        device,integration,command
+// @Success 200 {object} controllers.CommandResponse
+// @Produce     json
+// @Param       tokenID  path string true "Token ID"
+// @Router      /vehicle/{tokenID}/commands/frunk/open [post]
+func (nc *NFTController) OpenFrunk(c *fiber.Ctx) error {
+	return nc.handleEnqueueCommand(c, "frunk/open")
+}
+
+// handleEnqueueCommand enqueues the command specified by commandPath with the
+// appropriate task service.
+//
+// Grabs token ID and privileges from Ctx.
+func (nc *NFTController) handleEnqueueCommand(c *fiber.Ctx, commandPath string) error {
+	tokenIDRaw := c.Params("tokenID")
+
+	logger := nc.log.With().
+		Str("feature", "commands").
+		Str("tokenID", tokenIDRaw).
+		Str("commandPath", commandPath).
+		Logger()
+
+	logger.Info().Msg("Received command request.")
+
+	tokenID, ok := new(decimal.Big).SetString(tokenIDRaw)
+	if !ok {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("Couldn't parse token id %q.", tokenID))
+	}
+
+	// Checking both that the nft exists and is linked to a device.
+	nft, err := models.VehicleNFTS(
+		models.VehicleNFTWhere.TokenID.EQ(types.NewNullDecimal(tokenID)),
+	).One(c.Context(), nc.DBS().Reader)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fiber.NewError(fiber.StatusNotFound, "Vehicle NFT not found.")
+		}
+		logger.Err(err).Msg("Failed to search for device.")
+		return opaqueInternalError
+	}
+
+	if !nft.UserDeviceID.Valid {
+		return fiber.NewError(fiber.StatusConflict, "NFT not attached to a user device.")
+	}
+
+	apInt, err := nc.integSvc.GetAutoPiIntegration(c.Context())
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Couldn't reach definitions server.")
+	}
+
+	udai, err := models.UserDeviceAPIIntegrations(
+		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(nft.UserDeviceID.String),
+		models.UserDeviceAPIIntegrationWhere.Status.EQ(models.UserDeviceAPIIntegrationStatusActive),
+		models.UserDeviceAPIIntegrationWhere.IntegrationID.NEQ(apInt.Id),
+	).One(c.Context(), nc.DBS().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fiber.NewError(fiber.StatusNotFound, "No command-capable integrations found for this vehicle.")
+		}
+		logger.Err(err).Msg("Failed to search for device integration record.")
+		return opaqueInternalError
+	}
+
+	md := new(services.UserDeviceAPIIntegrationsMetadata)
+	if err := udai.Metadata.Unmarshal(md); err != nil {
+		logger.Err(err).Msg("Couldn't parse metadata JSON.")
+		return opaqueInternalError
+	}
+
+	// TODO(elffjs): This map is ugly. Surely we interface our way out of this?
+	commandMap := map[string]map[string]func(udai *models.UserDeviceAPIIntegration) (string, error){
+		constants.SmartCarVendor: {
+			"doors/unlock": nc.smartcarTaskSvc.UnlockDoors,
+			"doors/lock":   nc.smartcarTaskSvc.LockDoors,
+		},
+		constants.TeslaVendor: {
+			"doors/unlock": nc.teslaTaskService.UnlockDoors,
+			"doors/lock":   nc.teslaTaskService.LockDoors,
+			"trunk/open":   nc.teslaTaskService.OpenTrunk,
+			"frunk/open":   nc.teslaTaskService.OpenFrunk,
+		},
+	}
+
+	integration, err := nc.deviceDefSvc.GetIntegrationByID(c.Context(), udai.IntegrationID)
+	if err != nil {
+		return helpers.GrpcErrorToFiber(err, "deviceDefSvc error getting integration id: "+udai.IntegrationID)
+	}
+
+	vendorCommandMap, ok := commandMap[integration.Vendor]
+	if !ok {
+		return fiber.NewError(fiber.StatusConflict, "Integration is not capable of this command.")
+	}
+
+	// This correctly handles md.Commands.Enabled being nil.
+	if !slices.Contains(md.Commands.Enabled, commandPath) {
+		return fiber.NewError(fiber.StatusConflict, "Integration is not capable of this command with this device.")
+	}
+
+	commandFunc, ok := vendorCommandMap[commandPath]
+	if !ok {
+		// Should never get here.
+		logger.Error().Msg("Command was enabled for this device, but there is no function to execute it.")
+		return fiber.NewError(fiber.StatusConflict, "Integration is not capable of this command.")
+	}
+
+	subTaskID, err := commandFunc(udai)
+	if err != nil {
+		logger.Err(err).Msg("Failed to start command task.")
+		return opaqueInternalError
+	}
+
+	comRow := &models.DeviceCommandRequest{
+		ID:            subTaskID,
+		UserDeviceID:  nft.UserDeviceID.String,
+		IntegrationID: udai.IntegrationID,
+		Command:       commandPath,
+		Status:        models.DeviceCommandRequestStatusPending,
+	}
+
+	if err := comRow.Insert(c.Context(), nc.DBS().Writer, boil.Infer()); err != nil {
+		logger.Err(err).Msg("Couldn't insert device command request record.")
+		return opaqueInternalError
+	}
+
+	logger.Info().Msg("Successfully enqueued command.")
+
+	return c.JSON(CommandResponse{RequestID: subTaskID})
 }

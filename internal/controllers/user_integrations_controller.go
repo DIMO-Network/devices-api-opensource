@@ -2469,25 +2469,6 @@ func (udc *UserDevicesController) fixSmartcarDeviceYear(ctx context.Context, log
 	return nil
 }
 
-const (
-	DoorsPrivilege int64 = 1
-)
-
-func (udc *UserDevicesController) TestDeviceCommand(c *fiber.Ctx) error {
-	claims := c.Locals("vehicleTokenClaims").(helpers.VehicleTokenClaims)
-
-	udc.log.Info().
-		Interface("claims", claims).
-		Interface("TokenID", claims.VehicleTokenID).
-		Msg("Got command.")
-	return c.JSON("Device command success!")
-}
-
-//func isValidAddress(v string) bool {
-//	re := regexp.MustCompile("^0x[0-9a-fA-F]{40}$")
-//	return re.MatchString(v)
-//}
-
 /** Structs for request / response **/
 
 type UserDeviceIntegrationStatus struct {

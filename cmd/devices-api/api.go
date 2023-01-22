@@ -115,7 +115,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb db.Store,
 	v1.Get("/device-definitions/:id/integrations", cacheHandler, deviceControllers.GetDeviceIntegrationsByID)
 	v1.Get("/device-definitions", deviceControllers.GetDeviceDefinitionByMMY)
 
-	nftController := controllers.NewNFTController(settings, pdb.DBS, &logger, s3NFTServiceClient, ddSvc)
+	nftController := controllers.NewNFTController(settings, pdb.DBS, &logger, s3NFTServiceClient, ddSvc, scTaskSvc, teslaTaskService, ddIntSvc)
 	v1.Get("/vehicle/:tokenID", nftController.GetNFTMetadata)
 	v1.Get("/vehicle/:tokenID/image", nftController.GetNFTImage)
 
@@ -153,7 +153,10 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb db.Store,
 
 		// vehicle command privileges
 		vPriv.Get("/status", tk.OneOf(vehicleAddr, []int64{controllers.NonLocationData, controllers.CurrentLocation, controllers.AllTimeLocation}), nftController.GetVehicleStatus)
-		vPriv.Post("/commands/unlock", tk.OneOf(vehicleAddr, []int64{controllers.Commands}), userDeviceController.TestDeviceCommand)
+		vPriv.Post("/commands/doors/unlock", tk.OneOf(vehicleAddr, []int64{controllers.Commands}), nftController.UnlockDoors)
+		vPriv.Post("/commands/doors/lock", tk.OneOf(vehicleAddr, []int64{controllers.Commands}), nftController.LockDoors)
+		vPriv.Post("/commands/trunk/open", tk.OneOf(vehicleAddr, []int64{controllers.Commands}), nftController.OpenTrunk)
+		vPriv.Post("/commands/frunk/open", tk.OneOf(vehicleAddr, []int64{controllers.Commands}), nftController.OpenFrunk)
 	}
 
 	v1Auth.Use(jwtAuth)
