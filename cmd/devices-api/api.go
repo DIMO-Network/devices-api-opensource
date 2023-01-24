@@ -77,7 +77,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb db.Store,
 	userDeviceController := controllers.NewUserDevicesController(settings, pdb.DBS, &logger, ddSvc, ddIntSvc, eventService, smartcarClient, scTaskSvc, teslaSvc, teslaTaskService, cipher, autoPiSvc, services.NewNHTSAService(), autoPiIngest, deviceDefinitionRegistrar, autoPiTaskService, producer, s3NFTServiceClient, drivlyTaskService, blackbookTaskService, autoPi)
 	geofenceController := controllers.NewGeofencesController(settings, pdb.DBS, &logger, producer, ddSvc)
 	webhooksController := controllers.NewWebhooksController(settings, pdb.DBS, &logger, autoPiSvc, ddIntSvc)
-	documentsController := controllers.NewDocumentsController(settings, s3ServiceClient, pdb.DBS)
+	documentsController := controllers.NewDocumentsController(settings, &logger, s3ServiceClient, pdb.DBS)
 
 	// commenting this out b/c the library includes the path in the metrics which saturates prometheus queries - need to fork / make our own
 	//prometheus := fiberprometheus.New("devices-api")

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog"
+
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/controllers/helpers"
 	"github.com/DIMO-Network/devices-api/models"
@@ -23,14 +25,12 @@ type DocumentsController struct {
 	settings *config.Settings
 	s3Client *s3.Client
 	DBS      func() *db.ReaderWriter
+	logger   *zerolog.Logger
 }
 
 // NewDocumentsController constructor
-func NewDocumentsController(
-	settings *config.Settings,
-	s3Client *s3.Client,
-	dbs func() *db.ReaderWriter) DocumentsController {
-	return DocumentsController{settings: settings, s3Client: s3Client, DBS: dbs}
+func NewDocumentsController(settings *config.Settings, z *zerolog.Logger, s3Client *s3.Client, dbs func() *db.ReaderWriter) DocumentsController {
+	return DocumentsController{settings: settings, s3Client: s3Client, DBS: dbs, logger: z}
 }
 
 // GetDocuments godoc
@@ -152,7 +152,7 @@ func (udc *DocumentsController) PostDocument(c *fiber.Ctx) error {
 		).Exists(c.Context(), udc.DBS().Writer)
 
 		if err != nil {
-			return helpers.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 
 		if !exists {
@@ -211,7 +211,8 @@ func (udc *DocumentsController) PostDocument(c *fiber.Ctx) error {
 	})
 
 	if err != nil {
-		return helpers.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
+		udc.logger.Err(err).Msg("failed to upload glovebox document")
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	_ = result
@@ -220,7 +221,7 @@ func (udc *DocumentsController) PostDocument(c *fiber.Ctx) error {
 	if len(udi) > 0 {
 		url = fmt.Sprintf("%s/v1/documents/%s-%s/download", udc.settings.DeploymentBaseURL, udi, id)
 	}
-
+	udc.logger.Info().Msgf("succesfully uploaded glovebox document %s", documentName)
 	return c.JSON(DocumentResponse{
 		ID:           id,
 		Name:         documentName,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"google.golang.org/protobuf/types/known/emptypb"
 
