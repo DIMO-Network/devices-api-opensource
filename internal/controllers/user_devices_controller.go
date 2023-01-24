@@ -169,7 +169,9 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 	if err != nil {
 		return helpers.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
 	}
+
 	rp := make([]UserDeviceFull, len(devices))
+
 	ids := []string{}
 
 	for _, d := range devices {
@@ -183,7 +185,6 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 	}
 
 	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), ids)
-
 	if err != nil {
 		return helpers.GrpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+ids[0])
 	}
@@ -237,6 +238,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		}
 
 		var nft *NFTData
+		pu := []PrivilegeUser{}
 		if vnft := d.R.VehicleNFT; vnft != nil {
 			nftStatus := vnft.R.MintRequest
 			nft = &NFTData{
@@ -249,6 +251,32 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 			if !vnft.TokenID.IsZero() {
 				nft.TokenID = vnft.TokenID.Int(nil)
 				nft.TokenURI = fmt.Sprintf("%s/v1/nfts/%s", udc.Settings.DeploymentBaseURL, nft.TokenID)
+			}
+
+			// NFT Privileges
+			udp, err := models.NFTPrivileges(
+				models.NFTPrivilegeWhere.TokenID.EQ(types.Decimal(d.R.VehicleNFT.TokenID)),
+				models.NFTPrivilegeWhere.Expiry.GT(time.Now()),
+				models.NFTPrivilegeWhere.ContractAddress.EQ(common.FromHex(udc.Settings.VehicleNFTAddress)),
+			).All(c.Context(), udc.DBS().Reader)
+			if err != nil {
+				return err
+			}
+
+			privByAddr := make(map[string][]Privilege)
+			for _, v := range udp {
+				ua := common.BytesToAddress(v.UserAddress).Hex()
+				privByAddr[ua] = append(privByAddr[ua], Privilege{
+					ID:        v.Privilege,
+					ExpiresAt: v.Expiry,
+				})
+			}
+
+			for k, v := range privByAddr {
+				pu = append(pu, PrivilegeUser{
+					Address:    k,
+					Privileges: v,
+				})
 			}
 		}
 
@@ -264,6 +292,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 			Metadata:         *md,
 			NFT:              nft,
 			OptedInAt:        d.OptedInAt.Ptr(),
+			PrivilegeUsers:   pu,
 		}
 	}
 
@@ -1906,6 +1935,12 @@ func sortByJSONFieldMostRecent(udd models.UserDeviceDatumSlice, field string) {
 	})
 }
 
+// PrivilegeUser represents set of privileges I've granted to a user
+type PrivilegeUser struct {
+	Address    string      `json:"address"`
+	Privileges []Privilege `json:"privileges"`
+}
+
 // UserDeviceFull represents object user's see on frontend for listing of their devices
 type UserDeviceFull struct {
 	ID               string                        `json:"id"`
@@ -1919,6 +1954,7 @@ type UserDeviceFull struct {
 	Metadata         services.UserDeviceMetadata   `json:"metadata"`
 	NFT              *NFTData                      `json:"nft,omitempty"`
 	OptedInAt        *time.Time                    `json:"optedInAt"`
+	PrivilegeUsers   []PrivilegeUser               `json:"privilegedUsers"`
 }
 
 type NFTData struct {
