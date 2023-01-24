@@ -74,6 +74,32 @@ type UserDevicesController struct {
 	autoPiIntegration         *autopi.Integration
 }
 
+// PrivilegedDevices contains all devices for which a privilege has been shared
+type PrivilegedDevices struct {
+	Devices []PrivilegedAccessDevice `json:"devices"`
+}
+
+// PrivilegedAccessDevice device details for which a privilege has been shared
+type PrivilegedAccessDevice struct {
+	TokenID      *big.Int       `json:"tokenId"`
+	OwnerAddress common.Address `json:"ownerAddress"`
+	Device       Device         `json:"type"`
+	Privileges   []Privilege    `json:"privileges"`
+}
+
+// Privilege ID associated with privilege and expiration time
+type Privilege struct {
+	ID        int64     `json:"id"`
+	ExpiresAt time.Time `json:"expiry"`
+}
+
+// Device vehicle make, model, year
+type Device struct {
+	Make  string `json:"make"`
+	Model string `json:"model"`
+	Year  int    `json:"year"`
+}
+
 // NewUserDevicesController constructor
 func NewUserDevicesController(
 	settings *config.Settings,
@@ -246,74 +272,17 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 	})
 }
 
-func (udc *UserDevicesController) SharedVehiclesTemp(c *fiber.Ctx) error {
-	type Privilege struct {
-		ID        int64     `json:"id"`
-		ExpiresAt time.Time `json:"expiry"`
-	}
-
-	type User struct {
-		Address    common.Address `json:"address"`
-		Privileges []Privilege    `json:"privileges"`
-	}
-
-	type Vehicle struct {
-		TokenID         *big.Int `json:"tokenId"`
-		PrivilegedUsers []User   `json:"privilegedUsers"`
-	}
-
-	type VehicleWithMe struct {
-		TokenID      *big.Int       `json:"tokenId"`
-		Type         string         `json:"type"`
-		OwnerAddress common.Address `json:"ownerAddress"`
-		MyPrivileges []Privilege    `json:"myPrivileges"`
-	}
-
-	type Resp struct {
-		VehiclesSharedByMe   []Vehicle       `json:"sharedByMe"`
-		VehiclesSharedWithMe []VehicleWithMe `json:"sharedWithMe"`
-	}
-
-	resp := Resp{VehiclesSharedByMe: []Vehicle{}, VehiclesSharedWithMe: []VehicleWithMe{}}
+// PrivilegedAccessVehicles godoc
+// @Description gets all devices that have been shared with user
+// @Tags        user-devices
+// @Produce     json
+// @Success     200 {object} controllers.PrivilegedDevices
+// @Security    BearerAuth
+// @Router      /user/devices/shared-with-me [get]
+func (udc *UserDevicesController) PrivilegedAccessVehicles(c *fiber.Ctx) error {
+	resp := PrivilegedDevices{Devices: []PrivilegedAccessDevice{}}
 
 	userID := helpers.GetUserID(c)
-
-	uds, err := models.UserDevices(
-		models.UserDeviceWhere.UserID.EQ(userID),
-		qm.Load(models.UserDeviceRels.VehicleNFT, models.VehicleNFTWhere.TokenID.IsNotNull()),
-	).All(c.Context(), udc.DBS().Reader)
-	if err != nil {
-		return err
-	}
-
-	for _, ud := range uds {
-		if ud.R.VehicleNFT == nil {
-			continue
-		}
-
-		privs, err := models.NFTPrivileges(
-			models.NFTPrivilegeWhere.ContractAddress.EQ(common.FromHex(udc.Settings.VehicleNFTAddress)),
-			models.NFTPrivilegeWhere.TokenID.EQ(types.Decimal(types.NewNullDecimal(ud.R.VehicleNFT.TokenID.Big))),
-			models.NFTPrivilegeWhere.Expiry.GTE(time.Now()),
-		).All(c.Context(), udc.DBS().Reader)
-		if err != nil {
-			return err
-		}
-
-		userAcc := make(map[common.Address][]Privilege)
-		for _, p := range privs {
-			userAcc[common.BytesToAddress(p.UserAddress)] = append(userAcc[common.BytesToAddress(p.UserAddress)], Privilege{ID: p.Privilege, ExpiresAt: p.Expiry})
-		}
-
-		users := []User{}
-		for a, ps := range userAcc {
-			users = append(users, User{Address: a, Privileges: ps})
-		}
-
-		v := Vehicle{TokenID: ud.R.VehicleNFT.TokenID.Int(nil), PrivilegedUsers: users}
-
-		resp.VehiclesSharedByMe = append(resp.VehiclesSharedByMe, v)
-	}
 
 	// TODO(elffjs): Really shouldn't be dialing so much.
 	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -331,51 +300,50 @@ func (udc *UserDevicesController) SharedVehiclesTemp(c *fiber.Ctx) error {
 		return opaqueInternalError
 	}
 
-	if user.EthereumAddress != nil {
-		// We should always get here if we've minted stuff.
+	if user.EthereumAddress == nil {
+		udc.log.Info().Str("user", userID).Msg("no minted devices found for user")
+		return c.JSON(resp)
+	}
 
-		userAddr := common.HexToAddress(*user.EthereumAddress)
+	userAddr := common.HexToAddress(*user.EthereumAddress)
 
-		privs, err := models.NFTPrivileges(
-			models.NFTPrivilegeWhere.ContractAddress.EQ(common.FromHex(udc.Settings.VehicleNFTAddress)),
-			models.NFTPrivilegeWhere.UserAddress.EQ(userAddr.Bytes()),
-			models.NFTPrivilegeWhere.Expiry.GTE(time.Now()),
-		).All(c.Context(), udc.DBS().Reader)
+	privs, err := models.NFTPrivileges(
+		models.NFTPrivilegeWhere.ContractAddress.EQ(common.FromHex(udc.Settings.VehicleNFTAddress)),
+		models.NFTPrivilegeWhere.UserAddress.EQ(userAddr.Bytes()),
+		models.NFTPrivilegeWhere.Expiry.GTE(time.Now()),
+	).All(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		return err
+	}
+
+	privByToken := make(map[int64][]Privilege)
+
+	for _, p := range privs {
+		tok, _ := p.TokenID.Int64()
+		privByToken[tok] = append(privByToken[tok], Privilege{ID: p.Privilege, ExpiresAt: p.Expiry})
+	}
+
+	for vTok, vPrivs := range privByToken {
+		v, err := models.VehicleNFTS(
+			models.VehicleNFTWhere.TokenID.EQ(types.NewNullDecimal(decimal.New(vTok, 0))),
+		).One(c.Context(), udc.DBS().Reader)
 		if err != nil {
 			return err
 		}
 
-		vAcc := make(map[int64][]Privilege)
-
-		for _, p := range privs {
-			tok, _ := p.TokenID.Int64()
-			vAcc[tok] = append(vAcc[tok], Privilege{ID: p.Privilege, ExpiresAt: p.Expiry})
+		dd, err := udc.DeviceDefSvc.GetDeviceDefinitionByID(c.Context(), v.R.UserDevice.DeviceDefinitionID)
+		if err != nil {
+			return err
 		}
 
-		for vTok, vPrivs := range vAcc {
-			v, err := models.VehicleNFTS(
-				models.VehicleNFTWhere.TokenID.EQ(types.NewNullDecimal(decimal.New(vTok, 0))),
-				models.VehicleNFTWhere.UserDeviceID.IsNotNull(),
-				qm.Load(models.VehicleNFTRels.UserDevice),
-			).One(c.Context(), udc.DBS().Reader)
-			if err != nil {
-				return err
-			}
-
-			dd, err := udc.DeviceDefSvc.GetDeviceDefinitionByID(c.Context(), v.R.UserDevice.DeviceDefinitionID)
-			if err != nil {
-				return err
-			}
-
-			withMee := VehicleWithMe{
-				TokenID:      big.NewInt(vTok),
-				Type:         fmt.Sprintf("%s %s %d", dd.Type.Make, dd.Type.Model, dd.Type.Year),
-				OwnerAddress: common.BytesToAddress(v.OwnerAddress.Bytes),
-				MyPrivileges: vPrivs,
-			}
-
-			resp.VehiclesSharedWithMe = append(resp.VehiclesSharedWithMe, withMee)
+		privAcess := PrivilegedAccessDevice{
+			TokenID:      big.NewInt(vTok),
+			OwnerAddress: common.BytesToAddress(v.OwnerAddress.Bytes),
+			Device:       Device{Make: dd.Type.MakeSlug, Model: dd.Type.ModelSlug, Year: int(dd.Type.Year)},
+			Privileges:   vPrivs,
 		}
+
+		resp.Devices = append(resp.Devices, privAcess)
 	}
 
 	return c.JSON(resp)
