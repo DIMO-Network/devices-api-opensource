@@ -90,6 +90,7 @@ type PrivilegedAccessDevice struct {
 // Privilege ID associated with privilege and expiration time
 type Privilege struct {
 	ID        int64     `json:"id"`
+	UpdatedAt time.Time `json:"updatedAt"`
 	ExpiresAt time.Time `json:"expiry"`
 }
 
@@ -269,6 +270,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 				privByAddr[ua] = append(privByAddr[ua], Privilege{
 					ID:        v.Privilege,
 					ExpiresAt: v.Expiry,
+					UpdatedAt: v.UpdatedAt,
 				})
 			}
 
@@ -349,7 +351,7 @@ func (udc *UserDevicesController) PrivilegedAccessVehicles(c *fiber.Ctx) error {
 
 	for _, p := range privs {
 		tok, _ := p.TokenID.Int64()
-		privByToken[tok] = append(privByToken[tok], Privilege{ID: p.Privilege, ExpiresAt: p.Expiry})
+		privByToken[tok] = append(privByToken[tok], Privilege{ID: p.Privilege, ExpiresAt: p.Expiry, UpdatedAt: p.UpdatedAt})
 	}
 
 	for vTok, vPrivs := range privByToken {

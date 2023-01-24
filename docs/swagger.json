@@ -29,7 +29,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp"
                         }
                     },
                     "404": {
@@ -98,7 +98,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiDeviceInfo"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.AutoPiDeviceInfo"
                         }
                     }
                 }
@@ -157,7 +157,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiClaimRequest"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.AutoPiClaimRequest"
                         }
                     }
                 ],
@@ -355,7 +355,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_controllers.DocumentResponse"
+                                "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
                             }
                         }
                     }
@@ -410,7 +410,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.DocumentResponse"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
                         }
                     }
                 }
@@ -446,7 +446,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.DocumentResponse"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.DocumentResponse"
                         }
                     }
                 }
@@ -564,7 +564,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp"
                         }
                     },
                     "404": {
@@ -635,7 +635,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiCommandRequest"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.AutoPiCommandRequest"
                         }
                     }
                 ],
@@ -765,7 +765,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiPairRequest"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.AutoPiPairRequest"
                         }
                     }
                 ],
@@ -825,7 +825,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.AutoPiPairRequest"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.AutoPiPairRequest"
                         }
                     }
                 ],
@@ -853,7 +853,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.RegisterDeviceIntegrationRequest"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.RegisterDeviceIntegrationRequest"
                         }
                     }
                 ],
@@ -1251,7 +1251,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.GetUserDeviceIntegrationResponse"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.GetUserDeviceIntegrationResponse"
                         }
                     }
                 }
@@ -1306,7 +1306,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1345,7 +1345,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1384,7 +1384,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1423,7 +1423,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1469,7 +1469,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandRequestStatusResp"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.CommandRequestStatusResp"
                         }
                     }
                 }
@@ -1885,7 +1885,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1916,7 +1916,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1947,7 +1947,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -1978,7 +1978,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.CommandResponse"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.CommandResponse"
                         }
                     }
                 }
@@ -2006,7 +2006,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.NFTMetadataResp"
                         }
                     },
                     "404": {
@@ -2071,7 +2071,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.DeviceSnapshot"
+                            "$ref": "#/definitions/github_com_DIMO-Network_devices-api_internal_controllers.DeviceSnapshot"
                         }
                     },
                     "404": {
@@ -2716,11 +2716,14 @@
         "github_com_DIMO-Network_devices-api_internal_controllers.Privilege": {
             "type": "object",
             "properties": {
-                "expiresAt": {
+                "expiry": {
                     "type": "string"
                 },
                 "id": {
                     "type": "integer"
+                },
+                "updatedAt": {
+                    "type": "string"
                 }
             }
         },
@@ -2741,8 +2744,11 @@
         "github_com_DIMO-Network_devices-api_internal_controllers.PrivilegedAccessDevice": {
             "type": "object",
             "properties": {
-                "address": {
-                    "type": "string"
+                "ownerAddress": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "privileges": {
                     "type": "array",
@@ -3930,11 +3936,14 @@
         "internal_controllers.Privilege": {
             "type": "object",
             "properties": {
-                "expiresAt": {
+                "expiry": {
                     "type": "string"
                 },
                 "id": {
                     "type": "integer"
+                },
+                "updatedAt": {
+                    "type": "string"
                 }
             }
         },
@@ -3955,13 +3964,33 @@
         "internal_controllers.PrivilegedAccessDevice": {
             "type": "object",
             "properties": {
-                "address": {
-                    "type": "string"
+                "ownerAddress": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "privileges": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/internal_controllers.Privilege"
+                    }
+                },
+                "tokenId": {
+                    "$ref": "#/definitions/big.Int"
+                },
+                "type": {
+                    "$ref": "#/definitions/internal_controllers.Device"
+                }
+            }
+        },
+        "internal_controllers.PrivilegedDevices": {
+            "type": "object",
+            "properties": {
+                "devices": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_controllers.PrivilegedAccessDevice"
                     }
                 }
             }
