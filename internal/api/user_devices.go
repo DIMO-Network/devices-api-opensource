@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/volatiletech/sqlboiler/v4/queries"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/DIMO-Network/devices-api/internal/services/autopi"
 	"github.com/DIMO-Network/devices-api/models"
@@ -91,6 +93,26 @@ func (s *userDeviceService) ListUserDevicesForUser(ctx context.Context, req *pb.
 
 func (s *userDeviceService) ApplyHardwareTemplate(ctx context.Context, req *pb.ApplyHardwareTemplateRequest) (*pb.ApplyHardwareTemplateResponse, error) {
 	return s.hardwareTemplateService.ApplyHardwareTemplate(ctx, req)
+}
+
+func (s *userDeviceService) GetAllUserDeviceValuation(ctx context.Context, empty *emptypb.Empty) (*pb.ValuationResponse, error) {
+	query := `select sum(evd.retail_price) as total from
+                             (
+select distinct on (vin) vin, pricing_metadata, jsonb_path_query(evd.pricing_metadata, '$.retail.kelley.book')::decimal as retail_price, created_at
+       from external_vin_data evd order by vin, created_at desc) as evd;`
+
+	type Result struct {
+		Total float64 `boil:"total"`
+	}
+	var obj Result
+	err := queries.Raw(query).Bind(ctx, s.dbs().Reader, &obj)
+	if err != nil {
+		s.logger.Err(err).Msg("Database failure retrieving total valuation.")
+		return nil, status.Error(codes.Internal, "Internal error.")
+	}
+	// todo: get an average valuation per vehicle, and multiply for whatever count of vehicles we did not get value for
+
+	return &pb.ValuationResponse{Total: float32(obj.Total)}, nil
 }
 
 func (s *userDeviceService) deviceModelToAPI(device *models.UserDevice) *pb.UserDevice {

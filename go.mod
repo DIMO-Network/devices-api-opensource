@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/DIMO-Network/device-definitions-api v0.7.1
-	github.com/DIMO-Network/shared v0.7.2
+	github.com/DIMO-Network/shared v0.7.3
 	github.com/DIMO-Network/zflogger v1.0.0-beta
 	github.com/Shopify/sarama v1.33.0
 	github.com/ThreeDotsLabs/watermill v1.1.1
@@ -140,7 +140,7 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/lithammer/shortuuid/v3 v3.0.7 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect; indirectn
-	github.com/mitchellh/mapstructure v1.5.0 // indirect
+	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
