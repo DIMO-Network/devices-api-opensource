@@ -224,3 +224,13 @@ swag init -g cmd/devices-api/main.go --parseDependency --parseInternal --generat
 
 [declarative_comments_format](https://swaggo.github.io/swaggo.io/declarative_comments_format/)
 
+
+## Testing file upload
+
+Replace the file with a file in your system, userDeviceID to one your account controls, and the Authorization header token to yours - get from mobile app
+```bash
+curl -X POST -F "file=@./admin-bug-filter2.gif" -F "name=test file" -F "type=VehicleMaintenance" -F "userDeviceID=2Bz5Wv4icb5Il1vBsaFjJKeILN7" \
+-H "Authorization: Bearer XXX" \
+-H "content-type: application/x-www-form-urlencoded" \
+https://devices-api.dimo.zone/v1/documents
+```
