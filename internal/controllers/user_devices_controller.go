@@ -371,7 +371,7 @@ func (udc *UserDevicesController) PrivilegedAccessVehicles(c *fiber.Ctx) error {
 		privAcess := PrivilegedAccessDevice{
 			TokenID:      big.NewInt(vTok),
 			OwnerAddress: common.BytesToAddress(v.OwnerAddress.Bytes),
-			Device:       Device{Make: dd.Type.MakeSlug, Model: dd.Type.ModelSlug, Year: int(dd.Type.Year)},
+			Device:       Device{Make: dd.Type.Make, Model: dd.Type.Model, Year: int(dd.Type.Year)},
 			Privileges:   vPrivs,
 		}
 
