@@ -357,6 +357,7 @@ func (udc *UserDevicesController) PrivilegedAccessVehicles(c *fiber.Ctx) error {
 	for vTok, vPrivs := range privByToken {
 		v, err := models.VehicleNFTS(
 			models.VehicleNFTWhere.TokenID.EQ(types.NewNullDecimal(decimal.New(vTok, 0))),
+			qm.Load(models.VehicleNFTRels.UserDevice),
 		).One(c.Context(), udc.DBS().Reader)
 		if err != nil {
 			return err
