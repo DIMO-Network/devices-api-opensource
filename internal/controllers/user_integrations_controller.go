@@ -1425,6 +1425,11 @@ func (udc *UserDevicesController) UnpairAutoPi(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusConflict, "Vehicle not yet minted.")
 	}
 
+	if autoPiUnit.UnpairRequestID.Valid {
+		// If it had succeeded, we wouldn't have a vehicle token.
+		return fiber.NewError(fiber.StatusConflict, "Unpairing in process, please wait.")
+	}
+
 	apToken := autoPiUnit.TokenID.Int(nil)
 	vehicleToken := ud.R.VehicleNFT.TokenID.Int(nil)
 
