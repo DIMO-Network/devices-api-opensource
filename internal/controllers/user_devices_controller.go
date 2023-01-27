@@ -150,44 +150,15 @@ func NewUserDevicesController(
 	}
 }
 
-// GetUserDevices godoc
-// @Description gets all devices associated with current user - pulled from token
-// @Tags        user-devices
-// @Produce     json
-// @Success     200 {object} []controllers.UserDeviceFull
-// @Security    BearerAuth
-// @Router      /user/devices/me [get]
-func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
-	// todo grpc call out to grpc service endpoint in the deviceDefinitionsService udc.deviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{ "todo"} )
-
-	userID := helpers.GetUserID(c)
-	devices, err := models.UserDevices(qm.Where("user_id = ?", userID),
-		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
-		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations)),
-		qm.Load(qm.Rels(models.UserDeviceRels.VehicleNFT, models.VehicleNFTRels.MintRequest)),
-		qm.OrderBy("created_at"),
-	).All(c.Context(), udc.DBS().Reader)
-	if err != nil {
-		return helpers.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
-	}
-
-	rp := make([]UserDeviceFull, len(devices))
-
-	ids := []string{}
-
+func (udc *UserDevicesController) dbDevicesToDisplay(ctx context.Context, devices []*models.UserDevice) ([]UserDeviceFull, error) {
+	var ddIDs []string
 	for _, d := range devices {
-		ids = append(ids, d.DeviceDefinitionID)
+		ddIDs = append(ddIDs, d.DeviceDefinitionID)
 	}
 
-	if len(ids) == 0 {
-		return c.JSON(fiber.Map{
-			"userDevices": rp,
-		})
-	}
-
-	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), ids)
+	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(ctx, ddIDs)
 	if err != nil {
-		return helpers.GrpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+ids[0])
+		return nil, helpers.GrpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+ddIDs[0])
 	}
 
 	filterDeviceDefinition := func(id string, items []*ddgrpc.GetDeviceDefinitionItemResponse) (*ddgrpc.GetDeviceDefinitionItemResponse, error) {
@@ -199,22 +170,22 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		return nil, errors.New("no device definition")
 	}
 
-	integrations, err2 := udc.DeviceDefSvc.GetIntegrations(c.Context())
-	if err2 != nil {
-		return helpers.GrpcErrorToFiber(err2, "failed to get integrations")
+	integrations, err := udc.DeviceDefSvc.GetIntegrations(ctx)
+	if err != nil {
+		return nil, helpers.GrpcErrorToFiber(err, "failed to get integrations")
 	}
 
-	for i, d := range devices {
+	var apiDevices []UserDeviceFull
 
+	for _, d := range devices {
 		deviceDefinition, err := filterDeviceDefinition(d.DeviceDefinitionID, deviceDefinitionResponse)
-
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		dd, err := NewDeviceDefinitionFromGRPC(deviceDefinition)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		filteredIntegrations := []services.DeviceCompatibility{}
@@ -231,15 +202,16 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 
 		dd.CompatibleIntegrations = filteredIntegrations
 
-		md := new(services.UserDeviceMetadata)
+		var md services.UserDeviceMetadata
 		if d.Metadata.Valid {
-			if err := d.Metadata.Unmarshal(md); err != nil {
-				return opaqueInternalError
+			if err := d.Metadata.Unmarshal(&md); err != nil {
+				return nil, opaqueInternalError
 			}
 		}
 
 		var nft *NFTData
 		pu := []PrivilegeUser{}
+
 		if vnft := d.R.VehicleNFT; vnft != nil {
 			nftStatus := vnft.R.MintRequest
 			nft = &NFTData{
@@ -259,9 +231,9 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 				models.NFTPrivilegeWhere.TokenID.EQ(types.Decimal(d.R.VehicleNFT.TokenID)),
 				models.NFTPrivilegeWhere.Expiry.GT(time.Now()),
 				models.NFTPrivilegeWhere.ContractAddress.EQ(common.FromHex(udc.Settings.VehicleNFTAddress)),
-			).All(c.Context(), udc.DBS().Reader)
+			).All(ctx, udc.DBS().Reader)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			privByAddr := make(map[string][]Privilege)
@@ -282,7 +254,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 			}
 		}
 
-		rp[i] = UserDeviceFull{
+		udf := UserDeviceFull{
 			ID:               d.ID,
 			VIN:              d.VinIdentifier.Ptr(),
 			VINConfirmed:     d.VinConfirmed,
@@ -291,16 +263,116 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 			CountryCode:      d.CountryCode.Ptr(),
 			DeviceDefinition: dd,
 			Integrations:     NewUserDeviceIntegrationStatusesFromDatabase(d.R.UserDeviceAPIIntegrations, integrations),
-			Metadata:         *md,
+			Metadata:         md,
 			NFT:              nft,
 			OptedInAt:        d.OptedInAt.Ptr(),
 			PrivilegeUsers:   pu,
 		}
+
+		apiDevices = append(apiDevices, udf)
 	}
 
-	return c.JSON(fiber.Map{
-		"userDevices": rp,
-	})
+	return apiDevices, nil
+}
+
+// GetUserDevices godoc
+// @Description gets all devices associated with current user - pulled from token
+// @Tags        user-devices
+// @Produce     json
+// @Success     200 {object} controllers.MyDevicesResp
+// @Security    BearerAuth
+// @Router      /user/devices/me [get]
+func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
+	// todo grpc call out to grpc service endpoint in the deviceDefinitionsService udc.deviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{ "todo"} )
+
+	userID := helpers.GetUserID(c)
+	devices, err := models.UserDevices(
+		models.UserDeviceWhere.UserID.EQ(userID),
+		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
+		qm.Load(qm.Rels(models.UserDeviceRels.VehicleNFT, models.VehicleNFTRels.MintRequest)),
+		qm.OrderBy(models.UserDeviceColumns.CreatedAt),
+	).All(c.Context(), udc.DBS().Reader)
+	if err != nil {
+		return helpers.ErrorResponseHandler(c, err, fiber.StatusInternalServerError)
+	}
+
+	apiMyDevices, err := udc.dbDevicesToDisplay(c.Context(), devices)
+	if err != nil {
+		return err
+	}
+
+	// TODO(elffjs): Really shouldn't be dialing so much.
+	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		udc.log.Err(err).Msg("Failed to create users API client.")
+		return opaqueInternalError
+	}
+	defer conn.Close()
+
+	usersClient := pb.NewUserServiceClient(conn)
+
+	user, err := usersClient.GetUser(c.Context(), &pb.GetUserRequest{Id: userID})
+	if err != nil {
+		udc.log.Err(err).Msg("Couldn't retrieve user record.")
+		return opaqueInternalError
+	}
+
+	var sharedDev []*models.UserDevice
+
+	if user.EthereumAddress != nil {
+		// This is N+1 hell.
+		userAddr := common.HexToAddress(*user.EthereumAddress)
+
+		privs, err := models.NFTPrivileges(
+			models.NFTPrivilegeWhere.ContractAddress.EQ(common.FromHex(udc.Settings.VehicleNFTAddress)),
+			models.NFTPrivilegeWhere.UserAddress.EQ(userAddr.Bytes()),
+			models.NFTPrivilegeWhere.Expiry.GT(time.Now()),
+		).All(c.Context(), udc.DBS().Reader)
+		if err != nil {
+			return err
+		}
+
+		var toks []types.Decimal
+
+	PrivLoop:
+		for _, priv := range privs {
+			for _, tok := range toks {
+				if tok.Cmp(priv.TokenID.Big) == 0 {
+					continue PrivLoop
+				}
+			}
+
+			nft, err := models.VehicleNFTS(
+				models.VehicleNFTWhere.TokenID.EQ(types.NewNullDecimal(priv.TokenID.Big)),
+				qm.Load(models.VehicleNFTRels.UserDevice),
+			).One(c.Context(), udc.DBS().Reader)
+			if err != nil {
+				if err == sql.ErrNoRows {
+					continue
+				}
+				return err
+			}
+
+			ud, err := models.UserDevices(
+				models.UserDeviceWhere.ID.EQ(nft.UserDeviceID.String),
+				qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
+				// Would we get this backreference for free?
+				qm.Load(qm.Rels(models.UserDeviceRels.VehicleNFT, models.VehicleNFTRels.MintRequest)),
+			).One(c.Context(), udc.DBS().Reader)
+			if err != nil {
+				return err
+			}
+
+			sharedDev = append(sharedDev, ud)
+		}
+	}
+
+	apiSharedDevices, err := udc.dbDevicesToDisplay(c.Context(), sharedDev)
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(MyDevicesResp{UserDevices: apiMyDevices, SharedDevices: apiSharedDevices})
 }
 
 // PrivilegedAccessVehicles godoc
@@ -1942,6 +2014,11 @@ func sortByJSONFieldMostRecent(udd models.UserDeviceDatumSlice, field string) {
 type PrivilegeUser struct {
 	Address    string      `json:"address"`
 	Privileges []Privilege `json:"privileges"`
+}
+
+type MyDevicesResp struct {
+	UserDevices   []UserDeviceFull `json:"userDevices"`
+	SharedDevices []UserDeviceFull `json:"sharedDevices"`
 }
 
 // UserDeviceFull represents object user's see on frontend for listing of their devices
