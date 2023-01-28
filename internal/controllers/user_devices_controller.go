@@ -230,7 +230,8 @@ func (udc *UserDevicesController) dbDevicesToDisplay(ctx context.Context, device
 				nft.TokenURI = fmt.Sprintf("%s/v1/nfts/%s", udc.Settings.DeploymentBaseURL, nft.TokenID)
 			}
 			if vnft.OwnerAddress.Valid {
-				nft.OwnerAddress = common.BytesToAddress(vnft.OwnerAddress.Bytes)
+				addr := common.BytesToAddress(vnft.OwnerAddress.Bytes)
+				nft.OwnerAddress = &addr
 			}
 
 			// NFT Privileges
