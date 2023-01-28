@@ -151,6 +151,12 @@ func NewUserDevicesController(
 }
 
 func (udc *UserDevicesController) dbDevicesToDisplay(ctx context.Context, devices []*models.UserDevice) ([]UserDeviceFull, error) {
+	apiDevices := []UserDeviceFull{}
+
+	if len(devices) == 0 {
+		return apiDevices, nil
+	}
+
 	var ddIDs []string
 	for _, d := range devices {
 		ddIDs = append(ddIDs, d.DeviceDefinitionID)
@@ -174,8 +180,6 @@ func (udc *UserDevicesController) dbDevicesToDisplay(ctx context.Context, device
 	if err != nil {
 		return nil, helpers.GrpcErrorToFiber(err, "failed to get integrations")
 	}
-
-	var apiDevices []UserDeviceFull
 
 	for _, d := range devices {
 		deviceDefinition, err := filterDeviceDefinition(d.DeviceDefinitionID, deviceDefinitionResponse)
