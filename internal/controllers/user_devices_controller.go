@@ -305,6 +305,21 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		return err
 	}
 
+	return c.JSON(MyDevicesResp{UserDevices: apiMyDevices})
+}
+
+// GetSharedDevices godoc
+// @Description gets all devices shared with current user - pulled from token
+// @Tags        user-devices
+// @Produce     json
+// @Success     200 {object} controllers.MyDevicesResp
+// @Security    BearerAuth
+// @Router      /user/devices/shared [get]
+func (udc *UserDevicesController) GetSharedDevices(c *fiber.Ctx) error {
+	// todo grpc call out to grpc service endpoint in the deviceDefinitionsService udc.deviceDefSvc.GetDeviceDefinitionsByIDs(c.Context(), []string{ "todo"} )
+
+	userID := helpers.GetUserID(c)
+
 	// TODO(elffjs): Really shouldn't be dialing so much.
 	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -378,7 +393,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 		return err
 	}
 
-	return c.JSON(MyDevicesResp{UserDevices: apiMyDevices, SharedDevices: apiSharedDevices})
+	return c.JSON(MyDevicesResp{SharedDevices: apiSharedDevices})
 }
 
 // PrivilegedAccessVehicles godoc
