@@ -346,7 +346,7 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 				}
 			}
 			
-			toks = append(toks, priv.TokenID.Big)
+			toks = append(toks, priv.TokenID)
 
 			nft, err := models.VehicleNFTS(
 				models.VehicleNFTWhere.TokenID.EQ(types.NewNullDecimal(priv.TokenID.Big)),
