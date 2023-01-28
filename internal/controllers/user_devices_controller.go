@@ -229,6 +229,9 @@ func (udc *UserDevicesController) dbDevicesToDisplay(ctx context.Context, device
 				nft.TokenID = vnft.TokenID.Int(nil)
 				nft.TokenURI = fmt.Sprintf("%s/v1/nfts/%s", udc.Settings.DeploymentBaseURL, nft.TokenID)
 			}
+			if vnft.OwnerAddress.Valid {
+				nft.OwnerAddress = common.BytesToAddress(vnft.OwnerAddress.Bytes)
+			}
 
 			// NFT Privileges
 			udp, err := models.NFTPrivileges(
@@ -2060,6 +2063,8 @@ type UserDeviceFull struct {
 
 type NFTData struct {
 	TokenID  *big.Int `json:"tokenId,omitempty" swaggertype:"number" example:"37"`
+	// OwnerAddress is the Ethereum address of the NFT owner.
+	OwnerAddress *common.Address `json:"ownerAddress,omitempty"`
 	TokenURI string   `json:"tokenUri,omitempty" example:"https://nft.dimo.zone/37"`
 	// TxHash is the hash of the minting transaction.
 	TxHash *string `json:"txHash,omitempty" example:"0x30bce3da6985897224b29a0fe064fd2b426bb85a394cc09efe823b5c83326a8e"`
