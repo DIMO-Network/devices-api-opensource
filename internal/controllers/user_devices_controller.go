@@ -345,6 +345,8 @@ func (udc *UserDevicesController) GetUserDevices(c *fiber.Ctx) error {
 					continue PrivLoop
 				}
 			}
+			
+			toks = append(toks, priv.TokenID.Big)
 
 			nft, err := models.VehicleNFTS(
 				models.VehicleNFTWhere.TokenID.EQ(types.NewNullDecimal(priv.TokenID.Big)),
