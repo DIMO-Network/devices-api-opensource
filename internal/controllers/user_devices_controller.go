@@ -156,9 +156,9 @@ func (udc *UserDevicesController) dbDevicesToDisplay(ctx context.Context, device
 		return apiDevices, nil
 	}
 
-	var ddIDs []string
-	for _, d := range devices {
-		ddIDs = append(ddIDs, d.DeviceDefinitionID)
+	ddIDs := make([]string, len(devices))
+	for i, d := range devices {
+		ddIDs[i] = d.DeviceDefinitionID
 	}
 
 	deviceDefinitionResponse, err := udc.DeviceDefSvc.GetDeviceDefinitionsByIDs(ctx, ddIDs)
@@ -1348,7 +1348,7 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	userDevice, err := models.UserDevices(
 		models.UserDeviceWhere.ID.EQ(udi),
 		models.UserDeviceWhere.UserID.EQ(userID),
-		qm.Load(models.UserDeviceRels.UserDeviceAPIIntegrations),
+		qm.Load(qm.Rels(models.UserDeviceRels.UserDeviceAPIIntegrations, models.UserDeviceAPIIntegrationRels.AutopiUnit)),
 	).One(c.Context(), udc.DBS().Reader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -1360,6 +1360,12 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	dd, err := udc.DeviceDefSvc.GetDeviceDefinitionByID(c.Context(), userDevice.DeviceDefinitionID)
 	if err != nil {
 		return helpers.GrpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+userDevice.DeviceDefinitionID)
+	}
+	
+	for _, apiInteg := range userDevice.R.UserDeviceAPIIntegrations {
+		if unit := apiInteg.R.AutopiUnit; unit != nil && !unit.VehicleTokenID.IsZero() {
+			return fiber.NewError(fiber.StatusConflict, fmt.Sprintf("Cannot delete vehicle before unpairing AutoPi %s on-chain.", unit.AutopiUnitID))
+		}
 	}
 
 	for _, apiInteg := range userDevice.R.UserDeviceAPIIntegrations {
