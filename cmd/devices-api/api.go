@@ -165,7 +165,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb db.Store,
 
 	if settings.EnablePrivileges {
 		v1Auth.Get("/user/devices/shared", userDeviceController.GetSharedDevices)
-		v1Auth.Get("/user/devices/shared-with-me", userDeviceController.PrivilegedAccessVehicles)
 	}
 
 	v1Auth.Post("/user/devices", userDeviceController.RegisterDeviceForUser)
