@@ -2,7 +2,7 @@ replicaCount: 1
 image:
   repository: dimozone/devices-api
   pullPolicy: IfNotPresent
-  tag: dfab091
+  tag: 74a0cf8
 imagePullSecrets: []
 nameOverride: ''
 fullnameOverride: ''
@@ -70,7 +70,7 @@ env:
   DIMO_REGISTRY_ADDR: '0x4De1bCf2B7E851E31216fC07989caA902A604784'
   MONITORING_SERVER_PORT: 8888
   ENABLE_PRIVILEGES: true
-  TOKEN_EXCHANGE_JWK_KEY_SET_URL: http://dex-roles-rights.svc.cluster.local:5556/keys
+  TOKEN_EXCHANGE_JWK_KEY_SET_URL: http://dex-roles-rights.dev.svc.cluster.local:5556/keys
   CONTRACT_EVENT_TOPIC: topic.contract.event
   VEHICLE_NFT_ADDRESS: '0x90c4d6113ec88dd4bdf12f26db2b3998fd13a144'
 service:
