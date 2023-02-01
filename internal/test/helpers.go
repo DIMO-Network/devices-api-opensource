@@ -332,7 +332,7 @@ func SetupCreateExternalVINData(t *testing.T, ddID string, ud *models.UserDevice
 }
 
 // BuildIntegrationGRPC depending on integration vendor, defines an integration object with typical settings. Smartcar refresh limit default is 100 seconds.
-func BuildIntegrationGRPC(integrationVendor string, autoPiDefaultTemplateID int, bevTemplateID int) *ddgrpc.Integration {
+func BuildIntegrationDefaultGRPC(integrationVendor string, autoPiDefaultTemplateID int, bevTemplateID int, includeAutoPiPowertrainTemplate bool) *ddgrpc.Integration {
 	var integration *ddgrpc.Integration
 	switch integrationVendor {
 	case constants.AutoPiVendor:
@@ -342,12 +342,15 @@ func BuildIntegrationGRPC(integrationVendor string, autoPiDefaultTemplateID int,
 			Style:                   constants.IntegrationStyleAddon,
 			Vendor:                  constants.AutoPiVendor,
 			AutoPiDefaultTemplateId: int32(autoPiDefaultTemplateID),
-			AutoPiPowertrainTemplate: &ddgrpc.Integration_AutoPiPowertrainTemplate{
+		}
+
+		if includeAutoPiPowertrainTemplate {
+			integration.AutoPiPowertrainTemplate = &ddgrpc.Integration_AutoPiPowertrainTemplate{
 				BEV:  int32(bevTemplateID),
 				HEV:  10,
 				ICE:  10,
 				PHEV: 4,
-			},
+			}
 		}
 	case constants.SmartCarVendor:
 		integration = &ddgrpc.Integration{
@@ -366,6 +369,11 @@ func BuildIntegrationGRPC(integrationVendor string, autoPiDefaultTemplateID int,
 		}
 	}
 	return integration
+}
+
+// BuildIntegrationWithOutAutoPiPowertrainTemplateGRPC depending on integration vendor, defines an integration object with typical settings. Smartcar refresh limit default is 100 seconds.
+func BuildIntegrationGRPC(integrationVendor string, autoPiDefaultTemplateID int, bevTemplateID int) *ddgrpc.Integration {
+	return BuildIntegrationDefaultGRPC(integrationVendor, autoPiDefaultTemplateID, bevTemplateID, false)
 }
 
 // BuildDeviceDefinitionGRPC generates an array with single device definition, adds integration to response if integration passed in not nil. uses Americas region

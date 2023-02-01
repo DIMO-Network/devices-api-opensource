@@ -363,7 +363,7 @@ func (udc *UserDevicesController) GetSharedDevices(c *fiber.Ctx) error {
 					continue PrivLoop
 				}
 			}
-			
+
 			toks = append(toks, priv.TokenID)
 
 			nft, err := models.VehicleNFTS(
@@ -1361,7 +1361,7 @@ func (udc *UserDevicesController) DeleteUserDevice(c *fiber.Ctx) error {
 	if err != nil {
 		return helpers.GrpcErrorToFiber(err, "deviceDefSvc error getting definition id: "+userDevice.DeviceDefinitionID)
 	}
-	
+
 	for _, apiInteg := range userDevice.R.UserDeviceAPIIntegrations {
 		if unit := apiInteg.R.AutopiUnit; unit != nil && !unit.VehicleTokenID.IsZero() {
 			return fiber.NewError(fiber.StatusConflict, fmt.Sprintf("Cannot delete vehicle before unpairing AutoPi %s on-chain.", unit.AutopiUnitID))
@@ -1990,10 +1990,10 @@ type UserDeviceFull struct {
 }
 
 type NFTData struct {
-	TokenID  *big.Int `json:"tokenId,omitempty" swaggertype:"number" example:"37"`
+	TokenID *big.Int `json:"tokenId,omitempty" swaggertype:"number" example:"37"`
 	// OwnerAddress is the Ethereum address of the NFT owner.
 	OwnerAddress *common.Address `json:"ownerAddress,omitempty"`
-	TokenURI string   `json:"tokenUri,omitempty" example:"https://nft.dimo.zone/37"`
+	TokenURI     string          `json:"tokenUri,omitempty" example:"https://nft.dimo.zone/37"`
 	// TxHash is the hash of the minting transaction.
 	TxHash *string `json:"txHash,omitempty" example:"0x30bce3da6985897224b29a0fe064fd2b426bb85a394cc09efe823b5c83326a8e"`
 	// Status is the minting status of the NFT.

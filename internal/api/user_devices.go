@@ -96,6 +96,33 @@ func (s *userDeviceService) ApplyHardwareTemplate(ctx context.Context, req *pb.A
 	return s.hardwareTemplateService.ApplyHardwareTemplate(ctx, req)
 }
 
+//nolint:all
+func (s *userDeviceService) GetUserDeviceByAutoPIUnitId(ctx context.Context, req *pb.GetUserDeviceByAutoPIUnitIdRequest) (*pb.UserDeviceAutoPIUnitResponse, error) {
+	dbDevice, err := models.UserDeviceAPIIntegrations(
+		models.UserDeviceAPIIntegrationWhere.AutopiUnitID.EQ(null.StringFrom(req.Id)),
+		qm.Load(models.UserDeviceAPIIntegrationRels.UserDevice),
+	).One(ctx, s.dbs().Reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, status.Error(codes.NotFound, "No UserDeviceAPIIntegrations with that ID found.")
+		}
+		s.logger.Err(err).Str("autoPIUnitId", req.Id).Msg("Database failure retrieving UserDeviceAPIIntegrations.")
+		return nil, status.Error(codes.Internal, "Internal error.")
+	}
+
+	result := &pb.UserDeviceAutoPIUnitResponse{
+		UserDeviceId:       dbDevice.UserDeviceID,
+		DeviceDefinitionId: dbDevice.R.UserDevice.DeviceDefinitionID,
+		UserId:             dbDevice.R.UserDevice.UserID,
+	}
+
+	if dbDevice.R.UserDevice.DeviceStyleID.Valid {
+		result.DeviceStyleId = dbDevice.R.UserDevice.DeviceStyleID.String
+	}
+
+	return result, nil
+}
+
 func (s *userDeviceService) GetAllUserDeviceValuation(ctx context.Context, empty *emptypb.Empty) (*pb.ValuationResponse, error) {
 	query := `select sum(evd.retail_price) as total from
                              (
