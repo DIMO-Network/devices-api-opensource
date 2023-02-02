@@ -93,7 +93,11 @@ func (s *userDeviceService) ListUserDevicesForUser(ctx context.Context, req *pb.
 }
 
 func (s *userDeviceService) ApplyHardwareTemplate(ctx context.Context, req *pb.ApplyHardwareTemplateRequest) (*pb.ApplyHardwareTemplateResponse, error) {
-	return s.hardwareTemplateService.ApplyHardwareTemplate(ctx, req)
+	resp, err := s.hardwareTemplateService.ApplyHardwareTemplate(ctx, req)
+	if err != nil {
+		s.logger.Err(err).Str("autopi_unit_id", req.AutoApiUnitId).Str("user_device_id", req.UserDeviceId).Msgf("failed to apply hardware template id %s", req.HardwareTemplateId)
+	}
+	return resp, err
 }
 
 //nolint:all
