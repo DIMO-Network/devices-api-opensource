@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/pkg/errors"
+
 	"github.com/volatiletech/null/v8"
 
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
@@ -103,33 +105,33 @@ func (a *hardwareTemplateService) ApplyHardwareTemplate(ctx context.Context, req
 	if err != nil {
 		return nil, err
 	}
-
+	// todo: wrap errors
 	err = a.ap.UnassociateDeviceTemplate(autoPi.ID, autoPi.Template)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unassociate template %d", autoPi.Template)
+		return nil, errors.Wrap(err, "failed to unassociate template")
 	}
 
 	hardwareTemplateID, err := strconv.Atoi(req.HardwareTemplateId)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to convert template id %s to integer", req.HardwareTemplateId)
 	}
 
 	// set our template on the autoPiDevice
 	err = a.ap.AssociateDeviceToTemplate(autoPi.ID, hardwareTemplateID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to associate autoPiDevice %s to template %d", autoPi.ID, hardwareTemplateID)
+		return nil, errors.Wrapf(err, "failed to associate autoPiDevice %s to template %d", autoPi.ID, hardwareTemplateID)
 	}
 
 	// apply for next reboot
 	err = a.ap.ApplyTemplate(autoPi.ID, hardwareTemplateID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to apply autoPiDevice %s with template %d", autoPi.ID, hardwareTemplateID)
+		return nil, errors.Wrapf(err, "failed to apply autoPiDevice %s with template %d", autoPi.ID, hardwareTemplateID)
 	}
 
 	// send sync command in case autoPiDevice is on at this moment (should be during initial setup)
 	_, err = a.ap.CommandSyncDevice(ctx, autoPi.UnitID, autoPi.ID, req.UserDeviceId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to sync changes to autoPiDevice %s", autoPi.ID)
+		return nil, errors.Wrapf(err, "failed to sync changes to autoPiDevice %s", autoPi.ID)
 	}
 
 	udMetadata := services.UserDeviceAPIIntegrationsMetadata{
@@ -140,16 +142,16 @@ func (a *hardwareTemplateService) ApplyHardwareTemplate(ctx context.Context, req
 
 	err = udapi.Metadata.Marshal(udMetadata)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshall user device integration metadata")
+		return nil, errors.Wrap(err, "failed to marshall user device integration metadata")
 	}
 
 	_, err = udapi.Update(ctx, tx, boil.Whitelist(models.UserDeviceColumns.Metadata, models.UserDeviceColumns.UpdatedAt))
 	if err != nil {
-		return nil, fmt.Errorf("failed to update user device status to Pending")
+		return nil, errors.Wrap(err, "failed to update user device status to Pending")
 	}
 
 	if err = tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit new hardware template to user device")
+		return nil, errors.Wrap(err, "failed to commit new hardware template to user device")
 	}
 
 	return &pb.ApplyHardwareTemplateResponse{Applied: true}, nil

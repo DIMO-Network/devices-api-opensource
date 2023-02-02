@@ -96,7 +96,9 @@ func (s *userDeviceService) ApplyHardwareTemplate(ctx context.Context, req *pb.A
 	resp, err := s.hardwareTemplateService.ApplyHardwareTemplate(ctx, req)
 	if err != nil {
 		s.logger.Err(err).Str("autopi_unit_id", req.AutoApiUnitId).Str("user_device_id", req.UserDeviceId).Msgf("failed to apply hardware template id %s", req.HardwareTemplateId)
+		return nil, status.Error(codes.Internal, err.Error())
 	}
+
 	return resp, err
 }
 
