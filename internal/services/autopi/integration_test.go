@@ -53,7 +53,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.apReg = mock_services.NewMockIngestRegistrar(mockCtrl)
 	s.eventer = mock_services.NewMockEventService(mockCtrl)
 	s.ddRegistrar = mock_services.NewMockDeviceDefinitionRegistrar(mockCtrl)
-	s.hardwareTemplateService = NewHardwareTemplateService()
+	s.hardwareTemplateService = NewHardwareTemplateService(s.ap, s.pdb.DBS)
 
 	s.integration = NewIntegration(s.pdb.DBS, s.deviceDefSvc, s.ap, s.apTask, s.apReg, s.eventer, s.ddRegistrar, s.hardwareTemplateService)
 }

@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"strconv"
 
-	pb "github.com/DIMO-Network/shared/api/devices"
-	"github.com/volatiletech/sqlboiler/v4/boil"
-	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+	"github.com/volatiletech/null/v8"
 
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/services"
 	"github.com/DIMO-Network/devices-api/models"
+	pb "github.com/DIMO-Network/shared/api/devices"
 	"github.com/DIMO-Network/shared/db"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
 type HardwareTemplateService interface {
@@ -25,8 +25,11 @@ type hardwareTemplateService struct {
 	ap  services.AutoPiAPIService
 }
 
-func NewHardwareTemplateService() HardwareTemplateService {
-	return &hardwareTemplateService{}
+func NewHardwareTemplateService(ap services.AutoPiAPIService, dbs func() *db.ReaderWriter) HardwareTemplateService {
+	return &hardwareTemplateService{
+		ap:  ap,
+		dbs: dbs,
+	}
 }
 
 func (a *hardwareTemplateService) GetTemplateID(ud *models.UserDevice, dd *ddgrpc.GetDeviceDefinitionItemResponse, integ *ddgrpc.Integration) (string, error) {
@@ -82,8 +85,8 @@ func (a *hardwareTemplateService) ApplyHardwareTemplate(ctx context.Context, req
 	}
 
 	udapi, err := models.UserDeviceAPIIntegrations(
-		qm.Where("user_device_id = ?", req.UserDeviceId),
-		qm.And("auto_pi_unit_id = ?", req.AutoApiUnitId),
+		models.UserDeviceAPIIntegrationWhere.UserDeviceID.EQ(req.UserDeviceId),
+		models.UserDeviceAPIIntegrationWhere.AutopiUnitID.EQ(null.StringFrom(req.AutoApiUnitId)),
 	).One(ctx, tx)
 	if err != nil {
 		return nil, err

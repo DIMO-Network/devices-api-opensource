@@ -1,10 +1,16 @@
 package autopi
 
 import (
+	"context"
 	"encoding/json"
-	"github.com/DIMO-Network/devices-api/internal/services"
+	"fmt"
 	"strconv"
 	"testing"
+
+	"github.com/DIMO-Network/devices-api/internal/services"
+	mock_services "github.com/DIMO-Network/devices-api/internal/services/mocks"
+	"github.com/DIMO-Network/shared/db"
+	"github.com/testcontainers/testcontainers-go"
 
 	ddgrpc "github.com/DIMO-Network/device-definitions-api/pkg/grpc"
 	"github.com/DIMO-Network/devices-api/internal/constants"
@@ -20,25 +26,39 @@ import (
 type HardwareTemplateServiceTestSuite struct {
 	suite.Suite
 	hardwareTemplateService HardwareTemplateService
+	ap                      *mock_services.MockAutoPiAPIService
+	pdb                     db.Store
+	container               testcontainers.Container
+	context                 context.Context
 }
 
 func (s *HardwareTemplateServiceTestSuite) SetupSuite() {
 	mockCtrl := gomock.NewController(s.T())
 	defer mockCtrl.Finish()
-	s.hardwareTemplateService = NewHardwareTemplateService()
+	s.context = context.Background()
+	s.pdb, s.container = test.StartContainerDatabase(s.context, s.T(), migrationsDirRelPath)
+
+	s.ap = mock_services.NewMockAutoPiAPIService(mockCtrl)
+
+	s.hardwareTemplateService = NewHardwareTemplateService(s.ap, s.pdb.DBS)
 }
 
 func (s *HardwareTemplateServiceTestSuite) TearDownTest() {
+	test.TruncateTables(s.pdb.DBS().Writer.DB, s.T())
 }
 
 func (s *HardwareTemplateServiceTestSuite) TearDownSuite() {
+	fmt.Printf("shutting down postgres at with session: %s \n", s.container.SessionID())
+	if err := s.container.Terminate(s.context); err != nil {
+		s.T().Fatal(err)
+	}
 }
 
 func TestHardwareTemplateServiceTestSuite(t *testing.T) {
 	suite.Run(t, new(HardwareTemplateServiceTestSuite))
 }
 
-func (s *HardwareTemplateServiceTestSuite) Test_HardwareTemplateService() {
+func (s *HardwareTemplateServiceTestSuite) Test_GetTemplateID() {
 	type tableTestCases struct {
 		description string
 		expected    string

@@ -69,7 +69,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb db.Store,
 	autoPiTaskService := services.NewAutoPiTaskService(settings, autoPiSvc, pdb.DBS, logger)
 	drivlyTaskService := services.NewDrivlyTaskService(settings, ddSvc, logger)
 	blackbookTaskService := services.NewBlackbookTaskService(settings, ddSvc, logger)
-	hardwareTemplateService := autopi.NewHardwareTemplateService()
+	hardwareTemplateService := autopi.NewHardwareTemplateService(autoPiSvc, pdb.DBS)
 	autoPi := autopi.NewIntegration(pdb.DBS, ddSvc, autoPiSvc, autoPiTaskService, autoPiIngest, eventService, deviceDefinitionRegistrar, hardwareTemplateService)
 
 	// controllers
