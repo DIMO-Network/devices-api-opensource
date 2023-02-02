@@ -204,6 +204,7 @@ func (nc *NFTController) GetNFTImage(c *fiber.Ctx) error {
 		nc.log.Err(err).Msg("Failure communicating with S3.")
 		return opaqueInternalError
 	}
+	defer s3o.Body.Close()
 
 	c.Set("Content-Type", "image/png")
 	return c.SendStream(s3o.Body)
@@ -236,11 +237,53 @@ func (nc *NFTController) GetAftermarketDeviceNFTMetadata(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(NFTMetadataResp{
+		Image: fmt.Sprintf("%s/v1/aftermarket/device/%s/image", nc.Settings.DeploymentBaseURL, tid),
 		Attributes: []NFTAttribute{
 			{TraitType: "Ethereum Address", Value: common.BytesToAddress(unit.EthereumAddress.Bytes).String()},
 			{TraitType: "Serial Number", Value: unit.AutopiUnitID},
 		},
 	})
+}
+
+// GetAftermarketDeviceNFTImage godoc
+// @Description Returns the image for the given aftermarket device NFT.
+// @Tags        nfts
+// @Param       tokenId     path  int  true  "token id"
+// @Produce     png
+// @Success     200
+// @Failure     404
+// @Router      /aftermarket/device/{tokenId}/image [get]
+func (nc *NFTController) GetAftermarketDeviceNFTImage(c *fiber.Ctx) error {
+	tis := c.Params("tokenID")
+	ti, ok := new(big.Int).SetString(tis, 10)
+	if !ok {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("Couldn't parse token id %q.", tis))
+	}
+
+	exists, err := models.AutopiUnits(
+		models.AutopiUnitWhere.TokenID.EQ(types.NewNullDecimal(new(decimal.Big).SetBigMantScale(ti, 0))),
+	).Exists(c.Context(), nc.DBS().Reader)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return fiber.NewError(fiber.StatusNotFound, "No device with id.")
+	}
+
+	s3o, err := nc.s3.GetObject(c.Context(), &s3.GetObjectInput{
+		Bucket: aws.String(nc.Settings.NFTS3Bucket),
+		Key:    aws.String(nc.Settings.AutoPiNFTImage),
+	})
+	if err != nil {
+		nc.log.Err(err).Msg("Failure communicating with S3.")
+		return opaqueInternalError
+	}
+	defer s3o.Body.Close()
+
+	c.Set("Content-Type", "image/png")
+
+	return c.SendStream(s3o.Body)
 }
 
 // GetManufacturerNFTMetadata godoc

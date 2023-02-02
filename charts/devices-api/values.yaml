@@ -73,6 +73,7 @@ env:
   TOKEN_EXCHANGE_JWK_KEY_SET_URL: http://dex-roles-rights.dev.svc.cluster.local:5556/keys
   CONTRACT_EVENT_TOPIC: topic.contract.event
   VEHICLE_NFT_ADDRESS: '0x90c4d6113ec88dd4bdf12f26db2b3998fd13a144'
+  AUTOPI_NFT_IMAGE: autopi.png
 service:
   type: ClusterIP
   ports:

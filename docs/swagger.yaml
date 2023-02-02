@@ -398,15 +398,6 @@ definitions:
           type: string
         type: array
     type: object
-  internal_controllers.Device:
-    properties:
-      make:
-        type: string
-      model:
-        type: string
-      year:
-        type: integer
-    type: object
   internal_controllers.DeviceOffer:
     properties:
       offerSets:
@@ -584,6 +575,11 @@ definitions:
     type: object
   internal_controllers.NFTData:
     properties:
+      ownerAddress:
+        description: OwnerAddress is the Ethereum address of the NFT owner.
+        items:
+          type: integer
+        type: array
       status:
         description: Status is the minting status of the NFT.
         enum:
@@ -689,28 +685,6 @@ definitions:
       privileges:
         items:
           $ref: '#/definitions/internal_controllers.Privilege'
-        type: array
-    type: object
-  internal_controllers.PrivilegedAccessDevice:
-    properties:
-      ownerAddress:
-        items:
-          type: integer
-        type: array
-      privileges:
-        items:
-          $ref: '#/definitions/internal_controllers.Privilege'
-        type: array
-      tokenId:
-        $ref: '#/definitions/big.Int'
-      type:
-        $ref: '#/definitions/internal_controllers.Device'
-    type: object
-  internal_controllers.PrivilegedDevices:
-    properties:
-      devices:
-        items:
-          $ref: '#/definitions/internal_controllers.PrivilegedAccessDevice'
         type: array
     type: object
   internal_controllers.RangeSet:
@@ -970,6 +944,24 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/internal_controllers.NFTMetadataResp'
+        "404":
+          description: Not Found
+      tags:
+      - nfts
+  /aftermarket/device/{tokenId}/image:
+    get:
+      description: Returns the image for the given aftermarket device NFT.
+      parameters:
+      - description: token id
+        in: path
+        name: tokenId
+        required: true
+        type: integer
+      produces:
+      - image/png
+      responses:
+        "200":
+          description: OK
         "404":
           description: Not Found
       tags:
@@ -2021,16 +2013,16 @@ paths:
       - BearerAuth: []
       tags:
       - user-devices
-  /user/devices/shared-with-me:
+  /user/devices/shared:
     get:
-      description: gets all devices that have been shared with user
+      description: gets all devices shared with current user - pulled from token
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_controllers.PrivilegedDevices'
+            $ref: '#/definitions/internal_controllers.MyDevicesResp'
       security:
       - BearerAuth: []
       tags:

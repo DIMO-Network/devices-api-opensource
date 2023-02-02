@@ -38,6 +38,34 @@
                 }
             }
         },
+        "/aftermarket/device/{tokenId}/image": {
+            "get": {
+                "description": "Returns the image for the given aftermarket device NFT.",
+                "produces": [
+                    "image/png"
+                ],
+                "tags": [
+                    "nfts"
+                ],
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "token id",
+                        "name": "tokenId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            }
+        },
         "/autopi/task/:taskID": {
             "get": {
                 "security": [
@@ -988,14 +1016,14 @@
                 }
             }
         },
-        "/user/devices/shared-with-me": {
+        "/user/devices/shared": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "gets all devices that have been shared with user",
+                "description": "gets all devices shared with current user - pulled from token",
                 "produces": [
                     "application/json"
                 ],
@@ -1006,7 +1034,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers.PrivilegedDevices"
+                            "$ref": "#/definitions/internal_controllers.MyDevicesResp"
                         }
                     }
                 }
@@ -2663,20 +2691,6 @@
                 }
             }
         },
-        "internal_controllers.Device": {
-            "type": "object",
-            "properties": {
-                "make": {
-                    "type": "string"
-                },
-                "model": {
-                    "type": "string"
-                },
-                "year": {
-                    "type": "integer"
-                }
-            }
-        },
         "internal_controllers.DeviceOffer": {
             "type": "object",
             "properties": {
@@ -2926,6 +2940,13 @@
         "internal_controllers.NFTData": {
             "type": "object",
             "properties": {
+                "ownerAddress": {
+                    "description": "OwnerAddress is the Ethereum address of the NFT owner.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
                 "status": {
                     "description": "Status is the minting status of the NFT.",
                     "type": "string",
@@ -3069,40 +3090,6 @@
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/internal_controllers.Privilege"
-                    }
-                }
-            }
-        },
-        "internal_controllers.PrivilegedAccessDevice": {
-            "type": "object",
-            "properties": {
-                "ownerAddress": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "privileges": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_controllers.Privilege"
-                    }
-                },
-                "tokenId": {
-                    "$ref": "#/definitions/big.Int"
-                },
-                "type": {
-                    "$ref": "#/definitions/internal_controllers.Device"
-                }
-            }
-        },
-        "internal_controllers.PrivilegedDevices": {
-            "type": "object",
-            "properties": {
-                "devices": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_controllers.PrivilegedAccessDevice"
                     }
                 }
             }

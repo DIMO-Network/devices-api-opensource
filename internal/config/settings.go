@@ -72,4 +72,5 @@ type Settings struct {
 	GoogleMapsAPIKey                  string      `yaml:"GOOGLE_MAPS_API_KEY"`
 	VehicleNFTAddress                 string      `yaml:"VEHICLE_NFT_ADDRESS"`
 	ContractsEventTopic               string      `yaml:"CONTRACT_EVENT_TOPIC"`
+	AutoPiNFTImage                    string      `yaml:"AUTOPI_NFT_IMAGE"`
 }
