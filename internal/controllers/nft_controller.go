@@ -3,6 +3,7 @@ package controllers
 import (
 	"database/sql"
 	"fmt"
+	"io"
 	"math/big"
 	"strconv"
 
@@ -206,8 +207,13 @@ func (nc *NFTController) GetNFTImage(c *fiber.Ctx) error {
 	}
 	defer s3o.Body.Close()
 
+	b, err := io.ReadAll(s3o.Body)
+	if err != nil {
+		return err
+	}
+
 	c.Set("Content-Type", "image/png")
-	return c.SendStream(s3o.Body)
+	return c.Send(b)
 }
 
 // GetAftermarketDeviceNFTMetadata godoc
@@ -281,9 +287,13 @@ func (nc *NFTController) GetAftermarketDeviceNFTImage(c *fiber.Ctx) error {
 	}
 	defer s3o.Body.Close()
 
-	c.Set("Content-Type", "image/png")
+	b, err := io.ReadAll(s3o.Body)
+	if err != nil {
+		return err
+	}
 
-	return c.SendStream(s3o.Body)
+	c.Set("Content-Type", "image/png")
+	return c.Send(b)
 }
 
 // GetManufacturerNFTMetadata godoc
