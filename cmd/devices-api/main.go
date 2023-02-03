@@ -225,10 +225,22 @@ func main() {
 
 		logger.Info().Msg("Pairing success.")
 	case "sync-device-templates":
-		logger.Info().Msg("starting syncing device templates based on device definition setting")
+		moveFromTemplateID := "10" // default
+		if len(os.Args) > 2 {
+			// parse out custom move from template ID option
+			for i, a := range os.Args {
+				if a == "--move-from-template" {
+					moveFromTemplateID = os.Args[i+1]
+					break
+				}
+			}
+		}
+
+		logger.Info().Msgf("starting syncing device templates based on device definition setting."+
+			"\n Only moving from template ID: %s. To change specify --move-from-template XX. Set to 0 for none.", moveFromTemplateID)
 		autoPiSvc := services.NewAutoPiAPIService(&settings, pdb.DBS)
 		hardwareTemplateService := autopi.NewHardwareTemplateService(autoPiSvc, pdb.DBS)
-		err := syncDeviceTemplates(ctx, &logger, &settings, pdb, hardwareTemplateService)
+		err := syncDeviceTemplates(ctx, &logger, &settings, pdb, hardwareTemplateService, moveFromTemplateID)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("failed to sync all devices with their templates")
 		}

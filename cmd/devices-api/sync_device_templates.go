@@ -20,7 +20,9 @@ import (
 )
 
 // syncDeviceTemplates looks for DD's with a templateID set, and then compares to all UD's connected and Applies the template if doesn't match.
-func syncDeviceTemplates(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb db.Store, autoPiHWSvc autopi.HardwareTemplateService) error {
+// If onlyMoveFromTemplate is > 0, then only apply the template if the current template is this value.
+func syncDeviceTemplates(ctx context.Context, logger *zerolog.Logger, settings *config.Settings, pdb db.Store, autoPiHWSvc autopi.HardwareTemplateService,
+	onlyMoveFromTemplate string) error {
 	conn, err := grpc.Dial(settings.DefinitionsGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
@@ -61,7 +63,7 @@ func syncDeviceTemplates(ctx context.Context, logger *zerolog.Logger, settings *
 		type Result struct {
 			UserDeviceID    string `boil:"id"`
 			AutoPiUnitID    string `boil:"autopi_unit_id"`
-			CurrentTemplate string `boil:"autoPiTemplateApplied"`
+			CurrentTemplate string `boil:"template_id"`
 		}
 		var userDevices []Result
 		err := queries.Raw(query+appendIn).Bind(ctx, pdb.DBS().Reader, &userDevices)
@@ -69,11 +71,13 @@ func syncDeviceTemplates(ctx context.Context, logger *zerolog.Logger, settings *
 			logger.Err(err).Msg("Database failure retrieving user devices")
 			return err
 		}
-		fmt.Printf("found total of %d impacted user_devices to move to template %s", len(userDevices), templateID)
-
-		// todo logging: return ddid from above to compare to dds and include MMY in log.
+		fmt.Printf("found total of %d impacted user_devices to move to template %s\n", len(userDevices), templateID)
 
 		for i, ud := range userDevices {
+			if onlyMoveFromTemplate != "0" && ud.CurrentTemplate != onlyMoveFromTemplate {
+				fmt.Printf("%d Skipped ud: %s because it is not currently in template %s\n", i+1, ud.UserDeviceID, onlyMoveFromTemplate)
+				continue
+			}
 			fmt.Printf("%d Update template for ud: %s from template %s to template %s\n", i+1, ud.UserDeviceID, ud.CurrentTemplate, templateID)
 			_, err = autoPiHWSvc.ApplyHardwareTemplate(ctx, &pb.ApplyHardwareTemplateRequest{
 				UserDeviceId:       ud.UserDeviceID,
