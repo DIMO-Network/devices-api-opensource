@@ -224,6 +224,15 @@ func main() {
 		}
 
 		logger.Info().Msg("Pairing success.")
+	case "sync-device-templates":
+		logger.Info().Msg("starting syncing device templates based on device definition setting")
+		autoPiSvc := services.NewAutoPiAPIService(&settings, pdb.DBS)
+		hardwareTemplateService := autopi.NewHardwareTemplateService(autoPiSvc, pdb.DBS)
+		err := syncDeviceTemplates(ctx, &logger, &settings, pdb, hardwareTemplateService)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("failed to sync all devices with their templates")
+		}
+		logger.Info().Msg("success")
 	default:
 		if settings.EnablePrivileges {
 			startContractEventsConsumer(logger, &settings, pdb)
