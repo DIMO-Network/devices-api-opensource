@@ -40,7 +40,7 @@ func syncDeviceTemplates(ctx context.Context, logger *zerolog.Logger, settings *
 
 	// loop by each template
 	for templateID, dds := range templateXDefinitions {
-		fmt.Printf("Found %d device definitions for template %s", len(dds), templateID)
+		fmt.Printf("\nFound %d device definitions for template %s\n", len(dds), templateID)
 
 		query := fmt.Sprintf(`select ud.id, udai.autopi_unit_id, (udai.metadata -> 'autoPiTemplateApplied')::text template_id from user_devices ud 
         inner join user_device_api_integrations udai on ud.id = udai.user_device_id
@@ -63,11 +63,12 @@ func syncDeviceTemplates(ctx context.Context, logger *zerolog.Logger, settings *
 			logger.Err(err).Msg("Database failure retrieving user devices")
 			return err
 		}
+		fmt.Printf("found total of %d impacted user_devices to move to template %s", len(userDevices), templateID)
 
 		// todo logging: return ddid from above to compare to dds and include MMY in log.
 
 		for i, ud := range userDevices {
-			fmt.Printf("%d Update template for ud: %s from template %s to template %s", i+1, ud.UserDeviceID, ud.CurrentTemplate, templateID)
+			fmt.Printf("%d Update template for ud: %s from template %s to template %s\n", i+1, ud.UserDeviceID, ud.CurrentTemplate, templateID)
 			_, err = autoPiHWSvc.ApplyHardwareTemplate(ctx, &pb.ApplyHardwareTemplateRequest{
 				UserDeviceId:       ud.UserDeviceID,
 				AutoApiUnitId:      ud.AutoPiUnitID,
