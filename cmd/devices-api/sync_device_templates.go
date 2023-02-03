@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -35,6 +36,11 @@ func syncDeviceTemplates(ctx context.Context, logger *zerolog.Logger, settings *
 	templateXDefinitions := map[string][]*ddgrpc.GetDevicesMMYItemResponse{}
 
 	for _, dd := range resp.Device {
+		// we currently only allow integer type template ID's
+		tIDInt, err := strconv.Atoi(dd.HardwareTemplateId)
+		if tIDInt == 0 || err != nil {
+			continue
+		}
 		templateXDefinitions[dd.HardwareTemplateId] = append(templateXDefinitions[dd.HardwareTemplateId], dd)
 	}
 
