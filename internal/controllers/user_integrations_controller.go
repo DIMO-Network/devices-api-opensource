@@ -2004,7 +2004,11 @@ func (udc *UserDevicesController) registerSmartcarIntegration(c *fiber.Ctx, logg
 		logger.Err(err).Msg("Failed to retrieve VIN from Smartcar.")
 		return smartcarCallErr
 	}
-
+	
+	if ud.VinConfirmed && ud.VinIdentifier.String != vin {
+		return fiber.NewError(fiber.StatusConflict, fmt.Sprintf("Vehicle's confirmed VIN does not match Smartcar's %s.", vin))
+	}
+	
 	// Prevent users from connecting a vehicle if it's already connected through another user
 	// device object. Disabled outside of prod for ease of testing.
 	if udc.Settings.Environment == "prod" {
