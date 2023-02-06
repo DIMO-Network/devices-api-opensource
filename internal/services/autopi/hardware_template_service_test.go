@@ -37,10 +37,11 @@ func (s *HardwareTemplateServiceTestSuite) SetupSuite() {
 	defer mockCtrl.Finish()
 	s.context = context.Background()
 	s.pdb, s.container = test.StartContainerDatabase(s.context, s.T(), migrationsDirRelPath)
+	logger := test.Logger()
 
 	s.ap = mock_services.NewMockAutoPiAPIService(mockCtrl)
 
-	s.hardwareTemplateService = NewHardwareTemplateService(s.ap, s.pdb.DBS)
+	s.hardwareTemplateService = NewHardwareTemplateService(s.ap, s.pdb.DBS, logger)
 }
 
 func (s *HardwareTemplateServiceTestSuite) TearDownTest() {
@@ -131,7 +132,7 @@ func (s *HardwareTemplateServiceTestSuite) Test_GetTemplateID() {
 			expected: tIDDeviceDef,
 		},
 		{
-			description: "Should get template id from DD with styles but no style id in UD",
+			description: "Should NOT get template id from DD with styles when no style id in UD",
 			ud: &models.UserDevice{
 				ID:                 ksuid.New().String(),
 				UserID:             "testUserID",
@@ -141,7 +142,7 @@ func (s *HardwareTemplateServiceTestSuite) Test_GetTemplateID() {
 			},
 			integ:    integration,
 			dd:       ddWithDeviceStyleTID,
-			expected: tIDDeviceStyle,
+			expected: tIDIntegrationDefault,
 		},
 		{
 			description: "Should get hardware template id from Device Make in DD",

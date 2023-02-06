@@ -214,7 +214,7 @@ func main() {
 		autoPiIngest := services.NewIngestRegistrar(services.AutoPi, producer)
 		eventService := services.NewEventService(&logger, &settings, deps.getKafkaProducer())
 		deviceDefinitionRegistrar := services.NewDeviceDefinitionRegistrar(producer, &settings)
-		hardwareTemplateService := autopi.NewHardwareTemplateService(autoPiSvc, pdb.DBS)
+		hardwareTemplateService := autopi.NewHardwareTemplateService(autoPiSvc, pdb.DBS, &logger)
 
 		i := autopi.NewIntegration(pdb.DBS, ddSvc, autoPiSvc, autoPiTaskService, autoPiIngest, eventService, deviceDefinitionRegistrar, hardwareTemplateService)
 
@@ -239,7 +239,7 @@ func main() {
 		logger.Info().Msgf("starting syncing device templates based on device definition setting."+
 			"\n Only moving from template ID: %s. To change specify --move-from-template XX. Set to 0 for none.", moveFromTemplateID)
 		autoPiSvc := services.NewAutoPiAPIService(&settings, pdb.DBS)
-		hardwareTemplateService := autopi.NewHardwareTemplateService(autoPiSvc, pdb.DBS)
+		hardwareTemplateService := autopi.NewHardwareTemplateService(autoPiSvc, pdb.DBS, &logger)
 		err := syncDeviceTemplates(ctx, &logger, &settings, pdb, hardwareTemplateService, moveFromTemplateID)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("failed to sync all devices with their templates")
