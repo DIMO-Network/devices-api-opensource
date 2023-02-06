@@ -146,6 +146,11 @@ func (i *DeviceStatusIngestService) processEvent(ctxGk goka.Context, event *Devi
 		// For AutoPis, for the purpose of odometer events we are pretending to always have
 		// an odometer reading. Users became accustomed to seeing the associated events, even
 		// though we mostly don't have odometer readings for AutoPis. For now, we fake it.
+
+		// Update PLA-934:  Now that we are starting to receive real odometer values from
+		//             		the AutoPi, we need the real odometer timestamp. To avoid alarming
+		//					users as mentioned above, we resolved to create another column
+		//					called "real_last_odometer_event_at" to store this value
 		newOdometer = null.Float64From(0.0)
 	}
 
@@ -223,8 +228,14 @@ func (i *DeviceStatusIngestService) processOdometer(datum *models.UserDeviceDatu
 
 	if odometerOffCooldown && odometerChanged {
 		datum.LastOdometerEventAt = null.TimeFrom(now)
+		if newOdometer.Float64 > 0.01 {
+			// Since this function will always receive 0.0 for odo if not present
+			// if odometer value is 0 then it must have been fake
+			datum.RealLastOdometerEventAt = null.TimeFrom(now)
+		}
 		i.emitOdometerEvent(device, dd, integrationID, newOdometer.Float64)
 	}
+
 }
 
 func (i *DeviceStatusIngestService) emitOdometerEvent(device *models.UserDevice, dd *grpc.GetDeviceDefinitionItemResponse, integrationID string, odometer float64) {
