@@ -1,6 +1,6 @@
 module github.com/DIMO-Network/devices-api
 
-go 1.18
+go 1.19
 
 require (
 	github.com/DIMO-Network/device-definitions-api v0.7.8
@@ -142,7 +142,6 @@ require (
 	github.com/lithammer/shortuuid/v3 v3.0.7 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect; indirectn
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
