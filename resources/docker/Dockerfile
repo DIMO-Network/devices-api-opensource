@@ -10,7 +10,6 @@ ENV GOOS=linux
 ENV GOFLAGS=-mod=vendor
 
 RUN ls
-RUN go mod vendor
 RUN go mod tidy
 RUN make install
 
