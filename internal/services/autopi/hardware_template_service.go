@@ -123,10 +123,12 @@ func (a *hardwareTemplateService) ApplyHardwareTemplate(ctx context.Context, req
 	if err != nil {
 		return nil, err
 	}
-	// todo: wrap errors
-	err = a.ap.UnassociateDeviceTemplate(autoPi.ID, autoPi.Template)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to unassociate template")
+
+	if autoPi.Template > 0 {
+		err = a.ap.UnassociateDeviceTemplate(autoPi.ID, autoPi.Template)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to unassociate template")
+		}
 	}
 
 	hardwareTemplateID, err := strconv.Atoi(req.HardwareTemplateId)
