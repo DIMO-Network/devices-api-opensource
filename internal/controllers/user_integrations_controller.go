@@ -1372,68 +1372,9 @@ func (udc *UserDevicesController) CloudRepairAutoPi(c *fiber.Ctx) error {
 func (udc *UserDevicesController) UnpairAutoPi(c *fiber.Ctx) error {
 	userID := helpers.GetUserID(c)
 
-	userDeviceID := c.Params("userDeviceID")
-
-	logger := udc.log.With().Str("userId", userID).Str("userDeviceId", userDeviceID).Logger()
-	logger.Info().Msg("Got AutoPi pair request.")
-
-	autoPiInt, err := udc.DeviceDefSvc.GetIntegrationByVendor(c.Context(), constants.AutoPiVendor)
-	if err != nil {
-		logger.Err(err).Msg("Failed to retrieve AutoPi integration.")
-		return opaqueInternalError
-	}
-
-	ud, err := models.UserDevices(
-		models.UserDeviceWhere.ID.EQ(userDeviceID),
-		models.UserDeviceWhere.UserID.EQ(userID),
-		qm.Load(models.UserDeviceRels.VehicleNFT),
-	).One(c.Context(), udc.DBS().Reader)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
-		}
-		logger.Err(err).Msg("Database failure searching for device.")
-		return opaqueInternalError
-	}
-
-	udai, err := ud.UserDeviceAPIIntegrations(models.UserDeviceAPIIntegrationWhere.IntegrationID.EQ(autoPiInt.Id)).One(c.Context(), udc.DBS().Reader)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusConflict, "Device does not have an AutoPi associated.")
-		}
-		logger.Err(err).Msg("Database failure searching for device's AutoPi integration.")
-		return opaqueInternalError
-	}
-
-	if !udai.AutopiUnitID.Valid {
-		// This shouldn't happen.
-		logger.Error().Msg("Active AutoPi integration with no associated unit id.")
-		return opaqueInternalError
-	}
-
-	autoPiUnit, err := udai.AutopiUnit().One(c.Context(), udc.DBS().Reader)
-	if err != nil {
-		logger.Error().Msg("Failed to retrieve AutoPi record.")
-		return opaqueInternalError
-	}
-
-	if autoPiUnit.TokenID.IsZero() {
-		return fiber.NewError(fiber.StatusConflict, "AutoPi not yet minted.")
-	}
-
-	if ud.R.VehicleNFT == nil || ud.R.VehicleNFT.TokenID.IsZero() {
-		return fiber.NewError(fiber.StatusConflict, "Vehicle not yet minted.")
-	}
-
-	if autoPiUnit.UnpairRequestID.Valid {
-		// If it had succeeded, we wouldn't have a vehicle token.
-		return fiber.NewError(fiber.StatusConflict, "Unpairing in process, please wait.")
-	}
-
-	apToken := autoPiUnit.TokenID.Int(nil)
-	vehicleToken := ud.R.VehicleNFT.TokenID.Int(nil)
-
-	// TODO(elffjs): Really shouldn't be dialing so much.
+	// Make sure we have an Ethereum address.
+	// TODO(elffjs): Really shouldn't be dialing so much. Do we even need to do this? We have
+	// the owner's address.
 	conn, err := grpc.Dial(udc.Settings.UsersAPIGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		udc.log.Err(err).Msg("Failed to create users API client.")
@@ -1452,6 +1393,62 @@ func (udc *UserDevicesController) UnpairAutoPi(c *fiber.Ctx) error {
 	if user.EthereumAddress == nil {
 		return fiber.NewError(fiber.StatusConflict, "User does not have an Ethereum address.")
 	}
+
+	realAddr := common.HexToAddress(*user.EthereumAddress)
+
+	userDeviceID := c.Params("userDeviceID")
+
+	logger := udc.log.With().Str("userId", userID).Str("userDeviceId", userDeviceID).Logger()
+	logger.Info().Msg("Got AutoPi unpair request.")
+
+	// TODO(elffjs): Is SELECT ... FOR UPDATE better here?
+	tx, err := udc.DBS().Writer.BeginTx(c.Context(), &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint
+
+	ud, err := models.UserDevices(
+		models.UserDeviceWhere.ID.EQ(userDeviceID),
+		models.UserDeviceWhere.UserID.EQ(userID),
+		qm.Load(qm.Rels(models.UserDeviceRels.VehicleNFT, models.VehicleNFTRels.VehicleTokenAutopiUnit)),
+	).One(c.Context(), tx)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fiber.NewError(fiber.StatusNotFound, "No device with that id found.")
+		}
+		return err
+	}
+
+	vnft := ud.R.VehicleNFT
+
+	if vnft == nil || vnft.TokenID.IsZero() {
+		return fiber.NewError(fiber.StatusConflict, "Vehicle not yet minted.")
+	}
+
+	if !vnft.OwnerAddress.Valid {
+		logger.Error().Msg("Vehicle minted but has no owner.")
+		return opaqueInternalError
+	}
+
+	if owner := common.BytesToAddress(vnft.OwnerAddress.Bytes); owner != realAddr {
+		logger.Error().Str("ownerAddress", owner.Hex()).Str("userAddress", realAddr.Hex()).Msg("Vehicle owner and user Ethereum address no longer match.")
+		return opaqueInternalError
+	}
+
+	apnft := vnft.R.VehicleTokenAutopiUnit
+
+	if apnft == nil {
+		return fiber.NewError(fiber.StatusConflict, "Vehicle not paired to an AutoPi on-chain.")
+	}
+
+	if apnft.UnpairRequestID.Valid {
+		// If unpairing had finished, we wouldn't have a link from the vehicle NFT.
+		return fiber.NewError(fiber.StatusConflict, "Unpairing already in progress.")
+	}
+
+	vehicleToken := vnft.TokenID.Int(nil)
+	apToken := apnft.TokenID.Int(nil)
 
 	client := registry.Client{
 		Producer:     udc.producer,
@@ -1475,8 +1472,6 @@ func (udc *UserDevicesController) UnpairAutoPi(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "Couldn't parse request body.")
 	}
 
-	realAddr := common.HexToAddress(*user.EthereumAddress)
-
 	hash, err := client.Hash(&uads)
 	if err != nil {
 		return err
@@ -1499,13 +1494,20 @@ func (udc *UserDevicesController) UnpairAutoPi(c *fiber.Ctx) error {
 		ID:     requestID,
 		Status: models.MetaTransactionRequestStatusUnsubmitted,
 	}
-	err = mtr.Insert(c.Context(), udc.DBS().Writer, boil.Infer())
+	err = mtr.Insert(c.Context(), tx, boil.Infer())
 	if err != nil {
 		return err
 	}
 
-	autoPiUnit.UnpairRequestID = null.StringFrom(requestID)
-	_, err = autoPiUnit.Update(c.Context(), udc.DBS().Writer, boil.Infer())
+	apnft.UnpairRequestID = null.StringFrom(requestID)
+	_, err = apnft.Update(c.Context(), tx, boil.Whitelist(models.AutopiUnitColumns.UnpairRequestID))
+	if err != nil {
+		return err
+	}
+
+	// This is a bit iffy, since we don't want to save this record and then fail to send to Kafka.
+	// But the opposite is worse, I think.
+	err = tx.Commit()
 	if err != nil {
 		return err
 	}
