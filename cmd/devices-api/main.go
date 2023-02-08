@@ -216,7 +216,7 @@ func main() {
 		deviceDefinitionRegistrar := services.NewDeviceDefinitionRegistrar(producer, &settings)
 		hardwareTemplateService := autopi.NewHardwareTemplateService(autoPiSvc, pdb.DBS, &logger)
 
-		i := autopi.NewIntegration(pdb.DBS, ddSvc, autoPiSvc, autoPiTaskService, autoPiIngest, eventService, deviceDefinitionRegistrar, hardwareTemplateService)
+		i := autopi.NewIntegration(pdb.DBS, ddSvc, autoPiSvc, autoPiTaskService, autoPiIngest, eventService, deviceDefinitionRegistrar, hardwareTemplateService, &logger)
 
 		err := i.Pair(ctx, amToken, vToken)
 		if err != nil {

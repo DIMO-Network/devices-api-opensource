@@ -56,7 +56,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.ddRegistrar = mock_services.NewMockDeviceDefinitionRegistrar(mockCtrl)
 	s.hardwareTemplateService = NewHardwareTemplateService(s.ap, s.pdb.DBS, logger)
 
-	s.integration = NewIntegration(s.pdb.DBS, s.deviceDefSvc, s.ap, s.apTask, s.apReg, s.eventer, s.ddRegistrar, s.hardwareTemplateService)
+	s.integration = NewIntegration(s.pdb.DBS, s.deviceDefSvc, s.ap, s.apTask, s.apReg, s.eventer, s.ddRegistrar, s.hardwareTemplateService, logger)
 }
 
 // TearDownTest after each test truncate tables

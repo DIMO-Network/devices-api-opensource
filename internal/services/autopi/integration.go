@@ -14,6 +14,7 @@ import (
 	"github.com/DIMO-Network/shared/db"
 	"github.com/ericlagergren/decimal"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -29,6 +30,7 @@ type Integration struct {
 	eventer                 services.EventService
 	ddRegistrar             services.DeviceDefinitionRegistrar
 	hardwareTemplateService HardwareTemplateService
+	logger                  *zerolog.Logger
 }
 
 func NewIntegration(
@@ -40,6 +42,7 @@ func NewIntegration(
 	eventer services.EventService,
 	ddRegistrar services.DeviceDefinitionRegistrar,
 	hardwareTemplateService HardwareTemplateService,
+	logger *zerolog.Logger,
 ) *Integration {
 	return &Integration{
 		db:                      db,
@@ -50,6 +53,7 @@ func NewIntegration(
 		eventer:                 eventer,
 		ddRegistrar:             ddRegistrar,
 		hardwareTemplateService: hardwareTemplateService,
+		logger:                  logger,
 	}
 }
 
@@ -213,14 +217,16 @@ func (i *Integration) Pair(ctx context.Context, autoPiTokenID, vehicleTokenID *b
 	}
 
 	substatus = constants.AppliedTemplate
+
 	// send sync command in case autoPiDevice is on at this moment (should be during initial setup)
 	_, err = i.ap.CommandSyncDevice(ctx, autoPi.UnitID, autoPi.ID, ud.ID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to sync changes to autoPiDevice %s", autoPi.ID)
+		i.logger.Warn().Err(err).Msg("Failed to send sync command to AutoPi.")
+	} else {
+		substatus = constants.PendingTemplateConfirm
 	}
 
-	substatus = constants.PendingTemplateConfirm
-	ss := substatus.String()
+	ss := substatus.String() // This is either going to be AppliedTemplate or PendingTemplateConfirm, at this point.
 	udMetadata.AutoPiSubStatus = &ss
 	err = apiInt.Metadata.Marshal(udMetadata)
 	if err != nil {
