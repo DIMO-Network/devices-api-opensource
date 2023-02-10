@@ -38,20 +38,6 @@ func (m *MockDeviceDefinitionService) EXPECT() *MockDeviceDefinitionServiceMockR
 	return m.recorder
 }
 
-// CheckAndSetImage mocks base method.
-func (m *MockDeviceDefinitionService) CheckAndSetImage(ctx context.Context, dd *grpc.GetDeviceDefinitionItemResponse, overwrite bool) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CheckAndSetImage", ctx, dd, overwrite)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// CheckAndSetImage indicates an expected call of CheckAndSetImage.
-func (mr *MockDeviceDefinitionServiceMockRecorder) CheckAndSetImage(ctx, dd, overwrite interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckAndSetImage", reflect.TypeOf((*MockDeviceDefinitionService)(nil).CheckAndSetImage), ctx, dd, overwrite)
-}
-
 // CreateIntegration mocks base method.
 func (m *MockDeviceDefinitionService) CreateIntegration(ctx context.Context, integrationType, vendor, style string) (*grpc.Integration, error) {
 	m.ctrl.T.Helper()
@@ -215,20 +201,6 @@ func (m *MockDeviceDefinitionService) GetOrCreateMake(ctx context.Context, tx bo
 func (mr *MockDeviceDefinitionServiceMockRecorder) GetOrCreateMake(ctx, tx, makeName interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrCreateMake", reflect.TypeOf((*MockDeviceDefinitionService)(nil).GetOrCreateMake), ctx, tx, makeName)
-}
-
-// PullBlackbookData mocks base method.
-func (m *MockDeviceDefinitionService) PullBlackbookData(ctx context.Context, userDeviceID, deviceDefinitionID, vin string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PullBlackbookData", ctx, userDeviceID, deviceDefinitionID, vin)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// PullBlackbookData indicates an expected call of PullBlackbookData.
-func (mr *MockDeviceDefinitionServiceMockRecorder) PullBlackbookData(ctx, userDeviceID, deviceDefinitionID, vin interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PullBlackbookData", reflect.TypeOf((*MockDeviceDefinitionService)(nil).PullBlackbookData), ctx, userDeviceID, deviceDefinitionID, vin)
 }
 
 // PullDrivlyData mocks base method.

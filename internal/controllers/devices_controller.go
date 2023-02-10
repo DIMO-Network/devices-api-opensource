@@ -19,7 +19,6 @@ type DevicesController struct {
 	settings        *config.Settings
 	dbs             func() *db.ReaderWriter
 	nhtsaSvc        services.INHTSAService
-	edmundsSvc      services.EdmundsService
 	deviceDefSvc    services.DeviceDefinitionService
 	deviceDefIntSvc services.DeviceDefinitionIntegrationService
 	log             *zerolog.Logger
@@ -27,14 +26,12 @@ type DevicesController struct {
 
 // NewDevicesController constructor
 func NewDevicesController(settings *config.Settings, dbs func() *db.ReaderWriter, logger *zerolog.Logger, nhtsaSvc services.INHTSAService, ddSvc services.DeviceDefinitionService, ddIntSvc services.DeviceDefinitionIntegrationService) DevicesController {
-	edmundsSvc := services.NewEdmundsService(settings.TorProxyURL, logger)
 
 	return DevicesController{
 		settings:        settings,
 		dbs:             dbs,
 		nhtsaSvc:        nhtsaSvc,
 		log:             logger,
-		edmundsSvc:      edmundsSvc,
 		deviceDefSvc:    ddSvc,
 		deviceDefIntSvc: ddIntSvc,
 	}

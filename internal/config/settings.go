@@ -15,7 +15,6 @@ type Settings struct {
 	ServiceName                       string      `yaml:"SERVICE_NAME"`
 	JwtKeySetURL                      string      `yaml:"JWT_KEY_SET_URL"`
 	DeploymentBaseURL                 string      `yaml:"DEPLOYMENT_BASE_URL"`
-	TorProxyURL                       string      `yaml:"TOR_PROXY_URL"`
 	SmartcarClientID                  string      `yaml:"SMARTCAR_CLIENT_ID"`
 	SmartcarClientSecret              string      `yaml:"SMARTCAR_CLIENT_SECRET"`
 	SmartcarTestMode                  bool        `yaml:"SMARTCAR_TEST_MODE"`
@@ -55,9 +54,6 @@ type Settings struct {
 	DrivlyVINAPIURL                   string      `yaml:"DRIVLY_VIN_API_URL"`
 	DrivlyOfferAPIURL                 string      `yaml:"DRIVLY_OFFER_API_URL"`
 	DefinitionsGRPCAddr               string      `yaml:"DEFINITIONS_GRPC_ADDR"`
-	BlackbookAPIURL                   string      `yaml:"BLACKBOOK_API_URL"`
-	BlackbookAPIUser                  string      `yaml:"BLACKBOOK_API_USER"`
-	BlackbookAPIPassword              string      `yaml:"BLACKBOOK_API_PASSWORD"`
 	DeviceDefinitionTopic             string      `yaml:"DEVICE_DEFINITION_TOPIC"`
 	DeviceDefinitionMetadataTopic     string      `yaml:"DEVICE_DEFINITION_METADATA_TOPIC"`
 	ElasticDeviceStatusIndex          string      `yaml:"ELASTIC_DEVICE_STATUS_INDEX"`

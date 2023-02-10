@@ -66,7 +66,6 @@ type UserDevicesController struct {
 	autoPiIngestRegistrar     services.IngestRegistrar
 	autoPiTaskService         services.AutoPiTaskService
 	drivlyTaskService         services.DrivlyTaskService
-	blackbookTaskService      services.BlackbookTaskService
 	s3                        *s3.Client
 	producer                  sarama.SyncProducer
 	deviceDefinitionRegistrar services.DeviceDefinitionRegistrar
@@ -121,7 +120,6 @@ func NewUserDevicesController(
 	producer sarama.SyncProducer,
 	s3NFTClient *s3.Client,
 	drivlyTaskService services.DrivlyTaskService,
-	blackbookTaskService services.BlackbookTaskService,
 	autoPi *autopi.Integration,
 ) UserDevicesController {
 	return UserDevicesController{
@@ -143,7 +141,6 @@ func NewUserDevicesController(
 		s3:                        s3NFTClient,
 		producer:                  producer,
 		drivlyTaskService:         drivlyTaskService,
-		blackbookTaskService:      blackbookTaskService,
 		deviceDefinitionRegistrar: deviceDefinitionRegistrar,
 		autoPiIntegration:         autoPi,
 	}
@@ -605,15 +602,7 @@ func (udc *UserDevicesController) createUserDevice(ctx context.Context, deviceDe
 		return nil, errors.Wrapf(err, "error commiting transaction to create geofence")
 	}
 
-	// don't block, as image fetch could take a while
-	go func() {
-		// todo grpc update this service to call device-defintions over grpc to update the image
-		err := udc.DeviceDefSvc.CheckAndSetImage(ctx, dd, false)
-		if err != nil {
-			udc.log.Error().Err(err).Msg("error getting device image upon user_device registration")
-			return
-		}
-	}()
+	// todo call devide definitions to check and pull image for this device in case don't have one
 	err = udc.eventService.Emit(&services.Event{
 		Type:    UserDeviceCreationEventType,
 		Subject: userID,

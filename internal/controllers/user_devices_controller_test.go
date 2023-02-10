@@ -46,19 +46,18 @@ func (f *fakeEventService) Emit(event *services.Event) error {
 
 type UserDevicesControllerTestSuite struct {
 	suite.Suite
-	pdb              db.Store
-	container        testcontainers.Container
-	ctx              context.Context
-	mockCtrl         *gomock.Controller
-	app              *fiber.App
-	deviceDefSvc     *mock_services.MockDeviceDefinitionService
-	deviceDefIntSvc  *mock_services.MockDeviceDefinitionIntegrationService
-	testUserID       string
-	scTaskSvc        *mock_services.MockSmartcarTaskService
-	nhtsaService     *mock_services.MockINHTSAService
-	drivlyTaskSvc    *mock_services.MockDrivlyTaskService
-	blackbookTaskSvc *mock_services.MockBlackbookTaskService
-	scClient         *mock_services.MockSmartcarClient
+	pdb             db.Store
+	container       testcontainers.Container
+	ctx             context.Context
+	mockCtrl        *gomock.Controller
+	app             *fiber.App
+	deviceDefSvc    *mock_services.MockDeviceDefinitionService
+	deviceDefIntSvc *mock_services.MockDeviceDefinitionIntegrationService
+	testUserID      string
+	scTaskSvc       *mock_services.MockSmartcarTaskService
+	nhtsaService    *mock_services.MockINHTSAService
+	drivlyTaskSvc   *mock_services.MockDrivlyTaskService
+	scClient        *mock_services.MockSmartcarClient
 }
 
 // SetupSuite starts container db
@@ -83,7 +82,7 @@ func (s *UserDevicesControllerTestSuite) SetupSuite() {
 	testUserID2 := "3232451"
 	c := NewUserDevicesController(&config.Settings{Port: "3000"}, s.pdb.DBS, logger, s.deviceDefSvc, s.deviceDefIntSvc,
 		&fakeEventService{}, s.scClient, s.scTaskSvc, teslaSvc, teslaTaskService, nil, nil,
-		s.nhtsaService, autoPiIngest, deviceDefinitionIngest, autoPiTaskSvc, nil, nil, s.drivlyTaskSvc, s.blackbookTaskSvc, nil)
+		s.nhtsaService, autoPiIngest, deviceDefinitionIngest, autoPiTaskSvc, nil, nil, s.drivlyTaskSvc, nil)
 	app := test.SetupAppFiber(*logger)
 	app.Post("/user/devices", test.AuthInjectorTestHandler(s.testUserID), c.RegisterDeviceForUser)
 	app.Post("/user/devices/fromvin", test.AuthInjectorTestHandler(s.testUserID), c.RegisterDeviceForUserFromVIN)
@@ -147,7 +146,6 @@ func (s *UserDevicesControllerTestSuite) TestPostUserDeviceFromSmartcar() {
 		Year:               dd[0].Type.Year,
 	}, nil)
 	s.deviceDefSvc.EXPECT().GetDeviceDefinitionByID(gomock.Any(), dd[0].DeviceDefinitionId).Times(1).Return(dd[0], nil)
-	s.deviceDefSvc.EXPECT().CheckAndSetImage(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(nil)
 	request := test.BuildRequest("POST", "/user/devices/fromsmartcar", string(j))
 	response, responseError := s.app.Test(request)
 	fmt.Println(responseError)
@@ -192,7 +190,6 @@ func (s *UserDevicesControllerTestSuite) TestPostUserDeviceFromVIN() {
 		Year:               dd[0].Type.Year,
 	}, nil)
 	s.deviceDefSvc.EXPECT().GetDeviceDefinitionByID(gomock.Any(), dd[0].DeviceDefinitionId).Times(1).Return(dd[0], nil)
-	s.deviceDefSvc.EXPECT().CheckAndSetImage(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(nil)
 	request := test.BuildRequest("POST", "/user/devices/fromvin", string(j))
 	response, responseError := s.app.Test(request)
 	fmt.Println(responseError)
@@ -233,7 +230,6 @@ func (s *UserDevicesControllerTestSuite) TestPostWithExistingDefinitionID() {
 	j, _ := json.Marshal(reg)
 
 	s.deviceDefSvc.EXPECT().GetDeviceDefinitionByID(gomock.Any(), dd[0].DeviceDefinitionId).Times(1).Return(dd[0], nil)
-	s.deviceDefSvc.EXPECT().CheckAndSetImage(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(nil)
 	request := test.BuildRequest("POST", "/user/devices", string(j))
 	response, responseError := s.app.Test(request)
 	fmt.Println(responseError)

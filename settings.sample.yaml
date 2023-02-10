@@ -11,7 +11,6 @@ DB:
   MAX_IDLE_CONNECTIONS: 5
 SERVICE_NAME: devices-api
 JWT_KEY_SET_URL: http://127.0.0.1:5556/dex/keys
-TOR_PROXY_URL:
 KAFKA_BROKERS: localhost:9092
 INGEST_SMARTCAR_TOPIC: topic.interface.ingest.smartcar
 DEVICE_STATUS_TOPIC: topic.device.status
@@ -42,9 +41,6 @@ DRIVLY_API_KEY: xxx
 DEFINITIONS_GRPC_ADDR: localhost:8086
 DEVICE_DEFINITION_TOPIC: table.device.definition
 DEVICE_DEFINITION_METADATA_TOPIC: table.device.definition.metadata
-BLACKBOOK_API_URL: https://service.blackbookcloud.com/UsedCarWS/UsedCarWS
-BLACKBOOK_API_USER:
-BLACKBOOK_API_PASSWORD:
 ELASTIC_DEVICE_STATUS_INDEX: device-status-local-*
 ELASTIC_SEARCH_ENRICH_STATUS_HOST: http://localhost:9200
 ELASTIC_SEARCH_ENRICH_STATUS_USERNAME:

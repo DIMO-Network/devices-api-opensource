@@ -1,5 +1,8 @@
 # devices-api
-Api for managing devices on the DIMO platform.
+
+API & worker for managing devices on the DIMO platform.
+
+For an overview of the project, see the [DIMO technical documentation site.](https://docs.dimo.zone/docs/overview/intro)
 
 ## Table of contents
 
@@ -59,22 +62,12 @@ go run ./cmd/devices-api
    ```sh
    go run ./cmd/devices-api
    ```
-
 It may be helpful to seed the database with test data:
 
-6. Scrape device definitions from Edmunds:
-   ```sh
-   go run ./cmd/devices-api edmunds-vehicles-sync --mergemmy
-   ```
-7. Sync Smartcar integration compatibility:
+8. Sync Smartcar integration compatibility:
    ```sh
    go run ./cmd/devices-api smartcar-sync
    ```
-8. Scrape vehicle images from edmunds:
-   ```sh
-   go run ./cmd/devices-api edmunds-images [--overwrite]
-   ```
-
 Finally, if you want to test document uploads:
 
 9. Execute the following command to point the AWS CLI at LocalStack:
@@ -175,24 +168,12 @@ kc exec devices-api-dev-65f8f47ff5-94dp4 -n dev -it -- /bin/sh
 To regenerate a mock, you can use go gen since the files that are mocked have a `//go:generate mockgen ...` at the top. For example:
 `nhtsa_api_service.go`
 
-## Helm requirements
-
-* cf-credentials
-  ```sh
-    aws secretsmanager create-secret --name infra/cf-credentials/email --description "Cloudflare email" --secret-string "xxx@xxx.xxx"
-    aws secretsmanager create-secret --name infra/cf-credentials/token --description "Cloudflare token" --secret-string "XXXXXX"
-    ----------------
-     kubectl create secret generic cf-credentials --from-literal=email='XXX@XXX.XXX' --from-literal=token='XXX' -n infra
-  ```
-  
 ## API
 
-Endpoints as curl commands:
+Swagger docs at: http://localhost:3000/v1/swagger/index.html
+
+Example curl commands:
 ```bash
-curl http://localhost:3000/v1/device-definitions/all -w '\n%{time_starttransfer}\n' -v
-curl 'http://localhost:3000/v1/device-definitions?make=TESLA&model=MODEL%20Y&year=2021'
-curl http://localhost:3000/v1/device-definitions/:id
-curl http://localhost:3000/v1/device-definitions/:id/integrations
 curl http://localhost:3000/v1/user/devices/me
   -H "Authorization: Bearer {token}"
 curl -X POST http://localhost:3000/v1/user/devices
@@ -207,10 +188,6 @@ Some test VINs:
 5YJYGDEE5MF085533
 5YJ3E1EA6MF873863
 
-Higher level env hosts:
-https://devices-api.dev.dimo.zone
-https://devices-api.dimo.zone
-
 ### Generating swagger / openapi spec
 
 Note that swagger must be served from fiber-swagger library v2.31.1 +, since they fixed an issue in previous version. 
@@ -224,12 +201,11 @@ swag init -g cmd/devices-api/main.go --parseDependency --parseInternal --generat
 
 [declarative_comments_format](https://swaggo.github.io/swaggo.io/declarative_comments_format/)
 
-
-## Testing file upload
+### Testing file upload
 
 Replace the file with a file in your system, userDeviceID to one your account controls, and the Authorization header token to yours - get from mobile app
 ```bash
-curl -X POST -F "file=@./admin-bug-filter2.gif" -F "name=test file" -F "type=VehicleMaintenance" -F "userDeviceID=2Bz5Wv4icb5Il1vBsaFjJKeILN7" \
+curl -X POST -F "file=@./some-test-image.png" -F "name=test file" -F "type=VehicleMaintenance" -F "userDeviceID=2Bz5Wv4icb5Il1vBsaFjJKeILN7" \
 -H "Authorization: Bearer XXX" \
 -H "content-type: application/x-www-form-urlencoded" \
 https://devices-api.dimo.zone/v1/documents
