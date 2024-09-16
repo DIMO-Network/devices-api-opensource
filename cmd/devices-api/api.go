@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/DIMO-Network/devices-api/internal/config"
 	"github.com/DIMO-Network/devices-api/internal/constants"
@@ -41,7 +40,6 @@ import (
 	"github.com/goccy/go-json"
 	jwtware "github.com/gofiber/contrib/jwt"
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cache"
 	fiberrecover "github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/swagger"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -154,14 +152,6 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb db.Store,
 		EnableStackTrace:  true,
 		StackTraceHandler: nil,
 	}))
-
-	cacheHandler := cache.New(cache.Config{
-		Next: func(c *fiber.Ctx) bool {
-			return c.Query("refresh") == "true"
-		},
-		Expiration:   1 * time.Minute,
-		CacheControl: true,
-	})
 
 	// application routes
 	app.Get("/", healthCheck)
