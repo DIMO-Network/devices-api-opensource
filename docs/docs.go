@@ -15,37 +15,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/aftermarket/device/by-address/{address}": {
-            "get": {
-                "description": "Retrieves NFT metadata for a given aftermarket device, using the device's\nEthereum address.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "nfts"
-                ],
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Ethereum address for the device.",
-                        "name": "address",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    }
-                }
-            }
-        },
         "/aftermarket/device/by-serial/{serial}": {
             "get": {
                 "security": [
@@ -166,65 +135,6 @@ const docTemplate = `{
                 "responses": {
                     "204": {
                         "description": "No Content"
-                    }
-                }
-            }
-        },
-        "/aftermarket/device/{tokenId}": {
-            "get": {
-                "description": "Retrieves NFT metadata for a given aftermarket device.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "nfts"
-                ],
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "token id",
-                        "name": "tokenId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    }
-                }
-            }
-        },
-        "/aftermarket/device/{tokenId}/image": {
-            "get": {
-                "description": "Returns the image for the given aftermarket device NFT.",
-                "produces": [
-                    "image/png"
-                ],
-                "tags": [
-                    "nfts"
-                ],
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "token id",
-                        "name": "tokenId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "404": {
-                        "description": "Not Found"
                     }
                 }
             }
@@ -465,28 +375,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/integration/{tokenID}": {
-            "get": {
-                "description": "gets an integration using its tokenID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "integrations"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/integration/{tokenID}/credentials": {
             "post": {
                 "security": [
@@ -531,37 +419,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/internal_controllers.CompleteOAuthExchangeResponseWrapper"
                         }
-                    }
-                }
-            }
-        },
-        "/synthetic/device/{tokenId}": {
-            "get": {
-                "description": "Retrieves NFT metadata for a given synthetic device.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "nfts"
-                ],
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "token id",
-                        "name": "tokenId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found"
                     }
                 }
             }
@@ -2138,71 +1995,6 @@ const docTemplate = `{
                     }
                 }
             }
-        },
-        "/vehicle/{tokenId}": {
-            "get": {
-                "description": "retrieves NFT metadata for a given tokenID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "nfts"
-                ],
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "token id",
-                        "name": "tokenId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/internal_controllers.NFTMetadataResp"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    }
-                }
-            }
-        },
-        "/vehicle/{tokenId}/image": {
-            "get": {
-                "description": "Returns the image for the given vehicle NFT.",
-                "produces": [
-                    "image/png"
-                ],
-                "tags": [
-                    "nfts"
-                ],
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "token id",
-                        "name": "tokenId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "whether to remove the image background",
-                        "name": "transparent",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    }
-                }
-            }
         }
     },
     "definitions": {
@@ -2978,17 +2770,6 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_controllers.NFTAttribute": {
-            "type": "object",
-            "properties": {
-                "trait_type": {
-                    "type": "string"
-                },
-                "value": {
-                    "type": "string"
-                }
-            }
-        },
         "internal_controllers.NFTImageData": {
             "type": "object",
             "required": [
@@ -3001,26 +2782,6 @@ const docTemplate = `{
                 },
                 "imageDataTransparent": {
                     "description": "ImageDataTransparent contains the base64-encoded NFT PNG image\nwith a transparent background, for use in the app. For compatibility\nwith older versions it is not required.",
-                    "type": "string"
-                }
-            }
-        },
-        "internal_controllers.NFTMetadataResp": {
-            "type": "object",
-            "properties": {
-                "attributes": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_controllers.NFTAttribute"
-                    }
-                },
-                "description": {
-                    "type": "string"
-                },
-                "image": {
-                    "type": "string"
-                },
-                "name": {
                     "type": "string"
                 }
             }

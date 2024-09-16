@@ -531,13 +531,6 @@ definitions:
           $ref: '#/definitions/internal_controllers.UserDeviceFull'
         type: array
     type: object
-  internal_controllers.NFTAttribute:
-    properties:
-      trait_type:
-        type: string
-      value:
-        type: string
-    type: object
   internal_controllers.NFTImageData:
     properties:
       imageData:
@@ -551,19 +544,6 @@ definitions:
         type: string
     required:
     - imageData
-    type: object
-  internal_controllers.NFTMetadataResp:
-    properties:
-      attributes:
-        items:
-          $ref: '#/definitions/internal_controllers.NFTAttribute'
-        type: array
-      description:
-        type: string
-      image:
-        type: string
-      name:
-        type: string
     type: object
   internal_controllers.Privilege:
     properties:
@@ -907,66 +887,6 @@ info:
   title: DIMO Devices API
   version: "1.0"
 paths:
-  /aftermarket/device/{tokenId}:
-    get:
-      description: Retrieves NFT metadata for a given aftermarket device.
-      parameters:
-      - description: token id
-        in: path
-        name: tokenId
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/internal_controllers.NFTMetadataResp'
-        "404":
-          description: Not Found
-      tags:
-      - nfts
-  /aftermarket/device/{tokenId}/image:
-    get:
-      description: Returns the image for the given aftermarket device NFT.
-      parameters:
-      - description: token id
-        in: path
-        name: tokenId
-        required: true
-        type: integer
-      produces:
-      - image/png
-      responses:
-        "200":
-          description: OK
-        "404":
-          description: Not Found
-      tags:
-      - nfts
-  /aftermarket/device/by-address/{address}:
-    get:
-      description: |-
-        Retrieves NFT metadata for a given aftermarket device, using the device's
-        Ethereum address.
-      parameters:
-      - description: Ethereum address for the device.
-        in: path
-        name: address
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/internal_controllers.NFTMetadataResp'
-        "404":
-          description: Not Found
-      tags:
-      - nfts
   /aftermarket/device/by-serial/{serial}:
     get:
       description: Gets the information about the aftermarket device by serial number.
@@ -1195,20 +1115,6 @@ paths:
       - BearerAuth: []
       tags:
       - documents
-  /integration/{tokenID}:
-    get:
-      description: gets an integration using its tokenID
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/internal_controllers.NFTMetadataResp'
-            type: array
-      tags:
-      - integrations
   /integration/{tokenID}/credentials:
     post:
       consumes:
@@ -1238,26 +1144,6 @@ paths:
       - BearerAuth: []
       tags:
       - user-devices
-  /synthetic/device/{tokenId}:
-    get:
-      description: Retrieves NFT metadata for a given synthetic device.
-      parameters:
-      - description: token id
-        in: path
-        name: tokenId
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/internal_controllers.NFTMetadataResp'
-        "404":
-          description: Not Found
-      tags:
-      - nfts
   /user/devices:
     post:
       consumes:
@@ -2270,48 +2156,6 @@ paths:
       - device
       - integration
       - command
-  /vehicle/{tokenId}:
-    get:
-      description: retrieves NFT metadata for a given tokenID
-      parameters:
-      - description: token id
-        in: path
-        name: tokenId
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/internal_controllers.NFTMetadataResp'
-        "404":
-          description: Not Found
-      tags:
-      - nfts
-  /vehicle/{tokenId}/image:
-    get:
-      description: Returns the image for the given vehicle NFT.
-      parameters:
-      - description: token id
-        in: path
-        name: tokenId
-        required: true
-        type: integer
-      - description: whether to remove the image background
-        in: query
-        name: transparent
-        type: boolean
-      produces:
-      - image/png
-      responses:
-        "200":
-          description: OK
-        "404":
-          description: Not Found
-      tags:
-      - nfts
 securityDefinitions:
   BearerAuth:
     in: header
