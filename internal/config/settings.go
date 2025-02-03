@@ -3,6 +3,7 @@ package config
 import (
 	"github.com/DIMO-Network/clickhouse-infra/pkg/connect/config"
 	"github.com/DIMO-Network/shared/db"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // Settings contains the application config
@@ -106,6 +107,12 @@ type Settings struct {
 	DeviceDefinitionsGetByKSUIDEndpoint string `yaml:"DEVICE_DEFINITIONS_GET_BY_KSUID_ENDPOINT"`
 
 	TeslaRequiredScopes string `json:"TESLA_REQUIRED_SCOPES"`
+
+	SACDPermissionValue int64          `json:"SACD_PERMISSION_VALUE"`
+	SACDPermissionArr   []string       `json:"SACD_PERMISSIONS_ARR"`
+	SACDGrantee         common.Address `json:"SACD_GRANTEE"`
+	DIMOAppName         string         `json:"DIMO_APP_NAME"`
+	DIMOAppID           string         `json:"DIMO_APP_ID"`
 }
 
 func (s *Settings) IsProduction() bool {

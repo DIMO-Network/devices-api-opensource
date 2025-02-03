@@ -93,7 +93,7 @@ func startWebAPI(logger zerolog.Logger, settings *config.Settings, pdb db.Store,
 	ddIntSvc := services.NewDeviceDefinitionIntegrationService(pdb.DBS, settings)
 	ddSvc := services.NewDeviceDefinitionService(pdb.DBS, &logger, settings)
 	ddaSvc := services.NewDeviceDataService(settings.DeviceDataGRPCAddr, &logger)
-	ipfsSvc, err := ipfs.NewGateway(settings)
+	ipfsSvc, err := ipfs.NewGateway(settings, &logger)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error creating IPFS client.")
 	}

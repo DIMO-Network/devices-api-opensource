@@ -50,7 +50,7 @@ func TestIPFSUpload_Success(t *testing.T) {
 	ctx := context.Background()
 	ipfs, err := NewGateway(&config.Settings{
 		IPFSURL: serv.URL,
-	})
+	}, nil)
 	require.NoError(err)
 
 	cid, err := ipfs.UploadImage(ctx, fullImgData)

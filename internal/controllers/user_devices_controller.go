@@ -1555,6 +1555,11 @@ func (udc *UserDevicesController) PostMintDevice(c *fiber.Ctx) error {
 				return err
 			}
 
+			// TODO(ae) upload to ipfs
+			// udc.ipfsSvc.UploadSACD()
+
+			source, err := udc.ipfsSvc.UploadSACD(context.TODO(), mvs.Owner.Hex())
+
 			return client.MintVehicleAndSdWithDeviceDefinitionSign(requestID, contracts.MintVehicleAndSdWithDdInput{
 				ManufacturerNode:     mvs.ManufacturerNode,
 				Owner:                mvs.Owner,
@@ -1565,7 +1570,13 @@ func (udc *UserDevicesController) PostMintDevice(c *fiber.Ctx) error {
 				SyntheticDeviceAddr:  common.BytesToAddress(addr),
 				AttrInfoPairsVehicle: attrListsToAttrPairs(mvs.Attributes, mvs.Infos),
 				AttrInfoPairsDevice:  []contracts.AttributeInfoPair{},
-			})
+			},
+				contracts.SacdInput{
+					Grantee:     udc.Settings.SACDGrantee,
+					Source:      string(source),
+					Permissions: big.NewInt(udc.Settings.SACDPermissionValue),
+					Expiration:  big.NewInt(2933125200), //TODO: settings
+				})
 		}
 	}
 
